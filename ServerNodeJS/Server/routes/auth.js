@@ -8,7 +8,8 @@ const {
   updateProfile,
   changePassword,
   refreshToken,
-  uploadAvatar
+  uploadAvatar,
+  deleteAccount
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
@@ -103,5 +104,6 @@ router.put('/profile', updateProfileValidation, updateProfile);
 router.put('/change-password', changePasswordValidation, changePassword);
 router.post('/refresh', refreshToken);
 router.post('/upload-avatar', uploadAvatar);
+router.delete('/me', deleteAccount);
 
 module.exports = router;

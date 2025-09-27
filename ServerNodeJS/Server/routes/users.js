@@ -11,7 +11,8 @@ const {
   reportUser,
   getUserFriends,
   removeFriend,
-  setActive
+  setActive,
+  updateRole
 } = require('../controllers/userController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { createUser, updateUser: adminUpdateUser, deleteUser: adminDeleteUser, setRole, resetPassword } = require('../controllers/adminUserController');
@@ -76,6 +77,11 @@ router.get('/search', searchValidation, searchUsers);
 router.get('/stats', adminOnly, getUserStats);
 
 router.put('/status', updateStatusValidation, updateStatus);
+
+// User can change their own role (with restrictions)
+router.put('/me/role', [
+  body('role').isIn(['user', 'admin', 'moderator']).withMessage('Invalid role')
+], updateRole);
 
 // Admin-only CRUD & role/password management (placed before param routes to avoid ambiguity)
 router.post('/', adminOnly, [

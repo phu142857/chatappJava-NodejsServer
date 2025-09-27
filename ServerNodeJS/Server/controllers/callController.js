@@ -759,9 +759,9 @@ const getAllCalls = async (req, res) => {
             return {
                 ...callObj,
                 participants: callObj.participants.map(p => ({
-                    userId: p.userId._id,
-                    username: p.userId.username,
-                    avatar: p.userId.avatar,
+                    userId: p.userId ? (p.userId._id || p.userId) : null,
+                    username: p.userId ? (p.userId.username || 'Unknown') : 'Unknown',
+                    avatar: p.userId ? (p.userId.avatar || '') : '',
                     joinedAt: p.joinedAt,
                     leftAt: p.leftAt,
                     status: p.status

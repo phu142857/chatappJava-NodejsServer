@@ -33,6 +33,7 @@ const auditLogSchema = new mongoose.Schema({
       'LEAVE_GROUP',
       'UPLOAD_FILE',
       'DELETE_FILE',
+      'DELETE_ACCOUNT',
       'OTHER'
     ]
   },

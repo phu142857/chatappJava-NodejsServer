@@ -8,9 +8,11 @@ import FriendRequests from './pages/FriendRequests';
 import Calls from './pages/Calls';
 import Security from './pages/Security';
 import Statistics from './pages/Statistics';
+import Profile from './pages/Profile';
+import UserChats from './pages/UserChats';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
-import { RequireAuth, RequireGuest } from './components/guards';
+import { RequireAuth, RequireGuest, RequireAdmin, RequireUserOrAdmin } from './components/guards';
 
 const router = createBrowserRouter([
   {
@@ -29,14 +31,89 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: 'users', element: <Users /> },
-      { path: 'chats', element: <Chats /> },
-      { path: 'groups', element: <Groups /> },
-      { path: 'friend-requests', element: <FriendRequests /> },
-      { path: 'calls', element: <Calls /> },
-      { path: 'security', element: <Security /> },
-      { path: 'statistics', element: <Statistics /> },
+      // Admin-only routes
+      { 
+        index: true, 
+        element: (
+          <RequireAdmin>
+            <Dashboard />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'users', 
+        element: (
+          <RequireAdmin>
+            <Users />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'chats', 
+        element: (
+          <RequireAdmin>
+            <Chats />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'groups', 
+        element: (
+          <RequireAdmin>
+            <Groups />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'friend-requests', 
+        element: (
+          <RequireAdmin>
+            <FriendRequests />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'calls', 
+        element: (
+          <RequireAdmin>
+            <Calls />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'security', 
+        element: (
+          <RequireAdmin>
+            <Security />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'statistics', 
+        element: (
+          <RequireAdmin>
+            <Statistics />
+          </RequireAdmin>
+        ) 
+      },
+      
+      // User and Admin routes
+      { 
+        path: 'profile', 
+        element: (
+          <RequireUserOrAdmin>
+            <Profile />
+          </RequireUserOrAdmin>
+        ) 
+      },
+      { 
+        path: 'my-chats', 
+        element: (
+          <RequireUserOrAdmin>
+            <UserChats />
+          </RequireUserOrAdmin>
+        ) 
+      },
     ],
   },
   { path: '*', element: <NotFound /> },

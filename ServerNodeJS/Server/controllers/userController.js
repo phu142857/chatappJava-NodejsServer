@@ -530,6 +530,89 @@ const removeFriend = async (req, res) => {
 };
 
 
+// @desc    Update user role
+// @route   PUT /api/users/:id/role or PUT /api/users/me/role
+// @access  Private (Admin or self)
+const updateRole = async (req, res) => {
+  try {
+    // Handle both /users/:id/role and /users/me/role routes
+    const { id } = req.params;
+    const { role } = req.body;
+    const currentUserId = req.user.id;
+    const currentUserRole = req.user.role;
+    
+    // If id is 'me', use current user's ID
+    const targetUserId = id === 'me' ? currentUserId : id;
+
+    // Validate role
+    const validRoles = ['user', 'admin', 'moderator'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be user, admin, or moderator'
+      });
+    }
+
+    // Find user
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check permissions
+    const isAdmin = currentUserRole === 'admin';
+    const isSelf = currentUserId === targetUserId;
+    
+    if (!isAdmin && !isSelf) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only change your own role or need admin privileges'
+      });
+    }
+
+    // Prevent non-admin from promoting themselves to admin
+    if (!isAdmin && role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admins can promote users to admin role'
+      });
+    }
+
+    // Store old role for audit
+    const oldRole = user.role;
+
+    // Update role
+    user.role = role;
+    await user.save();
+
+    // Log the action
+    const action = 'CHANGE_ROLE';
+    const details = `Changed role from ${oldRole} to ${role}${isSelf ? ' (self-change)' : ''}`;
+    await logAuditAction(currentUserId, action, 'User', details, req.ip);
+
+    // Always require reauth when role is changed (for security)
+    return res.json({
+      success: true,
+      message: isSelf ? 
+        'Role updated successfully. Please log in again to apply changes.' : 
+        'User role updated successfully. The user will need to log in again to apply changes.',
+      data: { user: user.toJSON() },
+      requireReauth: true, // Flag to indicate client should logout
+      targetUserId: targetUserId // ID of user whose role was changed
+    });
+
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating user role'
+    });
+  }
+};
+
 // Helper function to log audit actions
 const logAuditAction = async (userId, action, resource, details, ipAddress) => {
   try {
@@ -557,5 +640,6 @@ module.exports = {
   reportUser,
   getUserFriends,
   removeFriend,
-  setActive
+  setActive,
+  updateRole
 };

@@ -4,7 +4,7 @@ import { PhoneOutlined, VideoCameraOutlined, UserOutlined } from '@ant-design/ic
 import apiClient from '../api/client';
 
 type CallParticipant = {
-  userId: string;
+  userId: string | { _id: string } | null;
   username: string;
   avatar?: string;
   joinedAt: string;
@@ -196,7 +196,12 @@ export default function Calls() {
                         <Typography.Text strong>{participant.username}</Typography.Text>
                         <br/>
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          ID: {participant.userId}
+                          ID: {participant.userId ? 
+                            (typeof participant.userId === 'object' ? 
+                              (participant.userId as any)._id || String(participant.userId) : 
+                              String(participant.userId)
+                            ) : 'N/A'
+                          }
                         </Typography.Text>
                       </div>
                       <div style={{ textAlign: 'right' }}>

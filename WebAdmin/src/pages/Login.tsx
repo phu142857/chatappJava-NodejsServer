@@ -23,6 +23,7 @@ export default function Login() {
       const { data } = await apiClient.post<LoginResponse>('/auth/login', values);
       if (data?.success && data?.data?.token) {
         localStorage.setItem(STORAGE_KEYS.accessToken, data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
         message.success('Login successful');
         navigate('/');
       } else {
@@ -38,7 +39,7 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Card style={{ width: 380 }}>
-        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>Admin Login</Typography.Title>
+        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>Login</Typography.Title>
         <Form layout="vertical" onFinish={onFinish}>
           <Form.Item label="Email" name="email" rules={[{ required: true, message: 'Please enter email' }, { type: 'email', message: 'Invalid email' }]}>
             <Input placeholder="admin@example.com" autoComplete="email" />

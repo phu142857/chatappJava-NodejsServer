@@ -240,11 +240,32 @@ export default function Users() {
 
       <Modal title={`Change Role: ${roleOpen?.username}`} open={!!roleOpen} onCancel={() => setRoleOpen(null)} onOk={() => roleForm.submit()} confirmLoading={loading}>
         <Form layout="vertical" form={roleForm} onFinish={async (values) => {
-          await apiClient.put(`/users/${roleOpen?._id}/role`, { role: values.role });
-          messageApi.success('Role changed');
-          setData(prev => prev.map(u => u._id === roleOpen?._id ? { ...u, role: values.role } : u));
-          setRoleOpen(null);
-          await fetchUsers(page, pageSize, search);
+          try {
+            const response = await apiClient.put(`/users/${roleOpen?._id}/role`, { role: values.role });
+            
+            if (response.data.requireReauth) {
+              // Check if the role change affects current user
+              const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+              if (response.data.targetUserId === currentUser._id) {
+                // Current user's role was changed, force logout
+                messageApi.success('Your role has been changed. Please log in again.');
+                localStorage.clear();
+                window.location.href = '/login';
+                return;
+              } else {
+                // Another user's role was changed
+                messageApi.success('Role changed. The user will need to log in again.');
+              }
+            } else {
+              messageApi.success('Role changed');
+            }
+            
+            setData(prev => prev.map(u => u._id === roleOpen?._id ? { ...u, role: values.role } : u));
+            setRoleOpen(null);
+            await fetchUsers(page, pageSize, search);
+          } catch (error: any) {
+            messageApi.error(error?.response?.data?.message || 'Failed to change role');
+          }
         }}>
           <Form.Item label="Role" name="role" rules={[{ required: true }]}>
             <Select options={[{ value: 'user', label: 'User' }, { value: 'moderator', label: 'Moderator' }, { value: 'admin', label: 'Admin' }]} />

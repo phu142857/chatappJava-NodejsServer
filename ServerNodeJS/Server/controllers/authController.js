@@ -439,6 +439,59 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+// @desc    Delete current user account
+// @route   DELETE /api/auth/me
+// @access  Private
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Find user to get username for audit log
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete user account
+    await User.findByIdAndDelete(userId);
+
+    // Log the action
+    await logAuditAction(userId, 'DELETE_ACCOUNT', 'User', `User ${user.username} deleted their own account`, req.ip);
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during account deletion'
+    });
+  }
+};
+
+// Helper function to log audit actions
+const logAuditAction = async (userId, action, resource, details, ipAddress) => {
+  try {
+    const AuditLog = require('../models/AuditLog');
+    const auditLog = new AuditLog({
+      user: userId,
+      action,
+      resource,
+      details,
+      ipAddress
+    });
+    await auditLog.save();
+  } catch (error) {
+    console.error('Error logging audit action:', error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -447,5 +500,6 @@ module.exports = {
   updateProfile,
   changePassword,
   refreshToken,
-  uploadAvatar
+  uploadAvatar,
+  deleteAccount
 };

@@ -1,22 +1,44 @@
 import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Typography } from 'antd';
-import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined } from '@ant-design/icons';
+import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS } from '../config';
+import { useState, useEffect } from 'react';
+import { useRoleCheck } from '../hooks/useRoleCheck';
 
 const { Header, Sider, Content } = Layout;
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [userRole, setUserRole] = useState<string>('user');
+  const [userInfo, setUserInfo] = useState<any>(null);
+  
+  // Check for role changes
+  useRoleCheck();
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserInfo(user);
+        setUserRole(user.role || 'user');
+      } catch (error) {
+        console.error('Failed to parse user info:', error);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem(STORAGE_KEYS.accessToken);
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
   const selectedKey = location.pathname === '/' ? '/' : `/${location.pathname.split('/')[1]}`;
 
-  const menuItems = [
+  // Admin menu items
+  const adminMenuItems = [
     { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Dashboard</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Users</Link> },
     { key: '/chats', icon: <MessageOutlined />, label: <Link to="/chats">Chats & Messages</Link> },
@@ -26,6 +48,14 @@ export default function AdminLayout() {
     { key: '/security', icon: <SecurityScanOutlined />, label: <Link to="/security">Security</Link> },
     { key: '/statistics', icon: <BarChartOutlined />, label: <Link to="/statistics">Statistics</Link> },
   ];
+
+  // User menu items
+  const userMenuItems = [
+    { key: '/profile', icon: <ProfileOutlined />, label: <Link to="/profile">My Profile</Link> },
+    { key: '/my-chats', icon: <MessageOutlined />, label: <Link to="/my-chats">My Chats</Link> },
+  ];
+
+  const menuItems = userRole === 'admin' ? adminMenuItems : userMenuItems;
 
   const breadcrumbItems = location.pathname
     .split('/').filter(Boolean)
@@ -38,7 +68,9 @@ export default function AdminLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsible>
-        <div style={{ height: 48, margin: 16, color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center' }}>WebAdmin</div>
+        <div style={{ height: 48, margin: 16, color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+          {userRole === 'admin' ? 'WebAdmin' : 'My Account'}
+        </div>
         <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
       </Sider>
       <Layout>
@@ -52,8 +84,10 @@ export default function AdminLayout() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-              <Avatar size={32} icon={<UserOutlined />} />
-              <Typography.Text strong>Admin</Typography.Text>
+              <Avatar size={32} src={userInfo?.avatar} icon={<UserOutlined />} />
+              <Typography.Text strong>
+                {userInfo?.username || 'User'} ({userRole})
+              </Typography.Text>
             </div>
           </Dropdown>
         </Header>
