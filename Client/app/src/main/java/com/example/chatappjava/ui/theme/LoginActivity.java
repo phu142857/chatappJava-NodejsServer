@@ -7,10 +7,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.chatappjava.R;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.ErrorHandler;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;
@@ -178,14 +180,101 @@ public class LoginActivity extends AppCompatActivity {
                 navigateToMainActivity();
                 
             } else {
-                String message = jsonResponse.optString("message", "Login failed");
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                // Handle login errors with detailed account status
+                handleLoginError(statusCode, responseBody);
             }
             
         } catch (JSONException e) {
             e.printStackTrace(); // Log the actual error for debugging
             Toast.makeText(this, "Data processing error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    private void handleLoginError(int statusCode, String responseBody) {
+        try {
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            String message = jsonResponse.optString("message", "Login failed");
+            String accountStatus = jsonResponse.optString("accountStatus", "");
+            String details = jsonResponse.optString("details", "");
+            
+            if (statusCode == 403) {
+                // Handle account locked
+                if ("locked".equals(accountStatus)) {
+                    showAccountStatusDialog(
+                        "🔒 Account Locked",
+                        message,
+                        details.isEmpty() ? 
+                            "Your account has been locked by an administrator.\nPlease contact support for assistance." : details,
+                        false
+                    );
+                } else {
+                    showAccountStatusDialog("🚫 Access Denied", message, details, false);
+                }
+                
+            } else if (statusCode == 401) {
+                // Handle authentication errors
+                if ("not_found".equals(accountStatus)) {
+                    showAccountStatusDialog(
+                        "❓ Account Not Found",
+                        message,
+                        details.isEmpty() ? 
+                            "No account found with this email address.\nPlease check your email or register for a new account." : details,
+                        false
+                    );
+                    
+                } else if ("active".equals(accountStatus)) {
+                    showAccountStatusDialog(
+                        "🔑 Incorrect Password",
+                        message,
+                        details.isEmpty() ? 
+                            "The password you entered is incorrect.\nPlease try again or use the forgot password feature." : details,
+                        false
+                    );
+                } else {
+                    showAccountStatusDialog("🔒 Authentication Failed", message, details, false);
+                }
+                
+            } else {
+                // Other errors
+                showAccountStatusDialog("⚠️ Login Error", message, details, false);
+            }
+            
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error processing response: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showAccountStatusDialog(String title, String message, String details, boolean isSuccess) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        
+        StringBuilder content = new StringBuilder(message);
+        if (!details.isEmpty()) {
+            content.append("\n\n").append(details);
+        }
+        
+        builder.setMessage(content.toString());
+        
+        if (isSuccess) {
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                dialog.dismiss();
+                navigateToMainActivity();
+            });
+        } else {
+            builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
+            
+            // Add "Forgot Password" button for password errors
+            if (message.toLowerCase().contains("password")) {
+                builder.setNeutralButton("Forgot Password?", (dialog, which) -> {
+                    // TODO: Implement forgot password functionality
+                    Toast.makeText(this, "Forgot password feature coming soon!", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
+        
+        builder.setCancelable(false);
+        builder.show();
     }
     
     private void showLoading(boolean show) {

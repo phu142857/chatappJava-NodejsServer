@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Space, Typography, Alert, Tabs, Avatar } from 'antd';
 import { 
-  UserDeleteOutlined, 
   BlockOutlined, 
   UnlockOutlined,
   EyeOutlined
@@ -10,15 +9,6 @@ import apiClient from '../api/client';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-
-interface BlockedUser {
-  _id: string;
-  username: string;
-  email: string;
-  reason: string;
-  blockedAt: string;
-  blockedBy: string;
-}
 
 interface BlockedIP {
   _id: string;
@@ -39,13 +29,10 @@ interface AuditLog {
 }
 
 export default function Security() {
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [blockedIPs, setBlockedIPs] = useState<BlockedIP[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
-  const [blockUserModal, setBlockUserModal] = useState(false);
   const [blockIPModal, setBlockIPModal] = useState(false);
-  const [form] = Form.useForm();
   const [ipForm] = Form.useForm();
 
   useEffect(() => {
@@ -55,30 +42,17 @@ export default function Security() {
   const fetchSecurityData = async () => {
     try {
       setLoading(true);
-      const [usersRes, ipsRes, logsRes] = await Promise.all([
-        apiClient.get('/security/blocked-users'),
+      const [ipsRes, logsRes] = await Promise.all([
         apiClient.get('/security/blocked-ips'),
         apiClient.get('/security/audit-logs')
       ]);
 
-      setBlockedUsers(usersRes.data.data);
       setBlockedIPs(ipsRes.data.data);
       setAuditLogs(logsRes.data.data);
     } catch (error) {
       console.error('Failed to fetch security data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleBlockUser = async (values: any) => {
-    try {
-      await apiClient.post('/security/block-user', values);
-      setBlockUserModal(false);
-      form.resetFields();
-      fetchSecurityData();
-    } catch (error) {
-      console.error('Failed to block user:', error);
     }
   };
 
@@ -93,15 +67,6 @@ export default function Security() {
     }
   };
 
-  const handleUnblockUser = async (userId: string) => {
-    try {
-      await apiClient.delete(`/security/blocked-users/${userId}`);
-      fetchSecurityData();
-    } catch (error) {
-      console.error('Failed to unblock user:', error);
-    }
-  };
-
   const handleUnblockIP = async (ipId: string) => {
     try {
       await apiClient.delete(`/security/blocked-ips/${ipId}`);
@@ -111,31 +76,6 @@ export default function Security() {
     }
   };
 
-  const blockedUserColumns = [
-    { title: 'Username', dataIndex: 'username', key: 'username' },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Reason', dataIndex: 'reason', key: 'reason' },
-    { 
-      title: 'Blocked At', 
-      dataIndex: 'blockedAt', 
-      key: 'blockedAt',
-      render: (date: string) => new Date(date).toLocaleString()
-    },
-    { title: 'Blocked By', dataIndex: 'blockedBy', key: 'blockedBy' },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: BlockedUser) => (
-        <Button
-          type="primary"
-          icon={<UnlockOutlined />}
-          onClick={() => handleUnblockUser(record._id)}
-        >
-          Unblock
-        </Button>
-      )
-    }
-  ];
 
   const blockedIPColumns = [
     { title: 'IP Address', dataIndex: 'ip', key: 'ip' },
@@ -152,6 +92,7 @@ export default function Security() {
       key: 'actions',
       render: (_: any, record: BlockedIP) => (
         <Button
+          key={`unblock-ip-${record._id}`}
           type="primary"
           icon={<UnlockOutlined />}
           onClick={() => handleUnblockIP(record._id)}
@@ -168,7 +109,7 @@ export default function Security() {
       dataIndex: 'user', 
       key: 'user',
       render: (user: string) => (
-        <Space>
+        <Space key={`user-${user}`}>
           <Avatar size="small">{user?.[0]?.toUpperCase()}</Avatar>
           <Text>{user}</Text>
         </Space>
@@ -192,44 +133,15 @@ export default function Security() {
 
   const tabItems = [
     {
-      key: 'blocked-users',
-      label: (
-        <span>
-          <UserDeleteOutlined />
-          Blocked Users
-        </span>
-      ),
-      children: (
-        <div>
-          <div style={{ marginBottom: 16 }}>
-            <Button 
-              type="primary" 
-              icon={<BlockOutlined />}
-              onClick={() => setBlockUserModal(true)}
-            >
-              Block User
-            </Button>
-          </div>
-          <Table
-            dataSource={blockedUsers}
-            columns={blockedUserColumns}
-            rowKey="_id"
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-          />
-        </div>
-      )
-    },
-    {
       key: 'blocked-ips',
       label: (
-        <span>
+        <span key="blocked-ips-label">
           <BlockOutlined />
           Blocked IPs
         </span>
       ),
       children: (
-        <div>
+        <div key="blocked-ips-content">
           <div style={{ marginBottom: 16 }}>
             <Button 
               type="primary" 
@@ -252,13 +164,14 @@ export default function Security() {
     {
       key: 'audit-logs',
       label: (
-        <span>
+        <span key="audit-logs-label">
           <EyeOutlined />
           Audit Logs
         </span>
       ),
       children: (
         <Table
+          key="audit-logs-content"
           dataSource={auditLogs}
           columns={auditLogColumns}
           rowKey="_id"
@@ -282,42 +195,7 @@ export default function Security() {
         style={{ marginBottom: 24 }}
       />
 
-      <Tabs defaultActiveKey="blocked-users" items={tabItems} />
-
-      {/* Block User Modal */}
-      <Modal
-        title="Block User"
-        open={blockUserModal}
-        onCancel={() => {
-          setBlockUserModal(false);
-          form.resetFields();
-        }}
-        onOk={() => form.submit()}
-      >
-        <Form form={form} onFinish={handleBlockUser} layout="vertical">
-          <Form.Item
-            name="userId"
-            label="User ID"
-            rules={[{ required: true, message: 'Please enter user ID' }]}
-          >
-            <Input placeholder="Enter user ID to block" />
-          </Form.Item>
-          
-          <Form.Item
-            name="reason"
-            label="Reason"
-            rules={[{ required: true, message: 'Please enter reason' }]}
-          >
-            <Select placeholder="Select reason">
-              <Option value="spam">Spam</Option>
-              <Option value="abuse">Abuse</Option>
-              <Option value="violation">Terms Violation</Option>
-              <Option value="suspicious">Suspicious Activity</Option>
-              <Option value="other">Other</Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Tabs defaultActiveKey="blocked-ips" items={tabItems} />
 
       {/* Block IP Modal */}
       <Modal

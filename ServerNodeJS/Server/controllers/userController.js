@@ -2,6 +2,7 @@ const User = require('../models/User');
 const FriendRequest = require('../models/FriendRequest');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
+const AuditLog = require('../models/AuditLog');
 const { validationResult } = require('express-validator');
 
 // @desc    Get all users (admin view supports inactive)
@@ -73,7 +74,8 @@ const getUsers = async (req, res) => {
 const setActive = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isActive } = req.body;
+    const { isActive, reason } = req.body;
+    const adminId = req.user.id;
 
     if (typeof isActive !== 'boolean') {
       return res.status(400).json({ success: false, message: 'isActive must be boolean' });
@@ -90,7 +92,19 @@ const setActive = async (req, res) => {
     }
     await user.save();
 
-    return res.json({ success: true, message: `User ${isActive ? 'activated' : 'deactivated'} successfully`, data: { user: user.toJSON() } });
+    // Log the action
+    const action = isActive ? 'UNLOCK_USER' : 'LOCK_USER';
+    const details = reason ? 
+      `${isActive ? 'Unlocked' : 'Locked'} user ${user.username}. Reason: ${reason}` :
+      `${isActive ? 'Unlocked' : 'Locked'} user ${user.username}`;
+    
+    await logAuditAction(adminId, action, 'User', details, req.ip);
+
+    return res.json({ 
+      success: true, 
+      message: `User ${isActive ? 'unlocked' : 'locked'} successfully`, 
+      data: { user: user.toJSON() } 
+    });
   } catch (error) {
     console.error('Set active error:', error);
     return res.status(500).json({ success: false, message: 'Server error while updating user active state' });
@@ -515,6 +529,22 @@ const removeFriend = async (req, res) => {
   }
 };
 
+
+// Helper function to log audit actions
+const logAuditAction = async (userId, action, resource, details, ipAddress) => {
+  try {
+    const auditLog = new AuditLog({
+      user: userId,
+      action,
+      resource,
+      details,
+      ipAddress
+    });
+    await auditLog.save();
+  } catch (error) {
+    console.error('Error logging audit action:', error);
+  }
+};
 
 module.exports = {
   getUsers,

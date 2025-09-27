@@ -18,6 +18,7 @@ const uploadRoutes = require('./routes/upload');
 const callRoutes = require('./routes/call');
 const serverRoutes = require('./routes/server');
 const statisticsRoutes = require('./routes/statistics');
+const securityRoutes = require('./routes/security');
 
 // Import socket handler
 const SocketHandler = require('./socket/socketHandler');
@@ -74,6 +75,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/server', serverRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/security', securityRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

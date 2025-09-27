@@ -82,12 +82,24 @@ const login = async (req, res) => {
 
     const { email, password } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email, isActive: true });
+    // Find user by email (check both active and inactive users)
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Account not found',
+        accountStatus: 'not_found',
+        details: 'No account found with this email address. Please check your email or register for a new account.'
+      });
+    }
+
+    // Check if user account is locked
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been locked',
+        accountStatus: 'locked',
+        details: 'Your account has been locked by an administrator. Please contact support for assistance.'
       });
     }
 
@@ -96,7 +108,9 @@ const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Incorrect password',
+        accountStatus: 'active',
+        details: 'The password you entered is incorrect. Please try again or use the forgot password feature.'
       });
     }
 

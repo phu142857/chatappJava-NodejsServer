@@ -39,13 +39,27 @@ export default function Users() {
   const [editOpen, setEditOpen] = useState<null | UserItem>(null);
   const [roleOpen, setRoleOpen] = useState<null | UserItem>(null);
   const [resetPwOpen, setResetPwOpen] = useState<null | UserItem>(null);
+  const [lockOpen, setLockOpen] = useState<null | UserItem>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [roleForm] = Form.useForm();
   const [resetForm] = Form.useForm();
+  const [lockForm] = Form.useForm();
 
   const columns = useMemo(
     () => [
+      {
+        title: 'UUID',
+        dataIndex: '_id',
+        key: '_id',
+        render: (id: string) => (
+          <Tooltip title={id}>
+            <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+              {id.length > 8 ? `${id.substring(0, 8)}...` : id}
+            </span>
+          </Tooltip>
+        ),
+      },
       {
         title: 'Username',
         dataIndex: 'username',
@@ -150,10 +164,12 @@ export default function Users() {
               <Space>
                 <Button size="small" onClick={() => { setEditOpen(record); editForm.setFieldsValue({ username: record.username, email: record.email, firstName: record.profile?.firstName, lastName: record.profile?.lastName }); }}>Edit</Button>
                 <Button size="small" onClick={() => { setRoleOpen(record); roleForm.setFieldsValue({ role: record.role || 'user' }); }}>Role</Button>
-                <Button size="small" onClick={async () => {
-                  await apiClient.put(`/users/${record._id}/active`, { isActive: !record.isActive });
-                  setData(prev => prev.map(u => u._id === record._id ? { ...u, isActive: !record.isActive } : u));
-                  fetchUsers(page, pageSize, search);
+                <Button size="small" onClick={() => { 
+                  setLockOpen(record); 
+                  lockForm.setFieldsValue({ 
+                    isActive: !record.isActive,
+                    reason: record.isActive ? '' : 'Account locked by administrator'
+                  }); 
                 }}>
                   {record.isActive ? 'Lock' : 'Unlock'}
                 </Button>
@@ -242,6 +258,33 @@ export default function Users() {
           messageApi.success('Password reset'); setResetPwOpen(null);
         }}>
           <Form.Item label="New Password" name="newPassword" rules={[{ required: true, min: 6 }]}><Input.Password /></Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title={`${lockOpen?.isActive ? 'Lock' : 'Unlock'} Account: ${lockOpen?.username}`} open={!!lockOpen} onCancel={() => setLockOpen(null)} onOk={() => lockForm.submit()} confirmLoading={loading}>
+        <Form layout="vertical" form={lockForm} onFinish={async (values) => {
+          try {
+            await apiClient.put(`/users/${lockOpen?._id}/active`, { 
+              isActive: values.isActive,
+              reason: values.reason || (values.isActive ? 'Account unlocked by administrator' : 'Account locked by administrator')
+            });
+            messageApi.success(`Account ${values.isActive ? 'unlocked' : 'locked'} successfully`);
+            setData(prev => prev.map(u => u._id === lockOpen?._id ? { ...u, isActive: values.isActive } : u));
+            setLockOpen(null);
+            fetchUsers(page, pageSize, search);
+          } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || 'Operation failed');
+          }
+        }}>
+          <Form.Item label="Action" name="isActive" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value={true}>Unlock Account</Select.Option>
+              <Select.Option value={false}>Lock Account</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="Reason" name="reason" rules={[{ required: true, message: 'Please provide a reason' }]}>
+            <Input.TextArea rows={3} placeholder="Enter reason for locking/unlocking this account" />
+          </Form.Item>
         </Form>
       </Modal>
 

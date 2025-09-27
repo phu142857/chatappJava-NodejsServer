@@ -35,9 +35,11 @@ const authMiddleware = async (req, res, next) => {
       }
 
       if (!user.isActive) {
-        return res.status(401).json({
+        return res.status(403).json({
           success: false,
-          message: 'Not authorized, user account is deactivated'
+          message: 'Your account has been locked. Please contact support for more information.',
+          accountStatus: 'locked',
+          details: 'Your account has been locked by an administrator. Please contact support for assistance.'
         });
       }
 
