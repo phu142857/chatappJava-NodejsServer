@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".ui.call.RingingActivity"
+    android:background="#E0E0E0">
+
+    <!-- Background decorative elements similar to login -->
+    <View
+        android:layout_width="465dp"
+        android:layout_height="402dp"
+        android:rotation="52"
+        android:alpha="0.71"
+        android:background="#D9D9D9"
+        android:layout_marginStart="-120dp"
+        android:layout_marginTop="200dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="465dp"
+        android:layout_height="402dp"
+        android:rotation="52"
+        android:alpha="0.29"
+        android:background="#7BCCFF"
+        android:layout_marginStart="-60dp"
+        android:layout_marginTop="220dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="715dp"
+        android:layout_height="441dp"
+        android:rotation="52"
+        android:alpha="0.71"
+        android:background="#7BCCFF"
+        android:layout_marginEnd="-200dp"
+        android:layout_marginTop="-100dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Call type indicator -->
+    <TextView
+        android:id="@+id/tv_call_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Incoming Video Call"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="80dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Caller info card -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/caller_info_card"
+        android:layout_width="361dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="4dp"
+        app:cardElevation="8dp"
+        android:layout_marginTop="40dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_call_type"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp">
+
+            <!-- Animated caller avatar -->
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_caller_avatar"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginBottom="24dp"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_color="@android:color/white"
+                app:civ_border_width="4dp" />
+
+            <TextView
+                android:id="@+id/tv_caller_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="John Doe"
+                android:textColor="@android:color/black"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tv_caller_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="is calling you..."
+                android:textColor="#666666"
+                android:textSize="18sp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Call duration (for outgoing calls) -->
+            <TextView
+                android:id="@+id/tv_call_duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#007BFF"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Action buttons card -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/action_buttons_card"
+        android:layout_width="361dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="4dp"
+        app:cardElevation="8dp"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="50dp"
+        app:layout_constraintTop_toBottomOf="@id/caller_info_card"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="32dp">
+
+            <!-- Decline button -->
+            <ImageButton
+                android:id="@+id/btn_decline"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_marginEnd="40dp"
+                android:background="@drawable/bg_decline_button"
+                android:src="@drawable/ic_decline_call"
+                android:scaleType="centerInside"
+                app:tint="@android:color/white" />
+
+            <!-- Accept button -->
+            <ImageButton
+                android:id="@+id/btn_accept"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_marginStart="40dp"
+                android:background="@drawable/bg_accept_button"
+                android:src="@drawable/ic_accept_call"
+                android:scaleType="centerInside"
+                app:tint="@android:color/white" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Ringing animation overlay -->
+    <FrameLayout
+        android:id="@+id/ringing_animation_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent">
+
+        <!-- Animated ripple effect -->
+        <View
+            android:id="@+id/ripple_1"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.3" />
+
+        <View
+            android:id="@+id/ripple_2"
+            android:layout_width="250dp"
+            android:layout_height="250dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.2" />
+
+        <View
+            android:id="@+id/ripple_3"
+            android:layout_width="300dp"
+            android:layout_height="300dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.1" />
+
+    </FrameLayout>
+
+    <!-- Call info overlay (for outgoing calls) -->
+    <LinearLayout
+        android:id="@+id/outgoing_call_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_call_info_overlay"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/caller_info_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Calling..."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_ringing_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ringing"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

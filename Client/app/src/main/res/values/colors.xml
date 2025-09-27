@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="green">#FF4CAF50</color>
+    <color name="red">#FFF44336</color>
+    <color name="light_gray">#FFCCCCCC</color>
+    <color name="control_button_background">#80000000</color>
+    <color name="semi_transparent_black">#80000000</color>
+    <color name="gray">#5c5d5e</color>
+    <color name="blue">#5182d8</color>
+    <color name="schemes_surface_container_lowest">#FFFFFFFF</color>
+    <color name="schemes_on_surface">#1A1A1A</color>
+    <color name="grey_f6f6f6">#F6F6F6</color>
+    
+    <!-- Profile View Colors -->
+    <color name="background_light">#F5F5F5</color>
+    <color name="primary_color">#6366F1</color>
+    <color name="text_primary">#111827</color>
+    <color name="text_secondary">#6B7280</color>
+    
+    <!-- Modern Color Scheme -->
+    <!-- Primary Colors -->
+    <color name="primary_dark">#4F46E5</color>
+    <color name="primary_light">#A5B4FC</color>
+    
+    <!-- Secondary Colors -->
+    <color name="secondary_color">#EC4899</color>
+    <color name="secondary_dark">#DB2777</color>
+    <color name="secondary_light">#F9A8D4</color>
+    
+    <!-- Background Colors -->
+    <color name="background_primary">#FAFAFA</color>
+    <color name="background_secondary">#FFFFFF</color>
+    <color name="background_tertiary">#F3F4F6</color>
+    
+    <!-- Text Colors -->
+    <color name="text_tertiary">#9CA3AF</color>
+    <color name="text_inverse">#FFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="success_color">#10B981</color>
+    <color name="warning_color">#F59E0B</color>
+    <color name="error_color">#EF4444</color>
+    <color name="info_color">#3B82F6</color>
+    
+    <!-- Surface Colors -->
+    <color name="surface_primary">#FFFFFF</color>
+    <color name="surface_secondary">#F9FAFB</color>
+    <color name="surface_tertiary">#F3F4F6</color>
+    
+    <!-- Border Colors -->
+    <color name="border_primary">#E5E7EB</color>
+    <color name="border_secondary">#D1D5DB</color>
+    <color name="border_focus">#6366F1</color>
+    
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#6366F1</color>
+    <color name="gradient_end">#EC4899</color>
+    
+    <!-- Chat Colors -->
+    <color name="chat_bubble_sent">#6366F1</color>
+    <color name="chat_bubble_received">#F3F4F6</color>
+    <color name="chat_text_sent">#FFFFFF</color>
+    <color name="chat_text_received">#111827</color>
+    
+    <!-- Online Status -->
+    <color name="online_status">#10B981</color>
+    <color name="offline_status">#9CA3AF</color>
+    <color name="away_status">#F59E0B</color>
+</resources>
