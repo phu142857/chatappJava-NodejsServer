@@ -15,6 +15,13 @@ interface Chat {
     username: string;
     avatar?: string;
   }>;
+  otherParticipant?: {
+    id: string;
+    username: string;
+    email: string;
+    avatar?: string;
+    status: string;
+  };
   lastMessage?: {
     content: string;
     sender: {
@@ -55,6 +62,7 @@ export default function UserChats() {
     try {
       setLoading(true);
       const response = await apiClient.get('/chats');
+      console.log('Chats response:', response.data.data.chats);
       setChats(response.data.data.chats || []);
     } catch (error) {
       console.error('Failed to fetch chats:', error);
@@ -87,7 +95,14 @@ export default function UserChats() {
     if (chat.type === 'group') {
       return chat.name || 'Group Chat';
     } else {
-      // For private chats, show the other participant's name
+      // For private chats, use the name set by server or otherParticipant info
+      if (chat.name) {
+        return chat.name;
+      }
+      if (chat.otherParticipant) {
+        return chat.otherParticipant.username;
+      }
+      // Fallback to finding in participants
       const otherParticipant = chat.participants.find(p => p._id !== getCurrentUserId());
       return otherParticipant?.username || 'Unknown User';
     }
@@ -108,6 +123,11 @@ export default function UserChats() {
     if (chat.type === 'group') {
       return <TeamOutlined />;
     } else {
+      // Use otherParticipant info if available
+      if (chat.otherParticipant?.avatar) {
+        return <Avatar size="small" src={chat.otherParticipant.avatar} />;
+      }
+      // Fallback to finding in participants
       const otherParticipant = chat.participants.find(p => p._id !== getCurrentUserId());
       return otherParticipant?.avatar ? 
         <Avatar size="small" src={otherParticipant.avatar} /> : 
