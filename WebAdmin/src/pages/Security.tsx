@@ -20,7 +20,7 @@ interface BlockedIP {
 
 interface AuditLog {
   _id: string;
-  user: string;
+  user: string | { _id: string; username: string };
   action: string;
   resource: string;
   details: string;
@@ -108,12 +108,15 @@ export default function Security() {
       title: 'User', 
       dataIndex: 'user', 
       key: 'user',
-      render: (user: string) => (
-        <Space key={`user-${user}`}>
-          <Avatar size="small">{user?.[0]?.toUpperCase()}</Avatar>
-          <Text>{user}</Text>
-        </Space>
-      )
+      render: (user: string | { _id: string; username: string }) => {
+        const username = typeof user === 'string' ? user : user?.username || 'Unknown';
+        return (
+          <Space key={`user-${username}`}>
+            <Avatar size="small">{username?.[0]?.toUpperCase()}</Avatar>
+            <Text>{username}</Text>
+          </Space>
+        );
+      }
     },
     { title: 'Action', dataIndex: 'action', key: 'action' },
     { title: 'Resource', dataIndex: 'resource', key: 'resource' },
