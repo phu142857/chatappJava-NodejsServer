@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Form, Input, message, Typography } from 'antd';
+import { App as AntdApp, Button, Card, Form, Input, Typography } from 'antd';
 import apiClient from '../api/client';
 import { STORAGE_KEYS } from '../config';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ type LoginResponse = {
 };
 
 export default function Login() {
+  const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 

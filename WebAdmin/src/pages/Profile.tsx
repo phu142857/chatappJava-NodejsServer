@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Typography, message } from 'antd';
+import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Typography } from 'antd';
 import { UserOutlined, LockOutlined, DeleteOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
 
@@ -21,7 +21,7 @@ interface UserProfile {
 }
 
 export default function Profile() {
-  const { modal } = AntdApp.useApp();
+  const { modal, message } = AntdApp.useApp();
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [editForm] = Form.useForm();
