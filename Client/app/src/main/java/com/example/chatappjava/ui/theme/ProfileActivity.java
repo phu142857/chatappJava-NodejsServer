@@ -152,7 +152,34 @@ public class ProfileActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         };
 
-        etUsername.addTextChangedListener(textWatcher);
+        // Special TextWatcher for username with real-time validation
+        TextWatcher usernameWatcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                checkForChanges();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String username = s.toString().trim();
+                if (!username.isEmpty() && !username.equals(currentUser != null ? currentUser.getUsername() : "")) {
+                    // Real-time validation for username
+                    if (!isValidUsername(username)) {
+                        String errorMessage = getUsernameValidationError(username);
+                        etUsername.setError(errorMessage);
+                    } else {
+                        etUsername.setError(null);
+                    }
+                } else {
+                    etUsername.setError(null);
+                }
+            }
+        };
+
+        etUsername.addTextChangedListener(usernameWatcher);
         etFirstName.addTextChangedListener(textWatcher);
         etLastName.addTextChangedListener(textWatcher);
         etPhoneNumber.addTextChangedListener(textWatcher);
@@ -408,6 +435,15 @@ public class ProfileActivity extends AppCompatActivity {
             // Only include fields that have changed or are not empty
             String newUsername = etUsername.getText().toString().trim();
             if (!newUsername.isEmpty() && !newUsername.equals(currentUser.getUsername())) {
+                // Validate username format before sending to server
+                if (!isValidUsername(newUsername)) {
+                    showLoading(false);
+                    String errorMessage = getUsernameValidationError(newUsername);
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
+                    etUsername.setError(errorMessage);
+                    etUsername.requestFocus();
+                    return;
+                }
                 profileData.put("username", newUsername);
             }
             
@@ -590,6 +626,40 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private boolean isValidUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false; // Empty username is not valid
+        }
+        
+        // Check length
+        if (username.length() < 3 || username.length() > 30) {
+            return false;
+        }
+        
+        // Check format: only letters, numbers, and underscores
+        return username.matches("^[a-zA-Z0-9_]+$");
+    }
+
+    private String getUsernameValidationError(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return "Username cannot be empty";
+        }
+        
+        if (username.length() < 3) {
+            return "Username must be at least 3 characters";
+        }
+        
+        if (username.length() > 30) {
+            return "Username cannot exceed 30 characters";
+        }
+        
+        if (!username.matches("^[a-zA-Z0-9_]+$")) {
+            return "Username can only contain letters, numbers, and underscores (no spaces or special characters)";
+        }
+        
+        return "Invalid username format";
     }
 
     private boolean isValidPhoneNumber(String phoneNumber) {

@@ -713,6 +713,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (!sharedPrefsManager.isLoggedIn()) {
             redirectToLogin();
         } else {
+            // Reload user profile data when returning to activity
+            loadUserProfile();
             // Refresh friend request count when returning to activity
             loadFriendRequestCount();
             // Also refresh chat list to keep it up to date

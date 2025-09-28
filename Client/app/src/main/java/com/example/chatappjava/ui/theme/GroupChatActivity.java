@@ -465,4 +465,52 @@ public class GroupChatActivity extends BaseChatActivity {
             }
         });
     }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Reload group data when returning to activity
+        // This ensures group changes are reflected immediately
+        if (currentChat != null) {
+            loadGroupData();
+        }
+    }
+    
+    private void loadGroupData() {
+        if (currentChat == null) return;
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        // Use ApiClient to get updated group data
+        apiClient.authenticatedGet("/api/chats/" + currentChat.getId(), token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to reload group data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject chatData = jsonResponse.getJSONObject("data").getJSONObject("chat");
+                        
+                        runOnUiThread(() -> {
+                            try {
+                                currentChat = Chat.fromJson(chatData);
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                            updateUI(); // Refresh the UI with updated data
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing group data: " + e.getMessage());
+                    }
+                }
+            }
+        });
+    }
 }

@@ -18,6 +18,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -104,6 +105,9 @@ public class RingingActivity extends AppCompatActivity {
         } else {
             setupOutgoingCall();
         }
+        
+        // Setup socket listener for call events
+        setupSocketListener();
     }
     
     private void getCallDataFromIntent() {
@@ -209,6 +213,54 @@ public class RingingActivity extends AppCompatActivity {
         
         // Simulate call ringing
         simulateCallRinging();
+    }
+    
+    private void setupSocketListener() {
+        // Get SocketManager instance
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        
+        if (socketManager != null) {
+            // Set up call status listener
+            socketManager.setCallStatusListener(new com.example.chatappjava.network.SocketManager.CallStatusListener() {
+                @Override
+                public void onCallAccepted(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call accepted, starting video call");
+                            try {
+                                openVideoCallActivity();
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Error opening video call activity", e);
+                                finish();
+                            }
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCallDeclined(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call declined by other party");
+                            Toast.makeText(RingingActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
+                            finish();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCallEnded(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call ended by other party");
+                            Toast.makeText(RingingActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
+                            finish();
+                        }
+                    });
+                }
+            });
+        }
     }
     
     private void startRingingAnimations() {
@@ -463,6 +515,13 @@ public class RingingActivity extends AppCompatActivity {
         super.onDestroy();
         stopRingingAnimations();
         stopRingtone();
+        
+        // Clear socket listener to prevent memory leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null) {
+            socketManager.setCallStatusListener(null);
+        }
     }
     
     @Override

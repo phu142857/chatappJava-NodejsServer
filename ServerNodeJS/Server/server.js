@@ -34,6 +34,7 @@ const io = new Server(server, {
     origin: [
       process.env.CLIENT_URL || "http://localhost:3000",
       process.env.WEBADMIN_URL || "http://localhost:5173",
+      "http://103.75.183.125:5173",  // WebAdmin specific IP
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Allow any 192.168.x.x IP
       /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,   // Allow any 10.x.x.x IP
       /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/  // Allow any 172.16-31.x.x IP
@@ -84,6 +85,7 @@ app.use(cors({
   origin: [
     process.env.CLIENT_URL || "http://localhost:3000",
     process.env.WEBADMIN_URL || "http://localhost:5173",
+    "http://103.75.183.125:5173",  // WebAdmin specific IP
     /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Allow any 192.168.x.x IP
     /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,   // Allow any 10.x.x.x IP
     /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/  // Allow any 172.16-31.x.x IP

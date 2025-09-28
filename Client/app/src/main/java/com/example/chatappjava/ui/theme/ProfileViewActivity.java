@@ -93,13 +93,43 @@ public class ProfileViewActivity extends AppCompatActivity {
     private void loadUserData() {
         if (otherUser == null) return;
         
-        // Load avatar
+        // Load avatar - handle URL like ProfileActivity
         if (otherUser.getAvatar() != null && !otherUser.getAvatar().isEmpty()) {
-            avatarManager.loadAvatar(
-                otherUser.getAvatar(), 
-                civAvatar, 
-                R.drawable.ic_profile_placeholder
-            );
+            String avatarUrl = otherUser.getAvatar();
+            android.util.Log.d("ProfileViewActivity", "Original avatar URL: " + avatarUrl);
+            
+            // If it's a relative URL, prepend the server base URL
+            if (!avatarUrl.startsWith("http")) {
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                android.util.Log.d("ProfileViewActivity", "Constructed full URL: " + avatarUrl);
+            }
+            
+            try {
+                // Try AvatarManager first
+                avatarManager.loadAvatar(avatarUrl, civAvatar, R.drawable.ic_profile_placeholder);
+                
+                // Backup: Also try Picasso directly (like ProfileActivity)
+                com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(civAvatar);
+                        
+            } catch (Exception e) {
+                android.util.Log.e("ProfileViewActivity", "Error loading avatar: " + e.getMessage());
+                // Fallback to direct Picasso load
+                try {
+                    com.squareup.picasso.Picasso.get()
+                            .load(avatarUrl)
+                            .placeholder(R.drawable.ic_profile_placeholder)
+                            .error(R.drawable.ic_profile_placeholder)
+                            .into(civAvatar);
+                } catch (Exception e2) {
+                    android.util.Log.e("ProfileViewActivity", "Picasso also failed: " + e2.getMessage());
+                    civAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
         } else {
             civAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
@@ -124,12 +154,39 @@ public class ProfileViewActivity extends AppCompatActivity {
         
         CircleImageView zoomedAvatar = dialogView.findViewById(R.id.civ_zoomed_avatar);
         
-        // Load the same avatar in zoomed view
-        avatarManager.loadAvatar(
-            otherUser.getAvatar(), 
-            zoomedAvatar, 
-            R.drawable.ic_profile_placeholder
-        );
+        // Load the same avatar in zoomed view - handle URL like ProfileActivity
+        String avatarUrl = otherUser.getAvatar();
+        // If it's a relative URL, prepend the server base URL
+        if (!avatarUrl.startsWith("http")) {
+            avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                       ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+        }
+        
+        try {
+            // Try AvatarManager first
+            avatarManager.loadAvatar(avatarUrl, zoomedAvatar, R.drawable.ic_profile_placeholder);
+            
+            // Backup: Also try Picasso directly
+            com.squareup.picasso.Picasso.get()
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
+                    .into(zoomedAvatar);
+                    
+        } catch (Exception e) {
+            android.util.Log.e("ProfileViewActivity", "Error loading zoomed avatar: " + e.getMessage());
+            // Fallback to direct Picasso load
+            try {
+                com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(zoomedAvatar);
+            } catch (Exception e2) {
+                android.util.Log.e("ProfileViewActivity", "Picasso also failed: " + e2.getMessage());
+                zoomedAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        }
         
         builder.setView(dialogView)
                 .setPositiveButton("Close", null)
@@ -178,5 +235,54 @@ public class ProfileViewActivity extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Reload user data when returning to activity
+        // This ensures profile changes are reflected immediately
+        if (otherUser != null) {
+            loadOtherUserData();
+        }
+    }
+    
+    private void loadOtherUserData() {
+        if (otherUser == null) return;
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        // Use ApiClient to get updated user data
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        apiClient.authenticatedGet("/api/users/" + otherUser.getId(), token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                android.util.Log.e("ProfileViewActivity", "Failed to reload user data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
+                        
+                        runOnUiThread(() -> {
+                            try {
+                                otherUser = User.fromJson(userData);
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                            loadUserData(); // Refresh the UI with updated data
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage());
+                    }
+                }
+            }
+        });
     }
 }

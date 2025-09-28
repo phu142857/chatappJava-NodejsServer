@@ -415,4 +415,85 @@ public class PrivateChatActivity extends BaseChatActivity {
             }
         });
     }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Reload user data when returning to activity
+        // This ensures profile changes are reflected immediately
+        if (otherUser != null) {
+            // Reload other user's data from server
+            loadOtherUserData();
+        }
+        
+        // Also reload current user's data to ensure consistency
+        loadCurrentUserData();
+    }
+    
+    private void loadOtherUserData() {
+        if (otherUser == null) return;
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        apiClient.authenticatedGet("/api/users/" + otherUser.getId(), token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                android.util.Log.e("PrivateChatActivity", "Failed to reload other user data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
+                        
+                        runOnUiThread(() -> {
+                            try {
+                                otherUser = User.fromJson(userData);
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                            updateUI(); // Refresh the UI with updated data
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("PrivateChatActivity", "Error parsing other user data: " + e.getMessage());
+                    }
+                }
+            }
+        });
+    }
+    
+    private void loadCurrentUserData() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        apiClient.getMe(token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                android.util.Log.e("PrivateChatActivity", "Failed to reload current user data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
+                        
+                        runOnUiThread(() -> {
+                            // Update shared preferences with new user info
+                            sharedPrefsManager.saveLoginInfo(token, userData.toString());
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("PrivateChatActivity", "Error parsing current user data: " + e.getMessage());
+                    }
+                }
+            }
+        });
+    }
 }
