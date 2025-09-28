@@ -181,7 +181,7 @@ LOG_FILE=./logs/app.log
 Create a `.env` file in `WebAdmin/`:
 ```env
 # API Configuration
-VITE_API_BASE_URL=http://103.75.183.125:5000
+VITE_API_BASE_URL=http://localhost:5000
 
 # Development Configuration
 VITE_DEV_MODE=true
@@ -192,12 +192,12 @@ Update the following in your Android project:
 
 1. **API Base URL** in `Client/app/src/main/java/com/example/chatappjava/utils/ApiClient.java`:
 ```java
-private static final String BASE_URL = "http://103.75.183.125:5000/api/";
+private static final String BASE_URL = "http://localhost:5000/api/";
 ```
 
 2. **Socket URL** in your WebSocket configuration:
 ```java
-private static final String SOCKET_URL = "http://103.75.183.125:5000";
+private static final String SOCKET_URL = "http://localhost:5000";
 ```
 
 ### Environment Variables Explanation
@@ -407,7 +407,7 @@ Create a `.env` file in `WebAdmin/` directory with the following content:
 
 ```bash
 # Copy this content to WebAdmin/.env
-VITE_API_BASE_URL=http://103.75.183.125:5000
+VITE_API_BASE_URL=http://localhost:5000
 VITE_DEV_MODE=true
 ```
 
