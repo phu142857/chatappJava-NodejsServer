@@ -38,6 +38,50 @@ public class SelectableUserAdapter extends RecyclerView.Adapter<SelectableUserAd
         User u = users.get(position);
         holder.tvName.setText(u.getDisplayName());
         holder.tvUsername.setText("@" + u.getUsername());
+        
+        // Load avatar - handle URL like other adapters
+        if (u.getAvatar() != null && !u.getAvatar().isEmpty()) {
+            String avatarUrl = u.getAvatar();
+            android.util.Log.d("SelectableUserAdapter", "Loading user avatar: " + avatarUrl);
+            
+            // Construct full URL if needed
+            if (!avatarUrl.startsWith("http")) {
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                android.util.Log.d("SelectableUserAdapter", "Constructed full URL: " + avatarUrl);
+            }
+            
+            try {
+                // Try AvatarManager first
+                com.example.chatappjava.utils.AvatarManager.getInstance(holder.itemView.getContext())
+                        .loadAvatar(avatarUrl, holder.iv, R.drawable.ic_profile_placeholder);
+                
+                // Backup: Also try Picasso directly
+                com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(holder.iv);
+                        
+            } catch (Exception e) {
+                android.util.Log.e("SelectableUserAdapter", "Error loading avatar: " + e.getMessage());
+                // Fallback to direct Picasso load
+                try {
+                    com.squareup.picasso.Picasso.get()
+                            .load(avatarUrl)
+                            .placeholder(R.drawable.ic_profile_placeholder)
+                            .error(R.drawable.ic_profile_placeholder)
+                            .into(holder.iv);
+                } catch (Exception e2) {
+                    android.util.Log.e("SelectableUserAdapter", "Picasso also failed: " + e2.getMessage());
+                    holder.iv.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
+        } else {
+            android.util.Log.d("SelectableUserAdapter", "No avatar URL, using placeholder");
+            holder.iv.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        
         holder.cb.setOnCheckedChangeListener(null);
         holder.cb.setChecked(false);
         holder.cb.setOnCheckedChangeListener((buttonView, isChecked) -> {
