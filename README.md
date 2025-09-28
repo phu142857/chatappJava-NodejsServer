@@ -1,6 +1,6 @@
 # NT118 Final Project - Multi-Platform Chat Application
 
-## 📱 Project Overview
+## Project Overview
 
 This is a comprehensive multi-platform chat application consisting of three main components:
 
@@ -8,7 +8,7 @@ This is a comprehensive multi-platform chat application consisting of three main
 - **Node.js Server** - Backend API and real-time communication server  
 - **Web Admin** - Web-based administration panel
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 NT118_FinalProject/
@@ -30,7 +30,7 @@ NT118_FinalProject/
     └── package.json
 ```
 
-## ✨ Features
+## Features
 
 ### Android Client
 - User authentication and registration
@@ -59,7 +59,7 @@ NT118_FinalProject/
 - System statistics
 - Security monitoring
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Android Client
 - **Language**: Java
@@ -86,7 +86,7 @@ NT118_FinalProject/
 - **HTTP Client**: Axios
 - **Routing**: React Router
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Android Studio (for Android development)
@@ -187,7 +187,7 @@ npm run dev
 2. Sync Gradle files
 3. Build and run on device/emulator
 
-## 📚 API Documentation
+## API Documentation
 
 ### Authentication Endpoints
 - `POST /api/auth/register` - User registration
@@ -212,7 +212,7 @@ npm run dev
 - `PUT /api/users/:id` - Update user
 - `DELETE /api/users/:id` - Delete user
 
-## 🔌 WebSocket Events
+## WebSocket Events
 
 ### Client to Server
 - `join_chat` - Join a chat room
@@ -228,7 +228,7 @@ npm run dev
 - `user_joined` - User joined chat
 - `user_left` - User left chat
 
-## 🗄️ Database Schema
+## Database Schema
 
 ### User Model
 ```javascript
@@ -266,7 +266,7 @@ npm run dev
 }
 ```
 
-## 🔒 Security Features
+## Security Features
 
 - JWT-based authentication
 - Password hashing with bcrypt
@@ -277,7 +277,7 @@ npm run dev
 - Audit logging
 - IP blocking capabilities
 
-## 🚀 Deployment
+## Deployment
 
 ### Android App
 1. Generate signed APK in Android Studio
@@ -293,7 +293,7 @@ npm run dev
 1. Build production version: `npm run build`
 2. Deploy to static hosting (Netlify, Vercel, AWS S3)
 
-## 🧪 Testing
+## Testing
 
 ### Android
 - Unit tests in `src/test/`
@@ -307,7 +307,7 @@ npm run dev
 - Component tests using React Testing Library
 - E2E tests using Cypress
 
-## 📊 Monitoring & Analytics
+## Monitoring & Analytics
 
 - User activity tracking
 - Message statistics
@@ -315,7 +315,7 @@ npm run dev
 - Error logging and monitoring
 - Performance metrics
 
-## 🔧 Environment Variables Reference
+## Environment Variables Reference
 
 ### Server (.env)
 - `PORT`: Server port (default: 5000)
@@ -343,14 +343,14 @@ npm run dev
 4. **Use HTTPS** in production environments
 5. **Regularly rotate secrets** and API keys
 
-## 📝 Version History
+## Version History
 
 - **v1.0.0** - Initial release with basic chat functionality
 - **v1.1.0** - Added group chat and file sharing
 - **v1.2.0** - Added voice/video calling
 - **v1.3.0** - Added web admin panel
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -358,17 +358,17 @@ npm run dev
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This is a final project for the NT118 course at University of Information Technology (UIT), Vietnam. This project is developed for educational purposes only and is not intended for commercial use.
 
-## 👥 Team
+## Team
 
-- **Developer**: [Your Name]
+- **Developer**: Nguyen Tai Phu 
 - **Course**: NT118 - Final Project
-- **Institution**: [Your Institution]
+- **Institution**: UIT - VN
 
-## 📞 Support
+## Support
 
 For support and questions:
 - Create an issue in the repository
