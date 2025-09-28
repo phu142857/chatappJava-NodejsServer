@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Typography } from 'antd';
 import { UserOutlined, LockOutlined, DeleteOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
+import { API_BASE_URL } from '../config';
 
 const { Title, Text } = Typography;
 
@@ -28,6 +29,14 @@ export default function Profile() {
   const [passwordForm] = Form.useForm();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
 
   useEffect(() => {
     fetchUserProfile();
@@ -130,7 +139,7 @@ export default function Profile() {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
           <Avatar 
             size={80} 
-            src={user.avatar} 
+            src={resolveAvatarUrl(user.avatar)} 
             icon={<UserOutlined />}
             style={{ marginRight: 16 }}
           />

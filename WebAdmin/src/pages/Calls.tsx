@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Card, Table, Tag, Typography, Space, Button, Modal } from 'antd';
+import { App as AntdApp, Card, Table, Tag, Typography, Space, Button, Modal, Avatar } from 'antd';
 import { PhoneOutlined, VideoCameraOutlined, UserOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
+import { API_BASE_URL } from '../config';
 
 type CallParticipant = {
   userId: string | { _id: string } | null;
@@ -30,6 +31,14 @@ export default function Calls() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Call[]>([]);
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
+
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -191,7 +200,7 @@ export default function Calls() {
                       borderRadius: 4, 
                       marginBottom: 8 
                     }}>
-                      <UserOutlined style={{ marginRight: 8 }} />
+                      <Avatar size="small" src={resolveAvatarUrl(participant.avatar)} icon={<UserOutlined />} style={{ marginRight: 8 }} />
                       <div style={{ flex: 1 }}>
                         <Typography.Text strong>{participant.username}</Typography.Text>
                         <br/>

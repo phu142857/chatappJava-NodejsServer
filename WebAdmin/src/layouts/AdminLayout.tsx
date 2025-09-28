@@ -1,7 +1,7 @@
 import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Typography } from 'antd';
 import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { STORAGE_KEYS } from '../config';
+import { STORAGE_KEYS, API_BASE_URL } from '../config';
 import { useState, useEffect } from 'react';
 import { useRoleCheck } from '../hooks/useRoleCheck';
 
@@ -15,6 +15,14 @@ export default function AdminLayout() {
   
   // Check for role changes
   useRoleCheck();
+
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -84,7 +92,7 @@ export default function AdminLayout() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-              <Avatar size={32} src={userInfo?.avatar} icon={<UserOutlined />} />
+              <Avatar size={32} src={resolveAvatarUrl(userInfo?.avatar)} icon={<UserOutlined />} />
               <Typography.Text strong>
                 {userInfo?.username || 'User'} ({userRole})
               </Typography.Text>

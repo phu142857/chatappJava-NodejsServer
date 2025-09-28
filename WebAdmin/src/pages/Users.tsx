@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
+import { API_BASE_URL } from '../config';
 
 type UserItem = {
   _id: string;
@@ -46,6 +47,14 @@ export default function Users() {
   const [resetForm] = Form.useForm();
   const [lockForm] = Form.useForm();
 
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -69,7 +78,7 @@ export default function Users() {
         title: 'Avatar',
         key: 'avatar',
         render: (_: unknown, record: UserItem) => (
-          <Avatar size={32} src={record.avatar ? `${record.avatar}` : undefined} icon={!record.avatar ? <span>{record.username?.[0]?.toUpperCase()}</span> : undefined} />
+          <Avatar size={32} src={resolveAvatarUrl(record.avatar)} icon={!record.avatar ? <span>{record.username?.[0]?.toUpperCase()}</span> : undefined} />
         ),
       },
       {
