@@ -3,6 +3,7 @@ import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Mod
 import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
+import { API_BASE_URL } from '../config';
 
 const { Title, Text } = Typography;
 
@@ -86,6 +87,14 @@ export default function UserChats() {
     }
   };
 
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
+
   const handleViewMessages = (chat: Chat) => {
     setSelectedChat(chat);
     fetchMessages(chat._id);
@@ -125,12 +134,12 @@ export default function UserChats() {
     } else {
       // Use otherParticipant info if available
       if (chat.otherParticipant?.avatar) {
-        return <Avatar size="small" src={chat.otherParticipant.avatar} />;
+        return <Avatar size="small" src={resolveAvatarUrl(chat.otherParticipant.avatar)} />;
       }
       // Fallback to finding in participants
       const otherParticipant = chat.participants.find(p => p._id !== getCurrentUserId());
       return otherParticipant?.avatar ? 
-        <Avatar size="small" src={otherParticipant.avatar} /> : 
+        <Avatar size="small" src={resolveAvatarUrl(otherParticipant.avatar)} /> : 
         <UserOutlined />;
     }
   };
@@ -230,7 +239,7 @@ export default function UserChats() {
                   backgroundColor: '#f5f5f5',
                   borderRadius: 8
                 }}>
-                  <Avatar size="small" src={msg.sender?.avatar} style={{ marginRight: 8 }}>
+                  <Avatar size="small" src={resolveAvatarUrl(msg.sender?.avatar)} style={{ marginRight: 8 }}>
                     {msg.sender?.username?.[0]?.toUpperCase()}
                   </Avatar>
                   <div style={{ flex: 1 }}>

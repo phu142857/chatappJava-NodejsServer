@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { App as AntdApp, Card, Table, Tag, Modal, Typography, Space, Avatar, Button, Form, Input, Select, Tabs } from 'antd';
 import { SearchOutlined, DeleteOutlined, MessageOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
+import { API_BASE_URL } from '../config';
 
 type ChatItem = {
   _id: string;
@@ -41,6 +42,14 @@ export default function Chats() {
   const [allMessagesLoading, setAllMessagesLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [form] = Form.useForm();
+
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${base}${path}`;
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -427,7 +436,7 @@ export default function Chats() {
                   backgroundColor: '#f5f5f5',
                   borderRadius: 8
                 }}>
-                  <Avatar size="small" src={msg.sender?.avatar} style={{ marginRight: 8 }}>
+                  <Avatar size="small" src={resolveAvatarUrl(msg.sender?.avatar)} style={{ marginRight: 8 }}>
                     {msg.sender?.username?.[0]?.toUpperCase()}
                   </Avatar>
                   <div style={{ flex: 1 }}>
