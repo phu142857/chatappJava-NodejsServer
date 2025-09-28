@@ -117,6 +117,66 @@ const unblockIP = async (req, res) => {
   }
 };
 
+// Delete a single audit log
+const deleteAuditLog = async (req, res) => {
+  try {
+    const { logId } = req.params;
+    const adminId = req.user.id;
+
+    const auditLog = await AuditLog.findById(logId);
+    if (!auditLog) {
+      return res.status(404).json({
+        success: false,
+        message: 'Audit log not found'
+      });
+    }
+
+    // Delete the audit log
+    await AuditLog.findByIdAndDelete(logId);
+
+    // Log the action
+    await logAuditAction(adminId, 'DELETE_AUDIT_LOG', 'AUDIT_LOG', `Deleted audit log ${logId}`, req.ip);
+
+    res.json({
+      success: true,
+      message: 'Audit log deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting audit log:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete audit log'
+    });
+  }
+};
+
+// Delete all audit logs
+const deleteAllAuditLogs = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+
+    // Count logs before deletion
+    const logCount = await AuditLog.countDocuments();
+
+    // Delete all audit logs
+    await AuditLog.deleteMany({});
+
+    // Log the action
+    await logAuditAction(adminId, 'DELETE_ALL_AUDIT_LOGS', 'AUDIT_LOG', `Deleted all ${logCount} audit logs`, req.ip);
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${logCount} audit logs`
+    });
+  } catch (error) {
+    console.error('Error deleting all audit logs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete audit logs'
+    });
+  }
+};
+
 // Helper function to log audit actions
 const logAuditAction = async (userId, action, resource, details, ipAddress) => {
   try {
@@ -137,5 +197,7 @@ module.exports = {
   getBlockedIPs,
   getAuditLogs,
   blockIP,
-  unblockIP
+  unblockIP,
+  deleteAuditLog,
+  deleteAllAuditLogs
 };

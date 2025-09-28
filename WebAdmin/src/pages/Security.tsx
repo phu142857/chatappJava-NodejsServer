@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Space, Typography, Alert, Tabs, Avatar } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, Space, Typography, Alert, Tabs, Avatar, Popconfirm, message } from 'antd';
 import { 
   BlockOutlined, 
   UnlockOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DeleteOutlined,
+  ClearOutlined
 } from '@ant-design/icons';
 import apiClient from '../api/client';
 
@@ -70,9 +72,33 @@ export default function Security() {
   const handleUnblockIP = async (ipId: string) => {
     try {
       await apiClient.delete(`/security/blocked-ips/${ipId}`);
+      message.success('IP address unblocked successfully');
       fetchSecurityData();
     } catch (error) {
       console.error('Failed to unblock IP:', error);
+      message.error('Failed to unblock IP address');
+    }
+  };
+
+  const handleDeleteAuditLog = async (logId: string) => {
+    try {
+      await apiClient.delete(`/security/audit-logs/${logId}`);
+      message.success('Audit log deleted successfully');
+      fetchSecurityData();
+    } catch (error) {
+      console.error('Failed to delete audit log:', error);
+      message.error('Failed to delete audit log');
+    }
+  };
+
+  const handleDeleteAllAuditLogs = async () => {
+    try {
+      await apiClient.delete('/security/audit-logs');
+      message.success('All audit logs deleted successfully');
+      fetchSecurityData();
+    } catch (error) {
+      console.error('Failed to delete all audit logs:', error);
+      message.error('Failed to delete all audit logs');
     }
   };
 
@@ -131,6 +157,28 @@ export default function Security() {
       dataIndex: 'timestamp', 
       key: 'timestamp',
       render: (date: string) => new Date(date).toLocaleString()
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: AuditLog) => (
+        <Popconfirm
+          title="Delete this audit log?"
+          description="This action cannot be undone."
+          onConfirm={() => handleDeleteAuditLog(record._id)}
+          okText="Yes, delete"
+          cancelText="Cancel"
+        >
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            size="small"
+          >
+            Delete
+          </Button>
+        </Popconfirm>
+      )
     }
   ];
 
@@ -173,15 +221,36 @@ export default function Security() {
         </span>
       ),
       children: (
-        <Table
-          key="audit-logs-content"
-          dataSource={auditLogs}
-          columns={auditLogColumns}
-          rowKey="_id"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          scroll={{ x: 800 }}
-        />
+        <div key="audit-logs-content">
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary">
+              Total logs: {auditLogs.length}
+            </Text>
+            <Popconfirm
+              title="Delete all audit logs?"
+              description="This will permanently delete all audit logs. This action cannot be undone."
+              onConfirm={handleDeleteAllAuditLogs}
+              okText="Yes, delete all"
+              cancelText="Cancel"
+            >
+              <Button
+                type="primary"
+                danger
+                icon={<ClearOutlined />}
+              >
+                Delete All Logs
+              </Button>
+            </Popconfirm>
+          </div>
+          <Table
+            dataSource={auditLogs}
+            columns={auditLogColumns}
+            rowKey="_id"
+            loading={loading}
+            pagination={{ pageSize: 20 }}
+            scroll={{ x: 800 }}
+          />
+        </div>
       )
     }
   ];

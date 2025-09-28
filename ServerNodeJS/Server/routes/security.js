@@ -3,7 +3,9 @@ const {
   getBlockedIPs,
   getAuditLogs,
   blockIP,
-  unblockIP
+  unblockIP,
+  deleteAuditLog,
+  deleteAllAuditLogs
 } = require('../controllers/securityController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 
@@ -22,5 +24,9 @@ router.get('/audit-logs', getAuditLogs);
 router.post('/block-ip', blockIP);
 
 router.delete('/blocked-ips/:ipId', unblockIP);
+
+// Audit log deletion routes
+router.delete('/audit-logs/:logId', deleteAuditLog);
+router.delete('/audit-logs', deleteAllAuditLogs);
 
 module.exports = router;
