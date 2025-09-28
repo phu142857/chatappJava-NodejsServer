@@ -61,6 +61,25 @@ public class PrivateChatActivity extends BaseChatActivity {
         // Set up call status listener for outgoing calls using global SocketManager
         socketManager = ChatApplication.getInstance().getSocketManager();
         if (socketManager != null) {
+            // Set up contact status listener
+            socketManager.setContactStatusListener(new SocketManager.ContactStatusListener() {
+                @Override
+                public void onContactStatusChange(String userId, String status) {
+                    runOnUiThread(() -> {
+                        android.util.Log.d("PrivateChatActivity", "Contact status changed: " + userId + " -> " + status);
+                        android.util.Log.d("PrivateChatActivity", "Current otherUser ID: " + (otherUser != null ? otherUser.getId() : "null"));
+                        
+                        // If this is the other user in this chat, reload their data
+                        if (otherUser != null && otherUser.getId().equals(userId)) {
+                            android.util.Log.d("PrivateChatActivity", "Reloading other user data due to status change");
+                            loadOtherUserData();
+                        } else {
+                            android.util.Log.d("PrivateChatActivity", "Status change not for current chat user, ignoring");
+                        }
+                    });
+                }
+            });
+            
             socketManager.setCallStatusListener(new SocketManager.CallStatusListener() {
                 @Override
                 public void onCallAccepted(String callId) {
@@ -194,7 +213,15 @@ public class PrivateChatActivity extends BaseChatActivity {
     protected void updateUI() {
         if (currentChat != null) {
             tvChatName.setText(currentChat.getDisplayName());
-            tvStatus.setText("Online"); // You can implement real-time status here
+            
+            // Display real-time status from user data
+            if (otherUser != null) {
+                String statusText = otherUser.getStatusText();
+                android.util.Log.d("PrivateChatActivity", "Other user status: " + statusText);
+                tvStatus.setText(statusText);
+            } else {
+                tvStatus.setText("Unknown");
+            }
             
             // Load other user's avatar
             if (otherUser != null) {
@@ -432,10 +459,18 @@ public class PrivateChatActivity extends BaseChatActivity {
     }
     
     private void loadOtherUserData() {
-        if (otherUser == null) return;
+        if (otherUser == null) {
+            android.util.Log.d("PrivateChatActivity", "loadOtherUserData: otherUser is null, skipping");
+            return;
+        }
+        
+        android.util.Log.d("PrivateChatActivity", "loadOtherUserData: Loading data for user " + otherUser.getId());
         
         String token = sharedPrefsManager.getToken();
-        if (token == null || token.isEmpty()) return;
+        if (token == null || token.isEmpty()) {
+            android.util.Log.d("PrivateChatActivity", "loadOtherUserData: No token available, skipping");
+            return;
+        }
         
         apiClient.authenticatedGet("/api/users/" + otherUser.getId(), token, new Callback() {
             @Override
@@ -445,23 +480,31 @@ public class PrivateChatActivity extends BaseChatActivity {
             
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+                android.util.Log.d("PrivateChatActivity", "loadOtherUserData response: " + response.code());
+                
                 if (response.isSuccessful()) {
                     try {
                         String responseBody = response.body().string();
+                        android.util.Log.d("PrivateChatActivity", "loadOtherUserData response body: " + responseBody);
+                        
                         org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
                         org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
                         
                         runOnUiThread(() -> {
                             try {
                                 otherUser = User.fromJson(userData);
+                                android.util.Log.d("PrivateChatActivity", "Updated otherUser status: " + otherUser.getStatus());
+                                android.util.Log.d("PrivateChatActivity", "Updated otherUser statusText: " + otherUser.getStatusText());
+                                updateUI(); // Refresh the UI with updated data
                             } catch (JSONException e) {
                                 throw new RuntimeException(e);
                             }
-                            updateUI(); // Refresh the UI with updated data
                         });
                     } catch (Exception e) {
                         android.util.Log.e("PrivateChatActivity", "Error parsing other user data: " + e.getMessage());
                     }
+                } else {
+                    android.util.Log.e("PrivateChatActivity", "Failed to load other user data: " + response.code());
                 }
             }
         });
@@ -495,5 +538,14 @@ public class PrivateChatActivity extends BaseChatActivity {
                 }
             }
         });
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up socket listeners to prevent memory leaks
+        if (socketManager != null) {
+            socketManager.removeContactStatusListener();
+        }
     }
 }

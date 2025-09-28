@@ -720,6 +720,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             // Also refresh chat list to keep it up to date
             loadChats();
             startHomePolling();
+            // Setup socket listener for contact status changes
+            setupSocketManager();
         }
     }
 
@@ -727,6 +729,35 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     protected void onPause() {
         super.onPause();
         stopHomePolling();
+    }
+    
+    private void setupSocketManager() {
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        
+        if (socketManager != null) {
+            socketManager.setContactStatusListener(new com.example.chatappjava.network.SocketManager.ContactStatusListener() {
+                @Override
+                public void onContactStatusChange(String userId, String status) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Contact status changed: " + userId + " -> " + status);
+                        // Refresh chat list to update status indicators
+                        loadChats();
+                    });
+                }
+            });
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up socket listener to prevent memory leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null) {
+            socketManager.removeContactStatusListener();
+        }
     }
 
     @Override

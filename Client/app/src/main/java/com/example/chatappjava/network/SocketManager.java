@@ -45,10 +45,15 @@ public class SocketManager {
         void onCallRoomJoined(String callId, org.json.JSONArray iceServers);
     }
     
+    public interface ContactStatusListener {
+        void onContactStatusChange(String userId, String status);
+    }
+    
     private IncomingCallListener incomingCallListener;
     private CallStatusListener callStatusListener;
     private WebRTCListener webrtcListener;
     private CallRoomListener callRoomListener;
+    private ContactStatusListener contactStatusListener;
     
     private SocketManager() {
         // Private constructor for singleton
@@ -235,6 +240,30 @@ public class SocketManager {
                     
                 } catch (JSONException e) {
                     Log.e(TAG, "Error parsing call ended data", e);
+                }
+            }
+        });
+        
+        // Contact status change events
+        socket.on("contact_status_change", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String userId = data.getString("userId");
+                    String status = data.getString("status");
+                    Log.d(TAG, "Received contact_status_change event: " + userId + " -> " + status);
+                    Log.d(TAG, "Contact status listener is " + (contactStatusListener != null ? "set" : "null"));
+                    
+                    if (contactStatusListener != null) {
+                        Log.d(TAG, "Calling contact status listener");
+                        contactStatusListener.onContactStatusChange(userId, status);
+                    } else {
+                        Log.w(TAG, "No contact status listener set, ignoring event");
+                    }
+                    
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error parsing contact status change data", e);
                 }
             }
         });
@@ -467,8 +496,16 @@ public class SocketManager {
     public void setCallRoomListener(CallRoomListener listener) {
         this.callRoomListener = listener;
     }
+    
+    public void setContactStatusListener(ContactStatusListener listener) {
+        this.contactStatusListener = listener;
+    }
 
     public void removeCallRoomListener() {
         this.callRoomListener = null;
+    }
+    
+    public void removeContactStatusListener() {
+        this.contactStatusListener = null;
     }
 }
