@@ -190,15 +190,47 @@ VITE_DEV_MODE=true
 ### Android Configuration
 Update the following in your Android project:
 
-1. **API Base URL** in `Client/app/src/main/java/com/example/chatappjava/utils/ApiClient.java`:
+1. **Server IP Configuration** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
 ```java
-private static final String BASE_URL = "http://localhost:5000/api/";
+// Change the SERVER_IP to your server's IP address
+private static final String SERVER_IP = "localhost"; // or your server IP
+private static final int SERVER_PORT = 5000;
+
+// For local development, use:
+// private static final String SERVER_IP = "localhost";
+// private static final String SERVER_IP = "127.0.0.1";
+
+// For network access, use your computer's IP:
+// private static final String SERVER_IP = "192.168.1.100";
+// private static final String SERVER_IP = "10.0.0.100";
 ```
 
-2. **Socket URL** in your WebSocket configuration:
-```java
-private static final String SOCKET_URL = "http://localhost:5000";
+2. **Network Security Configuration** in `Client/app/src/main/res/xml/network_security_config.xml`:
+```xml
+<domain-config cleartextTrafficPermitted="true">
+    <!-- Android Emulator localhost -->
+    <domain includeSubdomains="true">10.0.2.2</domain>
+    <!-- Your server IP address -->
+    <domain includeSubdomains="true">localhost</domain>
+    <domain includeSubdomains="true">127.0.0.1</domain>
+    <!-- Add your server's IP address here -->
+    <domain includeSubdomains="true">YOUR_SERVER_IP_HERE</domain>
+    <!-- Common local network ranges -->
+    <domain includeSubdomains="true">192.168.1.1</domain>
+    <domain includeSubdomains="true">192.168.0.1</domain>
+</domain-config>
 ```
+
+**Note**: 
+- For **Android Emulator**: Use `10.0.2.2` to access localhost on your computer
+- For **Physical Device**: Use your computer's actual IP address (e.g., `192.168.1.100`)
+
+**How to find your computer's IP address:**
+- **Windows**: Run `ipconfig` in Command Prompt and look for "IPv4 Address"
+- **Mac/Linux**: Run `ifconfig` in Terminal and look for "inet" address
+- **Common local IP ranges**: `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`
+
+**Important**: Make sure to add the same IP address in both `ServerConfig.java` and `network_security_config.xml`
 
 ### Environment Variables Explanation
 
@@ -412,7 +444,18 @@ VITE_DEV_MODE=true
 ```
 
 #### 3. Android Configuration
-Update the API base URL in your Android project to point to your server IP address.
+Update the server IP in your Android project:
+
+1. **Change Server IP** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
+```java
+private static final String SERVER_IP = "localhost"; // Change to your server IP
+```
+
+2. **Add IP to Network Security** in `Client/app/src/main/res/xml/network_security_config.xml`:
+```xml
+<domain includeSubdomains="true">localhost</domain>
+<domain includeSubdomains="true">YOUR_SERVER_IP_HERE</domain>
+```
 
 ### Running the Application
 
