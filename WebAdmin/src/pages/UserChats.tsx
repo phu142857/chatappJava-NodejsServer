@@ -91,8 +91,8 @@ export default function UserChats() {
     if (!avatar) return undefined;
     if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
     const base = API_BASE_URL.replace(/\/$/, '');
-    const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
-    return `${base}${path}`;
+    // Avatar path from server is already in format /uploads/avatars/filename.jpg
+    return `${base}${avatar}`;
   };
 
   const handleViewMessages = (chat: Chat) => {
