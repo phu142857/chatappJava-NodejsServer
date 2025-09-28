@@ -137,6 +137,50 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Special CORS handling for static files before main CORS middleware
+app.use('/uploads', (req, res, next) => {
+  // Set comprehensive CORS headers for static files
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.CLIENT_URL || "http://localhost:3000",
+    process.env.WEBADMIN_URL || "http://localhost:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://103.75.183.125:5173",
+    /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
+    /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
+    /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d$/
+  ];
+  
+  const isAllowed = !origin || allowedOrigins.some(allowedOrigin => {
+    if (typeof allowedOrigin === 'string') {
+      return origin === allowedOrigin;
+    } else if (allowedOrigin instanceof RegExp) {
+      return allowedOrigin.test(origin);
+    }
+    return false;
+  });
+  
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With, Cache-Control, Pragma');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  res.header('Cache-Control', 'public, max-age=31536000');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
+
 // Serve static files (uploaded avatars)
 app.use('/uploads', express.static('uploads'));
 
