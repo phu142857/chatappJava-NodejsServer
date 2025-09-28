@@ -114,7 +114,11 @@ cd Client
 ```bash
 cd ServerNodeJS/Server
 npm install
+
 # Create .env file with required environment variables
+# Copy the environment variables from the section below and create .env file
+# Edit .env file with your configuration
+
 npm start
 ```
 
@@ -122,6 +126,10 @@ npm start
 ```bash
 cd WebAdmin
 npm install
+
+# Create .env file for WebAdmin
+# Copy the environment variables from the WebAdmin section below and create .env file
+
 npm run dev
 ```
 
@@ -130,15 +138,95 @@ npm run dev
 ### Server Environment Variables
 Create a `.env` file in `ServerNodeJS/Server/`:
 ```env
-PORT=3000
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# Database Configuration
 MONGODB_URI=mongodb://localhost:27017/chat-app
-JWT_SECRET=your-jwt-secret
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
 JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+
+# File Upload Configuration
 UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=10485760
+
+# CORS Configuration
+CLIENT_URL=http://localhost:3000
+WEBADMIN_URL=http://localhost:5173
+
+# Security Configuration
+BCRYPT_ROUNDS=12
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Email Configuration (Optional - for notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Redis Configuration (Optional - for session storage)
+REDIS_URL=redis://localhost:6379
+
+# Logging Configuration
+LOG_LEVEL=info
+LOG_FILE=./logs/app.log
+```
+
+### WebAdmin Environment Variables
+Create a `.env` file in `WebAdmin/`:
+```env
+# API Configuration
+VITE_API_BASE_URL=http://103.75.183.125:5000
+
+# Development Configuration
+VITE_DEV_MODE=true
 ```
 
 ### Android Configuration
-Update API base URL in Android client configuration files.
+Update the following in your Android project:
+
+1. **API Base URL** in `Client/app/src/main/java/com/example/chatappjava/utils/ApiClient.java`:
+```java
+private static final String BASE_URL = "http://103.75.183.125:5000/api/";
+```
+
+2. **Socket URL** in your WebSocket configuration:
+```java
+private static final String SOCKET_URL = "http://103.75.183.125:5000";
+```
+
+### Environment Variables Explanation
+
+#### Server (.env)
+- `PORT`: Server port (default: 5000)
+- `NODE_ENV`: Environment mode (development/production)
+- `MONGODB_URI`: MongoDB connection string
+- `JWT_SECRET`: Secret key for JWT token signing (use a strong, random string)
+- `JWT_EXPIRES_IN`: JWT token expiration time
+- `JWT_REFRESH_EXPIRES_IN`: Refresh token expiration time
+- `UPLOAD_PATH`: Directory for file uploads
+- `MAX_FILE_SIZE`: Maximum file size in bytes (10MB default)
+- `CLIENT_URL`: Android client URL for CORS
+- `WEBADMIN_URL`: WebAdmin URL for CORS
+- `BCRYPT_ROUNDS`: Password hashing rounds
+- `RATE_LIMIT_WINDOW_MS`: Rate limiting window in milliseconds
+- `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window
+
+#### WebAdmin (.env)
+- `VITE_API_BASE_URL`: Backend API base URL
+- `VITE_DEV_MODE`: Development mode flag
+
+### Security Notes
+1. **Never commit .env files** to version control
+2. **Use strong, unique JWT secrets** in production
+3. **Change default passwords** for database and services
+4. **Use HTTPS** in production environments
+5. **Regularly rotate secrets** and API keys
 
 ## API Documentation
 
@@ -289,6 +377,49 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For support and questions:
 - Create an issue in the repository
 - Contact: nguyentaiphu980@gmail.com
+
+## Quick Start Guide
+
+### Creating Environment Files
+
+#### 1. Server Environment File
+Create a `.env` file in `ServerNodeJS/Server/` directory with the following content:
+
+```bash
+# Copy this content to ServerNodeJS/Server/.env
+PORT=5000
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/chat-app
+JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=10485760
+CLIENT_URL=http://localhost:3000
+WEBADMIN_URL=http://localhost:5173
+BCRYPT_ROUNDS=12
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+```
+
+#### 2. WebAdmin Environment File
+Create a `.env` file in `WebAdmin/` directory with the following content:
+
+```bash
+# Copy this content to WebAdmin/.env
+VITE_API_BASE_URL=http://103.75.183.125:5000
+VITE_DEV_MODE=true
+```
+
+#### 3. Android Configuration
+Update the API base URL in your Android project to point to your server IP address.
+
+### Running the Application
+
+1. **Start MongoDB** (if running locally)
+2. **Start the Server**: `cd ServerNodeJS/Server && npm start`
+3. **Start WebAdmin**: `cd WebAdmin && npm run dev`
+4. **Build Android App**: Open in Android Studio and build
 
 ## Version History
 
