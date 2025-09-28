@@ -1,21 +1,19 @@
 # NT118 Final Project - Multi-Platform Chat Application
 
-## Project Overview
+## 📱 Project Overview
 
 This is a comprehensive multi-platform chat application consisting of three main components:
 
 - **Android Client** - Mobile application for end users
-- **Node.js Server** - Backend API and real-time communication server
+- **Node.js Server** - Backend API and real-time communication server  
 - **Web Admin** - Web-based administration panel
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 NT118_FinalProject/
 ├── Client/                 # Android Application
-│   ├── app/
-│   │   ├── src/main/      # Main Android source code
-│   │   └── build.gradle.kts
+│   ├── app/src/main/      # Main Android source code
 │   └── build.gradle.kts
 ├── ServerNodeJS/          # Backend Server
 │   └── Server/
@@ -32,7 +30,7 @@ NT118_FinalProject/
     └── package.json
 ```
 
-## Features
+## ✨ Features
 
 ### Android Client
 - User authentication and registration
@@ -61,7 +59,7 @@ NT118_FinalProject/
 - System statistics
 - Security monitoring
 
-## Technology Stack
+## 🛠️ Technology Stack
 
 ### Android Client
 - **Language**: Java
@@ -83,12 +81,12 @@ NT118_FinalProject/
 ### Web Admin Panel
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Custom components
+- **UI Library**: Ant Design
 - **State Management**: React hooks
 - **HTTP Client**: Axios
 - **Routing**: React Router
 
-## Installation & Setup
+## 🚀 Quick Start
 
 ### Prerequisites
 - Android Studio (for Android development)
@@ -96,47 +94,16 @@ NT118_FinalProject/
 - MongoDB
 - Git
 
-### 1. Clone the Repository
+### 1. Clone Repository
 ```bash
 git clone <repository-url>
 cd NT118_FinalProject
 ```
 
-### 2. Android Client Setup
-```bash
-cd Client
-# Open in Android Studio
-# Sync Gradle files
-# Build and run on device/emulator
-```
+### 2. Environment Setup
 
-### 3. Server Setup
-```bash
-cd ServerNodeJS/Server
-npm install
-
-# Create .env file with required environment variables
-# Copy the environment variables from the section below and create .env file
-# Edit .env file with your configuration
-
-npm start
-```
-
-### 4. Web Admin Setup
-```bash
-cd WebAdmin
-npm install
-
-# Create .env file for WebAdmin
-# Copy the environment variables from the WebAdmin section below and create .env file
-
-npm run dev
-```
-
-## Environment Configuration
-
-### Server Environment Variables
-Create a `.env` file in `ServerNodeJS/Server/`:
+#### Server Configuration
+Create `.env` file in `ServerNodeJS/Server/`:
 ```env
 # Server Configuration
 PORT=5000
@@ -162,23 +129,10 @@ WEBADMIN_URL=http://localhost:5173
 BCRYPT_ROUNDS=12
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
-
-# Email Configuration (Optional - for notifications)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-
-# Redis Configuration (Optional - for session storage)
-REDIS_URL=redis://localhost:6379
-
-# Logging Configuration
-LOG_LEVEL=info
-LOG_FILE=./logs/app.log
 ```
 
-### WebAdmin Environment Variables
-Create a `.env` file in `WebAdmin/`:
+#### WebAdmin Configuration
+Create `.env` file in `WebAdmin/`:
 ```env
 # API Configuration
 VITE_API_BASE_URL=http://localhost:5000
@@ -187,25 +141,14 @@ VITE_API_BASE_URL=http://localhost:5000
 VITE_DEV_MODE=true
 ```
 
-### Android Configuration
-Update the following in your Android project:
-
-1. **Server IP Configuration** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
+#### Android Configuration
+1. **Update Server IP** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
 ```java
-// Change the SERVER_IP to your server's IP address
-private static final String SERVER_IP = "localhost"; // or your server IP
+private static final String SERVER_IP = "localhost"; // Change to your server IP
 private static final int SERVER_PORT = 5000;
-
-// For local development, use:
-// private static final String SERVER_IP = "localhost";
-// private static final String SERVER_IP = "127.0.0.1";
-
-// For network access, use your computer's IP:
-// private static final String SERVER_IP = "192.168.1.100";
-// private static final String SERVER_IP = "10.0.0.100";
 ```
 
-2. **Network Security Configuration** in `Client/app/src/main/res/xml/network_security_config.xml`:
+2. **Add IP to Network Security** in `Client/app/src/main/res/xml/network_security_config.xml`:
 ```xml
 <domain-config cleartextTrafficPermitted="true">
     <!-- Android Emulator localhost -->
@@ -215,52 +158,36 @@ private static final int SERVER_PORT = 5000;
     <domain includeSubdomains="true">127.0.0.1</domain>
     <!-- Add your server's IP address here -->
     <domain includeSubdomains="true">YOUR_SERVER_IP_HERE</domain>
-    <!-- Common local network ranges -->
-    <domain includeSubdomains="true">192.168.1.1</domain>
-    <domain includeSubdomains="true">192.168.0.1</domain>
 </domain-config>
 ```
 
-**Note**: 
-- For **Android Emulator**: Use `10.0.2.2` to access localhost on your computer
-- For **Physical Device**: Use your computer's actual IP address (e.g., `192.168.1.100`)
+**IP Configuration Notes:**
+- **Android Emulator**: Use `10.0.2.2` to access localhost
+- **Physical Device**: Use your computer's actual IP address
+- **Find IP**: Windows (`ipconfig`) or Mac/Linux (`ifconfig`)
 
-**How to find your computer's IP address:**
-- **Windows**: Run `ipconfig` in Command Prompt and look for "IPv4 Address"
-- **Mac/Linux**: Run `ifconfig` in Terminal and look for "inet" address
-- **Common local IP ranges**: `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`
+### 3. Installation & Running
 
-**Important**: Make sure to add the same IP address in both `ServerConfig.java` and `network_security_config.xml`
+#### Server
+```bash
+cd ServerNodeJS/Server
+npm install
+npm start
+```
 
-### Environment Variables Explanation
+#### WebAdmin
+```bash
+cd WebAdmin
+npm install
+npm run dev
+```
 
-#### Server (.env)
-- `PORT`: Server port (default: 5000)
-- `NODE_ENV`: Environment mode (development/production)
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: Secret key for JWT token signing (use a strong, random string)
-- `JWT_EXPIRES_IN`: JWT token expiration time
-- `JWT_REFRESH_EXPIRES_IN`: Refresh token expiration time
-- `UPLOAD_PATH`: Directory for file uploads
-- `MAX_FILE_SIZE`: Maximum file size in bytes (10MB default)
-- `CLIENT_URL`: Android client URL for CORS
-- `WEBADMIN_URL`: WebAdmin URL for CORS
-- `BCRYPT_ROUNDS`: Password hashing rounds
-- `RATE_LIMIT_WINDOW_MS`: Rate limiting window in milliseconds
-- `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window
+#### Android
+1. Open `Client` folder in Android Studio
+2. Sync Gradle files
+3. Build and run on device/emulator
 
-#### WebAdmin (.env)
-- `VITE_API_BASE_URL`: Backend API base URL
-- `VITE_DEV_MODE`: Development mode flag
-
-### Security Notes
-1. **Never commit .env files** to version control
-2. **Use strong, unique JWT secrets** in production
-3. **Change default passwords** for database and services
-4. **Use HTTPS** in production environments
-5. **Regularly rotate secrets** and API keys
-
-## API Documentation
+## 📚 API Documentation
 
 ### Authentication Endpoints
 - `POST /api/auth/register` - User registration
@@ -285,7 +212,7 @@ private static final int SERVER_PORT = 5000;
 - `PUT /api/users/:id` - Update user
 - `DELETE /api/users/:id` - Delete user
 
-## WebSocket Events
+## 🔌 WebSocket Events
 
 ### Client to Server
 - `join_chat` - Join a chat room
@@ -301,7 +228,7 @@ private static final int SERVER_PORT = 5000;
 - `user_joined` - User joined chat
 - `user_left` - User left chat
 
-## Database Schema
+## 🗄️ Database Schema
 
 ### User Model
 ```javascript
@@ -339,7 +266,18 @@ private static final int SERVER_PORT = 5000;
 }
 ```
 
-## Deployment
+## 🔒 Security Features
+
+- JWT-based authentication
+- Password hashing with bcrypt
+- Input validation and sanitization
+- CORS configuration
+- Rate limiting
+- File upload security
+- Audit logging
+- IP blocking capabilities
+
+## 🚀 Deployment
 
 ### Android App
 1. Generate signed APK in Android Studio
@@ -355,7 +293,7 @@ private static final int SERVER_PORT = 5000;
 1. Build production version: `npm run build`
 2. Deploy to static hosting (Netlify, Vercel, AWS S3)
 
-## Testing
+## 🧪 Testing
 
 ### Android
 - Unit tests in `src/test/`
@@ -369,7 +307,7 @@ private static final int SERVER_PORT = 5000;
 - Component tests using React Testing Library
 - E2E tests using Cypress
 
-## Monitoring & Analytics
+## 📊 Monitoring & Analytics
 
 - User activity tracking
 - Message statistics
@@ -377,16 +315,42 @@ private static final int SERVER_PORT = 5000;
 - Error logging and monitoring
 - Performance metrics
 
-## Security Features
+## 🔧 Environment Variables Reference
 
-- JWT-based authentication
-- Password hashing with bcrypt
-- Input validation and sanitization
-- CORS configuration
-- Rate limiting
-- File upload security
+### Server (.env)
+- `PORT`: Server port (default: 5000)
+- `NODE_ENV`: Environment mode (development/production)
+- `MONGODB_URI`: MongoDB connection string
+- `JWT_SECRET`: Secret key for JWT token signing
+- `JWT_EXPIRES_IN`: JWT token expiration time
+- `JWT_REFRESH_EXPIRES_IN`: Refresh token expiration time
+- `UPLOAD_PATH`: Directory for file uploads
+- `MAX_FILE_SIZE`: Maximum file size in bytes (10MB default)
+- `CLIENT_URL`: Android client URL for CORS
+- `WEBADMIN_URL`: WebAdmin URL for CORS
+- `BCRYPT_ROUNDS`: Password hashing rounds
+- `RATE_LIMIT_WINDOW_MS`: Rate limiting window in milliseconds
+- `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window
 
-## Contributing
+### WebAdmin (.env)
+- `VITE_API_BASE_URL`: Backend API base URL
+- `VITE_DEV_MODE`: Development mode flag
+
+### Security Notes
+1. **Never commit .env files** to version control
+2. **Use strong, unique JWT secrets** in production
+3. **Change default passwords** for database and services
+4. **Use HTTPS** in production environments
+5. **Regularly rotate secrets** and API keys
+
+## 📝 Version History
+
+- **v1.0.0** - Initial release with basic chat functionality
+- **v1.1.0** - Added group chat and file sharing
+- **v1.2.0** - Added voice/video calling
+- **v1.3.0** - Added web admin panel
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -394,82 +358,21 @@ private static final int SERVER_PORT = 5000;
 4. Add tests if applicable
 5. Submit a pull request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Team
+## 👥 Team
 
 - **Developer**: [Your Name]
 - **Course**: NT118 - Final Project
 - **Institution**: [Your Institution]
 
-## Support
+## 📞 Support
 
 For support and questions:
 - Create an issue in the repository
 - Contact: nguyentaiphu980@gmail.com
-
-## Quick Start Guide
-
-### Creating Environment Files
-
-#### 1. Server Environment File
-Create a `.env` file in `ServerNodeJS/Server/` directory with the following content:
-
-```bash
-# Copy this content to ServerNodeJS/Server/.env
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/chat-app
-JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
-UPLOAD_PATH=./uploads
-MAX_FILE_SIZE=10485760
-CLIENT_URL=http://localhost:3000
-WEBADMIN_URL=http://localhost:5173
-BCRYPT_ROUNDS=12
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-```
-
-#### 2. WebAdmin Environment File
-Create a `.env` file in `WebAdmin/` directory with the following content:
-
-```bash
-# Copy this content to WebAdmin/.env
-VITE_API_BASE_URL=http://localhost:5000
-VITE_DEV_MODE=true
-```
-
-#### 3. Android Configuration
-Update the server IP in your Android project:
-
-1. **Change Server IP** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
-```java
-private static final String SERVER_IP = "localhost"; // Change to your server IP
-```
-
-2. **Add IP to Network Security** in `Client/app/src/main/res/xml/network_security_config.xml`:
-```xml
-<domain includeSubdomains="true">localhost</domain>
-<domain includeSubdomains="true">YOUR_SERVER_IP_HERE</domain>
-```
-
-### Running the Application
-
-1. **Start MongoDB** (if running locally)
-2. **Start the Server**: `cd ServerNodeJS/Server && npm start`
-3. **Start WebAdmin**: `cd WebAdmin && npm run dev`
-4. **Build Android App**: Open in Android Studio and build
-
-## Version History
-
-- **v1.0.0** - Initial release with basic chat functionality
-- **v1.1.0** - Added group chat and file sharing
-- **v1.2.0** - Added voice/video calling
-- **v1.3.0** - Added web admin panel
 
 ---
 
