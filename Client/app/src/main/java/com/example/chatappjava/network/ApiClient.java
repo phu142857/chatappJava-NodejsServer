@@ -226,6 +226,27 @@ public class ApiClient {
     }
     
     /**
+     * Edit a message content
+     */
+    public void editMessage(String token, String messageId, String newContent, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("content", newContent);
+            authenticatedPut("/api/messages/" + messageId, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare edit message: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a message
+     */
+    public void deleteMessage(String token, String messageId, Callback callback) {
+        authenticatedDelete("/api/messages/" + messageId, token, callback);
+    }
+    
+    /**
      * Get messages from chat
      */
     public void getMessages(String token, String chatId, Callback callback) {

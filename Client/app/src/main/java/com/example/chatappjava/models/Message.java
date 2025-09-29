@@ -82,6 +82,13 @@ public class Message {
     private String attachments; // JSON string of attachments array
     private String localImageUri; // Local URI for zoom functionality
     
+    // Reply and edit info
+    private String replyToMessageId;
+    private String replyToContent;
+    private String replyToSenderName;
+    private boolean edited;
+    private long editedAt;
+    
     // Sender object from backend
     private Sender sender;
     private SenderInfo senderInfo;
@@ -111,6 +118,21 @@ public class Message {
         message.isRead = json.optBoolean("isRead", false);
         message.isDeleted = json.optBoolean("isDeleted", false);
         message.attachments = json.optString("attachments", "");
+        
+        // Reply info (server returns replyTo as object)
+        if (json.has("replyTo") && json.get("replyTo") instanceof JSONObject) {
+            JSONObject replyJson = json.getJSONObject("replyTo");
+            message.replyToMessageId = replyJson.optString("_id", "");
+            message.replyToContent = replyJson.optString("content", "");
+            if (replyJson.has("sender") && replyJson.get("sender") instanceof JSONObject) {
+                JSONObject replySender = replyJson.getJSONObject("sender");
+                message.replyToSenderName = replySender.optString("username", "");
+            }
+        }
+        
+        // Edited info
+        message.edited = json.optBoolean("edited", json.has("editedAt"));
+        message.editedAt = json.optLong("editedAt", 0);
         
         // Parse sender object if available
         if (json.has("sender") && json.get("sender") instanceof JSONObject) {
@@ -150,6 +172,13 @@ public class Message {
         json.put("timestamp", timestamp);
         json.put("isRead", isRead);
         json.put("isDeleted", isDeleted);
+        if (replyToMessageId != null && !replyToMessageId.isEmpty()) {
+            json.put("replyTo", replyToMessageId);
+        }
+        if (edited) {
+            json.put("edited", true);
+            if (editedAt > 0) json.put("editedAt", editedAt);
+        }
         return json;
     }
     
@@ -198,6 +227,17 @@ public class Message {
     
     public String getLocalImageUri() { return localImageUri; }
     public void setLocalImageUri(String localImageUri) { this.localImageUri = localImageUri; }
+    
+    public String getReplyToMessageId() { return replyToMessageId; }
+    public void setReplyToMessageId(String replyToMessageId) { this.replyToMessageId = replyToMessageId; }
+    public String getReplyToContent() { return replyToContent; }
+    public void setReplyToContent(String replyToContent) { this.replyToContent = replyToContent; }
+    public String getReplyToSenderName() { return replyToSenderName; }
+    public void setReplyToSenderName(String replyToSenderName) { this.replyToSenderName = replyToSenderName; }
+    public boolean isEdited() { return edited; }
+    public void setEdited(boolean edited) { this.edited = edited; }
+    public long getEditedAt() { return editedAt; }
+    public void setEditedAt(long editedAt) { this.editedAt = editedAt; }
     
     // Helper methods
     public boolean isTextMessage() {

@@ -90,11 +90,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public static class MessageViewHolder extends RecyclerView.ViewHolder {
         private LinearLayout llSentMessage;
         private LinearLayout llReceivedMessage;
+        private LinearLayout llSentReplyPreview;
+        private LinearLayout llReceivedReplyPreview;
         private TextView tvSentMessage;
         private TextView tvSentTime;
+        private TextView tvSentEdited;
         private TextView tvReceivedMessage;
         private TextView tvReceivedTime;
+        private TextView tvReceivedEdited;
         private TextView tvSenderName;
+        private TextView tvSentReplyAuthor;
+        private TextView tvSentReplyContent;
+        private TextView tvReceivedReplyAuthor;
+        private TextView tvReceivedReplyContent;
         private ImageView ivSenderAvatar;
         private ImageView ivSentImage;
         private ImageView ivReceivedImage;
@@ -103,11 +111,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             super(itemView);
             llSentMessage = itemView.findViewById(R.id.ll_sent_message);
             llReceivedMessage = itemView.findViewById(R.id.ll_received_message);
+            llSentReplyPreview = itemView.findViewById(R.id.ll_sent_reply_preview);
+            llReceivedReplyPreview = itemView.findViewById(R.id.ll_received_reply_preview);
             tvSentMessage = itemView.findViewById(R.id.tv_sent_message);
             tvSentTime = itemView.findViewById(R.id.tv_sent_time);
+            tvSentEdited = itemView.findViewById(R.id.tv_sent_edited);
             tvReceivedMessage = itemView.findViewById(R.id.tv_received_message);
             tvReceivedTime = itemView.findViewById(R.id.tv_received_time);
+            tvReceivedEdited = itemView.findViewById(R.id.tv_received_edited);
             tvSenderName = itemView.findViewById(R.id.tv_sender_name);
+            tvSentReplyAuthor = itemView.findViewById(R.id.tv_sent_reply_author);
+            tvSentReplyContent = itemView.findViewById(R.id.tv_sent_reply_content);
+            tvReceivedReplyAuthor = itemView.findViewById(R.id.tv_received_reply_author);
+            tvReceivedReplyContent = itemView.findViewById(R.id.tv_received_reply_content);
             ivSenderAvatar = itemView.findViewById(R.id.iv_sender_avatar);
             ivSentImage = itemView.findViewById(R.id.iv_sent_image);
             ivReceivedImage = itemView.findViewById(R.id.iv_received_image);
@@ -130,6 +146,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 // Show sent message layout
                 llSentMessage.setVisibility(View.VISIBLE);
                 llReceivedMessage.setVisibility(View.GONE);
+                // Reply preview for sent
+                if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
+                    if (llSentReplyPreview != null) llSentReplyPreview.setVisibility(View.VISIBLE);
+                    if (tvSentReplyAuthor != null) tvSentReplyAuthor.setText(
+                        message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
+                    );
+                    if (tvSentReplyContent != null) tvSentReplyContent.setText(
+                        message.getReplyToContent() != null ? message.getReplyToContent() : ""
+                    );
+                } else {
+                    if (llSentReplyPreview != null) llSentReplyPreview.setVisibility(View.GONE);
+                }
                 
                 if (message.isImageMessage()) {
                     // Show image message
@@ -184,10 +212,23 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 }
                 
                 if (tvSentTime != null) tvSentTime.setText(timeString);
+                if (tvSentEdited != null) tvSentEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
             } else {
                 // Show received message layout
                 llSentMessage.setVisibility(View.GONE);
                 llReceivedMessage.setVisibility(View.VISIBLE);
+                // Reply preview for received
+                if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
+                    if (llReceivedReplyPreview != null) llReceivedReplyPreview.setVisibility(View.VISIBLE);
+                    if (tvReceivedReplyAuthor != null) tvReceivedReplyAuthor.setText(
+                        message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
+                    );
+                    if (tvReceivedReplyContent != null) tvReceivedReplyContent.setText(
+                        message.getReplyToContent() != null ? message.getReplyToContent() : ""
+                    );
+                } else {
+                    if (llReceivedReplyPreview != null) llReceivedReplyPreview.setVisibility(View.GONE);
+                }
                 
                 if (message.isImageMessage()) {
                     // Show image message
@@ -242,6 +283,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 }
                 
                 if (tvReceivedTime != null) tvReceivedTime.setText(timeString);
+                if (tvReceivedEdited != null) tvReceivedEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
 
                 // For group chats, show sender name and avatar
                 boolean shouldShowAvatar = isGroupChat || message.isGroupChat();
@@ -298,6 +340,31 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     if (tvSenderName != null) tvSenderName.setVisibility(View.GONE);
                     if (ivSenderAvatar != null) ivSenderAvatar.setVisibility(View.GONE);
                 }
+            }
+
+            // Forward click/long-click to listener
+            itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onMessageClick(message);
+            });
+            itemView.setOnLongClickListener(v -> {
+                if (listener != null) {
+                    listener.onMessageLongClick(message);
+                    return true;
+                }
+                return false;
+            });
+
+            // Also attach to visible bubble views for better UX
+            if (llSentMessage.getVisibility() == View.VISIBLE) {
+                llSentMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (tvSentMessage != null) tvSentMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (ivSentImage != null && ivSentImage.getVisibility() == View.VISIBLE)
+                    ivSentImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+            } else if (llReceivedMessage.getVisibility() == View.VISIBLE) {
+                llReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (tvReceivedMessage != null) tvReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (ivReceivedImage != null && ivReceivedImage.getVisibility() == View.VISIBLE)
+                    ivReceivedImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
             }
         }
     }

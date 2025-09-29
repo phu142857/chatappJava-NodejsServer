@@ -55,6 +55,9 @@ const messageSchema = new mongoose.Schema({
       type: String // For images and videos
     }
   }],
+  
+  // Ensure arrays default to empty to avoid undefined access
+  // (defaults applied below at path level)
   reactions: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -126,6 +129,12 @@ const messageSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Provide defaults for array fields to prevent undefined
+messageSchema.path('attachments').default(function() { return []; });
+messageSchema.path('reactions').default(function() { return []; });
+messageSchema.path('readBy').default(function() { return []; });
+messageSchema.path('editHistory').default(function() { return []; });
+
 // Indexes for better performance
 messageSchema.index({ chat: 1, createdAt: -1 });
 messageSchema.index({ sender: 1 });
@@ -142,7 +151,8 @@ messageSchema.virtual('isRead').get(function() {
 // Virtual for reaction summary
 messageSchema.virtual('reactionSummary').get(function() {
   const summary = {};
-  this.reactions.forEach(reaction => {
+  const reactions = Array.isArray(this.reactions) ? this.reactions : [];
+  reactions.forEach(reaction => {
     if (summary[reaction.emoji]) {
       summary[reaction.emoji]++;
     } else {

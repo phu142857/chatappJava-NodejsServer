@@ -24,6 +24,34 @@
             android:orientation="vertical"
             android:gravity="end">
 
+            <!-- Reply preview for sent message -->
+            <LinearLayout
+                android:id="@+id/ll_sent_reply_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_message_reply_sent"
+                android:padding="8dp"
+                android:visibility="gone">
+                <TextView
+                    android:id="@+id/tv_sent_reply_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/gray"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    tools:text="Alice"/>
+                <TextView
+                    android:id="@+id/tv_sent_reply_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    tools:text="Previous message content preview"/>
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tv_sent_message"
                 android:layout_width="wrap_content"
@@ -34,6 +62,17 @@
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 tools:text="This is a sent message" />
+
+            <!-- Edited label for sent message -->
+            <TextView
+                android:id="@+id/tv_sent_edited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="(edited)"
+                android:textSize="10sp"
+                android:textColor="@color/gray"
+                android:visibility="gone"/>
 
             <ImageView
                 android:id="@+id/iv_sent_image"
@@ -92,6 +131,34 @@
             android:orientation="vertical"
             android:gravity="start">
 
+            <!-- Reply preview for received message -->
+            <LinearLayout
+                android:id="@+id/ll_received_reply_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_message_reply_received"
+                android:padding="8dp"
+                android:visibility="gone">
+                <TextView
+                    android:id="@+id/tv_received_reply_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/gray"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    tools:text="Bob"/>
+                <TextView
+                    android:id="@+id/tv_received_reply_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/black"
+                    android:textSize="12sp"
+                    tools:text="Previous message content preview"/>
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tv_sender_name"
                 android:layout_width="wrap_content"
@@ -111,6 +178,17 @@
                 android:textColor="@color/black"
                 android:textSize="14sp"
                 tools:text="This is a received message" />
+
+            <!-- Edited label for received message -->
+            <TextView
+                android:id="@+id/tv_received_edited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="(edited)"
+                android:textSize="10sp"
+                android:textColor="@color/gray"
+                android:visibility="gone"/>
 
             <ImageView
                 android:id="@+id/iv_received_image"

@@ -64,6 +64,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected EditText etMessage;
     protected RecyclerView rvMessages;
     protected ProgressBar progressBar;
+    // Reply UI state
+    protected android.view.View replyBar;
+    protected TextView tvReplyAuthor;
+    protected TextView tvReplyContent;
+    protected ImageView ivReplyClose;
+    protected String replyingToMessageId;
+    protected String replyingToAuthor;
+    protected String replyingToContent;
 
     // Common data
     protected Chat currentChat;
@@ -455,6 +463,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messageJson.put("chatId", currentChat.getId());
             messageJson.put("type", "image");
             messageJson.put("timestamp", System.currentTimeMillis());
+            if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
+                messageJson.put("replyTo", replyingToMessageId);
+            }
             
             // Create attachments array for image message
             org.json.JSONArray attachments = new org.json.JSONArray();
@@ -489,6 +500,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 if (jsonResponse.optBoolean("success", false)) {
                                     android.util.Log.d("BaseChatActivity", "Image message sent successfully");
                                     Toast.makeText(BaseChatActivity.this, "Image sent successfully", Toast.LENGTH_SHORT).show();
+                                    clearReplyState();
                                 } else {
                                     // Remove from local list if failed
                                     messages.remove(message);
@@ -605,6 +617,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         etMessage = findViewById(R.id.et_message);
         rvMessages = findViewById(R.id.rv_messages);
         progressBar = findViewById(R.id.progress_bar);
+        // Optional reply bar elements (may not exist in all layouts)
+        replyBar = findViewById(R.id.reply_bar);
+        tvReplyAuthor = findViewById(R.id.tv_reply_author);
+        tvReplyContent = findViewById(R.id.tv_reply_content);
+        ivReplyClose = findViewById(R.id.iv_reply_close);
         
         // Log view initialization
         android.util.Log.d("BaseChatActivity", "Views initialized - ivBack: " + (ivBack != null) + 
@@ -695,6 +712,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
         if (ivGallery != null) {
             ivGallery.setOnClickListener(v -> showAttachmentOptions());
+        }
+
+        if (ivReplyClose != null && replyBar != null) {
+            ivReplyClose.setOnClickListener(v -> clearReplyState());
         }
     }
 
@@ -798,6 +819,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         message.setType("text"); // Set message type
         message.setChatType(currentChat.isGroupChat() ? "group" : "private"); // Set chat type
         message.setTimestamp(System.currentTimeMillis());
+        if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
+            message.setReplyToMessageId(replyingToMessageId);
+            message.setReplyToSenderName(replyingToAuthor);
+            message.setReplyToContent(replyingToContent);
+        }
 
         // Add to local list immediately for better UX
         messages.add(message);
@@ -815,6 +841,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messageJson.put("content", content);
             messageJson.put("type", "text");
             messageJson.put("timestamp", System.currentTimeMillis());
+            if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
+                messageJson.put("replyTo", replyingToMessageId);
+            }
             
             android.util.Log.d("BaseChatActivity", "Sending message: " + messageJson.toString());
             
@@ -831,6 +860,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 if (jsonResponse.optBoolean("success", false)) {
                                     android.util.Log.d("BaseChatActivity", "Message sent successfully");
                                     // Message sent successfully, keep it in the list
+                                    clearReplyState();
                                 } else {
                                     // Remove from local list if failed
                                     messages.remove(message);
@@ -969,26 +999,133 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void showMessageOptions(Message message) {
-        String[] options = {"Copy", "Delete", "Forward"};
+        java.util.List<String> actions = new java.util.ArrayList<>();
+        actions.add("Reply");
+        boolean canEdit = message.isTextMessage() && message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
+        if (canEdit) actions.add("Edit");
+        actions.add("Delete");
+        actions.add("Copy");
+        actions.add("Forward");
+        String[] options = actions.toArray(new String[0]);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Message Options")
                 .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            // Copy message
-                            Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 1:
-                            // Delete message
-                            Toast.makeText(this, "Delete message feature coming soon", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 2:
-                            // Forward message
-                            Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
-                            break;
+                    String selected = options[which];
+                    if ("Reply".equals(selected)) {
+                        setReplyState(message);
+                    } else if ("Edit".equals(selected)) {
+                        promptEditMessage(message);
+                    } else if ("Delete".equals(selected)) {
+                        confirmDeleteMessage(message);
+                    } else if ("Copy".equals(selected)) {
+                        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                        android.content.ClipData clip = android.content.ClipData.newPlainText("message", message.getContent());
+                        clipboard.setPrimaryClip(clip);
+                        Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+                    } else if ("Forward".equals(selected)) {
+                        Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
                     }
                 });
         builder.show();
+    }
+
+    protected void setReplyState(Message message) {
+        replyingToMessageId = message.getId();
+        replyingToAuthor = message.getSenderUsername();
+        replyingToContent = message.getContent();
+        if (replyBar != null) replyBar.setVisibility(android.view.View.VISIBLE);
+        if (tvReplyAuthor != null) tvReplyAuthor.setText(replyingToAuthor != null ? replyingToAuthor : "Reply");
+        if (tvReplyContent != null) tvReplyContent.setText(replyingToContent != null ? replyingToContent : "");
+    }
+
+    protected void clearReplyState() {
+        replyingToMessageId = null;
+        replyingToAuthor = null;
+        replyingToContent = null;
+        if (replyBar != null) replyBar.setVisibility(android.view.View.GONE);
+    }
+
+    protected void promptEditMessage(Message message) {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setText(message.getContent());
+        new AlertDialog.Builder(this)
+            .setTitle("Edit Message")
+            .setView(input)
+            .setPositiveButton("Save", (d, w) -> {
+                String newContent = input.getText().toString().trim();
+                if (!newContent.isEmpty()) {
+                    performEditMessage(message, newContent);
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    protected void performEditMessage(Message message, String newContent) {
+        String token = sharedPrefsManager.getToken();
+        apiClient.editMessage(token, message.getId(), newContent, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to edit message", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            if (json.optBoolean("success", false)) {
+                                message.setContent(newContent);
+                                message.setEdited(true);
+                                messageAdapter.notifyDataSetChanged();
+                                Toast.makeText(BaseChatActivity.this, "Message edited", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(BaseChatActivity.this, json.optString("message", "Failed to edit"), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Exception ex) {
+                            Toast.makeText(BaseChatActivity.this, "Edited but parse failed", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(BaseChatActivity.this, "Failed to edit message: " + response.code(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    protected void confirmDeleteMessage(Message message) {
+        new AlertDialog.Builder(this)
+            .setTitle("Delete Message")
+            .setMessage("Delete this message for everyone?")
+            .setPositiveButton("Delete", (d, w) -> performDeleteMessage(message))
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    protected void performDeleteMessage(Message message) {
+        String token = sharedPrefsManager.getToken();
+        apiClient.deleteMessage(token, message.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to delete message", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        message.setDeleted(true);
+                        message.setContent("This message was deleted");
+                        messageAdapter.notifyDataSetChanged();
+                        Toast.makeText(BaseChatActivity.this, "Message deleted", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(BaseChatActivity.this, "Failed to delete: " + response.code(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 }
