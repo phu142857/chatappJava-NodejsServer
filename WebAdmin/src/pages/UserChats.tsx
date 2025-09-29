@@ -43,7 +43,15 @@ interface Message {
     avatar?: string;
   };
   createdAt: string;
-  messageType?: string;
+  type?: 'text' | 'image' | 'file' | 'audio' | 'video' | 'system';
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    url: string;
+    thumbnail?: string;
+  }>;
   isDeleted?: boolean;
 }
 
@@ -308,17 +316,24 @@ export default function UserChats() {
                         {dayjs(msg.createdAt).format('MMM DD, YYYY HH:mm')}
                       </Typography.Text>
                     </div>
-                    {msg.messageType === 'image' ? (
-                      <img
-                        src={resolveMediaUrl(msg.content)}
-                        alt="image"
-                        style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 6, marginTop: 4 }}
-                      />
+                    {msg.type === 'image' ? (
+                      (() => {
+                        const src = resolveMediaUrl(msg.attachments && msg.attachments[0] && msg.attachments[0].url);
+                        return src ? (
+                          <img
+                            src={src}
+                            alt="image"
+                            style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 6, marginTop: 4 }}
+                          />
+                        ) : (
+                          <Typography.Text type="secondary">Image</Typography.Text>
+                        );
+                      })()
                     ) : (
                       <Typography.Text>{replaceEmojiShortcodes(msg.content)}</Typography.Text>
                     )}
-                    {msg.messageType && msg.messageType !== 'text' && (
-                      <Tag style={{ marginLeft: 8, fontSize: 12 }}>{msg.messageType}</Tag>
+                    {msg.type && msg.type !== 'text' && (
+                      <Tag style={{ marginLeft: 8, fontSize: 12 }}>{msg.type}</Tag>
                     )}
                   </div>
                 </div>
