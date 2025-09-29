@@ -81,6 +81,9 @@ public class Message {
     private boolean isDeleted;
     private String attachments; // JSON string of attachments array
     private String localImageUri; // Local URI for zoom functionality
+    // Reactions summary (emoji -> count) and raw list (optional)
+    private java.util.Map<String, Integer> reactionSummary;
+    private String reactionsRaw; // store raw JSON if needed to show user list
     
     // Reply and edit info
     private String replyToMessageId;
@@ -146,6 +149,20 @@ public class Message {
         }
         
         // Parse senderInfo object if available
+        // Parse reaction summary if present (from server virtual)
+        if (json.has("reactionSummary") && json.get("reactionSummary") instanceof JSONObject) {
+            JSONObject sum = json.getJSONObject("reactionSummary");
+            java.util.Iterator<String> keys = sum.keys();
+            java.util.Map<String, Integer> map = new java.util.HashMap<>();
+            while (keys.hasNext()) {
+                String k = keys.next();
+                map.put(k, sum.optInt(k, 0));
+            }
+            message.reactionSummary = map;
+        }
+        if (json.has("reactions") && json.get("reactions") instanceof org.json.JSONArray) {
+            message.reactionsRaw = json.getJSONArray("reactions").toString();
+        }
         if (json.has("senderInfo") && json.get("senderInfo") instanceof JSONObject) {
             JSONObject senderInfoJson = json.getJSONObject("senderInfo");
             message.senderInfo = SenderInfo.fromJson(senderInfoJson);
@@ -227,6 +244,11 @@ public class Message {
     
     public String getLocalImageUri() { return localImageUri; }
     public void setLocalImageUri(String localImageUri) { this.localImageUri = localImageUri; }
+
+    public java.util.Map<String, Integer> getReactionSummary() { return reactionSummary; }
+    public void setReactionSummary(java.util.Map<String, Integer> reactionSummary) { this.reactionSummary = reactionSummary; }
+    public String getReactionsRaw() { return reactionsRaw; }
+    public void setReactionsRaw(String reactionsRaw) { this.reactionsRaw = reactionsRaw; }
     
     public String getReplyToMessageId() { return replyToMessageId; }
     public void setReplyToMessageId(String replyToMessageId) { this.replyToMessageId = replyToMessageId; }

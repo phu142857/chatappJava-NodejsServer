@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Modal, Input, Form } from 'antd';
+import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Modal, Input, Form, Mentions } from 'antd';
 import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
@@ -366,18 +366,42 @@ export default function UserChats() {
           style={{ display: 'flex', gap: 8 }}
         >
           <Form.Item style={{ flex: 1, marginBottom: 0 }}>
-            <Input.TextArea
-              value={newMessage}
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              placeholder="Type a message..."
-              onChange={(e) => setNewMessage(e.target.value)}
-              onPressEnter={(e) => {
-                if (!e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
+            {selectedChat?.type === 'group' ? (
+              <Mentions
+                value={newMessage}
+                autoSize={{ minRows: 1, maxRows: 4 } as any}
+                placeholder="Type a message... Use @ to mention"
+                onChange={(val) => setNewMessage(val)}
+                onPressEnter={(e: any) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                filterOption={(input, option) =>
+                  (option?.value as string).toLowerCase().includes(input.toLowerCase())
                 }
-              }}
-            />
+              >
+                {(selectedChat.participants || []).map(p => (
+                  <Mentions.Option key={p._id} value={p.username}>
+                    {p.username}
+                  </Mentions.Option>
+                ))}
+              </Mentions>
+            ) : (
+              <Input.TextArea
+                value={newMessage}
+                autoSize={{ minRows: 1, maxRows: 4 }}
+                placeholder="Type a message..."
+                onChange={(e) => setNewMessage(e.target.value)}
+                onPressEnter={(e) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+            )}
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button type="primary" htmlType="submit" loading={sending} disabled={!newMessage.trim()}>

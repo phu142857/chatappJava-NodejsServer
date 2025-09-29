@@ -102,6 +102,22 @@
                 android:textColor="@color/gray"
                 tools:text="10:30 AM" />
 
+            <!-- Reactions badge for sent message -->
+            <TextView
+                android:id="@+id/tv_sent_reactions_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textSize="10sp"
+                android:textColor="@color/white"
+                android:background="@drawable/bg_message_reply_sent"
+                android:visibility="gone"
+                tools:text="👍 3" />
+
         </LinearLayout>
 
     </LinearLayout>
@@ -217,6 +233,22 @@
                 android:textSize="10sp"
                 android:textColor="@color/gray"
                 tools:text="10:30 AM" />
+
+            <!-- Reactions badge for received message -->
+            <TextView
+                android:id="@+id/tv_received_reactions_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textSize="10sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_message_reply_received"
+                android:visibility="gone"
+                tools:text="❤️ 2" />
 
         </LinearLayout>
 

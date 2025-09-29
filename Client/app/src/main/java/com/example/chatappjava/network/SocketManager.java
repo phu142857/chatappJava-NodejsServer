@@ -49,11 +49,20 @@ public class SocketManager {
         void onContactStatusChange(String userId, String status);
     }
     
+    public interface MessageListener {
+        void onPrivateMessage(org.json.JSONObject messageJson);
+        void onGroupMessage(org.json.JSONObject messageJson);
+        void onMessageEdited(org.json.JSONObject messageJson);
+        void onMessageDeleted(org.json.JSONObject messageMetaJson);
+        void onReactionUpdated(org.json.JSONObject reactionJson);
+    }
+    
     private IncomingCallListener incomingCallListener;
     private CallStatusListener callStatusListener;
     private WebRTCListener webrtcListener;
     private CallRoomListener callRoomListener;
     private ContactStatusListener contactStatusListener;
+    private MessageListener messageListener;
     
     private SocketManager() {
         // Private constructor for singleton
@@ -264,6 +273,63 @@ public class SocketManager {
                     
                 } catch (JSONException e) {
                     Log.e(TAG, "Error parsing contact status change data", e);
+                }
+            }
+        });
+        
+        // Messaging events
+        socket.on("private_message", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    if (messageListener != null) messageListener.onPrivateMessage(data.getJSONObject("message"));
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing private_message", e);
+                }
+            }
+        });
+        socket.on("group_message", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    if (messageListener != null) messageListener.onGroupMessage(data.getJSONObject("message"));
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing group_message", e);
+                }
+            }
+        });
+        socket.on("message_edited", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    if (messageListener != null) messageListener.onMessageEdited(data.getJSONObject("message"));
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing message_edited", e);
+                }
+            }
+        });
+        socket.on("message_deleted", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    if (messageListener != null) messageListener.onMessageDeleted(data);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing message_deleted", e);
+                }
+            }
+        });
+        socket.on("reaction_updated", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    if (messageListener != null) messageListener.onReactionUpdated(data);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing reaction_updated", e);
                 }
             }
         });
@@ -507,5 +573,13 @@ public class SocketManager {
     
     public void removeContactStatusListener() {
         this.contactStatusListener = null;
+    }
+    
+    public void setMessageListener(MessageListener listener) {
+        this.messageListener = listener;
+    }
+    
+    public void removeMessageListener() {
+        this.messageListener = null;
     }
 }

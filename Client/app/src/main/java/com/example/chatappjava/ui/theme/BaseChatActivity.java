@@ -22,6 +22,10 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.widget.ArrayAdapter;
+import android.widget.ListPopupWindow;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -82,6 +86,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected ApiClient apiClient;
     protected AvatarManager avatarManager;
     protected SocketManager socketManager;
+    // Mentions
+    protected ListPopupWindow mentionPopup;
+    protected java.util.List<String> mentionCandidates = new java.util.ArrayList<>();
+    protected ArrayAdapter<String> mentionAdapter;
+    protected int mentionStart = -1;
 
     // Common state
     protected boolean isPolling = false;
@@ -106,6 +115,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         setupRecyclerView();
         loadChatData();
         startPolling();
+        setupMentionSupport();
     }
 
     // Abstract methods to be implemented by subclasses
@@ -661,12 +671,47 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 e.printStackTrace();
             }
         }
+
+        // Preload group members for mentions
+        if (currentChat != null && currentChat.isGroupChat()) {
+            fetchGroupMembersForMentions();
+        }
     }
     
     protected void setupSocketManager() {
         // SocketManager is now managed globally by ChatApplication
         // No need to setup connection or global listeners here
         android.util.Log.d("BaseChatActivity", "SocketManager setup - using global instance");
+        if (socketManager != null) {
+            socketManager.setMessageListener(new com.example.chatappjava.network.SocketManager.MessageListener() {
+                @Override
+                public void onPrivateMessage(org.json.JSONObject messageJson) {
+                    runOnUiThread(() -> handleIncomingMessage(messageJson));
+                }
+
+                @Override
+                public void onGroupMessage(org.json.JSONObject messageJson) {
+                    runOnUiThread(() -> handleIncomingMessage(messageJson));
+                }
+
+                @Override
+                public void onMessageEdited(org.json.JSONObject messageJson) {
+                    runOnUiThread(() -> handleEditedMessage(messageJson));
+                }
+
+                @Override
+                public void onMessageDeleted(org.json.JSONObject messageMetaJson) {
+                    runOnUiThread(() -> handleDeletedMessage(messageMetaJson));
+                }
+
+                @Override
+                public void onReactionUpdated(org.json.JSONObject reactionJson) {
+                    // Optional: update reactions UI later
+                }
+            });
+            // Switch to realtime; stop polling once listener is set
+            stopPolling();
+        }
     }
     
     protected void setupClickListeners() {
@@ -716,6 +761,22 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
         if (ivReplyClose != null && replyBar != null) {
             ivReplyClose.setOnClickListener(v -> clearReplyState());
+        }
+
+        // Text watcher for mentions
+        if (etMessage != null) {
+            etMessage.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    handleMentionParsing(s);
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
         }
     }
 
@@ -927,6 +988,127 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         pollHandler.removeCallbacks(pollRunnable);
     }
 
+    // ===== Mentions support =====
+    protected void setupMentionSupport() {
+        if (etMessage == null) return;
+        mentionPopup = new ListPopupWindow(this);
+        mentionAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, mentionCandidates);
+        mentionPopup.setAdapter(mentionAdapter);
+        mentionPopup.setAnchorView(etMessage);
+        mentionPopup.setOnItemClickListener((parent, view, position, id) -> {
+            String username = mentionCandidates.get(position);
+            commitMention(username);
+            mentionPopup.dismiss();
+        });
+    }
+
+    protected void fetchGroupMembersForMentions() {
+        try {
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty() || currentChat == null) return;
+            apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    // ignore
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    if (!response.isSuccessful()) return;
+                    try {
+                        String body = response.body().string();
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        java.util.List<String> users = new java.util.ArrayList<>();
+                        // Try various response shapes: data.members[] or members[]
+                        org.json.JSONArray arr = null;
+                        if (json.has("data") && json.get("data") instanceof org.json.JSONObject) {
+                            org.json.JSONObject data = json.getJSONObject("data");
+                            if (data.has("members") && data.get("members") instanceof org.json.JSONArray) {
+                                arr = data.getJSONArray("members");
+                            }
+                        }
+                        if (arr == null && json.has("members") && json.get("members") instanceof org.json.JSONArray) {
+                            arr = json.getJSONArray("members");
+                        }
+                        if (arr != null) {
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject m = arr.getJSONObject(i);
+                                // member may be object with username or nested user
+                                String username = m.optString("username",
+                                        m.optJSONObject("user") != null ? m.optJSONObject("user").optString("username", "") : "");
+                                if (username != null && !username.isEmpty() && !users.contains(username)) {
+                                    users.add(username);
+                                }
+                            }
+                        }
+                        runOnUiThread(() -> {
+                            mentionCandidates.clear();
+                            mentionCandidates.addAll(users);
+                            if (mentionAdapter != null) mentionAdapter.notifyDataSetChanged();
+                        });
+                    } catch (Exception ignored) {}
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    protected void handleMentionParsing(CharSequence s) {
+        if (currentChat == null || !currentChat.isGroupChat()) return;
+        int cursor = etMessage.getSelectionStart();
+        if (cursor < 0) return;
+        // Find the '@' word start before cursor
+        int i = cursor - 1;
+        while (i >= 0) {
+            char c = s.charAt(i);
+            if (c == '@') {
+                mentionStart = i;
+                break;
+            }
+            if (Character.isWhitespace(c)) {
+                break;
+            }
+            i--;
+        }
+        if (mentionStart >= 0) {
+            String query = s.subSequence(mentionStart + 1, cursor).toString();
+            showMentionSuggestions(query);
+        } else {
+            if (mentionPopup != null) mentionPopup.dismiss();
+        }
+    }
+
+    protected void showMentionSuggestions(String query) {
+        if (mentionAdapter == null || mentionCandidates.isEmpty()) {
+            if (mentionPopup != null) mentionPopup.dismiss();
+            return;
+        }
+        java.util.List<String> filtered = new java.util.ArrayList<>();
+        String q = query == null ? "" : query.toLowerCase();
+        for (String u : mentionCandidates) {
+            if (q.isEmpty() || u.toLowerCase().contains(q)) filtered.add(u);
+        }
+        if (filtered.isEmpty()) {
+            mentionPopup.dismiss();
+            return;
+        }
+        mentionPopup.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, filtered));
+        mentionPopup.setAnchorView(etMessage);
+        mentionPopup.setModal(true);
+        mentionPopup.show();
+    }
+
+    protected void commitMention(String username) {
+        if (mentionStart < 0) return;
+        Editable text = etMessage.getText();
+        int cursor = etMessage.getSelectionStart();
+        if (cursor < 0) cursor = text.length();
+        // Replace from '@' to cursor with @username + space
+        text.replace(mentionStart, cursor, "@" + username + " ");
+        // Move cursor to end
+        etMessage.setSelection(mentionStart + username.length() + 2);
+        mentionStart = -1;
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -934,6 +1116,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         // SocketManager is managed globally, no cleanup needed here
         android.util.Log.d("BaseChatActivity", "Activity destroyed - SocketManager remains global");
+        if (socketManager != null) {
+            socketManager.removeMessageListener();
+        }
     }
 
     // MessageAdapter.OnMessageClickListener implementation
@@ -953,6 +1138,18 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     public void onImageClick(String imageUrl, String localImageUri) {
         // Show image in full screen dialog
         showImageZoomDialog(imageUrl, localImageUri);
+    }
+
+    @Override
+    public void onReactClick(Message message, String emoji) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        apiClient.addReaction(token, message.getId(), emoji, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* ignore */ }
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) { /* backend will broadcast reaction_updated */ }
+        });
     }
 
     protected void showImageZoomDialog(String imageUrl) {
@@ -998,8 +1195,74 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         dialog.show();
     }
 
+    // ===== Realtime message handlers =====
+    protected void handleIncomingMessage(org.json.JSONObject messageJson) {
+        try {
+            // Filter by current chat
+            String chatId = messageJson.optString("chat");
+            if (currentChat == null || chatId == null || !chatId.equals(currentChat.getId())) return;
+
+            Message incoming = Message.fromJson(messageJson);
+            // Upsert by id
+            int idx = indexOfMessageById(incoming.getId());
+            if (idx >= 0) {
+                messages.set(idx, incoming);
+                messageAdapter.notifyItemChanged(idx);
+            } else {
+                messages.add(incoming);
+                messageAdapter.notifyItemInserted(messages.size() - 1);
+                scrollToBottom();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BaseChatActivity", "Failed to handle incoming message: " + e.getMessage());
+        }
+    }
+
+    protected void handleEditedMessage(org.json.JSONObject messageJson) {
+        try {
+            String chatId = messageJson.optString("chat");
+            if (currentChat == null || chatId == null || !chatId.equals(currentChat.getId())) return;
+            Message edited = Message.fromJson(messageJson);
+            int idx = indexOfMessageById(edited.getId());
+            if (idx >= 0) {
+                messages.set(idx, edited);
+                messageAdapter.notifyItemChanged(idx);
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BaseChatActivity", "Failed to handle edited message: " + e.getMessage());
+        }
+    }
+
+    protected void handleDeletedMessage(org.json.JSONObject metaJson) {
+        try {
+            String messageId = metaJson.optString("id", metaJson.optString("_id", ""));
+            String chatId = metaJson.optString("chat");
+            if (currentChat == null) return;
+            if (chatId != null && !chatId.isEmpty() && !chatId.equals(currentChat.getId())) return;
+            int idx = indexOfMessageById(messageId);
+            if (idx >= 0) {
+                Message m = messages.get(idx);
+                m.setDeleted(true);
+                m.setContent("This message was deleted");
+                messageAdapter.notifyItemChanged(idx);
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BaseChatActivity", "Failed to handle deleted message: " + e.getMessage());
+        }
+    }
+
+    protected int indexOfMessageById(String id) {
+        if (id == null) return -1;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (id.equals(m.getId())) return i;
+        }
+        return -1;
+    }
+
     protected void showMessageOptions(Message message) {
         java.util.List<String> actions = new java.util.ArrayList<>();
+        actions.add("React");
         actions.add("Reply");
         boolean canEdit = message.isTextMessage() && message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
         if (canEdit) actions.add("Edit");
@@ -1012,7 +1275,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         builder.setTitle("Message Options")
                 .setItems(options, (dialog, which) -> {
                     String selected = options[which];
-                    if ("Reply".equals(selected)) {
+                    if ("React".equals(selected)) {
+                        showReactionPicker(message);
+                    } else if ("Reply".equals(selected)) {
                         setReplyState(message);
                     } else if ("Edit".equals(selected)) {
                         promptEditMessage(message);
@@ -1027,6 +1292,20 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                         Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
                     }
                 });
+        builder.show();
+    }
+
+    protected void showReactionPicker(Message message) {
+        final String[] emojis = new String[]{
+            "👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤔"
+        };
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("React");
+        builder.setItems(emojis, (dialog, which) -> {
+            if (which >= 0 && which < emojis.length) {
+                onReactClick(message, emojis[which]);
+            }
+        });
         builder.show();
     }
 

@@ -245,6 +245,39 @@ public class ApiClient {
     public void deleteMessage(String token, String messageId, Callback callback) {
         authenticatedDelete("/api/messages/" + messageId, token, callback);
     }
+
+    /**
+     * Add reaction to a message
+     */
+    public void addReaction(String token, String messageId, String emoji, Callback callback) {
+        try {
+            org.json.JSONObject body = new org.json.JSONObject();
+            body.put("emoji", emoji);
+            authenticatedPost("/api/messages/" + messageId + "/reactions", token, body, callback);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare add reaction: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Remove reaction from a message
+     */
+    public void removeReaction(String token, String messageId, String emoji, Callback callback) {
+        try {
+            org.json.JSONObject body = new org.json.JSONObject();
+            body.put("emoji", emoji);
+            RequestBody requestBody = RequestBody.create(body.toString(), JSON);
+            Request request = createAuthenticatedRequest(token)
+                    .url(getBaseUrl() + "/api/messages/" + messageId + "/reactions")
+                    .delete(requestBody)
+                    .build();
+            client.newCall(request).enqueue(callback);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare remove reaction: " + e.getMessage()));
+        }
+    }
     
     /**
      * Get messages from chat

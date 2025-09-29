@@ -19,6 +19,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     
@@ -26,6 +28,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         void onMessageClick(Message message);
         void onMessageLongClick(Message message);
         void onImageClick(String imageUrl, String localImageUri);
+        default void onReactClick(Message message, String emoji) {}
     }
     
     private List<Message> messages;
@@ -95,9 +98,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         private TextView tvSentMessage;
         private TextView tvSentTime;
         private TextView tvSentEdited;
+        private TextView tvSentReactionsBadge;
         private TextView tvReceivedMessage;
         private TextView tvReceivedTime;
         private TextView tvReceivedEdited;
+        private TextView tvReceivedReactionsBadge;
         private TextView tvSenderName;
         private TextView tvSentReplyAuthor;
         private TextView tvSentReplyContent;
@@ -116,9 +121,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             tvSentMessage = itemView.findViewById(R.id.tv_sent_message);
             tvSentTime = itemView.findViewById(R.id.tv_sent_time);
             tvSentEdited = itemView.findViewById(R.id.tv_sent_edited);
+            tvSentReactionsBadge = itemView.findViewById(R.id.tv_sent_reactions_badge);
             tvReceivedMessage = itemView.findViewById(R.id.tv_received_message);
             tvReceivedTime = itemView.findViewById(R.id.tv_received_time);
             tvReceivedEdited = itemView.findViewById(R.id.tv_received_edited);
+            tvReceivedReactionsBadge = itemView.findViewById(R.id.tv_received_reactions_badge);
             tvSenderName = itemView.findViewById(R.id.tv_sender_name);
             tvSentReplyAuthor = itemView.findViewById(R.id.tv_sent_reply_author);
             tvSentReplyContent = itemView.findViewById(R.id.tv_sent_reply_content);
@@ -206,13 +213,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     // Show text message
                     if (tvSentMessage != null) {
                         tvSentMessage.setVisibility(View.VISIBLE);
-                        tvSentMessage.setText(message.getContent());
+                        applyMentionStyling(tvSentMessage, message.getContent(), true);
                     }
                     if (ivSentImage != null) ivSentImage.setVisibility(View.GONE);
                 }
                 
                 if (tvSentTime != null) tvSentTime.setText(timeString);
                 if (tvSentEdited != null) tvSentEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
+                updateReactionsBadge(tvSentReactionsBadge, message);
             } else {
                 // Show received message layout
                 llSentMessage.setVisibility(View.GONE);
@@ -277,13 +285,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     // Show text message
                     if (tvReceivedMessage != null) {
                         tvReceivedMessage.setVisibility(View.VISIBLE);
-                        tvReceivedMessage.setText(message.getContent());
+                        applyMentionStyling(tvReceivedMessage, message.getContent(), false);
                     }
                     if (ivReceivedImage != null) ivReceivedImage.setVisibility(View.GONE);
                 }
                 
                 if (tvReceivedTime != null) tvReceivedTime.setText(timeString);
                 if (tvReceivedEdited != null) tvReceivedEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
+                updateReactionsBadge(tvReceivedReactionsBadge, message);
 
                 // For group chats, show sender name and avatar
                 boolean shouldShowAvatar = isGroupChat || message.isGroupChat();
@@ -349,6 +358,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             itemView.setOnLongClickListener(v -> {
                 if (listener != null) {
                     listener.onMessageLongClick(message);
+                    // Quick reaction panel (lightweight)
+                    showQuickReactions(itemView.getContext(), itemView, message);
                     return true;
                 }
                 return false;
@@ -360,12 +371,93 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 if (tvSentMessage != null) tvSentMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (ivSentImage != null && ivSentImage.getVisibility() == View.VISIBLE)
                     ivSentImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (tvSentReactionsBadge != null) tvSentReactionsBadge.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
             } else if (llReceivedMessage.getVisibility() == View.VISIBLE) {
                 llReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (tvReceivedMessage != null) tvReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (ivReceivedImage != null && ivReceivedImage.getVisibility() == View.VISIBLE)
                     ivReceivedImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
+                if (tvReceivedReactionsBadge != null) tvReceivedReactionsBadge.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
             }
+        }
+
+        private void showQuickReactions(Context context, View anchor, Message message) {
+            String[] emojis = {"👍", "❤️", "😂", "😮", "😢", "🔥"};
+            android.widget.PopupMenu menu = new android.widget.PopupMenu(context, anchor);
+            for (int i = 0; i < emojis.length; i++) {
+                menu.getMenu().add(0, 1000 + i, i, emojis[i]);
+            }
+            menu.setOnMenuItemClickListener(item -> {
+                int idx = item.getItemId() - 1000;
+                if (idx >= 0 && idx < emojis.length) {
+                    String emoji = emojis[idx];
+                    if (listener != null) listener.onReactClick(message, emoji);
+                    return true;
+                }
+                return false;
+            });
+            // Show as icons row by forcing show
+            try {
+                java.lang.reflect.Field mFieldPopup = menu.getClass().getDeclaredField("mPopup");
+                mFieldPopup.setAccessible(true);
+                Object mPopup = mFieldPopup.get(menu);
+                mPopup.getClass().getDeclaredMethod("setForceShowIcon", boolean.class).invoke(mPopup, true);
+            } catch (Exception ignored) {}
+            menu.show();
+        }
+
+        private void updateReactionsBadge(TextView badgeView, Message message) {
+            if (badgeView == null) return;
+            java.util.Map<String, Integer> sum = message.getReactionSummary();
+            if (sum == null || sum.isEmpty()) {
+                badgeView.setVisibility(View.GONE);
+                return;
+            }
+            // Build compact badge like "👍 3  ❤️ 1"
+            StringBuilder sb = new StringBuilder();
+            int shown = 0;
+            for (java.util.Map.Entry<String, Integer> e : sum.entrySet()) {
+                if (e.getValue() == null || e.getValue() <= 0) continue;
+                if (shown > 0) sb.append("  ");
+                sb.append(e.getKey()).append(" ").append(e.getValue());
+                shown++;
+                if (shown >= 3) break; // cap to 3 types for compactness
+            }
+            if (sb.length() > 0) {
+                badgeView.setText(sb.toString());
+                badgeView.setVisibility(View.VISIBLE);
+            } else {
+                badgeView.setVisibility(View.GONE);
+            }
+        }
+
+        private void showReactionsSheet(Context context, Message message) {
+            // Parse raw reactions to show users list
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            try {
+                String raw = message.getReactionsRaw();
+                if (raw != null && !raw.isEmpty()) {
+                    org.json.JSONArray arr = new org.json.JSONArray(raw);
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject r = arr.getJSONObject(i);
+                        String emoji = r.optString("emoji", "");
+                        org.json.JSONObject userObj = r.optJSONObject("user");
+                        String uname = userObj != null ? userObj.optString("username", "Unknown") : "Unknown";
+                        lines.add(emoji + "  " + uname);
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            if (lines.isEmpty()) {
+                android.widget.Toast.makeText(context, "No reactions", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String[] arr = lines.toArray(new String[0]);
+            new android.app.AlertDialog.Builder(context)
+                .setTitle("Reactions")
+                .setItems(arr, null)
+                .setPositiveButton("Close", null)
+                .show();
         }
     }
     
@@ -406,5 +498,54 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             imageView.setLayoutParams(params);
         }
+    }
+
+    private static final Pattern MENTION_PATTERN = Pattern.compile("@([A-Za-z0-9_]+)");
+
+    private static void applyMentionStyling(TextView textView, String content, boolean isSent) {
+        if (content == null) {
+            textView.setText("");
+            return;
+        }
+        android.text.SpannableString spannable = new android.text.SpannableString(content);
+        Matcher matcher = MENTION_PATTERN.matcher(content);
+        while (matcher.find()) {
+            int start = matcher.start();
+            int end = matcher.end();
+            android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
+            if (isSent) {
+                // On sent bubble (usually colored background with white text), use a semi-transparent highlight
+                android.text.style.BackgroundColorSpan bgSpan = new android.text.style.BackgroundColorSpan(0x66FFC107); // amber 40%
+                spannable.setSpan(bgSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else {
+                // On received bubble (light background, dark text), use blue foreground
+                android.text.style.ForegroundColorSpan colorSpan = new android.text.style.ForegroundColorSpan(0xFF1E88E5);
+                spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+            // Clickable span to open profile
+            final String username = content.substring(start + 1, end);
+            android.text.style.ClickableSpan clickableSpan = new android.text.style.ClickableSpan() {
+                @Override
+                public void onClick(View widget) {
+                    Context ctx = widget.getContext();
+                    android.content.Intent intent = new android.content.Intent(ctx, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                    // Best-effort: pass username; ProfileViewActivity should handle fetching by username
+                    intent.putExtra("username", username);
+                    // Optional: also pass minimal user object if we can map username from avatarManager cache later
+                    ctx.startActivity(intent);
+                }
+
+                @Override
+                public void updateDrawState(android.text.TextPaint ds) {
+                    super.updateDrawState(ds);
+                    ds.setUnderlineText(false);
+                }
+            };
+            spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        textView.setText(spannable);
+        textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
     }
 }

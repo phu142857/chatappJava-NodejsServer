@@ -75,6 +75,10 @@ public class ProfileViewActivity extends AppCompatActivity {
                 finish();
                 return;
             }
+        } else if (intent.hasExtra("username")) {
+            // Fallback: fetch by username from server
+            String username = intent.getStringExtra("username");
+            fetchUserByUsername(username);
         } else {
             Toast.makeText(this, "No user data provided", Toast.LENGTH_SHORT).show();
             finish();
@@ -281,6 +285,77 @@ public class ProfileViewActivity extends AppCompatActivity {
                     } catch (Exception e) {
                         android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage());
                     }
+                }
+            }
+        });
+    }
+
+    private void fetchUserByUsername(String username) {
+        if (username == null || username.isEmpty()) {
+            Toast.makeText(this, "Invalid username", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        // Use search API, then pick exact match (case-insensitive)
+        apiClient.authenticatedGet("/api/users/search?q=" + username, token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, "Failed to load user", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (!response.isSuccessful()) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                    return;
+                }
+                try {
+                    String body = response.body().string();
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONArray arr = null;
+                    if (json.has("data") && json.get("data") instanceof org.json.JSONObject) {
+                        org.json.JSONObject data = json.getJSONObject("data");
+                        if (data.has("users")) arr = data.getJSONArray("users");
+                    }
+                    if (arr == null && json.has("users")) {
+                        arr = json.getJSONArray("users");
+                    }
+                    if (arr == null || arr.length() == 0) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                        return;
+                    }
+                    // Pick best match
+                    org.json.JSONObject userObj = null;
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        String uname = u.optString("username", "");
+                        if (uname.equalsIgnoreCase(username)) { userObj = u; break; }
+                    }
+                    if (userObj == null) userObj = arr.getJSONObject(0);
+                    User fetched = User.fromJson(userObj);
+                    otherUser = fetched;
+                    runOnUiThread(() -> loadUserData());
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, "Error parsing user", Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
                 }
             }
         });
