@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Modal } from 'antd';
+import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Modal, Input, Form } from 'antd';
 import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
@@ -54,6 +54,8 @@ export default function UserChats() {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState<string>('');
+  const [sending, setSending] = useState<boolean>(false);
 
   useEffect(() => {
     fetchChats();
@@ -98,6 +100,34 @@ export default function UserChats() {
   const handleViewMessages = (chat: Chat) => {
     setSelectedChat(chat);
     fetchMessages(chat._id);
+  };
+
+  const handleSendMessage = async () => {
+    const content = newMessage.trim();
+    if (!selectedChat) {
+      messageApi.error('No chat selected');
+      return;
+    }
+    if (!content) {
+      return;
+    }
+    try {
+      setSending(true);
+      await apiClient.post('/messages', {
+        chatId: selectedChat._id,
+        content,
+        type: 'text',
+      });
+      setNewMessage('');
+      fetchMessages(selectedChat._id);
+      // Optionally refresh chat list to update last message preview
+      fetchChats();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      messageApi.error('Failed to send message');
+    } finally {
+      setSending(false);
+    }
   };
 
   const getChatDisplayName = (chat: Chat) => {
@@ -223,7 +253,7 @@ export default function UserChats() {
         width={800}
         style={{ top: 20 }}
       >
-        <div style={{ height: 400, overflowY: 'auto', border: '1px solid #d9d9d9', padding: 16 }}>
+        <div style={{ height: 400, overflowY: 'auto', border: '1px solid #d9d9d9', padding: 16, marginBottom: 12 }}>
           {messagesLoading ? (
             <div style={{ textAlign: 'center', padding: 20 }}>Loading messages...</div>
           ) : messages.length === 0 ? (
@@ -259,6 +289,30 @@ export default function UserChats() {
             </Space>
           )}
         </div>
+        <Form
+          onFinish={handleSendMessage}
+          style={{ display: 'flex', gap: 8 }}
+        >
+          <Form.Item style={{ flex: 1, marginBottom: 0 }}>
+            <Input.TextArea
+              value={newMessage}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              placeholder="Type a message..."
+              onChange={(e) => setNewMessage(e.target.value)}
+              onPressEnter={(e) => {
+                if (!e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" loading={sending} disabled={!newMessage.trim()}>
+              Send
+            </Button>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );
