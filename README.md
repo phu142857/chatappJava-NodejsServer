@@ -126,10 +126,14 @@ CLIENT_URL=http://localhost:3000
 WEBADMIN_URL=http://localhost:5173
 
 # Security Configuration
-BCRYPT_ROUNDS=12
+BCRYPT_SALT_ROUNDS=12
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
 ```
+
+Notes:
+- `PORT` is required by the server (no default in code).
+- `CLIENT_URL` and `WEBADMIN_URL` must match the actual origins used by your apps for CORS and Socket.IO.
 
 #### WebAdmin Configuration
 Create `.env` file in `WebAdmin/`:
