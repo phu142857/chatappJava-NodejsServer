@@ -64,6 +64,8 @@ export default function UserChats() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [newMessage, setNewMessage] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
+  const [polling, setPolling] = useState<boolean>(false);
+  const [pollIntervalMs] = useState<number>(3000);
 
   useEffect(() => {
     fetchChats();
@@ -137,6 +139,7 @@ export default function UserChats() {
   const handleViewMessages = (chat: Chat) => {
     setSelectedChat(chat);
     fetchMessages(chat._id);
+    setPolling(true);
   };
 
   const handleSendMessage = async () => {
@@ -156,6 +159,7 @@ export default function UserChats() {
         type: 'text',
       });
       setNewMessage('');
+      // Immediately refresh after send
       fetchMessages(selectedChat._id);
       // Optionally refresh chat list to update last message preview
       fetchChats();
@@ -166,6 +170,22 @@ export default function UserChats() {
       setSending(false);
     }
   };
+
+  // Poll messages while modal is open
+  useEffect(() => {
+    if (!selectedChat || !polling) return;
+    const id = setInterval(() => {
+      fetchMessages(selectedChat._id);
+    }, pollIntervalMs);
+    return () => clearInterval(id);
+  }, [selectedChat, polling, pollIntervalMs]);
+
+  // Stop polling when modal closed
+  useEffect(() => {
+    if (!selectedChat) {
+      setPolling(false);
+    }
+  }, [selectedChat]);
 
   const getChatDisplayName = (chat: Chat) => {
     if (chat.type === 'group') {
