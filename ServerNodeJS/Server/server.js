@@ -136,14 +136,8 @@ app.use('/uploads', (req, res, next) => {
   // Set comprehensive CORS headers for static files
   const origin = req.headers.origin;
   const allowedOrigins = [
-    process.env.CLIENT_URL || "http://localhost:3000",
-    process.env.WEBADMIN_URL || "http://localhost:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://103.75.183.125:5173",
-    /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
-    /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
-    /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d$/
+    process.env.CLIENT_URL,
+    process.env.WEBADMIN_URL
   ];
   
   const isAllowed = !origin || allowedOrigins.some(allowedOrigin => {
