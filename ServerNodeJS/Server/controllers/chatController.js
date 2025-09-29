@@ -19,9 +19,20 @@ const getChats = async (req, res) => {
     
     console.log('Found chats:', chats.length, 'for user:', req.user.id);
 
+    // Filter out chats with null participants (deleted users)
+    const validChats = chats.filter(chat => {
+      if (chat.type === 'private') {
+        // For private chats, ensure both participants exist
+        return chat.participants.every(p => p.user && p.user._id);
+      }
+      return true; // Group chats can have some null participants
+    });
+
+    console.log('Valid chats after filtering:', validChats.length, 'for user:', req.user.id);
+
     // Get unread message counts for each chat and format chat data
     const chatsWithUnreadCount = await Promise.all(
-      chats.map(async (chat) => {
+      validChats.map(async (chat) => {
         const unreadCount = await Message.countDocuments({
           chat: chat._id,
           'readBy.user': { $ne: req.user.id },
@@ -35,10 +46,10 @@ const getChats = async (req, res) => {
         if (chat.type === 'private') {
           // Find the other participant (not the current user)
           const otherParticipant = chat.participants.find(
-            p => p.user._id.toString() !== req.user.id
+            p => p.user && p.user._id && p.user._id.toString() !== req.user.id
           );
           
-          if (otherParticipant) {
+          if (otherParticipant && otherParticipant.user) {
             // Set chat name to the other participant's name
             chatData.name = otherParticipant.user.username;
             chatData.otherParticipant = {
@@ -47,6 +58,16 @@ const getChats = async (req, res) => {
               email: otherParticipant.user.email,
               avatar: otherParticipant.user.avatar,
               status: otherParticipant.user.status
+            };
+          } else {
+            // Handle case where other participant user is null/deleted
+            chatData.name = 'Unknown User';
+            chatData.otherParticipant = {
+              id: null,
+              username: 'Unknown User',
+              email: '',
+              avatar: '',
+              status: 'offline'
             };
           }
         }
