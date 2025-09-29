@@ -74,9 +74,9 @@
                 android:id="@+id/btn_add_member"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@color/primary_color">
+                app:cardCornerRadius="4dp"
+                app:cardElevation="5dp"
+                android:backgroundTint="@color/border_focus">
 
                 <ImageView
                     android:id="@+id/iv_add_member"
@@ -192,12 +192,14 @@
         android:id="@+id/fab_add_member"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_margin="14dp"
         android:src="@drawable/ic_add"
         app:backgroundTint="@color/primary_color"
         app:tint="@android:color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:fabSize="normal"
+        app:shapeAppearanceOverlay="@style/Widget.AppCompat.CompoundButton.Switch"
         android:contentDescription="Add member" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
