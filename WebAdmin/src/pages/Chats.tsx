@@ -51,6 +51,35 @@ export default function Chats() {
     return `${base}${avatar}`;
   };
 
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    return `${base}${url}`;
+  };
+
+  const replaceEmojiShortcodes = (text: string) => {
+    const map: Record<string, string> = {
+      smile: '😄',
+      grin: '😁',
+      joy: '😂',
+      wink: '😉',
+      blush: '😊',
+      heart: '❤️',
+      thumbs_up: '👍',
+      thumbsdown: '👎',
+      cry: '😢',
+      sob: '😭',
+      scream: '😱',
+      fire: '🔥',
+      star: '⭐',
+      check: '✅',
+      x: '❌',
+      tada: '🎉'
+    };
+    return text.replace(/:([a-z0-9_+\-]+):/gi, (_, key: string) => map[key.toLowerCase()] || `:${key}:`);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -280,7 +309,15 @@ export default function Chats() {
       dataIndex: 'content',
       render: (content: string, record: Message) => (
         <div style={{ maxWidth: 300 }}>
-          <Typography.Text>{content || 'Media'}</Typography.Text>
+          {record.messageType === 'image' ? (
+            <img
+              src={resolveMediaUrl(content)}
+              alt="image"
+              style={{ maxWidth: 280, maxHeight: 200, display: 'block', borderRadius: 6 }}
+            />
+          ) : (
+            <Typography.Text>{replaceEmojiShortcodes(content || '') || 'Media'}</Typography.Text>
+          )}
           {record.messageType && record.messageType !== 'text' && (
             <Tag style={{ marginLeft: 8 }}>{record.messageType}</Tag>
           )}
@@ -446,7 +483,15 @@ export default function Chats() {
                         {new Date(msg.createdAt).toLocaleString()}
                       </Typography.Text>
                     </div>
-                    <Typography.Text>{msg.content}</Typography.Text>
+                    {msg.messageType === 'image' ? (
+                      <img
+                        src={resolveMediaUrl(msg.content)}
+                        alt="image"
+                        style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 6, marginTop: 4 }}
+                      />
+                    ) : (
+                      <Typography.Text>{replaceEmojiShortcodes(msg.content)}</Typography.Text>
+                    )}
                     {msg.messageType && msg.messageType !== 'text' && (
                       <Tag style={{ marginLeft: 8, fontSize: 12 }}>{msg.messageType}</Tag>
                     )}

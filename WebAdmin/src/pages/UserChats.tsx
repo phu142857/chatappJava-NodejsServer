@@ -97,6 +97,35 @@ export default function UserChats() {
     return `${base}${avatar}`;
   };
 
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    return `${base}${url}`;
+  };
+
+  const replaceEmojiShortcodes = (text: string) => {
+    const map: Record<string, string> = {
+      smile: '😄',
+      grin: '😁',
+      joy: '😂',
+      wink: '😉',
+      blush: '😊',
+      heart: '❤️',
+      thumbs_up: '👍',
+      thumbsdown: '👎',
+      cry: '😢',
+      sob: '😭',
+      scream: '😱',
+      fire: '🔥',
+      star: '⭐',
+      check: '✅',
+      x: '❌',
+      tada: '🎉'
+    };
+    return text.replace(/:([a-z0-9_+\-]+):/gi, (_, key: string) => map[key.toLowerCase()] || `:${key}:`);
+  };
+
   const handleViewMessages = (chat: Chat) => {
     setSelectedChat(chat);
     fetchMessages(chat._id);
@@ -279,7 +308,15 @@ export default function UserChats() {
                         {dayjs(msg.createdAt).format('MMM DD, YYYY HH:mm')}
                       </Typography.Text>
                     </div>
-                    <Typography.Text>{msg.content}</Typography.Text>
+                    {msg.messageType === 'image' ? (
+                      <img
+                        src={resolveMediaUrl(msg.content)}
+                        alt="image"
+                        style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 6, marginTop: 4 }}
+                      />
+                    ) : (
+                      <Typography.Text>{replaceEmojiShortcodes(msg.content)}</Typography.Text>
+                    )}
                     {msg.messageType && msg.messageType !== 'text' && (
                       <Tag style={{ marginLeft: 8, fontSize: 12 }}>{msg.messageType}</Tag>
                     )}
