@@ -13,43 +13,48 @@
         android:layout_height="402dp"
         android:rotation="52"
         android:alpha="0.71"
-        android:background="#D9D9D9"
-        android:layout_marginStart="-120dp"
-        android:layout_marginTop="200dp"
+        android:background="#7BCCFF"
+        android:layout_marginStart="-260dp"
+        android:layout_marginTop="340dp"
+
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <View
-        android:layout_width="465dp"
+        android:layout_width="400dp"
         android:layout_height="402dp"
-        android:rotation="52"
+        android:layout_marginStart="-250dp"
+        android:layout_marginTop="365dp"
         android:alpha="0.29"
-        android:background="#7BCCFF"
-        android:layout_marginStart="-60dp"
-        android:layout_marginTop="220dp"
+        android:background="#D9D9D9"
+        android:rotation="52"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        />
 
     <View
         android:layout_width="715dp"
         android:layout_height="441dp"
-        android:rotation="52"
+        android:layout_marginTop="80dp"
+        android:layout_marginEnd="-430dp"
         android:alpha="0.71"
         android:background="#7BCCFF"
-        android:layout_marginEnd="-200dp"
-        android:layout_marginTop="-100dp"
+        android:rotation="52"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:elevation="10dp"/>
 
     <TextView
         android:id="@+id/login_title_top"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Login"
+        android:elevation="16dp"
         android:textSize="48sp"
         android:textStyle="bold"
         android:textColor="@android:color/black"
-        android:layout_marginTop="100dp"
+        android:layout_marginTop="150dp"
+
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -57,16 +62,18 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/login_card"
         android:layout_width="361dp"
-        android:layout_height="wrap_content" app:cardCornerRadius="4dp"
-        app:cardElevation="8dp"
-        android:layout_marginTop="50dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="16dp"
+        android:layout_marginTop="20dp"
         app:layout_constraintTop_toBottomOf="@id/login_title_top"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:gravity="center_vertical"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="vertical"
             android:padding="24dp">
 
@@ -140,6 +147,7 @@
         android:backgroundTint="#0E394B"
         app:cornerRadius="20dp"
         android:layout_marginTop="40dp"
+        android:elevation="10dp"
         app:layout_constraintTop_toBottomOf="@id/login_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
