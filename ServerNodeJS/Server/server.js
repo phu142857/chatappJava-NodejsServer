@@ -49,7 +49,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 
 // Reduce noisy logs in production
 if (process.env.NODE_ENV === 'production') {
