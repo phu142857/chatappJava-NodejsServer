@@ -378,15 +378,21 @@ export default function UserChats() {
                     handleSendMessage();
                   }
                 }}
-                filterOption={(input, option) =>
-                  (option?.value as string).toLowerCase().includes(input.toLowerCase())
-                }
+                filterOption={(input, option) => {
+                  const q = (input || '').toLowerCase();
+                  const val = option && typeof option.value !== 'undefined' ? String(option.value).toLowerCase() : '';
+                  return val.includes(q);
+                }}
               >
-                {(selectedChat.participants || []).map(p => (
-                  <Mentions.Option key={p._id} value={p.username}>
-                    {p.username}
-                  </Mentions.Option>
-                ))}
+                {(selectedChat?.participants || []).map(p => {
+                  const uname = p?.username || '';
+                  const id = p?._id || uname || Math.random().toString(36).slice(2);
+                  return (
+                    <Mentions.Option key={id} value={uname}>
+                      {uname || 'Unknown'}
+                    </Mentions.Option>
+                  );
+                })}
               </Mentions>
             ) : (
               <Input.TextArea
