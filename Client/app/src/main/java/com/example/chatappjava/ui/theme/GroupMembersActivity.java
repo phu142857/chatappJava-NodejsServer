@@ -66,7 +66,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         ivAddMember = findViewById(R.id.iv_add_member);
         rvMembers = findViewById(R.id.rv_members);
         btnAddMember = findViewById(R.id.btn_add_member);
-        fabAddMember = findViewById(R.id.fab_add_member);
     }
     
     private void initData() {
@@ -75,7 +74,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         avatarManager = AvatarManager.getInstance(this);
         members = new ArrayList<>();
         
-        // Get chat data from intent
         Intent intent = getIntent();
         if (intent.hasExtra("chat")) {
             try {
@@ -92,13 +90,8 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     }
     
     private void setupClickListeners() {
-        // Back button
         ivBack.setOnClickListener(v -> finish());
-        
-        // Add member buttons
         btnAddMember.setOnClickListener(v -> showAddMemberDialog());
-        fabAddMember.setOnClickListener(v -> showAddMemberDialog());
-        ivAddMember.setOnClickListener(v -> showAddMemberDialog());
     }
     
     private void setupRecyclerView() {
@@ -113,19 +106,14 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         tvGroupName.setText(currentChat.getName());
         tvMemberCount.setText(currentChat.getParticipantCount() + " members");
         
-        // Load group avatar if available
         if (currentChat.getAvatar() != null && !currentChat.getAvatar().isEmpty()) {
-            // Construct full URL for group avatar
             String avatarUrl = currentChat.getAvatar();
             if (!avatarUrl.startsWith("http")) {
                 avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
                            ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
             }
-            // Note: We would need to add an ImageView for group avatar in the layout
-            // For now, just show a placeholder message
         }
         
-        // Fetch member details from the server
         fetchGroupMembers();
     }
     

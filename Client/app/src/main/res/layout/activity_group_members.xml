@@ -4,16 +4,51 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_pattern"
+    android:background="#E0E0E0"
     android:fitsSystemWindows="true">
+
+    <!-- Background geometric shapes (same style as Home) -->
+    <View
+        android:layout_width="465dp"
+        android:layout_height="402dp"
+        android:rotation="52"
+        android:alpha="0.71"
+        android:background="#D9D9D9"
+        android:layout_marginStart="-120dp"
+        android:layout_marginTop="200dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="465dp"
+        android:layout_height="402dp"
+        android:rotation="52"
+        android:alpha="0.29"
+        android:background="#7BCCFF"
+        android:layout_marginStart="-60dp"
+        android:layout_marginTop="220dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="715dp"
+        android:layout_height="441dp"
+        android:rotation="52"
+        android:alpha="0.71"
+        android:background="#7BCCFF"
+        android:layout_marginEnd="-200dp"
+        android:layout_marginTop="-100dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Header Card -->
     <androidx.cardview.widget.CardView
         android:id="@+id/header_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
         app:layout_constraintTop_toTopOf="parent"
@@ -24,10 +59,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="20dp"
+            android:padding="16dp"
             android:gravity="center_vertical">
 
-            <!-- Back Button -->
             <ImageView
                 android:id="@+id/iv_back"
                 android:layout_width="48dp"
@@ -36,10 +70,9 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
                 app:tint="@color/primary_color"
-                android:contentDescription="@string/back"
+                android:contentDescription="Back"
                 android:layout_marginEnd="16dp" />
 
-            <!-- Group Info -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -51,7 +84,7 @@
                     android:id="@+id/tv_group_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@android:color/black"
                     android:textSize="20sp"
                     android:textStyle="bold"
                     android:maxLines="1"
@@ -62,30 +95,47 @@
                     android:id="@+id/tv_member_count"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@android:color/darker_gray"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
                     tools:text="5 members" />
 
             </LinearLayout>
 
-            <!-- Add Member Button -->
+            <!-- Redesigned Add Member Button -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/btn_add_member"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                app:cardCornerRadius="4dp"
-                app:cardElevation="5dp"
-                android:backgroundTint="@color/border_focus">
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                android:backgroundTint="@color/primary_color">
 
-                <ImageView
-                    android:id="@+id/iv_add_member"
-                    android:layout_width="24dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:contentDescription="Add member"
-                    android:src="@drawable/ic_add"
-                    app:tint="@android:color/white" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp">
+
+                    <ImageView
+                        android:id="@+id/iv_add_member"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/ic_add"
+                        app:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/tv_add_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Add"
+                        android:textColor="@android:color/white"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
             </androidx.cardview.widget.CardView>
 
@@ -98,8 +148,9 @@
         android:id="@+id/search_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
         app:layout_constraintTop_toBottomOf="@id/header_card"
@@ -117,7 +168,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search"
-                app:tint="@color/text_secondary"
+                app:tint="@android:color/darker_gray"
                 android:layout_marginEnd="12dp" />
 
             <EditText
@@ -127,7 +178,7 @@
                 android:layout_weight="1"
                 android:hint="Search members..."
                 android:textSize="16sp"
-                android:textColorHint="@color/text_secondary"
+                android:textColorHint="@android:color/darker_gray"
                 android:background="@null"
                 android:inputType="text" />
 
@@ -135,20 +186,33 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Members List -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_members"
+    <!-- Members container bar (wrap all items) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/members_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        android:paddingHorizontal="16dp"
-        android:clipToPadding="false"
-        android:scrollbars="vertical"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        android:backgroundTint="@android:color/white"
         app:layout_constraintTop_toBottomOf="@id/search_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:listitem="@layout/item_group_member" />
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_members"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="8dp"
+            android:scrollbars="vertical"
+            tools:listitem="@layout/item_group_member" />
+
+    </androidx.cardview.widget.CardView>
 
     <!-- Empty State -->
     <LinearLayout
@@ -158,23 +222,23 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="@id/rv_members"
-        app:layout_constraintBottom_toBottomOf="@id/rv_members"
-        app:layout_constraintStart_toStartOf="@id/rv_members"
-        app:layout_constraintEnd_toEndOf="@id/rv_members">
+        app:layout_constraintTop_toTopOf="@id/members_card"
+        app:layout_constraintBottom_toBottomOf="@id/members_card"
+        app:layout_constraintStart_toStartOf="@id/members_card"
+        app:layout_constraintEnd_toEndOf="@id/members_card">
 
         <ImageView
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:src="@drawable/ic_group_empty"
-            app:tint="@color/text_secondary"
+            app:tint="@android:color/darker_gray"
             android:layout_marginBottom="16dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No members found"
-            android:textColor="@color/text_secondary"
+            android:textColor="@android:color/darker_gray"
             android:textSize="16sp"
             android:layout_marginBottom="8dp" />
 
@@ -182,24 +246,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Add members to get started"
-            android:textColor="@color/text_secondary"
+            android:textColor="@android:color/darker_gray"
             android:textSize="14sp" />
 
     </LinearLayout>
-
-    <!-- Floating Action Button for Add Member -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_member"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="14dp"
-        android:src="@drawable/ic_add"
-        app:backgroundTint="@color/primary_color"
-        app:tint="@android:color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:fabSize="normal"
-        app:shapeAppearanceOverlay="@style/Widget.AppCompat.CompoundButton.Switch"
-        android:contentDescription="Add member" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
