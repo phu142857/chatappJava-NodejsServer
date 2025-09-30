@@ -32,8 +32,8 @@ public class ServerConfig {
      * Get the base server URL
      */
     public static String getBaseUrl() {
-        String protocol = USE_HTTPS ? "https" : "http";
-        return protocol + "://" + SERVER_IP + ":" + SERVER_PORT;
+        String protocol = isUsingHttps() ? "https" : "http";
+        return protocol + "://" + getServerIp() + ":" + getServerPort();
     }
     
     /**
@@ -54,8 +54,8 @@ public class ServerConfig {
      * Get the notification WebSocket URL
      */
     public static String getNotificationWebSocketUrl() {
-        String protocol = USE_WSS ? "wss" : "ws";
-        return protocol + "://" + SERVER_IP + ":" + SERVER_PORT + "/ws/";
+        String protocol = isUsingWss() ? "wss" : "ws";
+        return protocol + "://" + getServerIp() + ":" + getServerPort() + "/ws/";
     }
     
     // ===== SERVER INFO =====
@@ -64,6 +64,12 @@ public class ServerConfig {
      * Get current server IP
      */
     public static String getServerIp() {
+        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+        if (app != null) {
+            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            String override = prefs.getOverrideServerIp();
+            if (override != null && !override.isEmpty()) return override;
+        }
         return SERVER_IP;
     }
     
@@ -71,6 +77,12 @@ public class ServerConfig {
      * Get current server port
      */
     public static int getServerPort() {
+        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+        if (app != null) {
+            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            int override = prefs.getOverrideServerPort();
+            if (override > 0) return override;
+        }
         return SERVER_PORT;
     }
     
@@ -78,6 +90,12 @@ public class ServerConfig {
      * Check if using HTTPS
      */
     public static boolean isUsingHttps() {
+        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+        if (app != null) {
+            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            Boolean override = prefs.getOverrideUseHttps();
+            if (override != null) return override;
+        }
         return USE_HTTPS;
     }
     
@@ -85,6 +103,12 @@ public class ServerConfig {
      * Check if using secure WebSocket
      */
     public static boolean isUsingWss() {
+        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+        if (app != null) {
+            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            Boolean override = prefs.getOverrideUseWss();
+            if (override != null) return override;
+        }
         return USE_WSS;
     }
     

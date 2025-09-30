@@ -454,7 +454,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     
     
     private void showOptionsMenu() {
-        String[] options = {"Profile", "Settings", "New Chat", "New Group", "Reload", "Refresh Avatars", "Logout"};
+        String[] options = {"Profile", "Settings", "New Chat", "New Group", "Reload", "Refresh Avatars"};
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Options")
@@ -465,7 +465,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             startActivity(profileIntent);
                             break;
                         case 1:
-                            Toast.makeText(this, "Settings functionality coming soon", Toast.LENGTH_SHORT).show();
+                            Intent settingsIntent = new Intent(this, SettingsActivity.class);
+                            startActivity(settingsIntent);
                             break;
                         case 2:
                             Intent intent = new Intent(this, SearchActivity.class);
@@ -480,9 +481,6 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             break;
                         case 5:
                             refreshAvatars();
-                            break;
-                        case 6:
-                            logout();
                             break;
                     }
                 });

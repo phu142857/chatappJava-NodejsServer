@@ -40,7 +40,7 @@ const getChats = async (req, res) => {
           isDeleted: false
         });
 
-        // Format chat data for private chats
+        // Format chat data for private c
         let chatData = { ...chat.toJSON(), unreadCount };
         
         if (chat.type === 'private') {

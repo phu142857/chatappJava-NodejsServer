@@ -105,6 +105,11 @@
             android:label="Incoming Call"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.SettingsActivity"
+            android:exported="false"
+            android:label="Settings"
+            android:theme="@style/Theme.ChatAppJava" />
     </application>
 
 </manifest>

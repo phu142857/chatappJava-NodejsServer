@@ -15,6 +15,10 @@ public class SharedPreferencesManager {
     private static final String KEY_USER_NAME = "userName";
     private static final String KEY_USER_EMAIL = "userEmail";
     private static final String KEY_USER_AVATAR = "userAvatar";
+    private static final String KEY_OVERRIDE_SERVER_IP = "overrideServerIp";
+    private static final String KEY_OVERRIDE_SERVER_PORT = "overrideServerPort";
+    private static final String KEY_OVERRIDE_USE_HTTPS = "overrideUseHttps";
+    private static final String KEY_OVERRIDE_USE_WSS = "overrideUseWss";
     
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
@@ -144,5 +148,54 @@ public class SharedPreferencesManager {
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    // ===== Server overrides =====
+    public void setOverrideServerIp(String ip) {
+        editor.putString(KEY_OVERRIDE_SERVER_IP, ip);
+        editor.apply();
+    }
+
+    public String getOverrideServerIp() {
+        return sharedPreferences.getString(KEY_OVERRIDE_SERVER_IP, null);
+    }
+
+    public void setOverrideServerPort(int port) {
+        editor.putInt(KEY_OVERRIDE_SERVER_PORT, port);
+        editor.apply();
+    }
+
+    public int getOverrideServerPort() {
+        return sharedPreferences.getInt(KEY_OVERRIDE_SERVER_PORT, -1);
+    }
+
+    public void setOverrideUseHttps(boolean useHttps) {
+        editor.putBoolean(KEY_OVERRIDE_USE_HTTPS, useHttps);
+        editor.apply();
+    }
+
+    public Boolean getOverrideUseHttps() {
+        return sharedPreferences.contains(KEY_OVERRIDE_USE_HTTPS)
+                ? sharedPreferences.getBoolean(KEY_OVERRIDE_USE_HTTPS, false)
+                : null;
+    }
+
+    public void setOverrideUseWss(boolean useWss) {
+        editor.putBoolean(KEY_OVERRIDE_USE_WSS, useWss);
+        editor.apply();
+    }
+
+    public Boolean getOverrideUseWss() {
+        return sharedPreferences.contains(KEY_OVERRIDE_USE_WSS)
+                ? sharedPreferences.getBoolean(KEY_OVERRIDE_USE_WSS, false)
+                : null;
+    }
+
+    public void clearServerOverrides() {
+        editor.remove(KEY_OVERRIDE_SERVER_IP);
+        editor.remove(KEY_OVERRIDE_SERVER_PORT);
+        editor.remove(KEY_OVERRIDE_USE_HTTPS);
+        editor.remove(KEY_OVERRIDE_USE_WSS);
+        editor.apply();
     }
 }

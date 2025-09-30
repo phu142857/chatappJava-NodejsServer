@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context="ui.theme.SettingsActivity"
+    android:background="#E0E0E0">
+
+    <View
+        android:layout_width="465dp"
+        android:layout_height="402dp"
+        android:rotation="52"
+        android:alpha="0.71"
+        android:background="#7BCCFF"
+        android:layout_marginStart="-260dp"
+        android:layout_marginTop="340dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="400dp"
+        android:layout_height="402dp"
+        android:layout_marginStart="-250dp"
+        android:layout_marginTop="365dp"
+        android:alpha="0.29"
+        android:background="#D9D9D9"
+        android:rotation="52"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="715dp"
+        android:layout_height="441dp"
+        android:layout_marginTop="80dp"
+        android:layout_marginEnd="-430dp"
+        android:alpha="0.71"
+        android:background="#7BCCFF"
+        android:rotation="52"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:elevation="10dp"/>
+
+    <TextView
+        android:id="@+id/settings_title_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="120dp"
+        android:elevation="16dp"
+        android:text="Settings"
+        android:textColor="@android:color/black"
+        android:textSize="48sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/settings_card"
+        android:layout_width="361dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="16dp"
+        android:layout_marginTop="20dp"
+        app:layout_constraintTop_toBottomOf="@id/settings_title_top"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <!-- Server section header -->
+                <LinearLayout
+                    android:id="@+id/section_server_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Server settings"
+                        android:textColor="@android:color/black"
+                        android:textStyle="bold"
+                        android:textSize="18sp" />
+
+                    <ImageView
+                        android:id="@+id/iv_server_chevron"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:rotation="0"
+                        android:tint="#0E394B"
+                        android:src="@android:drawable/arrow_down_float" />
+                </LinearLayout>
+
+                <!-- Server section content (expanded by default) -->
+                <LinearLayout
+                    android:id="@+id/section_server_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Server IP" />
+
+                    <EditText
+                        android:id="@+id/et_server_ip"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:hint="e.g. 192.168.1.10"
+                        android:minHeight="48dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Server Port"
+                        android:layout_marginTop="12dp" />
+
+                    <EditText
+                        android:id="@+id/et_server_port"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:hint="e.g. 5000"
+                        android:minHeight="48dp" />
+
+                    <CheckBox
+                        android:id="@+id/cb_use_https"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Use HTTPS"
+                        android:layout_marginTop="12dp"
+                        android:buttonTint="#0E394B" />
+
+                    <CheckBox
+                        android:id="@+id/cb_use_wss"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Use WSS for WebSocket"
+                        android:buttonTint="#0E394B" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginTop="20dp">
+
+                        <Button
+                            android:id="@+id/btn_reset_settings"
+                            android:layout_width="140dp"
+                            android:layout_height="48dp"
+                            android:text="Reset"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="#0E394B"
+                            android:backgroundTint="#E0E0E0"
+                            app:cornerRadius="16dp"
+                            android:elevation="4dp" />
+
+                        <Button
+                            android:id="@+id/btn_save_settings"
+                            android:layout_width="180dp"
+                            android:layout_height="64dp"
+                            android:text="Save"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
+                            android:backgroundTint="#0E394B"
+                            app:cornerRadius="20dp"
+                            android:elevation="8dp"
+                            android:layout_marginStart="12dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDDDDD"
+                    android:layout_marginTop="12dp" />
+
+                <!-- Password section header -->
+                <LinearLayout
+                    android:id="@+id/section_password_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Change password"
+                        android:textColor="@android:color/black"
+                        android:textStyle="bold"
+                        android:textSize="18sp" />
+
+                    <ImageView
+                        android:id="@+id/iv_password_chevron"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:rotation="180"
+                        android:tint="#0E394B"
+                        android:src="@android:drawable/arrow_down_float" />
+                </LinearLayout>
+
+                <!-- Password section content (collapsed by default) -->
+                <LinearLayout
+                    android:id="@+id/section_password_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <EditText
+                        android:id="@+id/et_current_password"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Current password"
+                        android:inputType="textPassword"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="48dp" />
+
+                    <EditText
+                        android:id="@+id/et_new_password"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="New password"
+                        android:inputType="textPassword"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="48dp" />
+
+                    <EditText
+                        android:id="@+id/et_confirm_password"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Confirm new password"
+                        android:inputType="textPassword"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="48dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginTop="20dp">
+
+                        <Button
+                            android:id="@+id/btn_change_password"
+                            android:layout_width="180dp"
+                            android:layout_height="64dp"
+                            android:text="Save"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
+                            android:backgroundTint="#0E394B"
+                            app:cornerRadius="20dp"
+                            android:elevation="8dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDDDDD"
+                    android:layout_marginTop="12dp" />
+
+                <!-- Account section header -->
+                <LinearLayout
+                    android:id="@+id/section_account_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Account"
+                        android:textColor="@android:color/black"
+                        android:textStyle="bold"
+                        android:textSize="18sp" />
+
+                    <ImageView
+                        android:id="@+id/iv_account_chevron"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:rotation="180"
+                        android:tint="#0E394B"
+                        android:src="@android:drawable/arrow_down_float" />
+                </LinearLayout>
+
+                <!-- Account section content (collapsed by default) -->
+                <LinearLayout
+                    android:id="@+id/section_account_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sign out of your account"
+                        android:layout_marginTop="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_logout"
+                        android:layout_width="300dp"
+                        android:layout_height="64dp"
+                        android:text="Log out"
+                        android:textAllCaps="false"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="12dp"
+                        android:backgroundTint="#E53935"
+                        android:textColor="@android:color/white"
+                        app:cornerRadius="20dp"
+                        android:elevation="8dp"
+                        android:layout_gravity="center_horizontal" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Removed external Save and Logout buttons to keep all actions scrollable inside the card -->
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+

@@ -33,6 +33,8 @@ public class ApiClient {
     private static final String RESPOND_FRIEND_REQUEST_ENDPOINT = "/api/friend-requests";
     private static final String GET_ME_ENDPOINT = "/api/auth/me";
     private static final String UPDATE_PROFILE_ENDPOINT = "/api/auth/profile";
+    private static final String CHANGE_PASSWORD_ENDPOINT = "/api/auth/change-password";
+    private static final String LOGOUT_ENDPOINT = "/api/auth/logout";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
 
@@ -314,6 +316,32 @@ public class ApiClient {
      */
     public void updateProfile(String token, JSONObject profileData, Callback callback) {
         authenticatedPut(UPDATE_PROFILE_ENDPOINT, token, profileData, callback);
+    }
+
+    /**
+     * Change user password
+     */
+    public void changePassword(String token, String currentPassword, String newPassword, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("currentPassword", currentPassword);
+            body.put("newPassword", newPassword);
+            authenticatedPut(CHANGE_PASSWORD_ENDPOINT, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare change password: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Logout current user
+     */
+    public void logout(String token, Callback callback) {
+        Request request = createAuthenticatedRequest(token)
+                .url(getBaseUrl() + LOGOUT_ENDPOINT)
+                .post(RequestBody.create("", JSON))
+                .build();
+        client.newCall(request).enqueue(callback);
     }
 
     /**
