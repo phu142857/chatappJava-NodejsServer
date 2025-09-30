@@ -102,42 +102,14 @@
 
             </LinearLayout>
 
-            <!-- Redesigned Add Member Button -->
-            <androidx.cardview.widget.CardView
+            <!-- AppPrimaryButton style Add button -->
+            <Button
                 android:id="@+id/btn_add_member"
+                style="@style/AppPrimaryButton"
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="6dp"
-                android:backgroundTint="@color/primary_color">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
-
-                    <ImageView
-                        android:id="@+id/iv_add_member"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_add"
-                        app:tint="@android:color/white" />
-
-                    <TextView
-                        android:id="@+id/tv_add_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Add"
-                        android:textColor="@android:color/white"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
+                android:text="Add"
+                android:textAllCaps="false" />
 
         </LinearLayout>
 
