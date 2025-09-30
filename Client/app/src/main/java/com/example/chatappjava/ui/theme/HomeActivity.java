@@ -49,6 +49,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private RecyclerView rvChatList;
     private LinearLayout llFriendRequests;
     private TextView tvFriendRequestCount;
+    private TextView tvFriendRequestsTitle;
     
     // User Profile Components
     private de.hdodenhof.circleimageview.CircleImageView ivUserAvatar;
@@ -120,6 +121,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         rvChatList = findViewById(R.id.rv_chat_list);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
         tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
+        tvFriendRequestsTitle = findViewById(R.id.tv_friend_requests_title);
         
         // User Profile Components
         ivUserAvatar = findViewById(R.id.iv_user_avatar);
@@ -784,13 +786,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private void loadFriendRequestCount() {
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) {
+            updateFriendRequestBadge(0, 0);
             return;
         }
 
         apiClient.getFriendRequests(token, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                // Silently fail for friend request count
+                runOnUiThread(() -> updateFriendRequestBadge(0, 0));
             }
 
             @Override
@@ -802,32 +805,38 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         if (response.code() == 200) {
                             org.json.JSONObject data = jsonResponse.getJSONObject("data");
                             org.json.JSONArray requestsArray = data.getJSONArray("requests");
-                            
-                            int pendingCount = 0;
+
+                            int totalCount = requestsArray.length();
+                            int pendingReceivedCount = 0;
                             for (int i = 0; i < requestsArray.length(); i++) {
                                 org.json.JSONObject requestJson = requestsArray.getJSONObject(i);
                                 String status = requestJson.optString("status", "");
                                 String receiverId = requestJson.optString("receiverId", "");
-                                
-                                // Count only received pending requests
                                 if ("pending".equals(status) && receiverId.equals(sharedPrefsManager.getUserId())) {
-                                    pendingCount++;
+                                    pendingReceivedCount++;
                                 }
                             }
-                            
-                            updateFriendRequestBadge(pendingCount);
+
+                            updateFriendRequestBadge(totalCount, pendingReceivedCount);
+                        } else {
+                            updateFriendRequestBadge(0, 0);
                         }
                     } catch (org.json.JSONException e) {
                         e.printStackTrace();
+                        updateFriendRequestBadge(0, 0);
                     }
                 });
             }
         });
     }
 
-    private void updateFriendRequestBadge(int count) {
-        if (count > 0) {
-            tvFriendRequestCount.setText(String.valueOf(count));
+    private void updateFriendRequestBadge(int totalCount, int pendingReceivedCount) {
+        if (tvFriendRequestsTitle != null) {
+            String baseTitle = "Friend Requests";
+            tvFriendRequestsTitle.setText(baseTitle + " (" + totalCount + ")");
+        }
+        if (pendingReceivedCount > 0) {
+            tvFriendRequestCount.setText(String.valueOf(pendingReceivedCount));
             tvFriendRequestCount.setVisibility(View.VISIBLE);
         } else {
             tvFriendRequestCount.setVisibility(View.GONE);

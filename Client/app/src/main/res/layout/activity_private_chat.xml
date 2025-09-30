@@ -81,8 +81,8 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="16dp"
                 android:src="@android:drawable/ic_menu_view"
-                app:civ_border_width="2dp"
                 app:civ_border_color="#E0E0E0"
+                app:civ_border_width="2dp"
                 app:tint="@android:color/white" />
 
             <!-- Online Status Dot -->

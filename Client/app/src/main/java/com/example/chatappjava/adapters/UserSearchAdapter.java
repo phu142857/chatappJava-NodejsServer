@@ -86,7 +86,6 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
         private ImageView ivStatusIndicator;
         private Button btnAddFriend;
         private Button btnSecondary;
-        private ImageView ivAddChat;
         private View itemView;
         
         public UserViewHolder(@NonNull View itemView) {
@@ -100,14 +99,12 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
             ivStatusIndicator = itemView.findViewById(R.id.iv_status_indicator);
             btnAddFriend = itemView.findViewById(R.id.btn_add_friend);
             btnSecondary = itemView.findViewById(R.id.btn_secondary_action);
-            ivAddChat = itemView.findViewById(R.id.iv_add_chat);
         }
         
         public void bind(User user, OnUserClickListener listener) {
             // Set display name
             tvDisplayName.setText(user.getDisplayName());
             
-            // Set username (show if different from display name)
             if (!user.getUsername().equals(user.getDisplayName())) {
                 tvUsername.setText("@" + user.getUsername());
                 tvUsername.setVisibility(View.VISIBLE);
@@ -115,97 +112,92 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
                 tvUsername.setVisibility(View.GONE);
             }
             
-            // Set email
             tvEmail.setText(user.getEmail());
-            
-            // Set status
             tvStatus.setText(user.getStatusText());
             
-            // Set status indicator
             if (user.isOnline()) {
                 ivStatusIndicator.setImageResource(R.drawable.ic_status_online);
             } else {
                 ivStatusIndicator.setImageResource(R.drawable.ic_status_offline);
             }
             
-            // Load profile picture
             if (user.getAvatar() != null && !user.getAvatar().isEmpty()) {
                 String avatarUrl = user.getAvatar();
-                android.util.Log.d("UserSearchAdapter", "Loading user avatar: " + avatarUrl);
-                
-                // Construct full URL if needed (like other adapters)
                 if (!avatarUrl.startsWith("http")) {
-                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
-                    android.util.Log.d("UserSearchAdapter", "Constructed full URL: " + avatarUrl);
+                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
                 }
-                
-                // Use AvatarManager to load avatar with caching
                 AvatarManager.getInstance(itemView.getContext()).loadAvatar(
-                    avatarUrl, 
-                    ivProfilePicture, 
+                    avatarUrl,
+                    ivProfilePicture,
                     R.drawable.ic_profile_placeholder
                 );
             } else {
-                android.util.Log.d("UserSearchAdapter", "No avatar URL, using placeholder");
                 ivProfilePicture.setImageResource(R.drawable.ic_profile_placeholder);
             }
             
-            // Configure actions per state
+            // Avatar click -> open ProfileViewActivity
+            ivProfilePicture.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        android.content.Intent intent = new android.content.Intent(itemView.getContext(), com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                        intent.putExtra("user", user.toJson().toString());
+                        itemView.getContext().startActivity(intent);
+                    } catch (org.json.JSONException e) {
+                        if (listener != null) listener.onUserClick(user);
+                    }
+                }
+            });
+            
             String frStatus = user.getFriendRequestStatus();
             
-            // Check if we're in add_members mode
             if ("add_members".equals(mode)) {
-                // Check if user is already a member of the group
                 boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
                 
                 if (isAlreadyMember) {
-                    // User is already a member - hide add button and show status
                     btnAddFriend.setText("Already a Member");
                     btnAddFriend.setVisibility(View.VISIBLE);
                     btnAddFriend.setEnabled(false);
                     btnAddFriend.setAlpha(0.6f);
                     btnSecondary.setVisibility(View.GONE);
-                    ivAddChat.setVisibility(View.GONE);
                 } else {
-                    // User is not a member - show add button
                     btnAddFriend.setText("Add to Group");
                     btnAddFriend.setVisibility(View.VISIBLE);
                     btnAddFriend.setEnabled(true);
                     btnAddFriend.setAlpha(1.0f);
                     btnSecondary.setVisibility(View.GONE);
-                    ivAddChat.setVisibility(View.GONE);
                 }
             } else {
-                // Normal search mode - use original logic
                 if (user.isFriend()) {
                     btnAddFriend.setText("Chat");
                     btnAddFriend.setVisibility(View.VISIBLE);
+                    btnAddFriend.setEnabled(true);
+                    btnAddFriend.setAlpha(1.0f);
                     btnSecondary.setVisibility(View.GONE);
-                    ivAddChat.setVisibility(View.GONE);
                 } else if ("received".equals(frStatus)) {
                     btnAddFriend.setText("Accept");
-                    btnSecondary.setText("Reject");
                     btnAddFriend.setVisibility(View.VISIBLE);
+                    btnAddFriend.setEnabled(true);
+                    btnAddFriend.setAlpha(1.0f);
+                    btnSecondary.setText("Reject");
                     btnSecondary.setVisibility(View.VISIBLE);
-                    ivAddChat.setVisibility(View.VISIBLE); // extra Chat
                 } else if ("sent".equals(frStatus) || "pending".equals(frStatus)) {
-                    // User has sent a friend request that is pending
                     btnAddFriend.setText("Pending");
                     btnAddFriend.setVisibility(View.VISIBLE);
-                    btnSecondary.setVisibility(View.GONE);
-                    ivAddChat.setVisibility(View.GONE);
-                } else {
-                    // No friend request or cancelled - show Add Friend button
-                    btnAddFriend.setText("Chat");
-                    btnSecondary.setText("Add Friend");
-                    btnAddFriend.setVisibility(View.VISIBLE);
+                    btnAddFriend.setEnabled(false);
+                    btnAddFriend.setAlpha(0.6f);
+                    btnSecondary.setText("Chat");
                     btnSecondary.setVisibility(View.VISIBLE);
-                    ivAddChat.setVisibility(View.GONE);
+                } else {
+                    btnAddFriend.setText("Chat");
+                    btnAddFriend.setVisibility(View.VISIBLE);
+                    btnAddFriend.setEnabled(true);
+                    btnAddFriend.setAlpha(1.0f);
+                    btnSecondary.setText("Add Friend");
+                    btnSecondary.setVisibility(View.VISIBLE);
                 }
             }
             
-            // Set click listeners
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -226,32 +218,24 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
                 }
             });
 
-            // Primary button
             btnAddFriend.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (listener != null) {
-                        // Check if we're in add_members mode
                         if ("add_members".equals(mode)) {
-                            // Check if user is already a member
                             boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
                             if (!isAlreadyMember) {
-                                // In add members mode, primary button adds user to group
                                 listener.onUserClick(user);
                             }
-                            // If already member, do nothing (button is disabled)
                         } else {
-                            // Normal search mode - use original logic
                             String s = user.getFriendRequestStatus();
                             if (user.isFriend()) {
                                 listener.onStartChatClick(user);
                             } else if ("received".equals(s)) {
                                 listener.onRespondFriendRequest(user, true);
                             } else if ("sent".equals(s) || "pending".equals(s)) {
-                                // Pending request - do nothing or show message
-                                // Could show a toast or do nothing
+                                // Pending: disabled
                             } else {
-                                // default primary acts as Chat
                                 listener.onStartChatClick(user);
                             }
                         }
@@ -259,7 +243,6 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
                 }
             });
 
-            // Secondary button
             btnSecondary.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -269,20 +252,11 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
                             // no-op
                         } else if ("received".equals(s)) {
                             listener.onRespondFriendRequest(user, false);
+                        } else if ("sent".equals(s) || "pending".equals(s)) {
+                            listener.onStartChatClick(user);
                         } else {
-                            // default secondary acts as Add Friend
                             listener.onAddFriendClick(user);
                         }
-                    }
-                }
-            });
-
-            // Extra chat icon for received state
-            ivAddChat.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (listener != null) {
-                        listener.onStartChatClick(user);
                     }
                 }
             });

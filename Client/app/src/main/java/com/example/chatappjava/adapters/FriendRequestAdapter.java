@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.FriendRequest;
 import com.example.chatappjava.models.User;
+import com.example.chatappjava.utils.AvatarManager;
 
 import java.util.List;
 
@@ -103,120 +104,64 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
             
             User userToShow;
             boolean isReceivedRequest = currentUserId.equals(request.getReceiverId());
-            System.out.println("Is Received Request: " + isReceivedRequest);
-            System.out.println("String comparison: '" + currentUserId + "' == '" + request.getReceiverId() + "' = " + currentUserId.equals(request.getReceiverId()));
-            System.out.println("String comparison: '" + currentUserId + "' == '" + request.getSenderId() + "' = " + currentUserId.equals(request.getSenderId()));
-            System.out.println("Current User ID length: " + (currentUserId != null ? currentUserId.length() : "null"));
-            System.out.println("Sender ID length: " + (request.getSenderId() != null ? request.getSenderId().length() : "null"));
-            System.out.println("Receiver ID length: " + (request.getReceiverId() != null ? request.getReceiverId().length() : "null"));
             
-            // Additional debug for string comparison
-            if (currentUserId != null && request.getReceiverId() != null) {
-                System.out.println("Current User ID bytes: " + java.util.Arrays.toString(currentUserId.getBytes()));
-                System.out.println("Receiver ID bytes: " + java.util.Arrays.toString(request.getReceiverId().getBytes()));
-                System.out.println("Are they equal? " + currentUserId.equals(request.getReceiverId()));
-                System.out.println("Are they == ? " + (currentUserId == request.getReceiverId()));
-            }
-            
-            // Debug for null/empty checks
             if (currentUserId == null || currentUserId.isEmpty()) {
-                System.out.println("WARNING: Current User ID is null or empty!");
-            }
-            if (request.getReceiverId() == null || request.getReceiverId().isEmpty()) {
-                System.out.println("WARNING: Receiver ID is null or empty!");
-            }
-            if (request.getSenderId() == null || request.getSenderId().isEmpty()) {
-                System.out.println("WARNING: Sender ID is null or empty!");
+                return;
             }
             
-            // Force debug the logic
-            System.out.println("=== FORCE DEBUG LOGIC ===");
-            System.out.println("currentUserId: '" + currentUserId + "'");
-            System.out.println("request.getReceiverId(): '" + request.getReceiverId() + "'");
-            System.out.println("request.getSenderId(): '" + request.getSenderId() + "'");
-            System.out.println("currentUserId.equals(request.getReceiverId()): " + currentUserId.equals(request.getReceiverId()));
-            System.out.println("currentUserId.equals(request.getSenderId()): " + currentUserId.equals(request.getSenderId()));
-            System.out.println("=== END FORCE DEBUG ===");
-            
-            // Additional safety check
-            if (currentUserId == null || currentUserId.isEmpty()) {
-                System.out.println("ERROR: Cannot determine request type - currentUserId is null or empty!");
-                return; // Skip this item
-            }
-            
-            // Force the logic to be correct
             if (currentUserId.equals(request.getReceiverId())) {
-                System.out.println("FORCED: This is a RECEIVED request");
                 isReceivedRequest = true;
             } else if (currentUserId.equals(request.getSenderId())) {
-                System.out.println("FORCED: This is a SENT request");
                 isReceivedRequest = false;
             } else {
-                System.out.println("ERROR: Current user is neither sender nor receiver!");
-                System.out.println("DEBUG: currentUserId = '" + currentUserId + "'");
-                System.out.println("DEBUG: senderId = '" + request.getSenderId() + "'");
-                System.out.println("DEBUG: receiverId = '" + request.getReceiverId() + "'");
-                return; // Skip this item
+                return;
             }
             
-            // Final debug before UI setup
-            System.out.println("FINAL: isReceivedRequest = " + isReceivedRequest);
-            System.out.println("FINAL: Will show " + (isReceivedRequest ? "RECEIVED" : "SENT") + " request UI");
-            
             if (isReceivedRequest) {
-                // This is a received request - show sender info
                 userToShow = request.getSender();
                 tvRequestType.setText("Sent you a friend request");
                 llActionButtons.setVisibility(View.VISIBLE);
                 llSentRequestActions.setVisibility(View.GONE);
-                System.out.println("Setting up RECEIVED request UI - showing sender: " + (userToShow != null ? userToShow.getDisplayName() : "null"));
-                System.out.println("RECEIVED: llActionButtons visibility = VISIBLE, llSentRequestActions visibility = GONE");
-                System.out.println("RECEIVED: btnAccept visibility = " + btnAccept.getVisibility());
-                System.out.println("RECEIVED: btnReject visibility = " + btnReject.getVisibility());
             } else {
-                // This is a sent request - show receiver info
                 userToShow = request.getReceiver();
                 tvRequestType.setText("Friend request sent");
                 llActionButtons.setVisibility(View.GONE);
                 llSentRequestActions.setVisibility(View.VISIBLE);
                 tvStatus.setText(request.getStatus().toUpperCase());
-                System.out.println("Setting up SENT request UI - showing receiver: " + (userToShow != null ? userToShow.getDisplayName() : "null"));
-                System.out.println("SENT: llActionButtons visibility = GONE, llSentRequestActions visibility = VISIBLE");
-                System.out.println("SENT: tvStatus text = " + tvStatus.getText());
-                System.out.println("SENT: btnCancel visibility = " + btnCancel.getVisibility());
-                
-                // Show cancel button only for pending requests
-                if ("pending".equals(request.getStatus())) {
-                    btnCancel.setVisibility(View.VISIBLE);
-                    System.out.println("Showing cancel button for pending request");
-                } else {
-                    btnCancel.setVisibility(View.GONE);
-                    System.out.println("Hiding cancel button for " + request.getStatus() + " request");
-                }
+                btnCancel.setVisibility("pending".equals(request.getStatus()) ? View.VISIBLE : View.GONE);
             }
 
             if (userToShow != null) {
                 tvUsername.setText(userToShow.getDisplayName());
                 tvEmail.setText(userToShow.getEmail());
-                System.out.println("Displaying user: " + userToShow.getDisplayName() + " (" + userToShow.getEmail() + ")");
 
-                // Set profile picture (you can add image loading logic here)
-                // For now, using placeholder
-                civProfilePicture.setImageResource(R.drawable.ic_profile_placeholder);
+                // Load avatar using AvatarManager
+                String avatarUrl = userToShow.getAvatar();
+                if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                    if (!avatarUrl.startsWith("http")) {
+                        avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                                   ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                    }
+                    try {
+                        AvatarManager.getInstance(itemView.getContext()).loadAvatar(
+                            avatarUrl,
+                            civProfilePicture,
+                            R.drawable.ic_profile_placeholder
+                        );
+                    } catch (Exception e) {
+                        civProfilePicture.setImageResource(R.drawable.ic_profile_placeholder);
+                    }
+                } else {
+                    civProfilePicture.setImageResource(R.drawable.ic_profile_placeholder);
+                }
 
-                // Set click listener for profile
                 itemView.setOnClickListener(v -> {
                     if (listener != null) {
                         listener.onUserClick(userToShow);
                     }
                 });
-            } else {
-                System.out.println("ERROR: userToShow is null!");
-                System.out.println("ERROR: request.getSender() = " + request.getSender());
-                System.out.println("ERROR: request.getReceiver() = " + request.getReceiver());
             }
 
-            // Set button click listeners
             btnAccept.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onAcceptRequest(request);
@@ -233,73 +178,6 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
                 if (listener != null) {
                     listener.onCancelRequest(request);
                 }
-            });
-            
-            // Final debug after all UI setup
-            System.out.println("=== FINAL UI STATE ===");
-            System.out.println("llActionButtons visibility: " + llActionButtons.getVisibility());
-            System.out.println("llSentRequestActions visibility: " + llSentRequestActions.getVisibility());
-            System.out.println("btnAccept visibility: " + btnAccept.getVisibility());
-            System.out.println("btnReject visibility: " + btnReject.getVisibility());
-            System.out.println("btnCancel visibility: " + btnCancel.getVisibility());
-            System.out.println("tvStatus text: " + tvStatus.getText());
-            System.out.println("tvRequestType text: " + tvRequestType.getText());
-            System.out.println("=== END FINAL UI STATE ===");
-            
-            // Force UI to be correct (temporary fix)
-            if (isReceivedRequest) {
-                System.out.println("FORCING: Setting RECEIVED request UI");
-                llActionButtons.setVisibility(View.VISIBLE);
-                llSentRequestActions.setVisibility(View.GONE);
-                btnAccept.setVisibility(View.VISIBLE);
-                btnReject.setVisibility(View.VISIBLE);
-                btnCancel.setVisibility(View.GONE);
-            } else {
-                System.out.println("FORCING: Setting SENT request UI");
-                llActionButtons.setVisibility(View.GONE);
-                llSentRequestActions.setVisibility(View.VISIBLE);
-                btnAccept.setVisibility(View.GONE);
-                btnReject.setVisibility(View.GONE);
-                if ("pending".equals(request.getStatus())) {
-                    btnCancel.setVisibility(View.VISIBLE);
-                } else {
-                    btnCancel.setVisibility(View.GONE);
-                }
-            }
-            
-            // Final verification
-            System.out.println("=== FINAL VERIFICATION ===");
-            System.out.println("After forcing - llActionButtons visibility: " + llActionButtons.getVisibility());
-            System.out.println("After forcing - llSentRequestActions visibility: " + llSentRequestActions.getVisibility());
-            System.out.println("After forcing - btnAccept visibility: " + btnAccept.getVisibility());
-            System.out.println("After forcing - btnReject visibility: " + btnReject.getVisibility());
-            System.out.println("After forcing - btnCancel visibility: " + btnCancel.getVisibility());
-            System.out.println("=== END FINAL VERIFICATION ===");
-            
-            // Additional debug for layout issues
-            System.out.println("=== LAYOUT DEBUG ===");
-            System.out.println("itemView width: " + itemView.getWidth());
-            System.out.println("itemView height: " + itemView.getHeight());
-            System.out.println("llActionButtons width: " + llActionButtons.getWidth());
-            System.out.println("llActionButtons height: " + llActionButtons.getHeight());
-            System.out.println("llSentRequestActions width: " + llSentRequestActions.getWidth());
-            System.out.println("llSentRequestActions height: " + llSentRequestActions.getHeight());
-            System.out.println("=== END LAYOUT DEBUG ===");
-            
-            // Force layout refresh
-            itemView.requestLayout();
-            llActionButtons.requestLayout();
-            llSentRequestActions.requestLayout();
-            
-            // Post a runnable to ensure UI updates are applied
-            itemView.post(() -> {
-                System.out.println("=== POST LAYOUT VERIFICATION ===");
-                System.out.println("Post layout - llActionButtons visibility: " + llActionButtons.getVisibility());
-                System.out.println("Post layout - llSentRequestActions visibility: " + llSentRequestActions.getVisibility());
-                System.out.println("Post layout - btnAccept visibility: " + btnAccept.getVisibility());
-                System.out.println("Post layout - btnReject visibility: " + btnReject.getVisibility());
-                System.out.println("Post layout - btnCancel visibility: " + btnCancel.getVisibility());
-                System.out.println("=== END POST LAYOUT VERIFICATION ===");
             });
         }
     }
