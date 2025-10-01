@@ -20,6 +20,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import de.hdodenhof.circleimageview.CircleImageView;
+import com.github.chrisbanes.photoview.PhotoView;
 
 public class ProfileViewActivity extends AppCompatActivity {
     
@@ -158,9 +159,10 @@ public class ProfileViewActivity extends AppCompatActivity {
         }
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_avatar_zoom, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_zoom, null);
         
-        CircleImageView zoomedAvatar = dialogView.findViewById(R.id.civ_zoomed_avatar);
+        PhotoView zoomImage = dialogView.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialogView.findViewById(R.id.iv_close);
         
         // Load the same avatar in zoomed view - handle URL like ProfileActivity
         String avatarUrl = otherUser.getAvatar();
@@ -171,34 +173,31 @@ public class ProfileViewActivity extends AppCompatActivity {
         }
         
         try {
-            // Try AvatarManager first
-            avatarManager.loadAvatar(avatarUrl, zoomedAvatar, R.drawable.ic_profile_placeholder);
-            
-            // Backup: Also try Picasso directly
+            // Prefer AvatarManager cache
+            avatarManager.loadAvatar(avatarUrl, zoomImage, R.drawable.ic_profile_placeholder);
+        } catch (Exception e) {
+            android.util.Log.e("ProfileViewActivity", "AvatarManager load failed: " + e.getMessage());
+        }
+        // Ensure Picasso loads as well (fallback)
+        try {
             com.squareup.picasso.Picasso.get()
                     .load(avatarUrl)
                     .placeholder(R.drawable.ic_profile_placeholder)
                     .error(R.drawable.ic_profile_placeholder)
-                    .into(zoomedAvatar);
-                    
-        } catch (Exception e) {
-            android.util.Log.e("ProfileViewActivity", "Error loading zoomed avatar: " + e.getMessage());
-            // Fallback to direct Picasso load
-            try {
-                com.squareup.picasso.Picasso.get()
-                        .load(avatarUrl)
-                        .placeholder(R.drawable.ic_profile_placeholder)
-                        .error(R.drawable.ic_profile_placeholder)
-                        .into(zoomedAvatar);
-            } catch (Exception e2) {
-                android.util.Log.e("ProfileViewActivity", "Picasso also failed: " + e2.getMessage());
-                zoomedAvatar.setImageResource(R.drawable.ic_profile_placeholder);
-            }
+                    .into(zoomImage);
+        } catch (Exception e2) {
+            android.util.Log.e("ProfileViewActivity", "Picasso failed: " + e2.getMessage());
+            zoomImage.setImageResource(R.drawable.ic_profile_placeholder);
         }
         
-        builder.setView(dialogView)
-                .setPositiveButton("Close", null)
-                .show();
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> {
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+        }
+        currentDialog.show();
     }
     
     private void showMoreOptions() {

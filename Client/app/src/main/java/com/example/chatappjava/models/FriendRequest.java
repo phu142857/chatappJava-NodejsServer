@@ -16,13 +16,7 @@ public class FriendRequest {
     public FriendRequest() {
     }
 
-    public FriendRequest(String senderId, String receiverId) {
-        this.senderId = senderId;
-        this.receiverId = receiverId;
-        this.status = "pending";
-        this.createdAt = System.currentTimeMillis();
-        this.updatedAt = System.currentTimeMillis();
-    }
+
 
     public static FriendRequest fromJson(JSONObject json) throws JSONException {
         System.out.println("FriendRequest.fromJson: Parsing JSON: " + json.toString());
@@ -44,7 +38,7 @@ public class FriendRequest {
                 request.sender = User.fromJson(senderJson);
                 // Extract sender ID from the JSON object
                 request.senderId = senderJson.optString("_id", "");
-                System.out.println("FriendRequest.fromJson: Parsed sender: " + (request.sender != null ? request.sender.getDisplayName() : "null"));
+                System.out.println("FriendRequest.fromJson: Parsed sender: " + request.sender.getDisplayName());
                 System.out.println("FriendRequest.fromJson: Extracted senderId: " + request.senderId);
             } catch (Exception e) {
                 System.out.println("FriendRequest.fromJson: Error parsing sender: " + e.getMessage());

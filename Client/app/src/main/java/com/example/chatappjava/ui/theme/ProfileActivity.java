@@ -2,6 +2,7 @@ package com.example.chatappjava.ui.theme;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -31,6 +32,7 @@ import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 import com.github.dhaval2404.imagepicker.ImagePicker;
 import com.squareup.picasso.Picasso;
+import com.github.chrisbanes.photoview.PhotoView;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -136,6 +138,9 @@ public class ProfileActivity extends AppCompatActivity {
         tvChangeAvatar.setOnClickListener(v -> {
             showImagePickerOptions();
         });
+
+        // Zoom avatar on tap
+        civAvatar.setOnClickListener(v -> showAvatarZoom());
     }
 
     private void setupTextWatchers() {
@@ -320,6 +325,54 @@ public class ProfileActivity extends AppCompatActivity {
 
         hasChanges = false;
         updateSaveButtonVisibility();
+    }
+
+    private void showAvatarZoom() {
+        // Prefer selected image if user just picked one
+        String avatarUrl = null;
+        if (selectedImageUri != null && !Uri.EMPTY.equals(selectedImageUri)) {
+            // Show local selected image
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_zoom, null);
+            PhotoView zoomImage = dialogView.findViewById(R.id.iv_zoom_image);
+            ImageView ivClose = dialogView.findViewById(R.id.iv_close);
+            try {
+                zoomImage.setImageURI(selectedImageUri);
+            } catch (Exception ignored) {}
+            builder.setView(dialogView);
+            AlertDialog dialog = builder.create();
+            if (ivClose != null) ivClose.setOnClickListener(v -> dialog.dismiss());
+            dialog.show();
+            return;
+        }
+
+        if (currentUser == null || currentUser.getAvatar() == null || currentUser.getAvatar().isEmpty()) {
+            Toast.makeText(this, "No avatar to display", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        avatarUrl = currentUser.getAvatar();
+        if (!avatarUrl.startsWith("http")) {
+            avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + avatarUrl;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_zoom, null);
+        PhotoView zoomImage = dialogView.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialogView.findViewById(R.id.iv_close);
+        try {
+            Picasso.get()
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
+                    .into(zoomImage);
+        } catch (Exception e) {
+            zoomImage.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+        if (ivClose != null) ivClose.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
     private void saveProfile() {

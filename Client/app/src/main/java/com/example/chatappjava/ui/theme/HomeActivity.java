@@ -583,7 +583,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
             dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
             dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
-            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
+            // Always hide unfriend option on Home
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
         }
         
         // Set click listeners for each option
@@ -593,34 +594,48 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         });
         
         dialogView.findViewById(R.id.option_add_members).setOnClickListener(v -> {
-            // Add members functionality
-            Toast.makeText(this, "Add members feature coming soon", Toast.LENGTH_SHORT).show();
+            // Open GroupMembersActivity in add mode
+            if (!chat.isGroupChat()) {
+                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
+            } else {
+                Intent intent = new Intent(this, GroupMembersActivity.class);
+                intent.putExtra("chatId", chat.getId());
+                intent.putExtra("mode", "add");
+                startActivity(intent);
+            }
             if (currentDialog != null) currentDialog.dismiss();
         });
         
         dialogView.findViewById(R.id.option_remove_members).setOnClickListener(v -> {
-            // Remove members functionality
-            Toast.makeText(this, "Remove members feature coming soon", Toast.LENGTH_SHORT).show();
+            // Open GroupMembersActivity in remove mode
+            if (!chat.isGroupChat()) {
+                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
+            } else {
+                Intent intent = new Intent(this, GroupMembersActivity.class);
+                intent.putExtra("chatId", chat.getId());
+                intent.putExtra("mode", "remove");
+                startActivity(intent);
+            }
             if (currentDialog != null) currentDialog.dismiss();
         });
         
         dialogView.findViewById(R.id.option_leave_group).setOnClickListener(v -> {
-            // Leave group functionality
-            Toast.makeText(this, "Leave group feature coming soon", Toast.LENGTH_SHORT).show();
+            // Confirm leave group
+            if (!chat.isGroupChat()) {
+                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
+            } else {
+                confirmLeaveGroup(chat);
+            }
             if (currentDialog != null) currentDialog.dismiss();
         });
         
         dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
-            // Delete chat functionality
-            Toast.makeText(this, "Delete chat feature coming soon", Toast.LENGTH_SHORT).show();
+            // Confirm delete chat (works for both private and group chat entries)
+            confirmDeleteChat(chat);
             if (currentDialog != null) currentDialog.dismiss();
         });
         
-        dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
-            // Unfriend functionality
-            Toast.makeText(this, "Unfriend feature coming soon", Toast.LENGTH_SHORT).show();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
+        // Unfriend option removed on Home screen
         
         dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
             // Delete group functionality
@@ -1034,7 +1049,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                            "Created: " + (chat.getCreatedAt() != 0 ? new java.util.Date(chat.getCreatedAt()).toString() : "Unknown"))
                 .setPositiveButton("OK", null)
                 .setNeutralButton("View Members", (dialog, which) -> {
-                    Toast.makeText(this, "View members feature coming soon", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(this, GroupMembersActivity.class);
+                    intent.putExtra("chatId", chat.getId());
+                    intent.putExtra("mode", "view");
+                    startActivity(intent);
                 })
                 .show();
     }
