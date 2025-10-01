@@ -289,7 +289,12 @@ const getPublicGroups = async (req, res) => {
       .populate('members.user', 'username email avatar status')
       .limit(50);
 
-    const mapped = groups.map(g => {
+    const mapped = groups
+      // Exclude groups where current user is already a member
+      .filter(g => {
+        try { return !g.isMember(req.user.id); } catch (e) { return true; }
+      })
+      .map(g => {
       const obj = g.toJSON();
       const joinRequestStatus = (g.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending') ? 'pending' : 'none';
       // Mark isMember false if pending exists (avoid showing already member)
