@@ -146,9 +146,13 @@ public class GroupChatActivity extends BaseChatActivity {
         View optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
         if (optionJoinRequests != null) {
             optionJoinRequests.setOnClickListener(v -> {
-                // Open a dedicated screen later (placeholder)
-                Toast.makeText(this, "Open join requests", Toast.LENGTH_SHORT).show();
                 if (currentDialog != null) currentDialog.dismiss();
+                if (currentChat == null) return;
+                Intent intent = new Intent(this, GroupJoinRequestsActivity.class);
+                try {
+                    intent.putExtra("chat", currentChat.toJson().toString());
+                } catch (org.json.JSONException ignored) {}
+                startActivity(intent);
             });
             fetchJoinRequestCount(count -> {
                 if (count > 0) {
