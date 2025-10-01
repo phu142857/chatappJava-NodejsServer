@@ -14,7 +14,10 @@ const {
   addMember,
   removeMember,
   deleteGroup,
-  getGroupMembers
+  getGroupMembers,
+  requestJoinGroup,
+  getJoinRequestsCount,
+  respondJoinRequest
 } = require('../controllers/groupController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 
