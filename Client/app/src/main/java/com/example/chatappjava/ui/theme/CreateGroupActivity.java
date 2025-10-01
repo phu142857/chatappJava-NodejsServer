@@ -6,6 +6,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
+import android.widget.Switch;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -29,6 +30,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
     private EditText etGroupName, etDescription;
     private RecyclerView rvFriends;
     private Button btnCreate;
+    private Switch switchPublic;
     private ProgressBar progressBar;
     private SelectableUserAdapter adapter;
     private final List<User> friends = new ArrayList<>();
@@ -45,6 +47,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         etDescription = findViewById(R.id.et_group_description);
         rvFriends = findViewById(R.id.rv_friends);
         btnCreate = findViewById(R.id.btn_create_group);
+        switchPublic = findViewById(R.id.switch_public);
         progressBar = findViewById(R.id.progress_bar);
 
         apiClient = new ApiClient();
@@ -126,6 +129,11 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
             JSONArray ids = new JSONArray();
             for (String id : selectedUserIds) ids.put(id);
             payload.put("participantIds", ids);
+
+            // settings.isPublic from toggle
+            JSONObject settings = new JSONObject();
+            settings.put("isPublic", switchPublic != null && switchPublic.isChecked());
+            payload.put("settings", settings);
 
             progressBar.setVisibility(View.VISIBLE);
             apiClient.createGroupChat(token, payload, new Callback() {

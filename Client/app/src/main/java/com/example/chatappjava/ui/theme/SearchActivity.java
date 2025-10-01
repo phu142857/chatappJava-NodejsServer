@@ -261,19 +261,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         }
         
         if (isSearchingGroups) {
-            String token = sharedPrefsManager.getToken();
-            if (token == null) {
-                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
-                finish();
-                return;
-            }
-            if (query.length() < 2) {
-                // Server validates q >= 2; for shorter queries, filter locally
-                applyGroupFilterWithCurrentQuery();
-            } else {
-                // Query length OK -> call search endpoint
-                searchGroupsServer(token, query);
-            }
+            // For group tabs (both My Groups and Discover), always filter locally on the
+            // already loaded list (My Groups from getChats, Discover from /groups/public)
+            applyGroupFilterWithCurrentQuery();
             return;
         }
         

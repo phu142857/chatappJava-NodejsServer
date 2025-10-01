@@ -277,7 +277,7 @@ const createGroupChat = async (req, res) => {
       });
     }
 
-    const { name, description, participantIds, avatar } = req.body;
+    const { name, description, participantIds, avatar, settings } = req.body;
 
     // Validate participants
     if (!participantIds || participantIds.length < 2) {
@@ -313,7 +313,11 @@ const createGroupChat = async (req, res) => {
       description,
       avatar: avatar || '',
       members: groupMembers,
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      settings: {
+        ...(settings || {}),
+        isPublic: settings && typeof settings.isPublic === 'boolean' ? settings.isPublic : false
+      }
     });
 
     await group.save();
