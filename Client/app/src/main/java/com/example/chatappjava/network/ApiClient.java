@@ -228,6 +228,31 @@ public class ApiClient {
     }
 
     /**
+     * Join a group directly (public groups)
+     */
+    public void joinGroup(String token, String groupId, Callback callback) {
+        String endpoint = "/api/groups/" + groupId + "/join";
+        // Empty body
+        authenticatedPost(endpoint, token, new org.json.JSONObject(), callback);
+    }
+
+    /**
+     * Request to join a group (private groups)
+     */
+    public void requestJoinGroup(String token, String groupId, Callback callback) {
+        String endpoint = "/api/groups/" + groupId + "/join-requests";
+        authenticatedPost(endpoint, token, new org.json.JSONObject(), callback);
+    }
+
+    /**
+     * Get join requests count
+     */
+    public void getJoinRequestsCount(String token, String groupId, Callback callback) {
+        String endpoint = "/api/groups/" + groupId + "/join-requests/count";
+        authenticatedGet(endpoint, token, callback);
+    }
+
+    /**
      * Get user's chats
      */
     public void getChats(String token, Callback callback) {

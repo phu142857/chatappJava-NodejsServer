@@ -48,7 +48,17 @@ public class Chat {
         chat.description = json.optString("description", "");
         chat.avatar = json.optString("avatar", "");
         chat.visibility = json.optString("visibility", json.optString("privacy", "public"));
-        chat.isPublic = "public".equalsIgnoreCase(chat.visibility) || json.optBoolean("isPublic", false);
+        // Determine isPublic from multiple possible shapes: root.isPublic, root.visibility, settings.isPublic
+        boolean isPublicRoot = json.optBoolean("isPublic", false);
+        boolean isPublicByVisibility = "public".equalsIgnoreCase(chat.visibility);
+        boolean isPublicBySettings = false;
+        try {
+            JSONObject settingsObj = json.optJSONObject("settings");
+            if (settingsObj != null) {
+                isPublicBySettings = settingsObj.optBoolean("isPublic", false);
+            }
+        } catch (Throwable ignored) {}
+        chat.isPublic = isPublicRoot || isPublicByVisibility || isPublicBySettings;
         chat.joinRequestStatus = json.optString("joinRequestStatus", "");
         
         // lastMessage may be an object (populated) or an id/string

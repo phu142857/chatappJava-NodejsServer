@@ -248,14 +248,15 @@ const searchGroups = async (req, res) => {
     // Add membership status to each group
     const groupsWithMembershipStatus = groups.map(group => {
       const groupObj = group.toJSON();
+      // Do NOT mark as member if only pending request exists
       const isMember = currentUserGroupIds.includes(group._id.toString());
       const membershipStatus = group.getMembershipStatus(req.user.id);
       const hasPending = (group.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending');
       
       return {
         ...groupObj,
-        isMember,
-        membershipStatus: membershipStatus.status,
+        isMember: hasPending ? false : isMember,
+        membershipStatus: hasPending ? 'pending' : membershipStatus.status,
         role: membershipStatus.role,
         joinRequestStatus: hasPending ? 'pending' : 'none'
       };
@@ -291,7 +292,13 @@ const getPublicGroups = async (req, res) => {
     const mapped = groups.map(g => {
       const obj = g.toJSON();
       const joinRequestStatus = (g.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending') ? 'pending' : 'none';
-      return { ...obj, joinRequestStatus };
+      // Mark isMember false if pending exists (avoid showing already member)
+      let isMember = false;
+      try {
+        isMember = g.isMember(req.user.id);
+      } catch (e) {}
+      const membershipStatus = joinRequestStatus === 'pending' ? 'pending' : (g.getMembershipStatus ? g.getMembershipStatus(req.user.id).status : 'not_member');
+      return { ...obj, joinRequestStatus, isMember: joinRequestStatus === 'pending' ? false : isMember, membershipStatus };
     });
 
     res.json({
@@ -821,12 +828,6 @@ const requestJoinGroup = async (req, res) => {
     // If already a member
     if (group.isMember(req.user.id)) {
       return res.status(400).json({ success: false, message: 'Already a member' });
-    }
-
-    // If group is public, allow direct join
-    if (group.settings && group.settings.isPublic) {
-      await group.addMember(req.user.id, 'member');
-      return res.json({ success: true, message: 'Joined group successfully' });
     }
 
     // Add or upsert a pending request

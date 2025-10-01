@@ -922,11 +922,62 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     @Override
     public void onGroupClick(Chat group) {
         if (isDiscoverGroups) {
-            // Placeholder actions: join or request
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (group.isPublicGroup()) {
-                Toast.makeText(this, "Join " + group.getDisplayName(), Toast.LENGTH_SHORT).show();
+                // Join directly
+                apiClient.joinGroup(token, group.getId(), new okhttp3.Callback() {
+                    @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> Toast.makeText(SearchActivity.this, "Join failed", Toast.LENGTH_SHORT).show());
+                    }
+                    @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        String body = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                if (response.code() == 200 && json.optBoolean("success", false)) {
+                                    Toast.makeText(SearchActivity.this, "Joined group", Toast.LENGTH_SHORT).show();
+                                    // Move group from discover to hidden (no longer eligible)
+                                    groupResults.remove(group);
+                                    groupAdapter.updateGroups(groupResults);
+                                    updateResultsVisibility();
+                                } else {
+                                    Toast.makeText(SearchActivity.this, json.optString("message", "Join failed"), Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                Toast.makeText(SearchActivity.this, "Join failed", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
             } else {
-                Toast.makeText(this, "Request to join " + group.getDisplayName(), Toast.LENGTH_SHORT).show();
+                // Request to join
+                apiClient.requestJoinGroup(token, group.getId(), new okhttp3.Callback() {
+                    @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> Toast.makeText(SearchActivity.this, "Request failed", Toast.LENGTH_SHORT).show());
+                    }
+                    @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        String body = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                if ((response.code() == 200 || response.code() == 201) && json.optBoolean("success", false)) {
+                                    Toast.makeText(SearchActivity.this, "Requested to join", Toast.LENGTH_SHORT).show();
+                                    // Update the object's joinRequestStatus so adapter shows "Requested"
+                                    group.setJoinRequestStatus("pending");
+                                    applyGroupFilterWithCurrentQuery();
+                                } else {
+                                    Toast.makeText(SearchActivity.this, json.optString("message", "Request failed"), Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                Toast.makeText(SearchActivity.this, "Request failed", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
             }
             return;
         }
