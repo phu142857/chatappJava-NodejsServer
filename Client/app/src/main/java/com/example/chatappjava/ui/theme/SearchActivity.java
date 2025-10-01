@@ -1,5 +1,6 @@
 package com.example.chatappjava.ui.theme;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
@@ -18,7 +19,6 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.UserSearchAdapter;
 import com.example.chatappjava.adapters.GroupSearchAdapter;
 import com.example.chatappjava.models.Chat;
-import com.example.chatappjava.models.FriendRequest;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
@@ -56,7 +56,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     
     private static final int SEARCH_DELAY_MS = 500; // Delay before making API call
     private Runnable searchRunnable;
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -106,7 +106,6 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                 e.printStackTrace();
                 Toast.makeText(this, "Error loading chat data", Toast.LENGTH_SHORT).show();
                 finish();
-                return;
             }
         }
     }
@@ -145,12 +144,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                 }
                 
                 // Create new search with delay
-                searchRunnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        performSearch(s.toString().trim());
-                    }
-                };
+                searchRunnable = () -> performSearch(s.toString().trim());
                 
                 etSearch.postDelayed(searchRunnable, SEARCH_DELAY_MS);
             }
@@ -170,35 +164,17 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     }
     
     private void setupClickListeners() {
-        ivBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
-            }
-        });
+        ivBack.setOnClickListener(v -> finish());
         
-        ivClear.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                etSearch.setText("");
-                etSearch.requestFocus();
-            }
+        ivClear.setOnClickListener(v -> {
+            etSearch.setText("");
+            etSearch.requestFocus();
         });
         
         // Tab click listeners
-        tabUsers.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                switchToUserSearch();
-            }
-        });
+        tabUsers.setOnClickListener(v -> switchToUserSearch());
         
-        tabGroups.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                switchToGroupSearch();
-            }
-        });
+        tabGroups.setOnClickListener(v -> switchToGroupSearch());
         
         // Focus on search field when activity starts
         etSearch.requestFocus();
@@ -278,6 +254,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         });
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     private void handleSearchResponse(int statusCode, String responseBody) {
         try {
             // Log response for debugging
@@ -407,6 +384,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         Toast.makeText(this, "Profile: " + user.getDisplayName() + "\nEmail: " + user.getEmail(), Toast.LENGTH_LONG).show();
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     private void clearSearchResults() {
         if (isSearchingGroups) {
             groupResults.clear();
@@ -428,6 +406,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         }
     }
     
+    @SuppressLint("SetTextI18n")
     private void updateResultsVisibility() {
         boolean hasResults = isSearchingGroups ? !groupResults.isEmpty() : !searchResults.isEmpty();
         
@@ -448,12 +427,6 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             tvNoResults.setVisibility(View.GONE);
             rvSearchResults.setVisibility(View.VISIBLE);
         }
-    }
-    
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        finish();
     }
 
     // UserSearchAdapter.OnUserClickListener implementations
@@ -503,7 +476,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                     runOnUiThread(() -> Toast.makeText(SearchActivity.this, "Failed to respond request", Toast.LENGTH_SHORT).show());
                 }
                 @Override
-                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                     runOnUiThread(() -> {
                         if (response.code() == 200) {
                             Toast.makeText(SearchActivity.this, accept ? "Accepted" : "Rejected", Toast.LENGTH_SHORT).show();
@@ -615,6 +588,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         }
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     private void handleAddMemberResponse(int statusCode, String responseBody, User user) {
         try {
             // Log response for debugging
@@ -678,9 +652,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseBody = response.body().string();
-                runOnUiThread(() -> {
-                    handleGroupsResponse(response.code(), responseBody);
-                });
+                runOnUiThread(() -> handleGroupsResponse(response.code(), responseBody));
             }
         });
     }

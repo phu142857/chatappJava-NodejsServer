@@ -57,12 +57,7 @@ public class LoginActivity extends AppCompatActivity {
     }
     
     private void setupClickListeners() {
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                attemptLogin();
-            }
-        });
+        btnLogin.setOnClickListener(v -> attemptLogin());
         
         tvRegister.setOnClickListener(new View.OnClickListener() {
             @Override

@@ -2,7 +2,6 @@ package com.example.chatappjava.ui.theme;
 
 import android.os.Bundle;
 import android.text.InputFilter;
-import android.text.Spanned;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -60,16 +59,13 @@ public class SettingsActivity extends AppCompatActivity {
         ivAccountChevron = findViewById(R.id.iv_account_chevron);
 
         // Only allow digits in port
-        etServerPort.setFilters(new InputFilter[]{new InputFilter() {
-            @Override
-            public CharSequence filter(CharSequence source, int start, int end, Spanned dest, int dstart, int dend) {
-                for (int i = start; i < end; i++) {
-                    if (!Character.isDigit(source.charAt(i))) {
-                        return "";
-                    }
+        etServerPort.setFilters(new InputFilter[]{(source, start, end, dest, dstart, dend) -> {
+            for (int i = start; i < end; i++) {
+                if (!Character.isDigit(source.charAt(i))) {
+                    return "";
                 }
-                return null;
             }
+            return null;
         }});
     }
 
@@ -86,62 +82,24 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                saveSettings();
-            }
+        btnSave.setOnClickListener(v -> saveSettings());
+
+        btnReset.setOnClickListener(v -> {
+            sharedPrefsManager.clearServerOverrides();
+            loadCurrentSettings();
+            Toast.makeText(SettingsActivity.this, "Restored default configuration", Toast.LENGTH_SHORT).show();
         });
 
-        btnReset.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sharedPrefsManager.clearServerOverrides();
-                loadCurrentSettings();
-                Toast.makeText(SettingsActivity.this, "Restored default configuration", Toast.LENGTH_SHORT).show();
-            }
-        });
+        btnChangePassword.setOnClickListener(v -> changePassword());
 
-        btnChangePassword.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changePassword();
-            }
-        });
+        btnLogout.setOnClickListener(v -> performLogout());
 
-        btnLogout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                performLogout();
-            }
-        });
-
-        btnDeleteAccount.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showDeleteAccountDialog();
-            }
-        });
+        btnDeleteAccount.setOnClickListener(v -> showDeleteAccountDialog());
 
         // Accordions: toggle headers
-        findViewById(R.id.section_server_header).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleSection(sectionServerContent, ivServerChevron);
-            }
-        });
-        findViewById(R.id.section_password_header).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleSection(sectionPasswordContent, ivPasswordChevron);
-            }
-        });
-        findViewById(R.id.section_account_header).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleSection(sectionAccountContent, ivAccountChevron);
-            }
-        });
+        findViewById(R.id.section_server_header).setOnClickListener(v -> toggleSection(sectionServerContent, ivServerChevron));
+        findViewById(R.id.section_password_header).setOnClickListener(v -> toggleSection(sectionPasswordContent, ivPasswordChevron));
+        findViewById(R.id.section_account_header).setOnClickListener(v -> toggleSection(sectionAccountContent, ivAccountChevron));
     }
 
     private void saveSettings() {
@@ -156,7 +114,7 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        int port = 0;
+        int port;
         try {
             port = Integer.parseInt(portStr);
             if (port <= 0 || port > 65535) throw new NumberFormatException();
@@ -288,24 +246,16 @@ public class SettingsActivity extends AppCompatActivity {
 
         builder.setView(passwordInput);
 
-        builder.setPositiveButton("Delete Account", new android.content.DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(android.content.DialogInterface dialog, int which) {
-                String password = passwordInput.getText().toString().trim();
-                if (password.isEmpty()) {
-                    Toast.makeText(SettingsActivity.this, "Please enter your password", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                performDeleteAccount(password);
+        builder.setPositiveButton("Delete Account", (dialog, which) -> {
+            String password = passwordInput.getText().toString().trim();
+            if (password.isEmpty()) {
+                Toast.makeText(SettingsActivity.this, "Please enter your password", Toast.LENGTH_SHORT).show();
+                return;
             }
+            performDeleteAccount(password);
         });
 
-        builder.setNegativeButton("Cancel", new android.content.DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(android.content.DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
 
         builder.setCancelable(true);
         builder.show();

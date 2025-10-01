@@ -48,18 +48,10 @@ public class RegisterActivity extends AppCompatActivity {
     }
     
     private void setupClickListeners() {
-        btnRegister.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                attemptRegister();
-            }
-        });
+        btnRegister.setOnClickListener(v -> attemptRegister());
         
-        tvLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish(); // Return to LoginActivity
-            }
+        tvLogin.setOnClickListener(v -> {
+            finish(); // Return to LoginActivity
         });
     }
     
@@ -84,12 +76,9 @@ public class RegisterActivity extends AppCompatActivity {
             apiClient.register(registerData, new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            showLoading(false);
-                            Toast.makeText(RegisterActivity.this, "Connection Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(RegisterActivity.this, "Connection Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     });
                 }
                 
@@ -97,12 +86,9 @@ public class RegisterActivity extends AppCompatActivity {
                 public void onResponse(Call call, Response response) throws IOException {
                     String responseBody = response.body().string();
                     
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            showLoading(false);
-                            handleRegisterResponse(response.code(), responseBody);
-                        }
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        handleRegisterResponse(response.code(), responseBody);
                     });
                 }
             });

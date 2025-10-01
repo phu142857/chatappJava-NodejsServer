@@ -4,7 +4,6 @@ import android.app.Application;
 import android.content.Intent;
 import android.util.Log;
 import com.example.chatappjava.models.Chat;
-import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.SocketManager;
 import com.example.chatappjava.ui.call.RingingActivity;
 import com.example.chatappjava.utils.SharedPreferencesManager;
@@ -52,33 +51,30 @@ public class ChatApplication extends Application {
             socketManager.connect(token, userId);
             
             // Set up global incoming call listener
-            socketManager.setIncomingCallListener(new SocketManager.IncomingCallListener() {
-                @Override
-                public void onIncomingCall(String callId, User caller, String chatId, String callType) {
-                    Log.d(TAG, "Global incoming call received: " + callId);
-                    
-                    // Launch RingingActivity from any screen
-                    Intent intent = new Intent(getApplicationContext(), RingingActivity.class);
-                    try {
-                        // Create a minimal chat object for the call
-                        Chat chat = new Chat();
-                        chat.setId(chatId);
-                        chat.setType("private");
-                        
-                        intent.putExtra("chat", chat.toJson().toString());
-                        intent.putExtra("caller", caller.toJson().toString());
-                        intent.putExtra("callId", callId);
-                        intent.putExtra("callType", callType);
-                        intent.putExtra("isIncomingCall", true);
-                        
-                        // Add flags to launch from background
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        
-                        startActivity(intent);
-                        
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Error launching global incoming call", e);
-                    }
+            socketManager.setIncomingCallListener((callId, caller, chatId, callType) -> {
+                Log.d(TAG, "Global incoming call received: " + callId);
+
+                // Launch RingingActivity from any screen
+                Intent intent = new Intent(getApplicationContext(), RingingActivity.class);
+                try {
+                    // Create a minimal chat object for the call
+                    Chat chat = new Chat();
+                    chat.setId(chatId);
+                    chat.setType("private");
+
+                    intent.putExtra("chat", chat.toJson().toString());
+                    intent.putExtra("caller", caller.toJson().toString());
+                    intent.putExtra("callId", callId);
+                    intent.putExtra("callType", callType);
+                    intent.putExtra("isIncomingCall", true);
+
+                    // Add flags to launch from background
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+                    startActivity(intent);
+
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error launching global incoming call", e);
                 }
             });
         }

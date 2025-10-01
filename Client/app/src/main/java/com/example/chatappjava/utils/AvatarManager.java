@@ -22,13 +22,11 @@ public class AvatarManager {
     private static final String KEY_CACHED_AVATARS = "cached_avatars";
     
     private static AvatarManager instance;
-    private Context context;
-    private SharedPreferences prefs;
-    private Handler handler;
-    private Set<String> cachedAvatars;
+    private final SharedPreferences prefs;
+    private final Handler handler;
+    private final Set<String> cachedAvatars;
     
     private AvatarManager(Context context) {
-        this.context = context.getApplicationContext();
         this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         this.handler = new Handler(Looper.getMainLooper());
         this.cachedAvatars = new HashSet<>(prefs.getStringSet(KEY_CACHED_AVATARS, new HashSet<>()));
@@ -54,8 +52,7 @@ public class AvatarManager {
         }
         
         // Use avatarUrl directly (should already be full URL from model)
-        String fullAvatarUrl = avatarUrl;
-        android.util.Log.d("AvatarManager", "AvatarManager.loadAvatar() called with: " + fullAvatarUrl);
+        android.util.Log.d("AvatarManager", "AvatarManager.loadAvatar() called with: " + avatarUrl);
         
         // Check if we need to refresh avatars (at midnight daily)
         if (shouldRefreshAvatars()) {
@@ -63,27 +60,27 @@ public class AvatarManager {
             scheduleNextRefresh();
         }
         
-        android.util.Log.d("AvatarManager", "Loading avatar with Picasso: " + fullAvatarUrl);
+        android.util.Log.d("AvatarManager", "Loading avatar with Picasso: " + avatarUrl);
         
         // Load avatar with Picasso
         Picasso.get()
-                .load(fullAvatarUrl)
+                .load(avatarUrl)
                 .placeholder(placeholderResId)
                 .error(placeholderResId)
                 .into(imageView, new com.squareup.picasso.Callback() {
                     @Override
                     public void onSuccess() {
-                        android.util.Log.d("AvatarManager", "Avatar loaded successfully: " + fullAvatarUrl);
+                        android.util.Log.d("AvatarManager", "Avatar loaded successfully: " + avatarUrl);
                     }
                     
                     @Override
                     public void onError(Exception e) {
-                        android.util.Log.e("AvatarManager", "Failed to load avatar: " + fullAvatarUrl, e);
+                        android.util.Log.e("AvatarManager", "Failed to load avatar: " + avatarUrl, e);
                     }
                 });
         
         // Cache this avatar URL (use full URL for caching)
-        cachedAvatars.add(fullAvatarUrl);
+        cachedAvatars.add(avatarUrl);
         saveCachedAvatars();
     }
     
@@ -159,14 +156,7 @@ public class AvatarManager {
     private void saveCachedAvatars() {
         prefs.edit().putStringSet(KEY_CACHED_AVATARS, cachedAvatars).apply();
     }
-    
-    /**
-     * Get cached avatar URLs
-     */
-    public Set<String> getCachedAvatars() {
-        return new HashSet<>(cachedAvatars);
-    }
-    
+
     /**
      * Initialize the avatar manager (call this in Application class or main activity)
      */
