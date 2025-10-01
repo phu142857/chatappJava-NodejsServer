@@ -105,20 +105,20 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                     avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + path;
                 }
                 try {
-                    avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_placeholder);
+                    avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_avatar);
                 } catch (Exception ignored) {}
                 // Also attempt Picasso as fallback to maximize success rate
                 try {
                     Picasso.get()
                             .load(avatarUrl)
-                            .placeholder(R.drawable.ic_group_placeholder)
-                            .error(R.drawable.ic_group_placeholder)
+                            .placeholder(R.drawable.ic_group_avatar)
+                            .error(R.drawable.ic_group_avatar)
                             .into(ivGroupAvatar);
                 } catch (Exception ignored) {
-                    ivGroupAvatar.setImageResource(R.drawable.ic_group_placeholder);
+                    ivGroupAvatar.setImageResource(R.drawable.ic_group_avatar);
                 }
             } else {
-                ivGroupAvatar.setImageResource(R.drawable.ic_group_placeholder);
+                ivGroupAvatar.setImageResource(R.drawable.ic_group_avatar);
             }
 
             // Action button visibility and text for Discover

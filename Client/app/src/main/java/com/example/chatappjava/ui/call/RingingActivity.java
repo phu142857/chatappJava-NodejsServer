@@ -48,8 +48,12 @@ public class RingingActivity extends AppCompatActivity {
     private TextView tvCallDuration;
     private TextView tvRingingStatus;
     private CircleImageView ivCallerAvatar;
-    private ImageButton btnAccept;
-    private ImageButton btnDecline;
+    // New slider UI for accept/decline
+    private android.view.View sliderContainer;
+    private android.widget.ImageView knob;
+    private android.widget.ImageView iconAccept;
+    private android.widget.ImageView iconDecline;
+    private TextView tvSliderHint;
     private LinearLayout outgoingCallInfo;
     private FrameLayout ringingAnimationContainer;
     private View ripple1;
@@ -97,7 +101,7 @@ public class RingingActivity extends AppCompatActivity {
         
         // Initialize UI
         initializeViews();
-        setupClickListeners();
+        setupSliderListener();
         
         // Setup call based on type
         if (isIncomingCall) {
@@ -139,8 +143,12 @@ public class RingingActivity extends AppCompatActivity {
         tvCallDuration = findViewById(R.id.tv_call_duration);
         tvRingingStatus = findViewById(R.id.tv_ringing_status);
         ivCallerAvatar = findViewById(R.id.iv_caller_avatar);
-        btnAccept = findViewById(R.id.btn_accept);
-        btnDecline = findViewById(R.id.btn_decline);
+        // Slider views
+        sliderContainer = findViewById(R.id.slider_container);
+        knob = findViewById(R.id.knob);
+        iconAccept = findViewById(R.id.icon_accept);
+        iconDecline = findViewById(R.id.icon_decline);
+        tvSliderHint = findViewById(R.id.tv_slider_hint);
         outgoingCallInfo = findViewById(R.id.outgoing_call_info);
         ringingAnimationContainer = findViewById(R.id.ringing_animation_container);
         ripple1 = findViewById(R.id.ripple_1);
@@ -170,21 +178,53 @@ public class RingingActivity extends AppCompatActivity {
         }
     }
     
-    private void setupClickListeners() {
-        if (isIncomingCall) {
-            // For incoming calls, both accept and decline are available
-            btnAccept.setOnClickListener(v -> acceptCall());
-            btnDecline.setOnClickListener(v -> declineCall());
-        } else {
-            // For outgoing calls, only decline (end call) is available
-            btnDecline.setOnClickListener(v -> endCall());
-        }
+    private void setupSliderListener() {
+        if (sliderContainer == null || knob == null) return;
+        knob.setOnTouchListener(new android.view.View.OnTouchListener() {
+            float dX;
+            float startCenterX;
+            @Override
+            public boolean onTouch(android.view.View v, android.view.MotionEvent event) {
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN: {
+                        dX = v.getX() - event.getRawX();
+                        startCenterX = (sliderContainer.getWidth() - v.getWidth()) / 2f;
+                        tvSliderHint.setVisibility(View.GONE);
+                        return true;
+                    }
+                    case android.view.MotionEvent.ACTION_MOVE: {
+                        float newX = event.getRawX() + dX;
+                        // Constrain within track
+                        float minX = 4f;
+                        float maxX = sliderContainer.getWidth() - v.getWidth() - 4f;
+                        if (newX < minX) newX = minX;
+                        if (newX > maxX) newX = maxX;
+                        v.setX(newX);
+                        return true;
+                    }
+                    case android.view.MotionEvent.ACTION_UP: {
+                        float center = (sliderContainer.getWidth() - v.getWidth()) / 2f;
+                        float threshold = sliderContainer.getWidth() * 0.22f; // ~22% offset
+                        if (v.getX() > center + threshold) {
+                            acceptCall();
+                        } else if (v.getX() < center - threshold) {
+                            declineCall();
+                        } else {
+                            // Animate back to center
+                            v.animate().x(center).setDuration(150).start();
+                            tvSliderHint.setVisibility(View.VISIBLE);
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
     }
     
     private void setupIncomingCall() {
         tvCallerStatus.setText("is calling you...");
-        btnAccept.setVisibility(View.VISIBLE);
-        btnDecline.setVisibility(View.VISIBLE);
+        if (sliderContainer != null) sliderContainer.setVisibility(View.VISIBLE);
         outgoingCallInfo.setVisibility(View.GONE);
         
         // Start ringing animations
@@ -203,8 +243,7 @@ public class RingingActivity extends AppCompatActivity {
     
     private void setupOutgoingCall() {
         tvCallerStatus.setText("Calling...");
-        btnAccept.setVisibility(View.GONE);
-        btnDecline.setVisibility(View.VISIBLE);
+        if (sliderContainer != null) sliderContainer.setVisibility(View.VISIBLE);
         outgoingCallInfo.setVisibility(View.VISIBLE);
         tvRingingStatus.setText("Ringing");
         

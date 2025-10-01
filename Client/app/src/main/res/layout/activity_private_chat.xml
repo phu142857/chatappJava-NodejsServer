@@ -125,31 +125,29 @@
             <!-- Video Call Button -->
             <ImageButton
                 android:id="@+id/iv_video_call"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_call_action_primary"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/video_call_description"
                 android:src="@drawable/ic_videocam"
-                android:padding="16dp"
+                android:padding="8dp"
                 android:scaleType="centerInside"
-                android:elevation="4dp"
-                app:tint="@android:color/white" />
+                app:tint="@color/primary_color" />
 
             <!-- Cancel Call Button (initially hidden) -->
             <ImageButton
                 android:id="@+id/iv_cancel_call"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_call_action_danger"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Cancel call"
-                android:src="@drawable/ic_close"
-                android:padding="16dp"
+                android:src="@drawable/ic_decline_call"
+                android:padding="8dp"
                 android:scaleType="centerInside"
-                android:elevation="4dp"
                 android:visibility="gone"
-                app:tint="@android:color/white" />
+                app:tint="#EF4444" />
 
             <!-- More Options Button -->
             <ImageButton

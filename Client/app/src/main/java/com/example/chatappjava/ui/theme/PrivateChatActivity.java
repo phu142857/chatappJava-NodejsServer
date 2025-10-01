@@ -103,12 +103,23 @@ public class PrivateChatActivity extends BaseChatActivity {
                 public void onCallDeclined(String callId) {
                     runOnUiThread(() -> {
                         android.util.Log.d("PrivateChatActivity", "Received call_declined event for callId: " + callId + ", currentCallId: " + currentCallId);
+                        // Reset UI if this event corresponds to current call
                         if (currentCallId != null && currentCallId.equals(callId)) {
                             android.util.Log.d("PrivateChatActivity", "Call declined, resetting UI");
                             Toast.makeText(PrivateChatActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
                             currentCallId = null;
                             isJoiningCall = false; // Reset flag
                             updateCallUI(false); // Hide cancel button
+                        } else {
+                            // Fallback: if UI is showing calling state but callId tracking is lost, still reset
+                            boolean isCancelVisible = ivCancelCall != null && ivCancelCall.getVisibility() == View.VISIBLE;
+                            if (isCancelVisible) {
+                                android.util.Log.w("PrivateChatActivity", "CallDeclined for different callId but UI shows calling. Forcing reset.");
+                                Toast.makeText(PrivateChatActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
+                                currentCallId = null;
+                                isJoiningCall = false;
+                                updateCallUI(false);
+                            }
                         }
                     });
                 }

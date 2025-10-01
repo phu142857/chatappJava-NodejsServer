@@ -570,34 +570,48 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         @Override public int getItemCount() { return users.size(); }
 
         class VH extends RecyclerView.ViewHolder {
-            de.hdodenhof.circleimageview.CircleImageView avatar; TextView name; ImageView more;
+            de.hdodenhof.circleimageview.CircleImageView avatar; TextView name; Button approve; Button reject;
             VH(View v) { super(v);
                 avatar = v.findViewById(R.id.iv_avatar);
                 name = v.findViewById(R.id.tv_name);
-                more = v.findViewById(R.id.iv_more);
+                approve = v.findViewById(R.id.btn_approve);
+                reject = v.findViewById(R.id.btn_reject);
             }
             void bind(User u) {
                 name.setText(u.getDisplayName());
-                try { Picasso.get().load(u.getAvatar()).placeholder(R.drawable.ic_group_placeholder).into(avatar); } catch (Exception ignored) {}
-                if (more != null) {
-                    more.setOnClickListener(v -> {
-                        android.widget.PopupMenu menu = new android.widget.PopupMenu(v.getContext(), more);
-                        menu.getMenu().add(0, 1, 0, "Duyệt");
-                        menu.getMenu().add(0, 2, 1, "Từ chối");
-                        menu.setOnMenuItemClickListener(item -> {
-                            if (item.getItemId() == 1) { if (listener != null) listener.onApprove(u); return true; }
-                            if (item.getItemId() == 2) { if (listener != null) listener.onReject(u); return true; }
-                            return false;
-                        });
+                try {
+                    String avatarUrl = u.getAvatar();
+                    if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                        if (!(avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://"))) {
+                            String path = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
+                            avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + path;
+                        }
                         try {
-                            java.lang.reflect.Field mFieldPopup = menu.getClass().getDeclaredField("mPopup");
-                            mFieldPopup.setAccessible(true);
-                            Object mPopup = mFieldPopup.get(menu);
-                            mPopup.getClass().getDeclaredMethod("setForceShowIcon", boolean.class).invoke(mPopup, true);
-                        } catch (Exception ignored) {}
-                        menu.show();
+                            AvatarManager.getInstance(itemView.getContext()).loadAvatar(avatarUrl, avatar, R.drawable.ic_profile_placeholder);
+                        } catch (Exception ignored) {
+                            Picasso.get().load(avatarUrl).placeholder(R.drawable.ic_profile_placeholder).error(R.drawable.ic_profile_placeholder).into(avatar);
+                        }
+                    } else {
+                        avatar.setImageResource(R.drawable.ic_profile_placeholder);
+                    }
+                } catch (Exception ignored) {}
+
+                // Open profile when clicking avatar
+                if (avatar != null) {
+                    avatar.setOnClickListener(v -> {
+                        try {
+                            android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                            intent.putExtra("user", u.toJson().toString());
+                            v.getContext().startActivity(intent);
+                        } catch (org.json.JSONException e) {
+                            android.content.Intent intent = new android.content.Intent(v.getContext(), com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                            intent.putExtra("userId", u.getId());
+                            v.getContext().startActivity(intent);
+                        }
                     });
                 }
+                if (approve != null) approve.setOnClickListener(v -> { if (listener != null) listener.onApprove(u); });
+                if (reject != null) reject.setOnClickListener(v -> { if (listener != null) listener.onReject(u); });
             }
         }
     }

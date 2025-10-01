@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="4dp"
+    android:layout_marginVertical="6dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    app:cardElevation="3dp"
     android:foreground="?android:attr/selectableItemBackground">
 
     <LinearLayout
@@ -18,8 +19,7 @@
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/iv_avatar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="52dp" android:layout_height="52dp"
             android:src="@drawable/ic_profile_placeholder"
             app:civ_border_width="2dp"
             app:civ_border_color="#E0E0E0" />
@@ -28,34 +28,59 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:orientation="vertical">
+            android:layout_marginStart="16dp" android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tv_name"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/black"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="17sp" android:textStyle="bold"
+                android:singleLine="true"
+                android:ellipsize="end"
+                tools:text="Username with a reasonably long name" />
 
             <TextView
                 android:id="@+id/tv_sub"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/darker_gray"
-                android:textSize="14sp"
-                android:text="Yêu cầu tham gia" />
+                android:textSize="13sp" android:layout_marginTop="2dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                tools:text="Join request for 'Awesome Group'" />
 
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/iv_more"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@android:drawable/ic_menu_more"
-            app:tint="@android:color/darker_gray"
-            android:contentDescription="More options" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginStart="8dp">
+
+            <Button
+                android:id="@+id/btn_approve"
+                style="@style/Widget.AppCompat.Button.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp" android:text="Approve"
+                android:textSize="13sp" android:textColor="@android:color/white"
+                android:backgroundTint="#0E394B"
+                app:cornerRadius="16dp"
+                android:paddingHorizontal="12dp"
+                android:layout_marginEnd="8dp"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <Button
+                android:id="@+id/btn_reject"
+                style="@style/Widget.AppCompat.Button.Borderless.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Reject"
+                android:textSize="13sp"
+                android:textColor="#E53935" android:paddingHorizontal="12dp"
+                tools:ignore="TouchTargetSizeCheck" />
+        </LinearLayout>
 
     </LinearLayout>
 

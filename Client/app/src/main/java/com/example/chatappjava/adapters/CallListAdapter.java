@@ -185,11 +185,11 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
                 avatarManager.loadAvatar(
                     avatarUrl, 
                     ivCallAvatar, 
-                    R.drawable.default_avatar
+                    R.drawable.ic_person_avatar
                 );
             } else {
                 android.util.Log.d("CallListAdapter", "No avatar URL, using default");
-                ivCallAvatar.setImageResource(R.drawable.default_avatar);
+                ivCallAvatar.setImageResource(R.drawable.ic_person_avatar);
             }
             
             // Set status color
