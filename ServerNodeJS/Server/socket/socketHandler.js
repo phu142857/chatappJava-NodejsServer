@@ -597,6 +597,18 @@ class SocketHandler {
         socket.emit('call_error', { message: 'Failed to update call settings' });
       }
     });
+
+    // Handle member removed from group
+    socket.on('member_removed', (data) => {
+      console.log(`User ${socket.userId} was removed from group:`, data);
+      // Client should handle this event to refresh chat list
+    });
+
+    // Handle member removed from group (for other members)
+    socket.on('member_removed_from_group', (data) => {
+      console.log(`User ${socket.userId} received member removal notification:`, data);
+      // Client should handle this event to refresh group members list
+    });
   }
 
   // Broadcast to all connected users

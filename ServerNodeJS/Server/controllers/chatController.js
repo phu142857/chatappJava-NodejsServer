@@ -19,13 +19,23 @@ const getChats = async (req, res) => {
     
     console.log('Found chats:', chats.length, 'for user:', req.user.id);
 
-    // Filter out chats with null participants (deleted users)
+    // Filter out chats where user is not active participant
     const validChats = chats.filter(chat => {
-      if (chat.type === 'private') {
-        // For private chats, ensure both participants exist
-        return chat.participants.every(p => p.user && p.user._id);
+      // Check if current user is an active participant
+      const userParticipant = chat.participants.find(p => 
+        p.user && p.user._id && p.user._id.toString() === req.user.id && p.isActive
+      );
+      
+      if (!userParticipant) {
+        return false; // User is not an active participant
       }
-      return true; // Group chats can have some null participants
+      
+      if (chat.type === 'private') {
+        // For private chats, ensure both participants exist and are active
+        return chat.participants.every(p => p.user && p.user._id && p.isActive);
+      }
+      
+      return true; // Group chats - user is active participant
     });
 
     console.log('Valid chats after filtering:', validChats.length, 'for user:', req.user.id);
@@ -943,37 +953,59 @@ const removeMember = async (req, res) => {
       });
     }
 
-    // Remove user from chat
-    const initialLength = chat.participants.length;
-    console.log('Before removal:', { 
-      initialLength, 
-      participants: chat.participants.map(p => ({ user: p.user ? p.user.toString() : 'null', isActive: p.isActive })),
-      userIdToRemove: userId
-    });
+    // Find and deactivate user in chat
+    const participantToRemove = chat.participants.find(p => p.user && p.user.toString() === userId && p.isActive);
     
-    chat.participants = chat.participants.filter(p => p.user && p.user.toString() !== userId);
-    
-    console.log('After removal:', { 
-      finalLength: chat.participants.length, 
-      removed: initialLength !== chat.participants.length 
-    });
-    
-    if (chat.participants.length === initialLength) {
+    if (!participantToRemove) {
       console.log('User not found in group:', { userId, participants: chat.participants.map(p => p.user ? p.user.toString() : 'null') });
       return res.status(400).json({
         success: false,
         message: 'User is not a member of this group'
       });
     }
+    
+    // Deactivate user instead of removing completely
+    participantToRemove.isActive = false;
+    participantToRemove.leftAt = new Date();
+    
+    console.log('User deactivated from group:', { 
+      userId, 
+      participant: participantToRemove,
+      activeParticipants: chat.participants.filter(p => p.isActive).length
+    });
 
     await chat.save();
+
+    // Get io instance and emit events
+    const io = req.app.get('io');
+    if (io) {
+      // Notify the removed user that they were removed
+      io.to(`user_${userId}`).emit('member_removed', {
+        chatId: chat._id,
+        chatName: chat.name,
+        message: 'You have been removed from the group'
+      });
+
+      // Notify remaining active members about the removal
+      const activeParticipants = chat.participants.filter(p => p.isActive);
+      activeParticipants.forEach(participant => {
+        if (participant.user && participant.user._id) {
+          io.to(`user_${participant.user._id}`).emit('member_removed_from_group', {
+            chatId: chat._id,
+            chatName: chat.name,
+            removedUserId: userId,
+            totalMembers: activeParticipants.length
+          });
+        }
+      });
+    }
 
     res.json({
       success: true,
       message: 'Member removed successfully',
       data: {
         removedUser: userId,
-        totalMembers: chat.participants.length
+        totalMembers: chat.participants.filter(p => p.isActive).length
       }
     });
 
