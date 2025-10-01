@@ -1025,8 +1025,45 @@ const respondJoinRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Join request not found' });
     }
     if (action === 'approve') {
+      // Mark approved and perform full add-member sync (same như addMember)
       reqItem.status = 'approved';
+      // 1) Kích hoạt/Thêm vào Group
       await group.addMember(userId, 'member');
+      // 2) Đảm bảo tồn tại Chat nhóm và thêm participant
+      let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
+      if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
+      if (!chat) {
+        try {
+          chat = await Chat.create({
+            type: 'group',
+            groupId: group._id,
+            name: group.name,
+            description: group.description,
+            participants: [{ user: group.createdBy, role: 'admin' }],
+            createdBy: group.createdBy,
+            isActive: true
+          });
+        } catch (e) {
+          console.error('Failed to recreate group chat during respondJoinRequest:', e);
+        }
+      }
+      if (chat) {
+        await chat.addParticipant(userId, 'member');
+      }
+      // 3) Gửi socket notify cho user được duyệt
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`user_${userId}`).emit('added_to_group', {
+            groupId: group._id,
+            groupName: group.name,
+            chatId: chat ? chat._id : null,
+            timestamp: new Date()
+          });
+        }
+      } catch (e) {
+        console.error('Socket notify (approve join) error:', e);
+      }
     } else {
       reqItem.status = 'rejected';
     }
