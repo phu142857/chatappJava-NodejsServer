@@ -613,7 +613,17 @@ const addMember = async (req, res) => {
       });
     }
 
-    // Add/Reactivate member in Group
+    // If already active member, ensure Chat participant is also active and return OK
+    if (group.isMember(userId)) {
+      let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
+      if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
+      if (chat) {
+        await chat.addParticipant(userId, role);
+      }
+      return res.json({ success: true, message: 'Member already in group' });
+    }
+
+    // Add/Reactivate member in Group (covers inactive -> active)
     await group.addMember(userId, role);
 
     // If user had a pending join request, mark it approved to avoid stale pending state
@@ -720,8 +730,19 @@ const removeMember = async (req, res) => {
       });
     }
 
-    // Remove member
+    // Remove member (soft remove)
     await group.removeMember(memberId);
+
+    // Also reflect removal in chat participants to avoid stuck inactive states on chat only
+    try {
+      let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
+      if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
+      if (chat) {
+        await chat.removeParticipant(memberId);
+      }
+    } catch (e) {
+      console.error('Failed to sync chat participants on removeMember(Group):', e);
+    }
 
     // Ensure chat participants reflect removal
     try {
