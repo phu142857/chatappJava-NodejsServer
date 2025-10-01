@@ -26,8 +26,6 @@ public class PrivateChatActivity extends BaseChatActivity {
     private String currentCallId;
     private ImageView ivCancelCall;
     private boolean isJoiningCall = false; // Flag to prevent race conditions
-    private boolean isCallInProgress = false; // Flag to prevent multiple calls
-    private long lastCallTime = 0; // Timestamp of last call attempt
     
     @Override
     protected int getLayoutResource() {
@@ -90,15 +88,11 @@ public class PrivateChatActivity extends BaseChatActivity {
                 @Override
                 public void onCallAccepted(String callId) {
                     runOnUiThread(() -> {
-                        android.util.Log.d("PrivateChatActivity", "Received call_accepted for callId: " + callId + ", currentCallId: " + currentCallId + ", isJoiningCall: " + isJoiningCall);
-                        
-                        if (currentCallId != null && currentCallId.equals(callId) && !isJoiningCall && isCallInProgress) {
+                        if (currentCallId != null && currentCallId.equals(callId) && !isJoiningCall) {
                             android.util.Log.d("PrivateChatActivity", "Call accepted, joining video call");
                             isJoiningCall = true; // Set flag to prevent race conditions
                             // B accepted the call, now A can join
                             joinCallAndStartVideo(callId);
-                        } else {
-                            android.util.Log.d("PrivateChatActivity", "Ignoring call_accepted - conditions not met");
                         }
                     });
                 }
@@ -110,7 +104,9 @@ public class PrivateChatActivity extends BaseChatActivity {
                         if (currentCallId != null && currentCallId.equals(callId)) {
                             android.util.Log.d("PrivateChatActivity", "Call declined, resetting UI");
                             Toast.makeText(PrivateChatActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
-                            resetCallState(); // Reset all call state
+                            currentCallId = null;
+                            isJoiningCall = false; // Reset flag
+                            updateCallUI(false); // Hide cancel button
                         }
                     });
                 }
@@ -118,10 +114,11 @@ public class PrivateChatActivity extends BaseChatActivity {
                 @Override
                 public void onCallEnded(String callId) {
                     runOnUiThread(() -> {
-                        if (currentCallId != null && currentCallId.equals(callId)) {
+                        if (currentCallId != null && currentCallId.equals(callId) && !isJoiningCall) {
                             android.util.Log.d("PrivateChatActivity", "Call ended, resetting UI");
                             Toast.makeText(PrivateChatActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
-                            resetCallState(); // Reset all call state
+                            currentCallId = null;
+                            updateCallUI(false); // Hide cancel button
                         }
                     });
                 }
@@ -137,7 +134,7 @@ public class PrivateChatActivity extends BaseChatActivity {
                 runOnUiThread(() -> {
                     android.util.Log.e("PrivateChatActivity", "Failed to join call", e);
                     Toast.makeText(PrivateChatActivity.this, "Failed to join call", Toast.LENGTH_SHORT).show();
-                    resetCallState(); // Reset all call state
+                    isJoiningCall = false; // Reset flag on failure
                 });
             }
             
@@ -155,16 +152,18 @@ public class PrivateChatActivity extends BaseChatActivity {
                             intent.putExtra("isIncomingCall", false);
                             
                             startActivity(intent);
-                            resetCallState(); // Reset all call state
+                            currentCallId = null;
+                            isJoiningCall = false; // Reset flag
+                            updateCallUI(false); // Hide cancel button
                         } catch (Exception e) {
                             android.util.Log.e("PrivateChatActivity", "Error launching video call", e);
                             Toast.makeText(PrivateChatActivity.this, "Error starting video call", Toast.LENGTH_SHORT).show();
-                            resetCallState(); // Reset all call state
+                            isJoiningCall = false; // Reset flag on error
                         }
                     } else {
                         android.util.Log.e("PrivateChatActivity", "Failed to join call: " + response.code());
                         Toast.makeText(PrivateChatActivity.this, "Failed to join call", Toast.LENGTH_SHORT).show();
-                        resetCallState(); // Reset all call state
+                        isJoiningCall = false; // Reset flag on error
                     }
                 });
             }
@@ -187,14 +186,14 @@ public class PrivateChatActivity extends BaseChatActivity {
         if (currentCallId != null) {
             String token = sharedPrefsManager.getToken();
             apiClient.endCall(token, currentCallId, new okhttp3.Callback() {
-            @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> {
-                    android.util.Log.e("PrivateChatActivity", "Failed to cancel call", e);
-                    Toast.makeText(PrivateChatActivity.this, "Failed to cancel call", Toast.LENGTH_SHORT).show();
-                    resetCallState(); // Reset all call state
-                });
-            }
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        android.util.Log.e("PrivateChatActivity", "Failed to cancel call", e);
+                        Toast.makeText(PrivateChatActivity.this, "Failed to cancel call", Toast.LENGTH_SHORT).show();
+                        isJoiningCall = false; // Reset flag on failure
+                    });
+                }
                 
                 @Override
                 public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
@@ -205,7 +204,9 @@ public class PrivateChatActivity extends BaseChatActivity {
                             android.util.Log.e("PrivateChatActivity", "Failed to cancel call: " + response.code());
                             Toast.makeText(PrivateChatActivity.this, "Failed to cancel call", Toast.LENGTH_SHORT).show();
                         }
-                        resetCallState(); // Reset all call state
+                        currentCallId = null;
+                        isJoiningCall = false; // Reset flag
+                        updateCallUI(false); // Hide cancel button
                     });
                 }
             });
@@ -290,30 +291,11 @@ public class PrivateChatActivity extends BaseChatActivity {
             return;
         }
         
-        // Check if call is already in progress
-        if (isCallInProgress || isJoiningCall) {
-            android.util.Log.d("PrivateChatActivity", "Call already in progress, ignoring new call request");
-            Toast.makeText(this, "Call already in progress", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Check if too soon since last call attempt (prevent rapid clicking)
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastCallTime < 2000) { // 2 seconds cooldown
-            android.util.Log.d("PrivateChatActivity", "Call attempt too soon, ignoring");
-            Toast.makeText(this, "Please wait before starting another call", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
         // Start video call immediately
         initiateVideoCall();
     }
     
     private void initiateVideoCall() {
-        // Set call state flags
-        isCallInProgress = true;
-        lastCallTime = System.currentTimeMillis();
-        
         Toast.makeText(this, "Calling...", Toast.LENGTH_SHORT).show();
         
         // Create call on server first
@@ -469,9 +451,6 @@ public class PrivateChatActivity extends BaseChatActivity {
     protected void onResume() {
         super.onResume();
         
-        // Reset call state when returning to activity
-        resetCallState();
-        
         // Reload user data when returning to activity
         // This ensures profile changes are reflected immediately
         if (otherUser != null) {
@@ -481,19 +460,6 @@ public class PrivateChatActivity extends BaseChatActivity {
         
         // Also reload current user's data to ensure consistency
         loadCurrentUserData();
-    }
-    
-    private void resetCallState() {
-        // Reset all call-related state variables
-        currentCallId = null;
-        isJoiningCall = false;
-        isCallInProgress = false;
-        lastCallTime = 0;
-        
-        // Reset UI to normal state
-        updateCallUI(false);
-        
-        android.util.Log.d("PrivateChatActivity", "Call state reset - all flags cleared");
     }
     
     private void loadOtherUserData() {
