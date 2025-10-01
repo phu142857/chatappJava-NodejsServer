@@ -825,15 +825,15 @@ const requestJoinGroup = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
-    // If already a member
-    if (group.isMember(req.user.id)) {
-      return res.status(400).json({ success: false, message: 'Already a member' });
-    }
-
-    // Add or upsert a pending request
+    // If already has a pending request, return pending (must check BEFORE member to avoid wrong UX)
     const existing = group.joinRequests.find(r => r.user && r.user.toString() === req.user.id && r.status === 'pending');
     if (existing) {
       return res.status(200).json({ success: true, message: 'Request already pending' });
+    }
+
+    // If already a member (active)
+    if (group.isMember(req.user.id)) {
+      return res.status(400).json({ success: false, message: 'Already a member' });
     }
     group.joinRequests.push({ user: req.user.id, status: 'pending' });
     await group.save();
