@@ -97,6 +97,20 @@
             android:clickable="true"
             android:focusable="true" />
 
+        <TextView
+            android:id="@+id/tab_discover"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Discover"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:background="@drawable/tab_selector"
+            android:textColor="@color/tab_text_selector"
+            android:clickable="true"
+            android:focusable="true" />
+
     </LinearLayout>
 
     <!-- Search Header Card -->
@@ -208,18 +222,20 @@
                     app:tint="#7BCCFF" />
 
                 <TextView
+                    android:id="@+id/tv_hint_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Search for friends"
+                    android:text="Start searching"
                     android:textSize="20sp"
                     android:textColor="@android:color/black"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
                 <TextView
+                    android:id="@+id/tv_hint_subtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Enter an email address or username to find and connect with friends"
+                    android:text="Enter a keyword to find results"
                     android:textSize="14sp"
                     android:textColor="@android:color/darker_gray"
                     android:textAlignment="center"

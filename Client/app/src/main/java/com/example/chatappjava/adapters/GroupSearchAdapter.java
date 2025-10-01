@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.utils.AvatarManager;
+import com.example.chatappjava.config.ServerConfig;
+import com.squareup.picasso.Picasso;
 import java.util.List;
 
 public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.GroupViewHolder> {
@@ -18,6 +20,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     private Context context;
     private List<Chat> groups;
     private OnGroupClickListener listener;
+    private boolean discoverMode = false; // when true, show join/request buttons
     private AvatarManager avatarManager;
     
     public interface OnGroupClickListener {
@@ -33,6 +36,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     public void setOnGroupClickListener(OnGroupClickListener listener) {
         this.listener = listener;
     }
+    public void setDiscoverMode(boolean discover) { this.discoverMode = discover; notifyDataSetChanged(); }
     
     public void updateGroups(List<Chat> newGroups) {
         this.groups = newGroups;
@@ -62,6 +66,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
         private TextView tvGroupName;
         private TextView tvMemberCount;
         private TextView tvLastMessage;
+        private android.widget.Button btnAction;
         
         public GroupViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -69,6 +74,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
             tvGroupName = itemView.findViewById(R.id.tv_group_name);
             tvMemberCount = itemView.findViewById(R.id.tv_member_count);
             tvLastMessage = itemView.findViewById(R.id.tv_last_message);
+            btnAction = itemView.findViewById(R.id.btn_group_action);
             
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
@@ -91,12 +97,46 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 tvLastMessage.setText("No messages yet");
             }
             
-            // Load group avatar
+            // Load group avatar (ensure full URL if server returns relative path)
             String avatarUrl = group.getAvatar();
             if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_placeholder);
+                if (!(avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://"))) {
+                    String path = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
+                    avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + path;
+                }
+                try {
+                    avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_placeholder);
+                } catch (Exception ignored) {}
+                // Also attempt Picasso as fallback to maximize success rate
+                try {
+                    Picasso.get()
+                            .load(avatarUrl)
+                            .placeholder(R.drawable.ic_group_placeholder)
+                            .error(R.drawable.ic_group_placeholder)
+                            .into(ivGroupAvatar);
+                } catch (Exception ignored) {
+                    ivGroupAvatar.setImageResource(R.drawable.ic_group_placeholder);
+                }
             } else {
                 ivGroupAvatar.setImageResource(R.drawable.ic_group_placeholder);
+            }
+
+            // Action button visibility and text for Discover
+            if (discoverMode) {
+                btnAction.setVisibility(View.VISIBLE);
+                if (group.isPublicGroup()) {
+                    btnAction.setText("Join");
+                } else {
+                    btnAction.setText("Request");
+                }
+
+                btnAction.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onGroupClick(group); // delegate action; activity decides join/request
+                    }
+                });
+            } else {
+                btnAction.setVisibility(View.GONE);
             }
         }
     }

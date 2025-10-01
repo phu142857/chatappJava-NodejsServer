@@ -21,6 +21,8 @@ public class Chat {
     private long updatedAt;
     private User otherParticipant;
     private String avatar;
+    private String visibility; // public or private (optional)
+    private boolean isPublic;
     
     // Constructors
     public Chat() {
@@ -44,6 +46,8 @@ public class Chat {
         chat.name = json.optString("name", "");
         chat.description = json.optString("description", "");
         chat.avatar = json.optString("avatar", "");
+        chat.visibility = json.optString("visibility", json.optString("privacy", "public"));
+        chat.isPublic = "public".equalsIgnoreCase(chat.visibility) || json.optBoolean("isPublic", false);
         
         // lastMessage may be an object (populated) or an id/string
         Object lastMessageField = json.opt("lastMessage");
@@ -178,6 +182,8 @@ public class Chat {
     
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
+    public boolean isPublicGroup() { return isGroupChat() && isPublic; }
+    public String getVisibility() { return visibility; }
     
     public String getFullAvatarUrl() {
         android.util.Log.d("ChatModel", "getFullAvatarUrl() called with avatar: " + avatar);

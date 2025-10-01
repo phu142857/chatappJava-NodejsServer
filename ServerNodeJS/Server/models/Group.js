@@ -85,6 +85,16 @@ groupSchema.index({ 'members.user': 1 });
 groupSchema.index({ createdBy: 1 });
 groupSchema.index({ lastActivity: -1 });
 
+// Safe ObjectId comparison helper
+function idsEqual(a, b) {
+  if (!a || !b) return false;
+  try {
+    return a.toString() === b.toString();
+  } catch (e) {
+    return false;
+  }
+}
+
 // Virtual for active members count
 groupSchema.virtual('activeMembersCount').get(function() {
   return this.members.filter(m => m.isActive).length;
@@ -106,7 +116,7 @@ groupSchema.methods.updateLastActivity = function() {
 // Add member method
 groupSchema.methods.addMember = async function(userId, role = 'member') {
   const existingMember = this.members.find(
-    m => m.user.toString() === userId.toString()
+    m => m.user && idsEqual(m.user, userId)
   );
   
   if (existingMember) {
@@ -131,13 +141,13 @@ groupSchema.methods.addMember = async function(userId, role = 'member') {
 groupSchema.methods.removeMember = function(userId) {
   console.log('Group.removeMember called for user:', userId, 'in group:', this._id);
   console.log('Current members before removal:', this.members.map(m => ({
-    user: m.user.toString(),
+    user: m.user ? m.user.toString() : null,
     isActive: m.isActive,
     role: m.role
   })));
   
   const member = this.members.find(
-    m => m.user.toString() === userId.toString()
+    m => m.user && idsEqual(m.user, userId)
   );
   
   if (member) {
@@ -156,7 +166,7 @@ groupSchema.methods.removeMember = function(userId) {
   this.lastActivity = new Date();
   return this.save().then(savedGroup => {
     console.log('Group saved after member removal. Members after:', savedGroup.members.map(m => ({
-      user: m.user.toString(),
+      user: m.user ? m.user.toString() : null,
       isActive: m.isActive,
       role: m.role
     })));
@@ -166,12 +176,12 @@ groupSchema.methods.removeMember = function(userId) {
 
 // Check if user is member
 groupSchema.methods.isMember = function(userId) {
-  return this.members.some(m => m.user.equals(userId) && m.isActive);
+  return this.members.some(m => m.user && idsEqual(m.user, userId) && m.isActive);
 };
 
 // Get membership status with user
 groupSchema.methods.getMembershipStatus = function(userId) {
-  const member = this.members.find(m => m.user.equals(userId));
+  const member = this.members.find(m => m.user && idsEqual(m.user, userId));
   return {
     isMember: member ? member.isActive : false,
     role: member ? member.role : null,
@@ -182,13 +192,13 @@ groupSchema.methods.getMembershipStatus = function(userId) {
 
 // Check if user has permission (admin or moderator)
 groupSchema.methods.hasPermission = function(userId) {
-  const member = this.members.find(m => m.user.equals(userId) && m.isActive);
+  const member = this.members.find(m => m.user && idsEqual(m.user, userId) && m.isActive);
   return member && ['admin', 'moderator'].includes(member.role);
 };
 
 // Check if user is admin
 groupSchema.methods.isAdmin = function(userId) {
-  const member = this.members.find(m => m.user.equals(userId) && m.isActive);
+  const member = this.members.find(m => m.user && idsEqual(m.user, userId) && m.isActive);
   return member && member.role === 'admin';
 };
 
@@ -223,7 +233,7 @@ groupSchema.pre('save', function(next) {
   }
   
   // Ensure creator is admin
-  const creatorMember = this.members.find(m => m.user.equals(this.createdBy));
+  const creatorMember = this.members.find(m => m.user && idsEqual(m.user, this.createdBy));
   if (creatorMember) {
     creatorMember.role = 'admin';
   }
