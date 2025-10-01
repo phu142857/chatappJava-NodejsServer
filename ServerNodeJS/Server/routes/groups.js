@@ -17,7 +17,8 @@ const {
   getGroupMembers,
   requestJoinGroup,
   getJoinRequestsCount,
-  respondJoinRequest
+  respondJoinRequest,
+  getJoinRequests
 } = require('../controllers/groupController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 
