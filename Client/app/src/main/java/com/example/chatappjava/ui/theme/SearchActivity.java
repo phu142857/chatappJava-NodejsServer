@@ -114,14 +114,86 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     
     private void loadCurrentGroupMembers() {
         if (currentChat == null) return;
-        
         String token = sharedPrefsManager.getToken();
-        if (token == null) return;
-        
-        // Get group members from the chat participant IDs
-        if (currentChat.getParticipantIds() != null) {
-            currentGroupMemberIds.clear();
-            currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+        if (token == null || token.isEmpty()) return;
+
+        // Prefer fetching latest members from server to avoid stale participant list
+        new com.example.chatappjava.network.ApiClient().getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                // Fallback to existing participantIds from currentChat if available
+                runOnUiThread(() -> {
+                    if (currentChat.getParticipantIds() != null) {
+                        currentGroupMemberIds.clear();
+                        currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                        if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                    }
+                });
+            }
+            @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.code() == 200) {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            org.json.JSONObject data = json.optJSONObject("data");
+                            java.util.List<String> ids = new java.util.ArrayList<>();
+                            if (data != null) {
+                                // Try common shapes: {members: [ {user: {...}}, ... ]} or {members: [ {_id:..}, ... ]}
+                                org.json.JSONArray members = data.optJSONArray("members");
+                                if (members == null) members = data.optJSONArray("participants");
+                                if (members != null) {
+                                    for (int i = 0; i < members.length(); i++) {
+                                        Object entry = members.get(i);
+                                        if (entry instanceof org.json.JSONObject) {
+                                            org.json.JSONObject obj = (org.json.JSONObject) entry;
+                                            org.json.JSONObject userObj = obj.optJSONObject("user");
+                                            String uid;
+                                            if (userObj != null) {
+                                                uid = userObj.optString("_id", userObj.optString("id", ""));
+                                            } else {
+                                                uid = obj.optString("_id", obj.optString("id", obj.optString("user", "")));
+                                            }
+                                            if (uid != null && !uid.isEmpty()) ids.add(uid);
+                                        } else if (entry instanceof String) {
+                                            String uid = (String) entry;
+                                            if (!uid.isEmpty()) ids.add(uid);
+                                        }
+                                    }
+                                }
+                            }
+                            // If server returned empty or unexpected, fallback to currentChat
+                            if (ids.isEmpty() && currentChat.getParticipantIds() != null) {
+                                ids.addAll(currentChat.getParticipantIds());
+                            }
+                            currentGroupMemberIds.clear();
+                            currentGroupMemberIds.addAll(ids);
+                            if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                        } else {
+                            // Non-200: fallback to currentChat list
+                            if (currentChat.getParticipantIds() != null) {
+                                currentGroupMemberIds.clear();
+                                currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                                if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                            }
+                        }
+                    } catch (Exception ignored) {
+                        if (currentChat.getParticipantIds() != null) {
+                            currentGroupMemberIds.clear();
+                            currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                            if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh members list when returning to screen to avoid stale "Already a Member" status
+        if ("add_members".equals(mode)) {
+            loadCurrentGroupMembers();
         }
     }
     

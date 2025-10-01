@@ -3,6 +3,7 @@ package com.example.chatappjava.adapters;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -12,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Message;
+import com.example.chatappjava.models.User;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.config.ServerConfig;
 import com.squareup.picasso.Picasso;
@@ -547,5 +549,56 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
         textView.setText(spannable);
         textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+    }
+
+    public static class RequestsAdapter extends RecyclerView.Adapter<RequestsAdapter.VH> {
+        public interface ActionListener {
+            void onApprove(User u);
+            void onReject(User u);
+        }
+        private final List<User> users;
+        private final ActionListener listener;
+        public RequestsAdapter(List<User> users, ActionListener listener) {
+            this.users = users;
+            this.listener = listener;
+        }
+        @NonNull @Override public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_join_request, parent, false);
+            return new VH(v);
+        }
+        @Override public void onBindViewHolder(@NonNull VH h, int pos) { h.bind(users.get(pos)); }
+        @Override public int getItemCount() { return users.size(); }
+
+        class VH extends RecyclerView.ViewHolder {
+            de.hdodenhof.circleimageview.CircleImageView avatar; TextView name; ImageView more;
+            VH(View v) { super(v);
+                avatar = v.findViewById(R.id.iv_avatar);
+                name = v.findViewById(R.id.tv_name);
+                more = v.findViewById(R.id.iv_more);
+            }
+            void bind(User u) {
+                name.setText(u.getDisplayName());
+                try { Picasso.get().load(u.getAvatar()).placeholder(R.drawable.ic_group_placeholder).into(avatar); } catch (Exception ignored) {}
+                if (more != null) {
+                    more.setOnClickListener(v -> {
+                        android.widget.PopupMenu menu = new android.widget.PopupMenu(v.getContext(), more);
+                        menu.getMenu().add(0, 1, 0, "Duyệt");
+                        menu.getMenu().add(0, 2, 1, "Từ chối");
+                        menu.setOnMenuItemClickListener(item -> {
+                            if (item.getItemId() == 1) { if (listener != null) listener.onApprove(u); return true; }
+                            if (item.getItemId() == 2) { if (listener != null) listener.onReject(u); return true; }
+                            return false;
+                        });
+                        try {
+                            java.lang.reflect.Field mFieldPopup = menu.getClass().getDeclaredField("mPopup");
+                            mFieldPopup.setAccessible(true);
+                            Object mPopup = mFieldPopup.get(menu);
+                            mPopup.getClass().getDeclaredMethod("setForceShowIcon", boolean.class).invoke(mPopup, true);
+                        } catch (Exception ignored) {}
+                        menu.show();
+                    });
+                }
+            }
+        }
     }
 }

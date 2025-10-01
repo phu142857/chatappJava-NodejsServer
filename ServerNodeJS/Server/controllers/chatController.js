@@ -980,6 +980,26 @@ const removeMember = async (req, res) => {
 
     await chat.save();
 
+    // Also reflect removal in associated Group to keep membership logic consistent
+    try {
+      let group = null;
+      if (chat.groupId) {
+        group = await Group.findById(chat.groupId);
+      }
+      // Fallback by name if groupId is not linked in Chat (legacy data)
+      if (!group) {
+        group = await Group.findOne({ name: chat.name, isActive: true });
+      }
+      if (group) {
+        await group.removeMember(userId);
+      } else {
+        console.warn('Associated group not found when removing member from chat', { chatId: chat._id, name: chat.name });
+      }
+    } catch (e) {
+      console.error('Failed to sync Group membership on removeMember:', e);
+      // Do not fail the whole operation; chat state is already updated
+    }
+
     // Get io instance and emit events
     const io = req.app.get('io');
     if (io) {

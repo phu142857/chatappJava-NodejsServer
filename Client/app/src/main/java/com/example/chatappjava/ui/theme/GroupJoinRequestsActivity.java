@@ -7,6 +7,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.chatappjava.adapters.MessageAdapter;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
@@ -22,7 +24,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
 
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
-    private RequestsAdapter adapter;
+    private MessageAdapter.RequestsAdapter adapter;
     private final List<User> requests = new ArrayList<>();
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefs;
@@ -38,7 +40,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
         View ivBack = findViewById(com.example.chatappjava.R.id.iv_back);
         if (ivBack != null) ivBack.setOnClickListener(v -> finish());
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new RequestsAdapter(requests, new RequestsAdapter.ActionListener() {
+        adapter = new MessageAdapter.RequestsAdapter(requests, new MessageAdapter.RequestsAdapter.ActionListener() {
             @Override
             public void onApprove(User u) { respond(u, true); }
             @Override
