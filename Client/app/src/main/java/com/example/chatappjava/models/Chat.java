@@ -23,6 +23,7 @@ public class Chat {
     private String avatar;
     private String visibility; // public or private (optional)
     private boolean isPublic;
+    private String joinRequestStatus; // none | pending | approved | rejected (client uses pending)
     
     // Constructors
     public Chat() {
@@ -48,6 +49,7 @@ public class Chat {
         chat.avatar = json.optString("avatar", "");
         chat.visibility = json.optString("visibility", json.optString("privacy", "public"));
         chat.isPublic = "public".equalsIgnoreCase(chat.visibility) || json.optBoolean("isPublic", false);
+        chat.joinRequestStatus = json.optString("joinRequestStatus", "");
         
         // lastMessage may be an object (populated) or an id/string
         Object lastMessageField = json.opt("lastMessage");
@@ -132,6 +134,9 @@ public class Chat {
         json.put("createdBy", creatorId);
         json.put("createdAt", createdAt);
         json.put("updatedAt", updatedAt);
+        if (joinRequestStatus != null && !joinRequestStatus.isEmpty()) {
+            json.put("joinRequestStatus", joinRequestStatus);
+        }
         
         // Convert participants list to JSON array
         JSONArray participantsArray = new JSONArray();
@@ -184,6 +189,8 @@ public class Chat {
     public void setAvatar(String avatar) { this.avatar = avatar; }
     public boolean isPublicGroup() { return isGroupChat() && isPublic; }
     public String getVisibility() { return visibility; }
+    public String getJoinRequestStatus() { return joinRequestStatus; }
+    public void setJoinRequestStatus(String status) { this.joinRequestStatus = status; }
     
     public String getFullAvatarUrl() {
         android.util.Log.d("ChatModel", "getFullAvatarUrl() called with avatar: " + avatar);

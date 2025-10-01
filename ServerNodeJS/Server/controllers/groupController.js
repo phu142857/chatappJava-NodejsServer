@@ -282,15 +282,22 @@ const searchGroups = async (req, res) => {
 // @access  Private
 const getPublicGroups = async (req, res) => {
   try {
+    // Include joinRequests for computing user status
     const groups = await Group.findPublicGroups()
-      .select('name description avatar status lastActivity')
+      .select('name description avatar status lastActivity members settings joinRequests')
       .populate('members.user', 'username email avatar status')
       .limit(50);
+
+    const mapped = groups.map(g => {
+      const obj = g.toJSON();
+      const joinRequestStatus = (g.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending') ? 'pending' : 'none';
+      return { ...obj, joinRequestStatus };
+    });
 
     res.json({
       success: true,
       data: {
-        groups
+        groups: mapped
       }
     });
 
@@ -857,6 +864,31 @@ const getJoinRequestsCount = async (req, res) => {
   }
 };
 
+// @desc    Get pending join requests list
+// @route   GET /api/groups/:id/join-requests
+// @access  Private (admins/moderators only)
+const getJoinRequests = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const group = await Group.findById(id).populate('joinRequests.user', 'username email avatar');
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+    if (!group.hasPermission(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
+    }
+    const pending = (group.joinRequests || []).filter(r => r.status === 'pending').map(r => ({
+      user: r.user,
+      status: r.status,
+      createdAt: r.createdAt
+    }));
+    return res.json({ success: true, data: { requests: pending } });
+  } catch (error) {
+    console.error('Get join requests error:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching join requests' });
+  }
+};
+
 // @desc    Approve/Reject a join request
 // @route   POST /api/groups/:id/join-requests/:userId
 // @access  Private (admins/moderators only)
@@ -906,5 +938,6 @@ module.exports = {
   getGroupMembers,
   requestJoinGroup,
   getJoinRequestsCount,
-  respondJoinRequest
+  respondJoinRequest,
+  getJoinRequests
 };

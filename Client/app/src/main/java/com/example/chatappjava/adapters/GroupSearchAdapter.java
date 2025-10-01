@@ -124,13 +124,8 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
             // Action button visibility and text for Discover
             if (discoverMode) {
                 btnAction.setVisibility(View.VISIBLE);
-                // Determine pending status from Chat extra field if available via reflection to keep adapter decoupled
-                String joinStatus = null;
-                try {
-                    java.lang.reflect.Method toJson = group.getClass().getMethod("toJson");
-                    org.json.JSONObject json = (org.json.JSONObject) toJson.invoke(group);
-                    joinStatus = json.optString("joinRequestStatus", "");
-                } catch (Throwable ignored) {}
+                // Determine pending status from Chat model field
+                String joinStatus = group.getJoinRequestStatus();
 
                 if (joinStatus != null && joinStatus.equals("pending")) {
                     btnAction.setText("Requested");
