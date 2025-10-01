@@ -892,11 +892,17 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                     if (arr != null) {
                         for (int i = 0; i < arr.length(); i++) {
                             JSONObject g = arr.getJSONObject(i);
+                            // Exclude if server says user is already member
+                            boolean isMemberServer = g.optBoolean("isMember", false);
+                            if (isMemberServer) continue;
+
                             Chat chat = Chat.fromJson(g);
-                            String myId = sharedPrefsManager.getUserId();
-                            if (!chat.getParticipantIds().contains(myId)) {
-                                discover.add(chat);
+                            // Carry over joinRequestStatus if provided
+                            String jrs = g.optString("joinRequestStatus", "");
+                            if (!jrs.isEmpty()) {
+                                chat.setJoinRequestStatus(jrs);
                             }
+                            discover.add(chat);
                         }
                     }
                     groupResults.clear();

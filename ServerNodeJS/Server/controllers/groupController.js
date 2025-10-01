@@ -285,14 +285,17 @@ const getPublicGroups = async (req, res) => {
   try {
     // Include joinRequests for computing user status
     const groups = await Group.findPublicGroups()
-      .select('name description avatar status lastActivity members settings joinRequests')
+      .select('name description avatar status lastActivity members settings joinRequests createdBy')
       .populate('members.user', 'username email avatar status')
       .limit(50);
 
     const mapped = groups
-      // Exclude groups where current user is already a member
+      // Exclude groups where current user is already a member or creator
       .filter(g => {
-        try { return !g.isMember(req.user.id); } catch (e) { return true; }
+        try {
+          const isOwner = g.createdBy && g.createdBy.toString && g.createdBy.toString() === req.user.id;
+          return !g.isMember(req.user.id) && !isOwner;
+        } catch (e) { return true; }
       })
       .map(g => {
       const obj = g.toJSON();
