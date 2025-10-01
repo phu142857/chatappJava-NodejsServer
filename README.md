@@ -368,7 +368,7 @@ This is a final project for the NT118 course at University of Information Techno
 
 ## Team
 
-- **Developer**: Nguyen Tai Phu 
+- **Coder**: Nguyen Tai Phu 
 - **Course**: NT118 - Final Project
 - **Institution**: UIT - VN
 
