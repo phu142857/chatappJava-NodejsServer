@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.chatappjava.R;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
-import com.example.chatappjava.utils.ErrorHandler;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;

@@ -7,6 +7,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+
 import com.example.chatappjava.ChatApplication;
 import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
@@ -130,7 +132,7 @@ public class PrivateChatActivity extends BaseChatActivity {
         String token = sharedPrefsManager.getToken();
         apiClient.joinCall(token, callId, new okhttp3.Callback() {
             @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+            public void onFailure(@NonNull okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     android.util.Log.e("PrivateChatActivity", "Failed to join call", e);
                     Toast.makeText(PrivateChatActivity.this, "Failed to join call", Toast.LENGTH_SHORT).show();
@@ -139,7 +141,7 @@ public class PrivateChatActivity extends BaseChatActivity {
             }
             
             @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         try {
@@ -187,7 +189,7 @@ public class PrivateChatActivity extends BaseChatActivity {
             String token = sharedPrefsManager.getToken();
             apiClient.endCall(token, currentCallId, new okhttp3.Callback() {
                 @Override
-                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                public void onFailure(@NonNull okhttp3.Call call, java.io.IOException e) {
                     runOnUiThread(() -> {
                         android.util.Log.e("PrivateChatActivity", "Failed to cancel call", e);
                         Toast.makeText(PrivateChatActivity.this, "Failed to cancel call", Toast.LENGTH_SHORT).show();
@@ -196,7 +198,7 @@ public class PrivateChatActivity extends BaseChatActivity {
                 }
                 
                 @Override
-                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
                             Toast.makeText(PrivateChatActivity.this, "Call cancelled", Toast.LENGTH_SHORT).show();
@@ -494,7 +496,7 @@ public class PrivateChatActivity extends BaseChatActivity {
             }
             
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(Call call, Response response) {
                 android.util.Log.d("PrivateChatActivity", "loadOtherUserData response: " + response.code());
                 
                 if (response.isSuccessful()) {
