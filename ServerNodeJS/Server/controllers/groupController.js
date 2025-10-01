@@ -613,11 +613,44 @@ const addMember = async (req, res) => {
       });
     }
 
-    // Add member
+    // Add/Reactivate member in Group
     await group.addMember(userId, role);
+
+    // If user had a pending join request, mark it approved to avoid stale pending state
+    try {
+      if (group.joinRequests && Array.isArray(group.joinRequests)) {
+        const jr = group.joinRequests.find(r => r.user && r.user.toString() === userId);
+        if (jr && jr.status === 'pending') {
+          jr.status = 'approved';
+          await group.save();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update join request status on addMember:', e?.message || e);
+    }
 
     // Ensure chat participants include this member
     let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
+    if (!chat) {
+      // Fallback for legacy data: locate by name
+      chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
+    }
+    if (!chat) {
+      // As a last resort, recreate the group chat container to keep system consistent
+      try {
+        chat = await Chat.create({
+          type: 'group',
+          groupId: group._id,
+          name: group.name,
+          description: group.description,
+          participants: [{ user: group.createdBy, role: 'admin' }],
+          createdBy: group.createdBy,
+          isActive: true
+        });
+      } catch (e) {
+        console.error('Failed to recreate group chat for group', group._id, e);
+      }
+    }
     if (chat) {
       await chat.addParticipant(userId, role);
     }
