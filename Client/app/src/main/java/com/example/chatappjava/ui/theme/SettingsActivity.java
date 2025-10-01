@@ -22,7 +22,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private EditText etServerIp, etServerPort;
     private CheckBox cbUseHttps, cbUseWss;
-    private Button btnSave, btnReset, btnChangePassword, btnLogout;
+    private Button btnSave, btnReset, btnChangePassword, btnLogout, btnDeleteAccount;
     private EditText etCurrentPassword, etNewPassword, etConfirmPassword;
     private SharedPreferencesManager sharedPrefsManager;
     private LinearLayout sectionServerContent, sectionPasswordContent, sectionAccountContent;
@@ -48,6 +48,7 @@ public class SettingsActivity extends AppCompatActivity {
         btnReset = findViewById(R.id.btn_reset_settings);
         btnChangePassword = findViewById(R.id.btn_change_password);
         btnLogout = findViewById(R.id.btn_logout);
+        btnDeleteAccount = findViewById(R.id.btn_delete_account);
         etCurrentPassword = findViewById(R.id.et_current_password);
         etNewPassword = findViewById(R.id.et_new_password);
         etConfirmPassword = findViewById(R.id.et_confirm_password);
@@ -112,6 +113,13 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 performLogout();
+            }
+        });
+
+        btnDeleteAccount.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showDeleteAccountDialog();
             }
         });
 
@@ -265,6 +273,83 @@ public class SettingsActivity extends AppCompatActivity {
         intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void showDeleteAccountDialog() {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle("Delete Account");
+        builder.setMessage("This action cannot be undone. All your data will be permanently deleted. Please enter your password to confirm.");
+
+        // Create input field for password
+        final EditText passwordInput = new EditText(this);
+        passwordInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setHint("Enter your password");
+        passwordInput.setPadding(50, 20, 50, 20);
+
+        builder.setView(passwordInput);
+
+        builder.setPositiveButton("Delete Account", new android.content.DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(android.content.DialogInterface dialog, int which) {
+                String password = passwordInput.getText().toString().trim();
+                if (password.isEmpty()) {
+                    Toast.makeText(SettingsActivity.this, "Please enter your password", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                performDeleteAccount(password);
+            }
+        });
+
+        builder.setNegativeButton("Cancel", new android.content.DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(android.content.DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        builder.setCancelable(true);
+        builder.show();
+    }
+
+    private void performDeleteAccount(String password) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Session expired, please log in again", Toast.LENGTH_SHORT).show();
+            navigateToLogin();
+            return;
+        }
+
+        btnDeleteAccount.setEnabled(false);
+        new com.example.chatappjava.network.ApiClient().deleteAccount(token, password, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    btnDeleteAccount.setEnabled(true);
+                    Toast.makeText(SettingsActivity.this, "Connection error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    btnDeleteAccount.setEnabled(true);
+                    if (response.code() == 200) {
+                        Toast.makeText(SettingsActivity.this, "Account deleted successfully", Toast.LENGTH_LONG).show();
+                        // Clear all data and navigate to login
+                        forceLogoutAndNavigate();
+                    } else {
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            String msg = json.optString("message", "Failed to delete account");
+                            Toast.makeText(SettingsActivity.this, msg, Toast.LENGTH_SHORT).show();
+                        } catch (Exception ex) {
+                            Toast.makeText(SettingsActivity.this, "Failed to delete account", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+            }
+        });
     }
 }
 

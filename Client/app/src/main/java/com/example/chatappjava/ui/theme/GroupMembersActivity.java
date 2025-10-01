@@ -63,7 +63,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         tvGroupName = findViewById(R.id.tv_group_name);
         tvMemberCount = findViewById(R.id.tv_member_count);
         ivBack = findViewById(R.id.iv_back);
-        ivAddMember = findViewById(R.id.iv_add_member);
         rvMembers = findViewById(R.id.rv_members);
         btnAddMember = findViewById(R.id.btn_add_member);
     }

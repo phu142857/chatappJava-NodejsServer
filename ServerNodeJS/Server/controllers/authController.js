@@ -445,14 +445,26 @@ const uploadAvatar = async (req, res) => {
 const deleteAccount = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { password } = req.body;
     
-    // Find user to get username for audit log
+    // Find user to verify password and get username for audit log
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
+    }
+
+    // Verify password if provided
+    if (password) {
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid password'
+        });
+      }
     }
 
     // Delete user account

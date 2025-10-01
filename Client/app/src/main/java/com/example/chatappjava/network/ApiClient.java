@@ -35,6 +35,7 @@ public class ApiClient {
     private static final String UPDATE_PROFILE_ENDPOINT = "/api/auth/profile";
     private static final String CHANGE_PASSWORD_ENDPOINT = "/api/auth/change-password";
     private static final String LOGOUT_ENDPOINT = "/api/auth/logout";
+    private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
 
@@ -157,6 +158,19 @@ public class ApiClient {
         Request request = createAuthenticatedRequest(token)
                 .url(getBaseUrl() + endpoint)
                 .delete()
+                .build();
+
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Sends an authenticated DELETE request with body.
+     */
+    public void authenticatedDelete(String endpoint, String token, JSONObject data, Callback callback) {
+        RequestBody body = RequestBody.create(data.toString(), JSON);
+        Request request = createAuthenticatedRequest(token)
+                .url(getBaseUrl() + endpoint)
+                .delete(body)
                 .build();
 
         client.newCall(request).enqueue(callback);
@@ -342,6 +356,20 @@ public class ApiClient {
                 .post(RequestBody.create("", JSON))
                 .build();
         client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Delete user account permanently
+     */
+    public void deleteAccount(String token, String password, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("password", password);
+            authenticatedDelete(DELETE_ACCOUNT_ENDPOINT, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare delete account: " + e.getMessage()));
+        }
     }
 
     /**
