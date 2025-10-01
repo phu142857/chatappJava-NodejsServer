@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.User;
+import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 
@@ -35,6 +36,8 @@ public class ProfileViewActivity extends AppCompatActivity {
     private User otherUser;
     private AvatarManager avatarManager;
     private SharedPreferencesManager sharedPrefsManager;
+    private ApiClient apiClient;
+    private AlertDialog currentDialog;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +65,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     private void initData() {
         avatarManager = AvatarManager.getInstance(this);
         sharedPrefsManager = new SharedPreferencesManager(this);
+        apiClient = new ApiClient();
         
         Intent intent = getIntent();
         if (intent.hasExtra("user")) {
@@ -198,47 +202,162 @@ public class ProfileViewActivity extends AppCompatActivity {
     }
     
     private void showMoreOptions() {
-        String[] options = {"Send Message", "Call", "Video Call", "Block User"};
-        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Options")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            // Send Message - navigate to private chat
-                            navigateToPrivateChat();
-                            break;
-                        case 1:
-                            Toast.makeText(this, "Voice call feature coming soon", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 2:
-                            Toast.makeText(this, "Video call feature coming soon", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 3:
-                            Toast.makeText(this, "Block user feature coming soon", Toast.LENGTH_SHORT).show();
-                            break;
-                    }
-                });
-        builder.show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_profile_options, null);
+        
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_send_message).setOnClickListener(v -> {
+            navigateToPrivateChat();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_call).setOnClickListener(v -> {
+            Toast.makeText(this, "Voice call feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_video_call).setOnClickListener(v -> {
+            Toast.makeText(this, "Video call feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+            Toast.makeText(this, "Block user feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
     
     private void navigateToPrivateChat() {
         if (otherUser == null) return;
         
-        Intent intent = new Intent(this, PrivateChatActivity.class);
-        try {
-            // Create a simple chat object for private chat
-            JSONObject chatJson = new JSONObject();
-            chatJson.put("type", "private");
-            chatJson.put("name", otherUser.getDisplayName());
-            
-            intent.putExtra("chat", chatJson.toString());
-            intent.putExtra("user", otherUser.toJson().toString());
-            startActivity(intent);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show();
+        // First, try to find existing chat with this user
+        String token = sharedPrefsManager.getToken();
+        if (token != null && !token.isEmpty()) {
+            apiClient.getChats(token, new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, "Failed to load chats", Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    if (response.isSuccessful()) {
+                        try {
+                            String responseBody = response.body().string();
+                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                org.json.JSONArray chatsArray = jsonResponse.getJSONObject("data").getJSONArray("chats");
+                                
+                                // Look for existing private chat with this user
+                                for (int i = 0; i < chatsArray.length(); i++) {
+                                    org.json.JSONObject chatJson = chatsArray.getJSONObject(i);
+                                    String chatType = chatJson.optString("type", "");
+                                    
+                                    if ("private".equals(chatType)) {
+                                        // Check if this chat involves the other user
+                                        org.json.JSONArray participants = chatJson.getJSONArray("participants");
+                                        for (int j = 0; j < participants.length(); j++) {
+                                            org.json.JSONObject participant = participants.getJSONObject(j);
+                                            String userId = participant.optString("user", "");
+                                            if (otherUser.getId().equals(userId)) {
+                                                // Found existing chat, open it
+                                                runOnUiThread(() -> {
+                                                    Intent intent = new Intent(ProfileViewActivity.this, PrivateChatActivity.class);
+                                                    intent.putExtra("chat", chatJson.toString());
+                                                    try {
+                                                        intent.putExtra("user", otherUser.toJson().toString());
+                                                    } catch (JSONException e) {
+                                                        throw new RuntimeException(e);
+                                                    }
+                                                    startActivity(intent);
+                                                });
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // No existing chat found, create new one
+                                runOnUiThread(() -> createNewPrivateChat());
+                            } else {
+                                runOnUiThread(() -> createNewPrivateChat());
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            runOnUiThread(() -> createNewPrivateChat());
+                        }
+                    } else {
+                        runOnUiThread(() -> createNewPrivateChat());
+                    }
+                }
+            });
+        } else {
+            createNewPrivateChat();
         }
+    }
+    
+    private void createNewPrivateChat() {
+        // Create a new private chat on the server
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create chat with the other user
+        apiClient.createPrivateChat(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, "Failed to create chat", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        
+                        if (jsonResponse.optBoolean("success", false)) {
+                            org.json.JSONObject chatData = jsonResponse.getJSONObject("data").getJSONObject("chat");
+                            
+                            runOnUiThread(() -> {
+                                Intent intent = new Intent(ProfileViewActivity.this, PrivateChatActivity.class);
+                                intent.putExtra("chat", chatData.toString());
+                                try {
+                                    intent.putExtra("user", otherUser.toJson().toString());
+                                } catch (JSONException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                startActivity(intent);
+                            });
+                        } else {
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, "Failed to create chat", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, "Error creating chat", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, "Failed to create chat", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
     }
     
     @Override

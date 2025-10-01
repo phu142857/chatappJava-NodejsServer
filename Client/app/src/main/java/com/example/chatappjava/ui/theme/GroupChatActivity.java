@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -136,33 +137,43 @@ public class GroupChatActivity extends BaseChatActivity {
     
     @Override
     protected void showChatOptions() {
-        String[] options = {"View Group Info", "Change Avatar", "Add Members", "Remove Members", "Leave Group", "Delete Group"};
-        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Group Options")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            showGroupInfo();
-                            break;
-                        case 1:
-                            showAvatarOptions();
-                            break;
-                        case 2:
-                            addMembers();
-                            break;
-                        case 3:
-                            removeMembers();
-                            break;
-                        case 4:
-                            confirmLeaveGroup();
-                            break;
-                        case 5:
-                            confirmDeleteGroup();
-                            break;
-                    }
-                });
-        builder.show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
+        
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_view_group_info).setOnClickListener(v -> {
+            showGroupInfo();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_change_avatar).setOnClickListener(v -> {
+            showAvatarOptions();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_add_members).setOnClickListener(v -> {
+            addMembers();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_remove_members).setOnClickListener(v -> {
+            removeMembers();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_leave_group).setOnClickListener(v -> {
+            confirmLeaveGroup();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
+            confirmDeleteGroup();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
     
     @Override

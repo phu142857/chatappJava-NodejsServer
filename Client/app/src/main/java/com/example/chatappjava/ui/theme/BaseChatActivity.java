@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.Animation;
@@ -86,6 +87,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected ApiClient apiClient;
     protected AvatarManager avatarManager;
     protected SocketManager socketManager;
+    protected AlertDialog currentDialog;
     // Mentions
     protected ListPopupWindow mentionPopup;
     protected java.util.List<String> mentionCandidates = new java.util.ArrayList<>();
@@ -1261,38 +1263,53 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void showMessageOptions(Message message) {
-        java.util.List<String> actions = new java.util.ArrayList<>();
-        actions.add("React");
-        actions.add("Reply");
-        boolean canEdit = message.isTextMessage() && message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
-        if (canEdit) actions.add("Edit");
-        actions.add("Delete");
-        actions.add("Copy");
-        actions.add("Forward");
-        String[] options = actions.toArray(new String[0]);
-
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Message Options")
-                .setItems(options, (dialog, which) -> {
-                    String selected = options[which];
-                    if ("React".equals(selected)) {
-                        showReactionPicker(message);
-                    } else if ("Reply".equals(selected)) {
-                        setReplyState(message);
-                    } else if ("Edit".equals(selected)) {
-                        promptEditMessage(message);
-                    } else if ("Delete".equals(selected)) {
-                        confirmDeleteMessage(message);
-                    } else if ("Copy".equals(selected)) {
-                        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                        android.content.ClipData clip = android.content.ClipData.newPlainText("message", message.getContent());
-                        clipboard.setPrimaryClip(clip);
-                        Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
-                    } else if ("Forward".equals(selected)) {
-                        Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
-                    }
-                });
-        builder.show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_message_options, null);
+        
+        boolean canEdit = message.isTextMessage() && message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
+        
+        // Show/hide edit option based on permissions
+        dialogView.findViewById(R.id.option_edit).setVisibility(canEdit ? View.VISIBLE : View.GONE);
+        
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_react).setOnClickListener(v -> {
+            showReactionPicker(message);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_reply).setOnClickListener(v -> {
+            setReplyState(message);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_edit).setOnClickListener(v -> {
+            if (canEdit) {
+                promptEditMessage(message);
+                if (currentDialog != null) currentDialog.dismiss();
+            }
+        });
+        
+        dialogView.findViewById(R.id.option_delete).setOnClickListener(v -> {
+            confirmDeleteMessage(message);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_copy).setOnClickListener(v -> {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("message", message.getContent());
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_forward).setOnClickListener(v -> {
+            Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
 
     protected void showReactionPicker(Message message) {

@@ -717,6 +717,29 @@ public class ApiClient {
     }
 
     /**
+     * Creates a new private chat with another user.
+     */
+    public void createPrivateChat(String token, String otherUserId, Callback callback) {
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("participantId", otherUserId);
+            
+            RequestBody body = RequestBody.create(requestBody.toString(), MediaType.parse("application/json"));
+            Request request = new Request.Builder()
+                    .url(getBaseUrl() + "/api/chats/private")
+                    .post(body)
+                    .addHeader("Authorization", "Bearer " + token)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+            
+            client.newCall(request).enqueue(callback);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to create private chat: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Cancels all pending requests.
      */
     public void cancelAllRequests() {

@@ -46,7 +46,7 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/user_profile_section"
         android:layout_width="286dp"
-        android:layout_height="72dp"
+        android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginTop="20dp"
         android:backgroundTint="@android:color/white"
@@ -60,7 +60,9 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="12dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <!-- User Avatar -->
             <de.hdodenhof.circleimageview.CircleImageView
@@ -68,7 +70,7 @@
                 android:layout_width="50dp"
                 android:layout_height="50dp"
                 android:src="@drawable/ic_profile_placeholder"
-                app:civ_border_color="@color/primary_color"
+                app:civ_border_color="#0E394B"
                 app:civ_border_width="2dp" />
 
             <LinearLayout
@@ -94,7 +96,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Online"
-                    android:textColor="@color/primary_color"
+                    android:textColor="#0E394B"
                     android:textSize="12sp" />
 
             </LinearLayout>
@@ -135,11 +137,7 @@
         android:id="@+id/tab_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp"
-
         android:orientation="horizontal"
-
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="16dp"
         android:padding="8dp"

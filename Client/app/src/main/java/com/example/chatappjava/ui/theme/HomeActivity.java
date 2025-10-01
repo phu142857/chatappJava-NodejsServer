@@ -66,6 +66,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private boolean isLoadingChats = false;
     private boolean isLoadingCalls = false;
     private boolean isPolling = false;
+    private AlertDialog currentDialog;
     private static final long HOME_POLL_INTERVAL_MS = 2000L;
     private final Handler homePollHandler = new Handler(Looper.getMainLooper());
     private final Runnable homePollRunnable = new Runnable() {
@@ -448,37 +449,48 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     
     
     private void showOptionsMenu() {
-        String[] options = {"Profile", "Settings", "New Chat", "New Group", "Reload", "Refresh Avatars"};
-        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Options")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            Intent profileIntent = new Intent(this, ProfileActivity.class);
-                            startActivity(profileIntent);
-                            break;
-                        case 1:
-                            Intent settingsIntent = new Intent(this, SettingsActivity.class);
-                            startActivity(settingsIntent);
-                            break;
-                        case 2:
-                            Intent intent = new Intent(this, SearchActivity.class);
-                            startActivity(intent);
-                            break;
-                        case 3:
-                            Intent createGroupIntent = new Intent(this, CreateGroupActivity.class);
-                            startActivity(createGroupIntent);
-                            break;
-                        case 4:
-                            reloadHome();
-                            break;
-                        case 5:
-                            refreshAvatars();
-                            break;
-                    }
-                });
-        builder.show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_options_menu, null);
+        
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_profile).setOnClickListener(v -> {
+            Intent profileIntent = new Intent(this, ProfileActivity.class);
+            startActivity(profileIntent);
+            // Dismiss dialog
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_settings).setOnClickListener(v -> {
+            Intent settingsIntent = new Intent(this, SettingsActivity.class);
+            startActivity(settingsIntent);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_new_chat).setOnClickListener(v -> {
+            Intent intent = new Intent(this, SearchActivity.class);
+            startActivity(intent);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_new_group).setOnClickListener(v -> {
+            Intent createGroupIntent = new Intent(this, CreateGroupActivity.class);
+            startActivity(createGroupIntent);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_reload).setOnClickListener(v -> {
+            reloadHome();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_refresh_avatars).setOnClickListener(v -> {
+            refreshAvatars();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
 
     private void reloadHome() {
@@ -554,29 +566,71 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void showChatOptions(Chat chat) {
-        String[] options;
-        String title;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_options, null);
         
+        // Show/hide options based on chat type
         if (chat.isGroupChat()) {
             // Group chat options
-            options = new String[]{"View Group Info", "Add Members", "Remove Members", "Leave Group", "Delete Group"};
-            title = "Group Options";
+            dialogView.findViewById(R.id.card_add_members).setVisibility(View.VISIBLE);
+            dialogView.findViewById(R.id.card_remove_members).setVisibility(View.VISIBLE);
+            dialogView.findViewById(R.id.card_leave_group).setVisibility(View.VISIBLE);
+            dialogView.findViewById(R.id.card_delete_group).setVisibility(View.VISIBLE);
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
         } else {
             // Private chat options
-            options = new String[]{"View Profile", "Delete Chat", "Unfriend"};
-            title = "Chat Options";
+            dialogView.findViewById(R.id.card_add_members).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
         }
         
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(title)
-                .setItems(options, (dialog, which) -> {
-                    if (chat.isGroupChat()) {
-                        handleGroupChatOption(chat, which);
-                    } else {
-                        handlePrivateChatOption(chat, which);
-                    }
-                });
-        builder.show();
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {
+            showChatInfo(chat);
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_add_members).setOnClickListener(v -> {
+            // Add members functionality
+            Toast.makeText(this, "Add members feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_remove_members).setOnClickListener(v -> {
+            // Remove members functionality
+            Toast.makeText(this, "Remove members feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_leave_group).setOnClickListener(v -> {
+            // Leave group functionality
+            Toast.makeText(this, "Leave group feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
+            // Delete chat functionality
+            Toast.makeText(this, "Delete chat feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
+            // Unfriend functionality
+            Toast.makeText(this, "Unfriend feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
+            // Delete group functionality
+            Toast.makeText(this, "Delete group feature coming soon", Toast.LENGTH_SHORT).show();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
     
     private void handleGroupChatOption(Chat chat, int which) {

@@ -256,24 +256,35 @@ public class PrivateChatActivity extends BaseChatActivity {
 
     @Override
     protected void showChatOptions() {
-        String[] options = {"View Profile", "Delete Chat", "Unfriend"};
-        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Chat Options")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            showChatInfo();
-                            break;
-                        case 1:
-                            confirmDeleteChat();
-                            break;
-                        case 2:
-                            confirmUnfriend();
-                            break;
-                    }
-                });
-        builder.show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_options, null);
+        
+        // Show/hide options based on chat type (private chat)
+        dialogView.findViewById(R.id.card_add_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
+        
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {
+            showChatInfo();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
+            confirmDeleteChat();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
+            confirmUnfriend();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        currentDialog.show();
     }
     
     @Override
