@@ -231,7 +231,7 @@ const searchGroups = async (req, res) => {
         }
       ]
     })
-    .select('name description avatar status members settings')
+    .select('name description avatar status members settings joinRequests')
     .populate('members.user', 'username email avatar status')
     .limit(20)
     .sort({ name: 1 });
@@ -250,12 +250,14 @@ const searchGroups = async (req, res) => {
       const groupObj = group.toJSON();
       const isMember = currentUserGroupIds.includes(group._id.toString());
       const membershipStatus = group.getMembershipStatus(req.user.id);
+      const hasPending = (group.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending');
       
       return {
         ...groupObj,
         isMember,
         membershipStatus: membershipStatus.status,
-        role: membershipStatus.role
+        role: membershipStatus.role,
+        joinRequestStatus: hasPending ? 'pending' : 'none'
       };
     });
 
