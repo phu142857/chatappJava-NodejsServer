@@ -798,6 +798,95 @@ const getGroupMembers = async (req, res) => {
   }
 };
 
+// @desc    Request to join a group (for non-public, or when approval is needed)
+// @route   POST /api/groups/:id/join-requests
+// @access  Private
+const requestJoinGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const group = await Group.findById(id);
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+
+    // If already a member
+    if (group.isMember(req.user.id)) {
+      return res.status(400).json({ success: false, message: 'Already a member' });
+    }
+
+    // If group is public, allow direct join
+    if (group.settings && group.settings.isPublic) {
+      await group.addMember(req.user.id, 'member');
+      return res.json({ success: true, message: 'Joined group successfully' });
+    }
+
+    // Add or upsert a pending request
+    const existing = group.joinRequests.find(r => r.user && r.user.toString() === req.user.id && r.status === 'pending');
+    if (existing) {
+      return res.status(200).json({ success: true, message: 'Request already pending' });
+    }
+    group.joinRequests.push({ user: req.user.id, status: 'pending' });
+    await group.save();
+    return res.status(201).json({ success: true, message: 'Join request submitted' });
+  } catch (error) {
+    console.error('Request join group error:', error);
+    res.status(500).json({ success: false, message: 'Server error while requesting to join' });
+  }
+};
+
+// @desc    Get pending join requests count
+// @route   GET /api/groups/:id/join-requests/count
+// @access  Private (admins/moderators only)
+const getJoinRequestsCount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const group = await Group.findById(id);
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+    if (!group.hasPermission(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
+    }
+    const count = (group.joinRequests || []).filter(r => r.status === 'pending').length;
+    return res.json({ success: true, data: { count } });
+  } catch (error) {
+    console.error('Get join requests count error:', error);
+    res.status(500).json({ success: false, message: 'Server error while counting join requests' });
+  }
+};
+
+// @desc    Approve/Reject a join request
+// @route   POST /api/groups/:id/join-requests/:userId
+// @access  Private (admins/moderators only)
+const respondJoinRequest = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const { action } = req.body; // 'approve' | 'reject'
+    const group = await Group.findById(id);
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+    if (!group.hasPermission(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
+    }
+    const reqItem = (group.joinRequests || []).find(r => r.user && r.user.toString() === userId && r.status === 'pending');
+    if (!reqItem) {
+      return res.status(404).json({ success: false, message: 'Join request not found' });
+    }
+    if (action === 'approve') {
+      reqItem.status = 'approved';
+      await group.addMember(userId, 'member');
+    } else {
+      reqItem.status = 'rejected';
+    }
+    await group.save();
+    return res.json({ success: true, message: `Request ${action}d` });
+  } catch (error) {
+    console.error('Respond join request error:', error);
+    res.status(500).json({ success: false, message: 'Server error while responding join request' });
+  }
+};
+
 module.exports = {
   getGroups,
   getGroupById,
@@ -812,5 +901,8 @@ module.exports = {
   addMember,
   removeMember,
   deleteGroup,
-  getGroupMembers
+  getGroupMembers,
+  requestJoinGroup,
+  getJoinRequestsCount,
+  respondJoinRequest
 };

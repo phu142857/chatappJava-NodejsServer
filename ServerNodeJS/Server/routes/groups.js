@@ -153,6 +153,11 @@ router.get('/:id/members', groupIdValidation, getGroupMembers);
 router.post('/:id/members', addMemberValidation, addMember);
 router.delete('/:id/members/:memberId', removeMemberValidation, removeMember);
 
+// Join requests
+router.post('/:id/join-requests', groupIdValidation, requestJoinGroup);
+router.get('/:id/join-requests/count', groupIdValidation, getJoinRequestsCount);
+router.post('/:id/join-requests/:userId', groupIdValidation, respondJoinRequest);
+
 // Group avatar upload
 const multer = require('multer');
 const path = require('path');

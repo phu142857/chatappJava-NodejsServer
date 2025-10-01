@@ -140,6 +140,25 @@ public class GroupChatActivity extends BaseChatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
         
+        // Load and display join requests count if available
+        TextView tvRequestCount = dialogView.findViewById(R.id.tv_request_count);
+        View optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
+        if (optionJoinRequests != null) {
+            optionJoinRequests.setOnClickListener(v -> {
+                // Open a dedicated screen later (placeholder)
+                Toast.makeText(this, "Open join requests", Toast.LENGTH_SHORT).show();
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+            fetchJoinRequestCount(count -> {
+                if (count > 0) {
+                    tvRequestCount.setText(String.valueOf(count));
+                    tvRequestCount.setVisibility(View.VISIBLE);
+                } else {
+                    tvRequestCount.setVisibility(View.GONE);
+                }
+            });
+        }
+
         // Set click listeners for each option
         dialogView.findViewById(R.id.option_view_group_info).setOnClickListener(v -> {
             showGroupInfo();
@@ -174,6 +193,33 @@ public class GroupChatActivity extends BaseChatActivity {
         builder.setView(dialogView);
         currentDialog = builder.create();
         currentDialog.show();
+    }
+
+    private interface CountCallback { void onResult(int count); }
+
+    private void fetchJoinRequestCount(CountCallback cb) {
+        try {
+            if (currentChat == null) { cb.onResult(0); return; }
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) { cb.onResult(0); return; }
+            // Placeholder endpoint; implement on server to return { success, data: { count } }
+            String chatId = currentChat.getId();
+            apiClient.authenticatedGet("/api/groups/" + chatId + "/join-requests/count", token, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) { runOnUiThread(() -> cb.onResult(0)); }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            if (response.code() == 200 && json.optBoolean("success", false)) {
+                                int count = json.getJSONObject("data").optInt("count", 0);
+                                cb.onResult(count);
+                            } else { cb.onResult(0); }
+                        } catch (org.json.JSONException e) { cb.onResult(0); }
+                    });
+                }
+            });
+        } catch (Exception e) { cb.onResult(0); }
     }
     
     @Override

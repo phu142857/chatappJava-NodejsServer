@@ -634,9 +634,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             confirmDeleteChat(chat);
             if (currentDialog != null) currentDialog.dismiss();
         });
-        
-        // Unfriend option removed on Home screen
-        
+
         dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
             // Delete group functionality
             Toast.makeText(this, "Delete group feature coming soon", Toast.LENGTH_SHORT).show();
