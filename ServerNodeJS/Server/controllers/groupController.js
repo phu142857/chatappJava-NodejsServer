@@ -613,14 +613,16 @@ const addMember = async (req, res) => {
       });
     }
 
-    // If already active member, ensure Chat participant is also active and return OK
-    if (group.isMember(userId)) {
+    // If member record exists but inactive, reactivate; if active, just ensure chat participant is active
+    const membership = group.getMembershipStatus(userId);
+    if (membership && membership.status !== 'not_member') {
+      // Reactivate at group level
+      await group.addMember(userId, role);
+      // Reactivate in chat
       let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
       if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
-      if (chat) {
-        await chat.addParticipant(userId, role);
-      }
-      return res.json({ success: true, message: 'Member already in group' });
+      if (chat) await chat.addParticipant(userId, role);
+      return res.json({ success: true, message: membership.isMember ? 'Member already active' : 'Member reactivated' });
     }
 
     // Add/Reactivate member in Group (covers inactive -> active)
@@ -733,13 +735,26 @@ const removeMember = async (req, res) => {
     // Remove member (soft remove)
     await group.removeMember(memberId);
 
+    // Clean up stale pending join request for this user (avoid duplicate states)
+    try {
+      if (group.joinRequests && Array.isArray(group.joinRequests)) {
+        const jr = group.joinRequests.find(r => r.user && r.user.toString() === memberId && r.status === 'pending');
+        if (jr) {
+          jr.status = 'rejected';
+          await group.save();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update join request on removeMember:', e?.message || e);
+    }
+
     // Also reflect removal in chat participants to avoid stuck inactive states on chat only
     try {
       let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
       if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
-      if (chat) {
-        await chat.removeParticipant(memberId);
-      }
+    if (chat) {
+      await chat.removeParticipant(memberId);
+    }
     } catch (e) {
       console.error('Failed to sync chat participants on removeMember(Group):', e);
     }

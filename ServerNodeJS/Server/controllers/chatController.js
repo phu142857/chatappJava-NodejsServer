@@ -791,34 +791,24 @@ const addMember = async (req, res) => {
     console.log('Adding members to chat:', chat.name, 'and group:', group.name);
     console.log('User IDs to add:', userIds);
 
-    // Add users to both chat and group
+    // Add/reactivate users in both chat and group
     const addedUsers = [];
     for (const userId of userIds) {
-      // Check if user is already a participant in chat
       const existingParticipant = chat.participants.find(p => p.user && p.user.toString() === userId);
-      if (!existingParticipant) {
-        console.log('Adding user to chat participants:', userId);
-        chat.participants.push({
-          user: userId,
-          role: 'member',
-          joinedAt: new Date(),
-          isActive: true
-        });
+      const wasActive = !!(existingParticipant && existingParticipant.isActive);
+
+      // Always delegate to model method to add/reactivate
+      await chat.addParticipant(userId, 'member');
+      await group.addMember(userId, 'member');
+
+      if (!wasActive) {
         addedUsers.push(userId);
       } else {
-        console.log('User already in chat participants:', userId);
-      }
-      
-      // Also add to group if not already a member
-      if (!group.isMember(userId)) {
-        console.log('Adding user to group members:', userId);
-        await group.addMember(userId, 'member');
-      } else {
-        console.log('User already in group members:', userId);
+        console.log('User already active in chat participants:', userId);
       }
     }
 
-    await chat.save();
+    // Chat.addParticipant persists; ensure latest chat fetched in memory reflects DB, but response doesn't require it
 
     res.json({
       success: true,
