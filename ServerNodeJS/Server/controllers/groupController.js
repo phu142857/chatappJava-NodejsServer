@@ -283,21 +283,20 @@ const searchGroups = async (req, res) => {
 // @access  Private
 const getPublicGroups = async (req, res) => {
   try {
-    // Include joinRequests for computing user status
-    const groups = await Group.findPublicGroups()
-      .select('name description avatar status lastActivity members settings joinRequests createdBy')
-      .populate('members.user', 'username email avatar status')
-      .limit(50);
+    // Query-level exclusion: hide groups where current user is creator or active member
+    const groups = await Group.find({
+      'settings.isPublic': true,
+      isActive: true,
+      status: 'active',
+      createdBy: { $ne: req.user.id },
+      members: { $not: { $elemMatch: { user: req.user.id, isActive: true } } }
+    })
+    .select('name description avatar status lastActivity members settings joinRequests createdBy')
+    .populate('members.user', 'username email avatar status')
+    .sort({ lastActivity: -1 })
+    .limit(50);
 
-    const mapped = groups
-      // Exclude groups where current user is already a member or creator
-      .filter(g => {
-        try {
-          const isOwner = g.createdBy && g.createdBy.toString && g.createdBy.toString() === req.user.id;
-          return !g.isMember(req.user.id) && !isOwner;
-        } catch (e) { return true; }
-      })
-      .map(g => {
+    const mapped = groups.map(g => {
       const obj = g.toJSON();
       const joinRequestStatus = (g.joinRequests || []).some(r => r.user && r.user.toString() === req.user.id && r.status === 'pending') ? 'pending' : 'none';
       // Mark isMember false if pending exists (avoid showing already member)
