@@ -57,7 +57,7 @@ const getMessages = async (req, res) => {
           username: message.sender.username,
           avatar: message.sender.avatar || '',
           status: message.sender.status || 'offline'
-        }
+        } : null
       };
     });
 
