@@ -207,7 +207,7 @@ const getContacts = async (req, res) => {
     
     chats.forEach(chat => {
       chat.participants.forEach(participant => {
-        if (participant.user._id.toString() !== req.user.id && participant.isActive) {
+        if (participant.user && participant.user._id && participant.user._id.toString() !== req.user.id && participant.isActive) {
           const userId = participant.user._id.toString();
           if (!contactsMap.has(userId)) {
             contactsMap.set(userId, {

@@ -21,7 +21,7 @@ const getMessages = async (req, res) => {
     }
 
     const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     // Allow admin/moderator to access any chat
@@ -46,13 +46,13 @@ const getMessages = async (req, res) => {
       return {
         ...messageObj,
         chatType: chat.type,
-        // Ensure sender has avatar info
-        sender: {
+        // Ensure sender has avatar info (handle null sender)
+        sender: message.sender ? {
           ...messageObj.sender,
           avatar: message.sender.avatar || '',
           status: message.sender.status || 'offline'
-        },
-        senderInfo: {
+        } : null,
+        senderInfo: message.sender ? {
           id: message.sender._id,
           username: message.sender.username,
           avatar: message.sender.avatar || '',
@@ -109,7 +109,7 @@ const sendMessage = async (req, res) => {
     }
 
     const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!isParticipant) {
@@ -149,18 +149,18 @@ const sendMessage = async (req, res) => {
         message: {
           ...messageObj,
           chatType: chat.type,
-          // Ensure sender has avatar info
-          sender: {
+          // Ensure sender has avatar info (handle null sender)
+          sender: message.sender ? {
             ...messageObj.sender,
             avatar: message.sender.avatar || '',
             status: message.sender.status || 'offline'
-          },
-          senderInfo: {
+          } : null,
+          senderInfo: message.sender ? {
             id: message.sender._id,
             username: message.sender.username,
             avatar: message.sender.avatar || '',
             status: message.sender.status || 'offline'
-          }
+          } : null
         }
       }
     });
@@ -201,7 +201,7 @@ const editMessage = async (req, res) => {
     }
 
     // Check if user is the sender
-    if (message.sender.toString() !== req.user.id) {
+    if (!message.sender || message.sender.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Can only edit your own messages'
@@ -272,10 +272,10 @@ const deleteMessage = async (req, res) => {
     // Check if user is the sender, chat admin, or global admin
     const chat = await Chat.findById(message.chat);
     const userParticipant = chat.participants.find(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
-    const isSender = message.sender.toString() === req.user.id;
+    const isSender = message.sender && message.sender.toString() === req.user.id;
     const isChatAdmin = userParticipant && userParticipant.role === 'admin';
     const isGlobalAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'moderator');
 
@@ -329,7 +329,7 @@ const addReaction = async (req, res) => {
     // Check if user has access to the chat
     const chat = await Chat.findById(message.chat);
     const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!isParticipant) {
@@ -420,7 +420,7 @@ const markAsRead = async (req, res) => {
     }
 
     const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!isParticipant) {
@@ -472,7 +472,7 @@ const searchMessages = async (req, res) => {
     }
 
     const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!isParticipant) {
@@ -502,18 +502,18 @@ const searchMessages = async (req, res) => {
       return {
         ...messageObj,
         chatType: chat.type,
-        // Ensure sender has avatar info
-        sender: {
+        // Ensure sender has avatar info (handle null sender)
+        sender: message.sender ? {
           ...messageObj.sender,
           avatar: message.sender.avatar || '',
           status: message.sender.status || 'offline'
-        },
-        senderInfo: {
+        } : null,
+        senderInfo: message.sender ? {
           id: message.sender._id,
           username: message.sender.username,
           avatar: message.sender.avatar || '',
           status: message.sender.status || 'offline'
-        }
+        } : null
       };
     });
 

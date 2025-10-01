@@ -156,7 +156,7 @@ const getChatById = async (req, res) => {
 
     // Check if user is a participant
     const isParticipant = chat.participants.some(
-      p => p.user._id.toString() === req.user.id && p.isActive
+      p => p.user && p.user._id && p.user._id.toString() === req.user.id && p.isActive
     );
 
     if (!isParticipant) {
@@ -377,7 +377,7 @@ const updateGroupChat = async (req, res) => {
 
     // Check if user is admin
     const userParticipant = chat.participants.find(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!userParticipant || userParticipant.role !== 'admin') {
@@ -457,7 +457,7 @@ const addParticipant = async (req, res) => {
 
     // Check if user has permission to add participants
     const userParticipant = chat.participants.find(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     if (!userParticipant || !['admin', 'moderator'].includes(userParticipant.role)) {
@@ -528,7 +528,7 @@ const removeParticipant = async (req, res) => {
 
     // Check permissions
     const userParticipant = chat.participants.find(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     const isRemovingSelf = participantId === req.user.id;
@@ -668,7 +668,7 @@ const deleteChat = async (req, res) => {
 
     // Only chat creator or admin can delete
     const userParticipant = chat.participants.find(
-      p => p.user.toString() === req.user.id && p.isActive
+      p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
     const isCreator = chat.createdBy.toString() === req.user.id;
@@ -781,7 +781,7 @@ const addMember = async (req, res) => {
     const addedUsers = [];
     for (const userId of userIds) {
       // Check if user is already a participant in chat
-      const existingParticipant = chat.participants.find(p => p.user.toString() === userId);
+      const existingParticipant = chat.participants.find(p => p.user && p.user.toString() === userId);
       if (!existingParticipant) {
         console.log('Adding user to chat participants:', userId);
         chat.participants.push({
@@ -844,7 +844,7 @@ const getGroupMembers = async (req, res) => {
     }
 
     // Check if user is a participant
-    const userParticipant = chat.participants.find(p => p.user._id.toString() === req.user.id && p.isActive);
+    const userParticipant = chat.participants.find(p => p.user && p.user._id && p.user._id.toString() === req.user.id && p.isActive);
     if (!userParticipant) {
       return res.status(403).json({
         success: false,
@@ -852,9 +852,9 @@ const getGroupMembers = async (req, res) => {
       });
     }
 
-    // Get active members only
+    // Get active members only (filter out null users)
     const activeMembers = chat.participants
-      .filter(p => p.isActive)
+      .filter(p => p.isActive && p.user && p.user._id)
       .map(p => ({
         id: p.user._id,
         username: p.user.username,
@@ -922,7 +922,7 @@ const removeMember = async (req, res) => {
     }
 
     // Check if user is admin or creator
-    const userParticipant = chat.participants.find(p => p.user.toString() === req.user.id && p.isActive);
+    const userParticipant = chat.participants.find(p => p.user && p.user.toString() === req.user.id && p.isActive);
     if (!userParticipant || !['admin', 'moderator'].includes(userParticipant.role)) {
       console.log('Permission denied:', { 
         chatCreatedBy: chat.createdBy.toString(), 
@@ -947,11 +947,11 @@ const removeMember = async (req, res) => {
     const initialLength = chat.participants.length;
     console.log('Before removal:', { 
       initialLength, 
-      participants: chat.participants.map(p => ({ user: p.user.toString(), isActive: p.isActive })),
+      participants: chat.participants.map(p => ({ user: p.user ? p.user.toString() : 'null', isActive: p.isActive })),
       userIdToRemove: userId
     });
     
-    chat.participants = chat.participants.filter(p => p.user.toString() !== userId);
+    chat.participants = chat.participants.filter(p => p.user && p.user.toString() !== userId);
     
     console.log('After removal:', { 
       finalLength: chat.participants.length, 
@@ -959,7 +959,7 @@ const removeMember = async (req, res) => {
     });
     
     if (chat.participants.length === initialLength) {
-      console.log('User not found in group:', { userId, participants: chat.participants.map(p => p.user.toString()) });
+      console.log('User not found in group:', { userId, participants: chat.participants.map(p => p.user ? p.user.toString() : 'null') });
       return res.status(400).json({
         success: false,
         message: 'User is not a member of this group'
@@ -1023,14 +1023,14 @@ const uploadGroupAvatar = async (req, res) => {
 
     // Check if user is a participant in the group
     const isParticipant = chat.participants.some(participant => 
-      participant.user.toString() === req.user.id
+      participant.user && participant.user.toString() === req.user.id
     );
     
     if (!isParticipant) {
       console.log('Permission denied - not a participant:', { 
         chatId: chat._id,
         userId: req.user.id,
-        participants: chat.participants.map(p => p.user.toString())
+        participants: chat.participants.map(p => p.user ? p.user.toString() : 'null')
       });
       return res.status(403).json({
         success: false,
