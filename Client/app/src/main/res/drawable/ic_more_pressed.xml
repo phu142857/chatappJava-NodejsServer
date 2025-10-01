@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Item 1: The Outer Circle -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@android:color/transparent" /> <!-- Or a faint background color for the circle itself -->
+            <stroke
+                android:width="2dp"
+                android:color="@color/black" /> <!-- Or any color you prefer for the circle stroke -->
+            <!-- You can adjust the size of the circle implicitly by the bounds of the ImageButton
+                 or explicitly by setting a size here if needed, though often not required. -->
+        </shape>
+    </item>
+
+    <!-- Item 2: Your ic_more icon, centered.
+         Adjust android:gravity or inset attributes if needed for precise positioning.
+         The drawable itself will be scaled to fit, respecting its intrinsic aspect ratio.
+         If the icon is smaller than the circle, it will appear centered.
+         If you want the circle to be slightly larger than the icon, ensure the
+         ImageButton's padding or the layer-list item's insets are adjusted.
+    -->
+    <item
+        android:drawable="@drawable/ic_more"
+        android:gravity="center"
+        android:top="4dp"
+        android:bottom="4dp"
+        android:left="4dp"
+        android:right="4dp"/> <!-- Adjust these insets to control the space between the icon and the circle -->
+
+</layer-list>
