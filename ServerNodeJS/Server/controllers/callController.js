@@ -262,30 +262,37 @@ const joinCall = async (req, res) => {
         if (io) {
             const userIdStr = userId.toString();
             
-            for (const participant of call.participants) {
-                // Handle both ObjectId and populated object cases
-                let participantUserId;
-                if (participant.userId && typeof participant.userId === 'object' && participant.userId._id) {
-                    participantUserId = participant.userId._id.toString();
-                } else {
-                    participantUserId = participant.userId.toString();
-                }
-                
-                // Send to other participants (not the one who just joined)
-                if (participantUserId !== userIdStr) {
-                    const userRoom = `user_${participantUserId}`;
-                    const callData = {
-                        callId: call.callId,
-                        acceptedBy: {
-                            id: userId,
-                            username: participant.username
-                        },
-                        timestamp: new Date()
-                    };
+            // Only send call_accepted if this is the first join (caller joining)
+            const isFirstJoin = call.participants.filter(p => p.joinedAt).length === 1;
+            
+            if (isFirstJoin) {
+                for (const participant of call.participants) {
+                    // Handle both ObjectId and populated object cases
+                    let participantUserId;
+                    if (participant.userId && typeof participant.userId === 'object' && participant.userId._id) {
+                        participantUserId = participant.userId._id.toString();
+                    } else {
+                        participantUserId = participant.userId.toString();
+                    }
                     
-                    io.to(userRoom).emit('call_accepted', callData);
-                    console.log(`Sent call_accepted notification to user ${participantUserId} in room ${userRoom}`);
+                    // Send to other participants (not the one who just joined)
+                    if (participantUserId !== userIdStr) {
+                        const userRoom = `user_${participantUserId}`;
+                        const callData = {
+                            callId: call.callId,
+                            acceptedBy: {
+                                id: userId,
+                                username: participant.username
+                            },
+                            timestamp: new Date()
+                        };
+                        
+                        io.to(userRoom).emit('call_accepted', callData);
+                        console.log(`Sent call_accepted notification to user ${participantUserId} in room ${userRoom}`);
+                    }
                 }
+            } else {
+                console.log(`Skipped sending call_accepted - not first join (${call.participants.filter(p => p.joinedAt).length} participants joined)`);
             }
         }
 

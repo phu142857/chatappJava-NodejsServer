@@ -736,6 +736,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
         
         if (socketManager != null) {
+            // Clear any existing listeners to prevent conflicts
+            socketManager.removeContactStatusListener();
+            socketManager.removeMemberRemovedListener();
+            
             socketManager.setContactStatusListener(new com.example.chatappjava.network.SocketManager.ContactStatusListener() {
                 @Override
                 public void onContactStatusChange(String userId, String status) {
@@ -746,17 +750,40 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     });
                 }
             });
+            
+            // Add member removal listener
+            socketManager.setMemberRemovedListener(new com.example.chatappjava.network.SocketManager.MemberRemovedListener() {
+                @Override
+                public void onMemberRemoved(String chatId, String chatName) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Member removed from group: " + chatName);
+                        Toast.makeText(HomeActivity.this, "You have been removed from " + chatName, Toast.LENGTH_LONG).show();
+                        // Refresh chat list to remove the group
+                        loadChats();
+                    });
+                }
+
+                @Override
+                public void onMemberRemovedFromGroup(String chatId, String removedUserId, int totalMembers) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Member removed from group: " + removedUserId + ", total members: " + totalMembers);
+                        // Refresh chat list to update member count
+                        loadChats();
+                    });
+                }
+            });
         }
     }
     
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Clean up socket listener to prevent memory leaks
+        // Clean up socket listeners to prevent memory leaks
         com.example.chatappjava.network.SocketManager socketManager = 
             com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
         if (socketManager != null) {
             socketManager.removeContactStatusListener();
+            socketManager.removeMemberRemovedListener();
         }
     }
 

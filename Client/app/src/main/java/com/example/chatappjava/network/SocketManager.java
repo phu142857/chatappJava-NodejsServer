@@ -49,6 +49,11 @@ public class SocketManager {
         void onContactStatusChange(String userId, String status);
     }
     
+    public interface MemberRemovedListener {
+        void onMemberRemoved(String chatId, String chatName);
+        void onMemberRemovedFromGroup(String chatId, String removedUserId, int totalMembers);
+    }
+    
     public interface MessageListener {
         void onPrivateMessage(org.json.JSONObject messageJson);
         void onGroupMessage(org.json.JSONObject messageJson);
@@ -62,6 +67,7 @@ public class SocketManager {
     private WebRTCListener webrtcListener;
     private CallRoomListener callRoomListener;
     private ContactStatusListener contactStatusListener;
+    private MemberRemovedListener memberRemovedListener;
     private MessageListener messageListener;
     
     private SocketManager() {
@@ -273,6 +279,41 @@ public class SocketManager {
                     
                 } catch (JSONException e) {
                     Log.e(TAG, "Error parsing contact status change data", e);
+                }
+            }
+        });
+
+        // Handle member removed from group
+        socket.on("member_removed", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                if (memberRemovedListener != null && args.length > 0) {
+                    try {
+                        org.json.JSONObject data = (org.json.JSONObject) args[0];
+                        String chatId = data.getString("chatId");
+                        String chatName = data.getString("chatName");
+                        memberRemovedListener.onMemberRemoved(chatId, chatName);
+                    } catch (org.json.JSONException e) {
+                        Log.e(TAG, "Error parsing member_removed event", e);
+                    }
+                }
+            }
+        });
+
+        // Handle member removed from group (for other members)
+        socket.on("member_removed_from_group", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                if (memberRemovedListener != null && args.length > 0) {
+                    try {
+                        org.json.JSONObject data = (org.json.JSONObject) args[0];
+                        String chatId = data.getString("chatId");
+                        String removedUserId = data.getString("removedUserId");
+                        int totalMembers = data.getInt("totalMembers");
+                        memberRemovedListener.onMemberRemovedFromGroup(chatId, removedUserId, totalMembers);
+                    } catch (org.json.JSONException e) {
+                        Log.e(TAG, "Error parsing member_removed_from_group event", e);
+                    }
                 }
             }
         });
@@ -573,6 +614,14 @@ public class SocketManager {
     
     public void removeContactStatusListener() {
         this.contactStatusListener = null;
+    }
+    
+    public void setMemberRemovedListener(MemberRemovedListener listener) {
+        this.memberRemovedListener = listener;
+    }
+    
+    public void removeMemberRemovedListener() {
+        this.memberRemovedListener = null;
     }
     
     public void setMessageListener(MessageListener listener) {
