@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +34,7 @@ public class SelectableUserAdapter extends RecyclerView.Adapter<SelectableUserAd
         return new VH(v);
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(@NonNull VH holder, int position) {
         User u = users.get(position);
