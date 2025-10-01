@@ -309,16 +309,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvGroups.setSelected(false);
         tvCalls.setSelected(false);
         
-        // Reset all tab colors
-        tvChats.setTextColor(getResources().getColor(android.R.color.darker_gray));
-        tvGroups.setTextColor(getResources().getColor(android.R.color.darker_gray));
-        tvCalls.setTextColor(getResources().getColor(android.R.color.darker_gray));
-        
-        // Highlight selected tab
+        // Highlight selected tab (color will be handled by tab_text_selector)
         switch (tabIndex) {
             case 0:
                 tvChats.setSelected(true);
-                tvChats.setTextColor(getResources().getColor(android.R.color.black));
                 Toast.makeText(this, "Chats selected", Toast.LENGTH_SHORT).show();
                 // Switch to chat adapter and show only private chats
                 rvChatList.setAdapter(chatAdapter);
@@ -326,14 +320,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 break;
             case 1:
                 tvGroups.setSelected(true);
-                tvGroups.setTextColor(getResources().getColor(android.R.color.black));
                 // Switch to chat adapter and filter to show only group chats
                 rvChatList.setAdapter(chatAdapter);
                 applyGroupsFilter();
                 break;
             case 2:
                 tvCalls.setSelected(true);
-                tvCalls.setTextColor(getResources().getColor(android.R.color.black));
                 // Switch to call adapter and load call history
                 rvChatList.setAdapter(callAdapter);
                 loadCallHistory();

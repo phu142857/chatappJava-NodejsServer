@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.UserSearchAdapter;
+import com.example.chatappjava.adapters.GroupSearchAdapter;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.FriendRequest;
 import com.example.chatappjava.models.User;
@@ -31,7 +32,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
-public class SearchActivity extends AppCompatActivity implements UserSearchAdapter.OnUserClickListener {
+public class SearchActivity extends AppCompatActivity implements UserSearchAdapter.OnUserClickListener, GroupSearchAdapter.OnGroupClickListener {
     
     private EditText etSearch;
     private ImageView ivBack, ivClear;
@@ -39,15 +40,19 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private ProgressBar progressBar;
     private LinearLayout tvNoResults, tvSearchHint;
     private TextView tvNoResultsTitle;
+    private TextView tabUsers, tabGroups;
     
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefsManager;
     private UserSearchAdapter userAdapter;
+    private GroupSearchAdapter groupAdapter;
     private List<User> searchResults;
+    private List<Chat> groupResults;
     
     private String mode; // "add_members" or null for normal search
     private Chat currentChat; // For add_members mode
     private List<String> currentGroupMemberIds; // Track current group members
+    private boolean isSearchingGroups = false; // Track current search mode
     
     private static final int SEARCH_DELAY_MS = 500; // Delay before making API call
     private Runnable searchRunnable;
@@ -62,6 +67,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         setupSearchFunctionality();
         setupRecyclerView();
         setupClickListeners();
+        
+        // Set default tab to users
+        switchToUserSearch();
     }
     
     private void initializeViews() {
@@ -73,12 +81,15 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         tvNoResults = findViewById(R.id.tv_no_results);
         tvSearchHint = findViewById(R.id.tv_search_hint);
         tvNoResultsTitle = findViewById(R.id.tv_no_results_title);
+        tabUsers = findViewById(R.id.tab_users);
+        tabGroups = findViewById(R.id.tab_groups);
     }
     
     private void initializeServices() {
         apiClient = new ApiClient();
         sharedPrefsManager = new SharedPreferencesManager(this);
         searchResults = new ArrayList<>();
+        groupResults = new ArrayList<>();
         currentGroupMemberIds = new ArrayList<>();
         
         // Get mode and chat data from intent
@@ -151,8 +162,11 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     
     private void setupRecyclerView() {
         userAdapter = new UserSearchAdapter(this, searchResults, this, mode, currentGroupMemberIds);
+        groupAdapter = new GroupSearchAdapter(this, groupResults);
+        groupAdapter.setOnGroupClickListener(this);
+        
         rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
-        rvSearchResults.setAdapter(userAdapter);
+        rvSearchResults.setAdapter(userAdapter); // Start with user adapter
     }
     
     private void setupClickListeners() {
@@ -171,8 +185,42 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             }
         });
         
+        // Tab click listeners
+        tabUsers.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchToUserSearch();
+            }
+        });
+        
+        tabGroups.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchToGroupSearch();
+            }
+        });
+        
         // Focus on search field when activity starts
         etSearch.requestFocus();
+    }
+    
+    private void switchToUserSearch() {
+        isSearchingGroups = false;
+        tabUsers.setSelected(true);
+        tabGroups.setSelected(false);
+        rvSearchResults.setAdapter(userAdapter);
+        clearSearchResults();
+        etSearch.setHint("Search users...");
+    }
+    
+    private void switchToGroupSearch() {
+        isSearchingGroups = true;
+        tabUsers.setSelected(false);
+        tabGroups.setSelected(true);
+        rvSearchResults.setAdapter(groupAdapter);
+        clearSearchResults();
+        etSearch.setHint("Search groups...");
+        loadUserGroups(); // Load user's groups when switching to group search
     }
     
     private void performSearch(String query) {
@@ -190,6 +238,16 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             return;
         }
         
+        if (isSearchingGroups) {
+            // Search groups
+            searchGroups(token, query);
+        } else {
+            // Search users
+            searchUsers(token, query);
+        }
+    }
+    
+    private void searchUsers(String token, String query) {
         // Create search URL with query parameter
         String searchUrl = "/api/users/search?q=" + query;
         
@@ -350,8 +408,13 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     }
     
     private void clearSearchResults() {
-        searchResults.clear();
-        userAdapter.notifyDataSetChanged();
+        if (isSearchingGroups) {
+            groupResults.clear();
+            groupAdapter.notifyDataSetChanged();
+        } else {
+            searchResults.clear();
+            userAdapter.notifyDataSetChanged();
+        }
         updateResultsVisibility();
     }
     
@@ -366,7 +429,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     }
     
     private void updateResultsVisibility() {
-        if (searchResults.isEmpty()) {
+        boolean hasResults = isSearchingGroups ? !groupResults.isEmpty() : !searchResults.isEmpty();
+        
+        if (!hasResults) {
             String searchQuery = etSearch.getText().toString().trim();
             if (searchQuery.isEmpty()) {
                 tvSearchHint.setVisibility(View.VISIBLE);
@@ -374,7 +439,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             } else {
                 tvSearchHint.setVisibility(View.GONE);
                 tvNoResults.setVisibility(View.VISIBLE);
-                tvNoResultsTitle.setText("No users found for \"" + searchQuery + "\"");
+                String searchType = isSearchingGroups ? "groups" : "users";
+                tvNoResultsTitle.setText("No " + searchType + " found for \"" + searchQuery + "\"");
             }
             rvSearchResults.setVisibility(View.GONE);
         } else {
@@ -570,6 +636,105 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(this, "Error processing response", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void searchGroups(String token, String query) {
+        // Filter groups by query
+        List<Chat> filteredGroups = new ArrayList<>();
+        for (Chat group : groupResults) {
+            if (group.getName().toLowerCase().contains(query.toLowerCase())) {
+                filteredGroups.add(group);
+            }
+        }
+        
+        runOnUiThread(() -> {
+            groupAdapter.updateGroups(filteredGroups);
+            showLoading(false);
+            updateResultsVisibility();
+        });
+    }
+    
+    private void loadUserGroups() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        showLoading(true);
+        
+        // Get user's groups from chats API
+        apiClient.getChats(token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, "Failed to load groups: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleGroupsResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleGroupsResponse(int statusCode, String responseBody) {
+        showLoading(false);
+        
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray chatsArray = data.getJSONArray("chats");
+                    
+                    groupResults.clear();
+                    for (int i = 0; i < chatsArray.length(); i++) {
+                        JSONObject chatJson = chatsArray.getJSONObject(i);
+                        Chat chat = Chat.fromJson(chatJson);
+                        
+                        // Only add group chats
+                        if (chat.isGroupChat()) {
+                            groupResults.add(chat);
+                        }
+                    }
+                    
+                    groupAdapter.updateGroups(groupResults);
+                    updateResultsVisibility();
+                } else {
+                    String message = jsonResponse.optString("message", "Failed to load groups");
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, "Session expired", Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                finish();
+            } else {
+                Toast.makeText(this, "Failed to load groups", Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error parsing groups response", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    @Override
+    public void onGroupClick(Chat group) {
+        // Open group chat
+        Intent intent = new Intent(this, GroupChatActivity.class);
+        try {
+            intent.putExtra("chat", group.toJson().toString());
+            startActivity(intent);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error opening group chat", Toast.LENGTH_SHORT).show();
         }
     }
 }
