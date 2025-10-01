@@ -9,6 +9,7 @@ import java.util.List;
 public class Chat {
     private String id;
     private String type; // "private" or "group"
+    private String groupId; // link to server Group id for group chats
     private String name;
     private String description;
     private String lastMessage;
@@ -44,6 +45,8 @@ public class Chat {
         Chat chat = new Chat();
         chat.id = json.optString("_id", "");
         chat.type = json.optString("type", "private");
+        // Parse groupId if provided by server for group chats
+        chat.groupId = json.optString("groupId", "");
         chat.name = json.optString("name", "");
         chat.description = json.optString("description", "");
         chat.avatar = json.optString("avatar", "");
@@ -164,6 +167,8 @@ public class Chat {
     
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+    public String getGroupId() { return groupId; }
+    public void setGroupId(String groupId) { this.groupId = groupId; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

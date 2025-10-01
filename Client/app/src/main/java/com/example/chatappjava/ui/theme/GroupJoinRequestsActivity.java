@@ -70,7 +70,8 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
             return;
         }
         progressBar.setVisibility(View.VISIBLE);
-        apiClient.authenticatedGet("/api/groups/" + currentChat.getId() + "/join-requests", token, new okhttp3.Callback() {
+        String targetGroupId = currentChat.getGroupId() != null && !currentChat.getGroupId().isEmpty() ? currentChat.getGroupId() : currentChat.getId();
+        apiClient.authenticatedGet("/api/groups/" + targetGroupId + "/join-requests", token, new okhttp3.Callback() {
             @Override public void onFailure(okhttp3.Call call, IOException e) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
@@ -112,7 +113,8 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
         try {
             JSONObject body = new JSONObject();
             body.put("action", approve ? "approve" : "reject");
-            apiClient.authenticatedPost("/api/groups/" + currentChat.getId() + "/join-requests/" + user.getId(), token, body, new okhttp3.Callback() {
+            String targetGroupId = currentChat.getGroupId() != null && !currentChat.getGroupId().isEmpty() ? currentChat.getGroupId() : currentChat.getId();
+            apiClient.authenticatedPost("/api/groups/" + targetGroupId + "/join-requests/" + user.getId(), token, body, new okhttp3.Callback() {
                 @Override public void onFailure(okhttp3.Call call, IOException e) {
                     runOnUiThread(() -> Toast.makeText(GroupJoinRequestsActivity.this, "Action failed", Toast.LENGTH_SHORT).show());
                 }

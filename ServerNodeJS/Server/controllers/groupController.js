@@ -896,7 +896,17 @@ const getGroupMembers = async (req, res) => {
 const requestJoinGroup = async (req, res) => {
   try {
     const { id } = req.params;
-    const group = await Group.findById(id);
+    let group = await Group.findById(id);
+    if (!group) {
+      try {
+        const chat = await Chat.findById(id);
+        if (chat && chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        } else if (chat && chat.name) {
+          group = await Group.findOne({ name: chat.name });
+        }
+      } catch (e) {}
+    }
     if (!group || !group.isActive) {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
@@ -926,7 +936,17 @@ const requestJoinGroup = async (req, res) => {
 const getJoinRequestsCount = async (req, res) => {
   try {
     const { id } = req.params;
-    const group = await Group.findById(id);
+    let group = await Group.findById(id);
+    if (!group) {
+      try {
+        const chat = await Chat.findById(id);
+        if (chat && chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        } else if (chat && chat.name) {
+          group = await Group.findOne({ name: chat.name });
+        }
+      } catch (e) {}
+    }
     if (!group || !group.isActive) {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
@@ -947,7 +967,17 @@ const getJoinRequestsCount = async (req, res) => {
 const getJoinRequests = async (req, res) => {
   try {
     const { id } = req.params;
-    const group = await Group.findById(id).populate('joinRequests.user', 'username email avatar');
+    let group = await Group.findById(id).populate('joinRequests.user', 'username email avatar');
+    if (!group) {
+      try {
+        const chat = await Chat.findById(id);
+        if (chat && chat.groupId) {
+          group = await Group.findById(chat.groupId).populate('joinRequests.user', 'username email avatar');
+        } else if (chat && chat.name) {
+          group = await Group.findOne({ name: chat.name }).populate('joinRequests.user', 'username email avatar');
+        }
+      } catch (e) {}
+    }
     if (!group || !group.isActive) {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
@@ -973,7 +1003,17 @@ const respondJoinRequest = async (req, res) => {
   try {
     const { id, userId } = req.params;
     const { action } = req.body; // 'approve' | 'reject'
-    const group = await Group.findById(id);
+    let group = await Group.findById(id);
+    if (!group) {
+      try {
+        const chat = await Chat.findById(id);
+        if (chat && chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        } else if (chat && chat.name) {
+          group = await Group.findOne({ name: chat.name });
+        }
+      } catch (e) {}
+    }
     if (!group || !group.isActive) {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
