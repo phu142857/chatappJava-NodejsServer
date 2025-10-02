@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Card, Form, Input, Modal, Space, Table, Tag, Select } from 'antd';
+import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Table, Tag, Select, List } from 'antd';
 import apiClient from '../api/client';
 
 type GroupItem = {
@@ -18,6 +18,8 @@ export default function Groups() {
   const [data, setData] = useState<GroupItem[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<null | GroupItem>(null);
+  const [openRequests, setOpenRequests] = useState<null | GroupItem>(null);
+  const [requests, setRequests] = useState<{ user: { _id: string; username: string; email?: string; avatar?: string }; status: string; createdAt: string }[]>([]);
   const [form] = Form.useForm();
 
   const fetchData = async () => {
@@ -30,6 +32,11 @@ export default function Groups() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRequests = async (groupId: string) => {
+    const { data } = await apiClient.get<{ success: boolean; data: { requests: { user: { _id: string; username: string; email?: string; avatar?: string }; status: string; createdAt: string }[] } }>(`/groups/${groupId}/join-requests`);
+    setRequests(data?.data?.requests || []);
   };
 
   useEffect(() => {
@@ -52,6 +59,7 @@ export default function Groups() {
             render: (_, r) => (
               <Space>
                 <Button size="small" onClick={() => { setOpenEdit(r); form.setFieldsValue({ name: r.name, description: r.description, status: r.status || 'active', isPublic: r.settings?.isPublic || false, ownerId: typeof r.createdBy === 'string' ? r.createdBy : (r.createdBy as any)?._id }); }}>Edit</Button>
+                <Button size="small" onClick={async () => { setOpenRequests(r); await fetchRequests(r._id); }}>Requests</Button>
                 <Button size="small" danger onClick={() => modal.confirm({ title: `Delete group ${r.name}?`, onOk: async () => { await apiClient.delete(`/groups/${r._id}`); message.success('Deleted'); fetchData(); } })}>Delete</Button>
                 <Button size="small" onClick={async () => {
                   const userId = prompt('Enter userId to add');
@@ -80,6 +88,29 @@ export default function Groups() {
           <Form.Item label="Group Name" name="name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item label="Description" name="description"><Input.TextArea rows={3} /></Form.Item>
         </Form>
+      </Modal>
+
+      <Modal title={`Join Requests: ${openRequests?.name}`} open={!!openRequests} onCancel={() => { setOpenRequests(null); setRequests([]); }} footer={null}>
+        <List
+          dataSource={requests}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Button size="small" type="primary" onClick={async () => { await apiClient.post(`/groups/${openRequests?._id}/join-requests/${item.user._id}`, { action: 'approve' }); message.success('Approved'); fetchRequests(openRequests!._id); }}>Approve</Button>,
+                <Button size="small" danger onClick={async () => { await apiClient.post(`/groups/${openRequests?._id}/join-requests/${item.user._id}`, { action: 'reject' }); message.success('Rejected'); fetchRequests(openRequests!._id); }}>Reject</Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={<Avatar src={item.user.avatar}>
+                  {item.user.username?.[0]?.toUpperCase()}
+                </Avatar>}
+                title={`${item.user.username} (${item.user._id})`}
+                description={`Requested at: ${new Date(item.createdAt).toLocaleString()}`}
+              />
+            </List.Item>
+          )}
+          locale={{ emptyText: 'No pending requests' }}
+        />
       </Modal>
 
       <Modal title={`Edit Group: ${openEdit?.name}`} open={!!openEdit} onCancel={() => setOpenEdit(null)} onOk={() => form.submit()} confirmLoading={loading}>
