@@ -17,12 +17,19 @@ const getGroups = async (req, res) => {
       status: 'active'
     };
 
-    // Add search functionality
+    // Add search functionality (by name/description and exact ObjectId)
     if (search) {
-      query.$or = [
+      const orConds = [
         { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
       ];
+      try {
+        const mongoose = require('mongoose');
+        if (mongoose.Types.ObjectId.isValid(search)) {
+          orConds.push({ _id: search });
+        }
+      } catch (_) {}
+      query.$or = orConds;
     }
 
     const groups = await Group.find(query)

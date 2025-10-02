@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Table, Tag, Select, List } from 'antd';
+import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Space, Table, Tag, Select, List, Tooltip } from 'antd';
 import apiClient from '../api/client';
 
 type GroupItem = {
@@ -22,11 +22,13 @@ export default function Groups() {
   const [requests, setRequests] = useState<{ user: { _id: string; username: string; email?: string; avatar?: string }; status: string; createdAt: string }[]>([]);
   const [form] = Form.useForm();
 
-  const fetchData = async () => {
+  const [search, setSearch] = useState('');
+
+  const fetchData = async (s = search) => {
     setLoading(true);
     try {
       const { data } = await apiClient.get<{ success: boolean; data: { groups: GroupItem[] } }>(
-        '/groups'
+        '/groups', { params: { search: s || undefined } }
       );
       setData(data?.data?.groups || []);
     } finally {
@@ -44,12 +46,19 @@ export default function Groups() {
   }, []);
 
   return (
-    <Card title="Groups">
+    <Card title="Groups" extra={
+      <Space>
+        <Input.Search allowClear placeholder="Search by ID or name" value={search} onChange={(e) => setSearch(e.target.value)} onSearch={(val) => fetchData(val)} style={{ width: 280 }} />
+      </Space>
+    }>
       <Table
         rowKey="_id"
         loading={loading}
         dataSource={data}
         columns={[
+          { title: 'Group ID', dataIndex: '_id', render: (id: string) => (
+            <Tooltip title={id}><span style={{ fontFamily: 'monospace', fontSize: 12 }}>{id?.substring(0,8)}...</span></Tooltip>
+          )},
           { title: 'Name', dataIndex: 'name' },
           { title: 'Description', dataIndex: 'description' },
           { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'active' ? 'green' : s === 'archived' ? 'red' : 'default'}>{s || 'active'}</Tag> },
