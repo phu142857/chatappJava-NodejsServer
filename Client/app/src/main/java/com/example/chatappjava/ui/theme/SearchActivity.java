@@ -117,75 +117,106 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) return;
 
-        // Prefer fetching latest members from server to avoid stale participant list
-        new com.example.chatappjava.network.ApiClient().getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
-            @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                // Fallback to existing participantIds from currentChat if available
+        // Debug logging
+        android.util.Log.d("SearchActivity", "Loading current group members for chat: " + currentChat.getName());
+        android.util.Log.d("SearchActivity", "Current chat participantIds: " + currentChat.getParticipantIds());
+        android.util.Log.d("SearchActivity", "Current chat participant count: " + currentChat.getParticipantCount());
+
+        // Use same logic as GroupMembersActivity - fetch members from server
+        apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
-                    if (currentChat.getParticipantIds() != null) {
+                    android.util.Log.e("SearchActivity", "Failed to load members: " + e.getMessage());
+                    // Fallback to currentChat participantIds if available
+                    if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
                         currentGroupMemberIds.clear();
                         currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                        android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
                         if (userAdapter != null) userAdapter.notifyDataSetChanged();
                     }
                 });
             }
-            @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
-                String body = response.body().string();
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
                 runOnUiThread(() -> {
-                    try {
-                        if (response.code() == 200) {
-                            org.json.JSONObject json = new org.json.JSONObject(body);
-                            org.json.JSONObject data = json.optJSONObject("data");
-                            java.util.List<String> ids = new java.util.ArrayList<>();
-                            if (data != null) {
-                                // Try common shapes: {members: [ {user: {...}}, ... ]} or {members: [ {_id:..}, ... ]}
-                                org.json.JSONArray members = data.optJSONArray("members");
-                                if (members == null) members = data.optJSONArray("participants");
-                                if (members != null) {
-                                    for (int i = 0; i < members.length(); i++) {
-                                        Object entry = members.get(i);
-                                        if (entry instanceof org.json.JSONObject) {
-                                            org.json.JSONObject obj = (org.json.JSONObject) entry;
-                                            org.json.JSONObject userObj = obj.optJSONObject("user");
-                                            String uid;
-                                            if (userObj != null) {
-                                                uid = userObj.optString("_id", userObj.optString("id", ""));
-                                            } else {
-                                                uid = obj.optString("_id", obj.optString("id", obj.optString("user", "")));
-                                            }
-                                            if (uid != null && !uid.isEmpty()) ids.add(uid);
-                                        } else if (entry instanceof String) {
-                                            String uid = (String) entry;
-                                            if (!uid.isEmpty()) ids.add(uid);
-                                        }
-                                    }
-                                }
-                            }
-                            // If server returned empty or unexpected, fallback to currentChat
-                            if (ids.isEmpty() && currentChat.getParticipantIds() != null) {
-                                ids.addAll(currentChat.getParticipantIds());
-                            }
-                            currentGroupMemberIds.clear();
-                            currentGroupMemberIds.addAll(ids);
-                            if (userAdapter != null) userAdapter.notifyDataSetChanged();
-                        } else {
-                            // Non-200: fallback to currentChat list
-                            if (currentChat.getParticipantIds() != null) {
-                                currentGroupMemberIds.clear();
-                                currentGroupMemberIds.addAll(currentChat.getParticipantIds());
-                                if (userAdapter != null) userAdapter.notifyDataSetChanged();
-                            }
-                        }
-                    } catch (Exception ignored) {
-                        if (currentChat.getParticipantIds() != null) {
-                            currentGroupMemberIds.clear();
-                            currentGroupMemberIds.addAll(currentChat.getParticipantIds());
-                            if (userAdapter != null) userAdapter.notifyDataSetChanged();
-                        }
-                    }
+                    handleLoadMembersResponse(response.code(), responseBody);
                 });
             }
         });
+    }
+    
+    private void handleLoadMembersResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray membersArray = data.getJSONArray("members");
+                    
+                    java.util.List<String> ids = new java.util.ArrayList<>();
+                    for (int i = 0; i < membersArray.length(); i++) {
+                        JSONObject memberJson = membersArray.getJSONObject(i);
+                        android.util.Log.d("SearchActivity", "Parsing member " + i + ": " + memberJson.toString());
+                        
+                        // Extract user ID from member object (same as GroupMembersActivity)
+                        String userId = null;
+                        if (memberJson.has("user") && memberJson.get("user") instanceof JSONObject) {
+                            JSONObject userObj = memberJson.getJSONObject("user");
+                            userId = userObj.optString("_id", userObj.optString("id", ""));
+                        } else if (memberJson.has("_id")) {
+                            userId = memberJson.optString("_id", "");
+                        } else if (memberJson.has("id")) {
+                            userId = memberJson.optString("id", "");
+                        }
+                        
+                        if (userId != null && !userId.isEmpty()) {
+                            ids.add(userId);
+                            android.util.Log.d("SearchActivity", "Added member ID: " + userId);
+                        }
+                    }
+                    
+                    android.util.Log.d("SearchActivity", "Parsed " + ids.size() + " member IDs from server");
+                    
+                    currentGroupMemberIds.clear();
+                    currentGroupMemberIds.addAll(ids);
+                    android.util.Log.d("SearchActivity", "Final currentGroupMemberIds: " + currentGroupMemberIds);
+                    
+                    if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                    
+                } else {
+                    String message = jsonResponse.optString("message", "Failed to load members");
+                    android.util.Log.e("SearchActivity", message);
+                    // Fallback to currentChat participantIds
+                    if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                        currentGroupMemberIds.clear();
+                        currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                        android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                        if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                    }
+                }
+            } else {
+                android.util.Log.e("SearchActivity", "Failed to load members: " + statusCode);
+                // Fallback to currentChat participantIds
+                if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                    currentGroupMemberIds.clear();
+                    currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                    android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                    if (userAdapter != null) userAdapter.notifyDataSetChanged();
+                }
+            }
+        } catch (JSONException e) {
+            android.util.Log.e("SearchActivity", "Error parsing members data: " + e.getMessage());
+            // Fallback to currentChat participantIds
+            if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                currentGroupMemberIds.clear();
+                currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                if (userAdapter != null) userAdapter.notifyDataSetChanged();
+            }
+        }
     }
 
     @Override
@@ -971,8 +1002,13 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                             Chat chat = Chat.fromJson(g);
                             // Carry over joinRequestStatus if provided
                             String jrs = g.optString("joinRequestStatus", "");
+                            android.util.Log.d("SearchActivity", "Group " + i + " joinRequestStatus from server: " + jrs);
                             if (!jrs.isEmpty()) {
                                 chat.setJoinRequestStatus(jrs);
+                                android.util.Log.d("SearchActivity", "Set joinRequestStatus to: " + jrs);
+                            } else {
+                                chat.setJoinRequestStatus(null);
+                                android.util.Log.d("SearchActivity", "Set joinRequestStatus to null (no status)");
                             }
                             discover.add(chat);
                         }
@@ -1005,6 +1041,14 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                 Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
                 return;
             }
+            
+            // Check if this is a cancel request action
+            String joinStatus = group.getJoinRequestStatus();
+            if (joinStatus != null && joinStatus.equals("pending")) {
+                cancelJoinRequest(group, token);
+                return;
+            }
+            
             if (group.isPublicGroup()) {
                 // Join directly
                 apiClient.joinGroup(token, group.getId(), new okhttp3.Callback() {
@@ -1044,7 +1088,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                                 org.json.JSONObject json = new org.json.JSONObject(body);
                                 if ((response.code() == 200 || response.code() == 201) && json.optBoolean("success", false)) {
                                     Toast.makeText(SearchActivity.this, "Requested to join", Toast.LENGTH_SHORT).show();
-                                    // Update the object's joinRequestStatus so adapter shows "Requested"
+                                    // Update the object's joinRequestStatus so adapter shows "Cancel Request"
                                     group.setJoinRequestStatus("pending");
                                     applyGroupFilterWithCurrentQuery();
                                 } else {
@@ -1068,5 +1112,55 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             e.printStackTrace();
             Toast.makeText(this, "Error opening group chat", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    private void cancelJoinRequest(Chat group, String token) {
+        Toast.makeText(this, "Cancelling join request...", Toast.LENGTH_SHORT).show();
+        
+        // Call API to cancel join request
+        apiClient.cancelJoinRequest(token, group.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("SearchActivity", "Cancel request failed: " + e.getMessage());
+                    Toast.makeText(SearchActivity.this, "Failed to cancel request: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body().string();
+                android.util.Log.d("SearchActivity", "Cancel request response: " + response.code() + " - " + body);
+                
+                runOnUiThread(() -> {
+                    try {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        if (response.code() == 200 && json.optBoolean("success", false)) {
+                            Toast.makeText(SearchActivity.this, "Join request cancelled", Toast.LENGTH_SHORT).show();
+                            // Update the object's joinRequestStatus to remove pending status
+                            group.setJoinRequestStatus(null); // Clear the status completely
+                            // Refresh the adapter to update UI
+                            groupAdapter.notifyDataSetChanged();
+                            updateResultsVisibility();
+                        } else if (response.code() == 404 || response.code() == 405) {
+                            // Server doesn't support DELETE for join requests, try alternative approach
+                            android.util.Log.d("SearchActivity", "Server doesn't support DELETE, trying alternative");
+                            Toast.makeText(SearchActivity.this, "Server doesn't support cancel request yet", Toast.LENGTH_SHORT).show();
+                            // For now, just update UI locally
+                            group.setJoinRequestStatus(null);
+                            groupAdapter.notifyDataSetChanged();
+                            updateResultsVisibility();
+                        } else {
+                            String message = json.optString("message", "Failed to cancel request");
+                            android.util.Log.e("SearchActivity", "Cancel request failed: " + message);
+                            Toast.makeText(SearchActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (org.json.JSONException e) {
+                        android.util.Log.e("SearchActivity", "Error parsing cancel response: " + e.getMessage());
+                        Toast.makeText(SearchActivity.this, "Failed to cancel request", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 }

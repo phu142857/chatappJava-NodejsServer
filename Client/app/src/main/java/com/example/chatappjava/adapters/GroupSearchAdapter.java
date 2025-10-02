@@ -88,7 +88,14 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
         
         public void bind(Chat group) {
             tvGroupName.setText(group.getName());
-            tvMemberCount.setText(group.getParticipantCount() + " members");
+            
+            // In Discover mode, hide member count
+            if (discoverMode) {
+                tvMemberCount.setVisibility(View.GONE);
+            } else {
+                tvMemberCount.setVisibility(View.VISIBLE);
+                tvMemberCount.setText(group.getParticipantCount() + " members");
+            }
             
             // Set last message preview
             if (group.getLastMessage() != null && !group.getLastMessage().isEmpty()) {
@@ -126,21 +133,28 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 btnAction.setVisibility(View.VISIBLE);
                 // Determine pending status from Chat model field
                 String joinStatus = group.getJoinRequestStatus();
+                android.util.Log.d("GroupSearchAdapter", "Group " + group.getName() + " joinRequestStatus: " + joinStatus + ", isPublic: " + group.isPublicGroup());
 
                 if (joinStatus != null && joinStatus.equals("pending")) {
-                    btnAction.setText("Requested");
-                    btnAction.setEnabled(false);
+                    btnAction.setText("Cancel Request");
+                    btnAction.setEnabled(true);
+                    btnAction.setBackgroundColor(context.getResources().getColor(android.R.color.holo_red_light));
+                    android.util.Log.d("GroupSearchAdapter", "Set button to Cancel Request (red)");
                 } else if (group.isPublicGroup()) {
                     btnAction.setText("Join");
                     btnAction.setEnabled(true);
+                    btnAction.setBackgroundColor(context.getResources().getColor(R.color.primary_color));
+                    android.util.Log.d("GroupSearchAdapter", "Set button to Join (blue)");
                 } else {
                     btnAction.setText("Request");
                     btnAction.setEnabled(true);
+                    btnAction.setBackgroundColor(context.getResources().getColor(R.color.primary_color));
+                    android.util.Log.d("GroupSearchAdapter", "Set button to Request (blue)");
                 }
 
                 btnAction.setOnClickListener(v -> {
                     if (listener != null && btnAction.isEnabled()) {
-                        listener.onGroupClick(group); // delegate action; activity decides join/request
+                        listener.onGroupClick(group); // delegate action; activity decides join/request/cancel
                     }
                 });
             } else {

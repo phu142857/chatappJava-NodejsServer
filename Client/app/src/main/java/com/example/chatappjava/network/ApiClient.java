@@ -245,6 +245,14 @@ public class ApiClient {
     }
 
     /**
+     * Cancel join request for a group
+     */
+    public void cancelJoinRequest(String token, String groupId, Callback callback) {
+        String endpoint = "/api/groups/" + groupId + "/join-requests";
+        authenticatedDelete(endpoint, token, callback);
+    }
+
+    /**
      * Get join requests count
      */
     public void getJoinRequestsCount(String token, String groupId, Callback callback) {

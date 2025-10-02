@@ -37,6 +37,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private Chat currentChat;
     private SharedPreferencesManager sharedPrefsManager;
     private ApiClient apiClient;
+    private boolean isUpdatingSettings = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +94,16 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         // Privacy Settings
         switchPublic.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            updateGroupSettings(isChecked);
+            if (!isUpdatingSettings) {
+                updateGroupSettings(isChecked);
+            }
+        });
+        
+        // Add click listener for disabled switch to show permission message
+        switchPublic.setOnClickListener(v -> {
+            if (!switchPublic.isEnabled()) {
+                Toast.makeText(this, "Only the group creator can change privacy settings", Toast.LENGTH_SHORT).show();
+            }
         });
     }
     
@@ -101,10 +111,82 @@ public class GroupSettingsActivity extends AppCompatActivity {
         if (currentChat == null) return;
         
         tvGroupName.setText(currentChat.getName());
+        
+        // Check if current user is the creator/owner
+        String currentUserId = sharedPrefsManager.getUserId();
+        String creatorId = currentChat.getCreatorId();
+        
+        // Debug logging
+        android.util.Log.d("GroupSettings", "Current User ID: " + currentUserId);
+        android.util.Log.d("GroupSettings", "Creator ID: " + creatorId);
+        android.util.Log.d("GroupSettings", "Chat ID: " + currentChat.getId());
+        
+        // If creatorId is null or empty, check if user is admin in participants (fallback)
+        boolean isCreator;
+        if (creatorId == null || creatorId.isEmpty()) {
+            // Check if current user is admin in participants
+            isCreator = currentChat.isGroupChat() && currentChat.isUserAdmin(currentUserId);
+            android.util.Log.d("GroupSettings", "Creator ID is null/empty, checking admin status: " + isCreator);
+            
+            // Final fallback: if still not creator and it's a group chat, assume creator to avoid locking
+            if (!isCreator && currentChat.isGroupChat()) {
+                android.util.Log.d("GroupSettings", "Final fallback: assuming creator to avoid locking");
+                isCreator = true;
+            }
+        } else {
+            isCreator = currentUserId != null && currentUserId.equals(creatorId);
+        }
+        android.util.Log.d("GroupSettings", "Is Creator: " + isCreator);
+        
+        // Set flag to prevent listener from triggering during initial load
+        isUpdatingSettings = true;
         switchPublic.setChecked(currentChat.isPublicGroup());
+        isUpdatingSettings = false;
+        
+        // Enable/disable switch based on creator status
+        switchPublic.setEnabled(isCreator);
+        
+        // Show/hide permission message
+        updatePermissionMessage(isCreator);
+        
+        // Show/hide other creator-only options
+        updateCreatorOnlyOptions(isCreator);
         
         // Load join requests count
         fetchJoinRequestCount();
+    }
+    
+    private void updatePermissionMessage(boolean isCreator) {
+        // Find the description text view for privacy settings
+        TextView tvPrivacyDescription = findViewById(R.id.tv_privacy_description);
+        if (tvPrivacyDescription != null) {
+            if (isCreator) {
+                tvPrivacyDescription.setText("When enabled, anyone can find and join this group. When disabled, only invited members can join.");
+            } else {
+                tvPrivacyDescription.setText("Only the group creator can change privacy settings.");
+                tvPrivacyDescription.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            }
+        }
+    }
+    
+    private void updateCreatorOnlyOptions(boolean isCreator) {
+        // Change Avatar - only for creator
+        findViewById(R.id.option_change_avatar).setVisibility(isCreator ? View.VISIBLE : View.GONE);
+        
+        // Add Members - only for creator
+        findViewById(R.id.option_add_members).setVisibility(isCreator ? View.VISIBLE : View.GONE);
+        
+        // Remove Members - only for creator
+        findViewById(R.id.option_remove_members).setVisibility(isCreator ? View.VISIBLE : View.GONE);
+        
+        // Join Requests - only for creator
+        findViewById(R.id.option_join_requests).setVisibility(isCreator ? View.VISIBLE : View.GONE);
+        
+        // Delete Group - only for creator
+        findViewById(R.id.option_delete_group).setVisibility(isCreator ? View.VISIBLE : View.GONE);
+        
+        // Leave Group - only for non-creator members
+        findViewById(R.id.option_leave_group).setVisibility(isCreator ? View.GONE : View.VISIBLE);
     }
     
     private void fetchJoinRequestCount() {
@@ -236,6 +318,9 @@ public class GroupSettingsActivity extends AppCompatActivity {
             return;
         }
         
+        // Set flag to prevent listener from triggering during update
+        isUpdatingSettings = true;
+        
         try {
             JSONObject settingsData = new JSONObject();
             JSONObject settings = new JSONObject();
@@ -254,9 +339,11 @@ public class GroupSettingsActivity extends AppCompatActivity {
                             currentChat.setIsPublic(isPublic);
                         } else {
                             Toast.makeText(GroupSettingsActivity.this, "Failed to update group settings", Toast.LENGTH_SHORT).show();
-                            // Revert switch state
+                            // Revert switch state safely
                             switchPublic.setChecked(!isPublic);
                         }
+                        // Reset flag after update
+                        isUpdatingSettings = false;
                     });
                 }
                 
@@ -264,16 +351,20 @@ public class GroupSettingsActivity extends AppCompatActivity {
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
                         Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        // Revert switch state
+                        // Revert switch state safely
                         switchPublic.setChecked(!isPublic);
+                        // Reset flag after update
+                        isUpdatingSettings = false;
                     });
                 }
             });
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(this, "Error preparing request", Toast.LENGTH_SHORT).show();
-            // Revert switch state
+            // Revert switch state safely
             switchPublic.setChecked(!isPublic);
+            // Reset flag after update
+            isUpdatingSettings = false;
         }
     }
 }

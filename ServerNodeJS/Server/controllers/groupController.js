@@ -930,6 +930,60 @@ const requestJoinGroup = async (req, res) => {
   }
 };
 
+// @desc    Cancel join request for a group
+// @route   DELETE /api/groups/:id/join-requests
+// @access  Private
+const cancelJoinRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    let group = await Group.findById(id);
+    if (!group) {
+      try {
+        const chat = await Chat.findById(id);
+        if (chat && chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        } else if (chat && chat.name) {
+          group = await Group.findOne({ name: chat.name });
+        }
+      } catch (e) {}
+    }
+    
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+
+    // Find the pending join request
+    const requestIndex = group.joinRequests.findIndex(r => 
+      r.user && r.user.toString() === userId && r.status === 'pending'
+    );
+
+    if (requestIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No pending join request found' 
+      });
+    }
+
+    // Remove the join request
+    group.joinRequests.splice(requestIndex, 1);
+    await group.save();
+
+    res.json({
+      success: true,
+      message: 'Join request cancelled successfully'
+    });
+
+  } catch (error) {
+    console.error('Cancel join request error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while cancelling join request' 
+    });
+  }
+};
+
 // @desc    Get pending join requests count
 // @route   GET /api/groups/:id/join-requests/count
 // @access  Private (admins/moderators only)
@@ -1091,6 +1145,7 @@ module.exports = {
   deleteGroup,
   getGroupMembers,
   requestJoinGroup,
+  cancelJoinRequest,
   getJoinRequestsCount,
   respondJoinRequest,
   getJoinRequests

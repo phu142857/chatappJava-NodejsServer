@@ -31,6 +31,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         void onMessageLongClick(Message message);
         void onImageClick(String imageUrl, String localImageUri);
         default void onReactClick(Message message, String emoji) {}
+        default void onReplyClick(String replyToMessageId) {}
     }
     
     private List<Message> messages;
@@ -157,7 +158,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 llReceivedMessage.setVisibility(View.GONE);
                 // Reply preview for sent
                 if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
-                    if (llSentReplyPreview != null) llSentReplyPreview.setVisibility(View.VISIBLE);
+                    if (llSentReplyPreview != null) {
+                        llSentReplyPreview.setVisibility(View.VISIBLE);
+                        // Add click listener to scroll to original message
+                        llSentReplyPreview.setOnClickListener(v -> {
+                            if (listener != null) {
+                                listener.onReplyClick(message.getReplyToMessageId());
+                            }
+                        });
+                    }
                     if (tvSentReplyAuthor != null) tvSentReplyAuthor.setText(
                         message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
                     );
@@ -229,7 +238,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 llReceivedMessage.setVisibility(View.VISIBLE);
                 // Reply preview for received
                 if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
-                    if (llReceivedReplyPreview != null) llReceivedReplyPreview.setVisibility(View.VISIBLE);
+                    if (llReceivedReplyPreview != null) {
+                        llReceivedReplyPreview.setVisibility(View.VISIBLE);
+                        // Add click listener to scroll to original message
+                        llReceivedReplyPreview.setOnClickListener(v -> {
+                            if (listener != null) {
+                                listener.onReplyClick(message.getReplyToMessageId());
+                            }
+                        });
+                    }
                     if (tvReceivedReplyAuthor != null) tvReceivedReplyAuthor.setText(
                         message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
                     );

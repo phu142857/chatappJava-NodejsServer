@@ -16,6 +16,7 @@ const {
   deleteGroup,
   getGroupMembers,
   requestJoinGroup,
+  cancelJoinRequest,
   getJoinRequestsCount,
   respondJoinRequest,
   getJoinRequests
@@ -159,6 +160,7 @@ router.delete('/:id/members/:memberId', removeMemberValidation, removeMember);
 
 // Join requests
 router.post('/:id/join-requests', groupIdValidation, requestJoinGroup);
+router.delete('/:id/join-requests', groupIdValidation, cancelJoinRequest);
 router.get('/:id/join-requests/count', groupIdValidation, getJoinRequestsCount);
 router.post('/:id/join-requests/:userId', groupIdValidation, respondJoinRequest);
 router.get('/:id/join-requests', groupIdValidation, getJoinRequests);

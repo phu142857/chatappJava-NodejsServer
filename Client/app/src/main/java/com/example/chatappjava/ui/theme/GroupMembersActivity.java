@@ -35,7 +35,7 @@ import okhttp3.Response;
 public class GroupMembersActivity extends AppCompatActivity implements GroupMembersAdapter.OnMemberClickListener {
     
     private TextView tvGroupName, tvMemberCount;
-    private ImageView ivBack, ivAddMember, ivSettings;
+    private ImageView ivBack, ivAddMember;
     private RecyclerView rvMembers;
     private android.view.View btnAddMember;
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabAddMember;
@@ -63,7 +63,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         tvGroupName = findViewById(R.id.tv_group_name);
         tvMemberCount = findViewById(R.id.tv_member_count);
         ivBack = findViewById(R.id.iv_back);
-        ivSettings = findViewById(R.id.iv_settings);
         rvMembers = findViewById(R.id.rv_members);
         btnAddMember = findViewById(R.id.btn_add_member);
     }
@@ -92,7 +91,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private void setupClickListeners() {
         ivBack.setOnClickListener(v -> finish());
         btnAddMember.setOnClickListener(v -> showAddMemberDialog());
-        ivSettings.setOnClickListener(v -> showGroupSettingsDialog());
     }
     
     private void setupRecyclerView() {
@@ -116,11 +114,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         android.util.Log.d("GroupMembersActivity", "Creator ID: " + creatorId);
         android.util.Log.d("GroupMembersActivity", "Is Owner: " + (currentUserId != null && currentUserId.equals(creatorId)));
         
-        if (currentUserId != null && currentUserId.equals(creatorId)) {
-            ivSettings.setVisibility(View.VISIBLE);
-        } else {
-            ivSettings.setVisibility(View.GONE);
-        }
         
         if (currentChat.getAvatar() != null && !currentChat.getAvatar().isEmpty()) {
             String avatarUrl = currentChat.getAvatar();
@@ -281,76 +274,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
                         Toast.makeText(GroupMembersActivity.this, "Network error", Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
-        } catch (JSONException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error preparing request", Toast.LENGTH_SHORT).show();
-        }
-    }
-    
-    private void showGroupSettingsDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_settings, null);
-        
-        // Set group name
-        TextView tvGroupName = dialogView.findViewById(R.id.tv_group_name);
-        tvGroupName.setText(currentChat.getName());
-        
-        // Set current privacy setting
-        android.widget.Switch switchPublic = dialogView.findViewById(R.id.switch_public);
-        switchPublic.setChecked(currentChat.isPublicGroup());
-        
-        // Set button listeners
-        android.widget.Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
-        android.widget.Button btnSave = dialogView.findViewById(R.id.btn_save);
-        
-        AlertDialog dialog = builder.setView(dialogView).create();
-        
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-        btnSave.setOnClickListener(v -> {
-            boolean isPublic = switchPublic.isChecked();
-            updateGroupSettings(isPublic);
-            dialog.dismiss();
-        });
-        
-        dialog.show();
-    }
-    
-    private void updateGroupSettings(boolean isPublic) {
-        String token = sharedPrefsManager.getToken();
-        if (token == null || token.isEmpty()) {
-            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        try {
-            JSONObject settingsData = new JSONObject();
-            JSONObject settings = new JSONObject();
-            settings.put("isPublic", isPublic);
-            settingsData.put("settings", settings);
-            
-            Toast.makeText(this, "Updating group settings...", Toast.LENGTH_SHORT).show();
-            
-            apiClient.updateGroupSettings(token, currentChat.getId(), settingsData, new Callback() {
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    runOnUiThread(() -> {
-                        if (response.isSuccessful()) {
-                            Toast.makeText(GroupMembersActivity.this, "Group settings updated successfully", Toast.LENGTH_SHORT).show();
-                            // Update local chat object
-                            currentChat.setIsPublic(isPublic);
-                        } else {
-                            Toast.makeText(GroupMembersActivity.this, "Failed to update group settings", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-                
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(GroupMembersActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     });
                 }
             });

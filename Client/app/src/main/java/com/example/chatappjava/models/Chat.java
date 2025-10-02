@@ -78,7 +78,20 @@ public class Chat {
         }
         chat.unreadCount = json.optInt("unreadCount", 0);
         chat.isActive = json.optBoolean("isActive", true);
-        chat.creatorId = json.optString("createdBy", "");
+        // Handle createdBy field - it might be a string ID or an object with _id
+        if (json.has("createdBy")) {
+            Object createdByObj = json.opt("createdBy");
+            if (createdByObj instanceof String) {
+                chat.creatorId = (String) createdByObj;
+            } else if (createdByObj instanceof org.json.JSONObject) {
+                org.json.JSONObject createdByJson = (org.json.JSONObject) createdByObj;
+                chat.creatorId = createdByJson.optString("_id", "");
+            } else {
+                chat.creatorId = "";
+            }
+        } else {
+            chat.creatorId = "";
+        }
         // createdAt/updatedAt may be ISO strings; fallback to now if not parseable
         chat.createdAt = parseIsoDateToMillis(json.optString("createdAt", ""));
         chat.updatedAt = parseIsoDateToMillis(json.optString("updatedAt", ""));
@@ -86,13 +99,16 @@ public class Chat {
         // Parse participants array
         JSONArray participantsArray = json.optJSONArray("participants");
         if (participantsArray != null) {
+            android.util.Log.d("Chat.fromJson", "Found participants array with " + participantsArray.length() + " items");
             for (int i = 0; i < participantsArray.length(); i++) {
                 // Could be string ids OR objects { user: {...} }
                 Object participantEntry = participantsArray.opt(i);
+                android.util.Log.d("Chat.fromJson", "Participant " + i + ": " + participantEntry.toString());
                 if (participantEntry instanceof String) {
                     String participantId = (String) participantEntry;
                     if (!participantId.isEmpty()) {
                         chat.participantIds.add(participantId);
+                        android.util.Log.d("Chat.fromJson", "Added participant ID: " + participantId);
                     }
                 } else if (participantEntry instanceof JSONObject) {
                     JSONObject participantObj = (JSONObject) participantEntry;
@@ -102,16 +118,21 @@ public class Chat {
                         String participantId = userObj.optString("_id", userObj.optString("id", ""));
                         if (!participantId.isEmpty()) {
                             chat.participantIds.add(participantId);
+                            android.util.Log.d("Chat.fromJson", "Added participant ID from user object: " + participantId);
                         }
                     } else {
                         // Or direct id field
                         String participantId = participantObj.optString("user", "");
                         if (!participantId.isEmpty()) {
                             chat.participantIds.add(participantId);
+                            android.util.Log.d("Chat.fromJson", "Added participant ID from direct field: " + participantId);
                         }
                     }
                 }
             }
+            android.util.Log.d("Chat.fromJson", "Final participant count: " + chat.participantIds.size());
+        } else {
+            android.util.Log.d("Chat.fromJson", "No participants field found in JSON");
         }
         
         // Parse otherParticipant if server provided it (for private chats)
@@ -193,6 +214,14 @@ public class Chat {
     
     public String getCreatorId() { return creatorId; }
     public void setCreatorId(String creatorId) { this.creatorId = creatorId; }
+    
+    public boolean isUserAdmin(String userId) {
+        if (userId == null || userId.isEmpty() || participantIds == null) return false;
+        
+        // For now, assume first participant is admin (creator)
+        // This is a simplified check - in a real app, you'd need role information
+        return participantIds.size() > 0 && userId.equals(participantIds.get(0));
+    }
     
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }

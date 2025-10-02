@@ -98,6 +98,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected boolean isPolling = false;
     protected Handler pollHandler = new Handler(Looper.getMainLooper());
     protected Runnable pollRunnable;
+    protected boolean hasNewMessages = false;
+    protected boolean isInitialLoad = true;
     
     // Gallery and camera constants
     private static final int REQUEST_CODE_GALLERY = 1001;
@@ -466,7 +468,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Add to local list immediately for better UX
         messages.add(message);
         messageAdapter.notifyItemInserted(messages.size() - 1);
-        scrollToBottom();
+        // Always scroll to bottom when user sends an image
+        forceScrollToBottom();
         
         // Send to server
         try {
@@ -792,6 +795,30 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         layoutManager.setStackFromEnd(false);   // Set true to stack from bottom. But it can cause issues when have few messages.
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(messageAdapter);
+        
+        // Add scroll listener to detect when user reaches bottom
+        rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if (isAtBottom()) {
+                    hasNewMessages = false;
+                }
+            }
+            
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                // When user stops scrolling, check if they're at bottom
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    if (isAtBottom()) {
+                        hasNewMessages = false;
+                        // If user manually scrolled to bottom, enable auto-scroll for new messages
+                        enableAutoScrollForNewMessages();
+                    }
+                }
+            }
+        });
     }
 
     protected void loadMessages() {
@@ -808,6 +835,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             JSONObject jsonResponse = new JSONObject(responseBody);
                             if (jsonResponse.optBoolean("success", false)) {
                                 JSONObject data = jsonResponse.getJSONObject("data");
+                                
+                                // Store previous message count to detect new messages
+                                int previousMessageCount = messages.size();
                                 
                                 // Clear existing messages
                                 messages.clear();
@@ -827,6 +857,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                     }
                                 }
                                 
+                                // Check if there are new messages (for polling)
+                                boolean hasNewMessagesFromPolling = !isInitialLoad && messages.size() > previousMessageCount;
+                                
                                 // Update chat info if available
                                 if (data.has("chatInfo")) {
                                     JSONObject chatInfo = data.getJSONObject("chatInfo");
@@ -834,7 +867,16 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 }
 
                                 messageAdapter.notifyDataSetChanged();
-                                scrollToBottom();
+                                
+                                // Handle scrolling based on context
+                                if (isInitialLoad) {
+                                    // Always scroll to bottom on initial load
+                                    scrollToBottom();
+                                    isInitialLoad = false;
+                                } else if (hasNewMessagesFromPolling) {
+                                    // Only scroll if there are new messages and user is at bottom
+                                    scrollToBottomIfAtBottom();
+                                }
                             } else {
                                 String errorMessage = jsonResponse.optString("message", "Failed to load messages");
                                 Toast.makeText(BaseChatActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
@@ -891,7 +933,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Add to local list immediately for better UX
         messages.add(message);
         messageAdapter.notifyItemInserted(messages.size() - 1);
-        scrollToBottom();
+        // Always scroll to bottom when user sends a message
+        forceScrollToBottom();
 
         // Clear input
         etMessage.setText("");
@@ -967,6 +1010,70 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void scrollToBottom() {
         if (messages.size() > 0) {
             rvMessages.smoothScrollToPosition(messages.size() - 1);
+        }
+    }
+
+    protected boolean isAtBottom() {
+        if (messages.size() == 0) return true;
+        
+        LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (layoutManager == null) return true;
+        
+        int lastVisiblePosition = layoutManager.findLastVisibleItemPosition();
+        int totalItemCount = layoutManager.getItemCount();
+        
+        // Consider at bottom if user is within 7 messages from the end
+        return lastVisiblePosition >= totalItemCount - 7;
+    }
+
+    protected void scrollToBottomIfAtBottom() {
+        if (isAtBottom()) {
+            scrollToBottom();
+            hasNewMessages = false;
+        } else {
+            hasNewMessages = true;
+        }
+    }
+
+    protected void forceScrollToBottom() {
+        scrollToBottom();
+        hasNewMessages = false;
+    }
+
+    protected void enableAutoScrollForNewMessages() {
+        // Reset the flag to enable auto-scroll for new messages
+        hasNewMessages = false;
+    }
+
+    protected void scrollToMessage(String messageId) {
+        if (messageId == null || messageId.isEmpty()) return;
+        
+        int position = indexOfMessageById(messageId);
+        if (position >= 0) {
+            rvMessages.smoothScrollToPosition(position);
+            // Highlight the message briefly
+            highlightMessage(position);
+        } else {
+            Toast.makeText(this, "Message not found", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    protected void highlightMessage(int position) {
+        if (position < 0 || position >= messages.size()) return;
+        
+        // Get the view holder for the message
+        RecyclerView.ViewHolder holder = rvMessages.findViewHolderForAdapterPosition(position);
+        if (holder != null) {
+            View messageView = holder.itemView;
+            
+            // Create highlight animation
+            Animation highlightAnimation = AnimationUtils.loadAnimation(this, R.anim.message_highlight);
+            messageView.startAnimation(highlightAnimation);
+            
+            // Remove highlight after animation
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                messageView.clearAnimation();
+            }, 1000);
         }
     }
 
@@ -1154,6 +1261,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         });
     }
 
+    @Override
+    public void onReplyClick(String replyToMessageId) {
+        scrollToMessage(replyToMessageId);
+    }
+
     protected void showImageZoomDialog(String imageUrl) {
         showImageZoomDialog(imageUrl, null);
     }
@@ -1213,7 +1325,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             } else {
                 messages.add(incoming);
                 messageAdapter.notifyItemInserted(messages.size() - 1);
-                scrollToBottom();
+                // Only scroll to bottom if user is already at the bottom
+                scrollToBottomIfAtBottom();
             }
         } catch (Exception e) {
             android.util.Log.e("BaseChatActivity", "Failed to handle incoming message: " + e.getMessage());

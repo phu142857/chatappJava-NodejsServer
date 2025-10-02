@@ -19,6 +19,7 @@ import com.github.dhaval2404.imagepicker.ImagePicker;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -106,7 +107,14 @@ public class GroupChatActivity extends BaseChatActivity {
     protected void updateUI() {
         if (currentChat != null) {
             tvChatName.setText(currentChat.getName());
-            tvStatus.setText(currentChat.getParticipantCount() + " members");
+            
+            // Show initial participant count from chat data
+            int participantCount = currentChat.getParticipantCount();
+            android.util.Log.d("GroupChatActivity", "Initial participant count: " + participantCount);
+            tvStatus.setText(participantCount + " members");
+            
+            // Fetch actual member count from server (like GroupMembersActivity does)
+            fetchActualMemberCount();
             
             // Load group avatar
             String avatarUrl = currentChat.getFullAvatarUrl();
@@ -140,6 +148,22 @@ public class GroupChatActivity extends BaseChatActivity {
     
     @Override
     protected void showChatOptions() {
+        // Open Group Settings Activity instead of showing dialog
+        openGroupSettings();
+    }
+    
+    private void openGroupSettings() {
+        Intent intent = new Intent(this, GroupSettingsActivity.class);
+        try {
+            intent.putExtra("chat", currentChat.toJson().toString());
+            startActivity(intent);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error opening group settings", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showChatOptionsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
 
@@ -533,6 +557,51 @@ public class GroupChatActivity extends BaseChatActivity {
         }
     }
     
+    private void fetchActualMemberCount() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty() || currentChat == null) return;
+        
+        // Use the same method as GroupMembersActivity to get actual member count
+        apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to fetch member count: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleMemberCountResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleMemberCountResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray membersArray = data.getJSONArray("members");
+                    
+                    int actualMemberCount = membersArray.length();
+                    android.util.Log.d("GroupChatActivity", "Actual member count from server: " + actualMemberCount);
+                    
+                    // Update the UI with actual member count
+                    tvStatus.setText(actualMemberCount + " members");
+                } else {
+                    android.util.Log.e("GroupChatActivity", "Failed to get member count: " + jsonResponse.optString("message"));
+                }
+            } else {
+                android.util.Log.e("GroupChatActivity", "Failed to get member count: " + statusCode);
+            }
+        } catch (JSONException e) {
+            android.util.Log.e("GroupChatActivity", "Error parsing member count response: " + e.getMessage());
+        }
+    }
+    
     private void loadGroupData() {
         if (currentChat == null) return;
         
@@ -556,7 +625,10 @@ public class GroupChatActivity extends BaseChatActivity {
                         
                         runOnUiThread(() -> {
                             try {
+                                android.util.Log.d("GroupChatActivity", "Server response chatData: " + chatData.toString());
                                 currentChat = Chat.fromJson(chatData);
+                                android.util.Log.d("GroupChatActivity", "After parsing - Participant count: " + currentChat.getParticipantCount());
+                                android.util.Log.d("GroupChatActivity", "After parsing - Participant IDs: " + currentChat.getParticipantIds());
                             } catch (JSONException e) {
                                 throw new RuntimeException(e);
                             }

@@ -102,18 +102,6 @@
 
             </LinearLayout>
 
-            <!-- Settings button (only visible for group owner) -->
-            <ImageView
-                android:id="@+id/iv_settings"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/ic_settings"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="12dp"
-                app:tint="@color/primary_color"
-                android:contentDescription="Settings"
-                android:layout_marginEnd="8dp"
-                android:visibility="gone" />
 
             <!-- AppPrimaryButton style Add button -->
             <Button
