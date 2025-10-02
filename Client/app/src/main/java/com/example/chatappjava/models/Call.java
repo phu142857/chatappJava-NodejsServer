@@ -1,5 +1,7 @@
 package com.example.chatappjava.models;
 
+import android.annotation.SuppressLint;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,7 +14,7 @@ public class Call {
     private String chatId;
     private String chatName;
     private String chatType; // "private" or "group"
-    private List<CallParticipant> participants;
+    private final List<CallParticipant> participants;
     private String status; // "initiated", "ringing", "active", "ended", "declined", "missed", "cancelled"
     private long startedAt;
     private long endedAt;
@@ -109,72 +111,34 @@ public class Call {
     
     // Getters and Setters
     public String getCallId() { return callId; }
-    public void setCallId(String callId) { this.callId = callId; }
     
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
     
     public String getChatId() { return chatId; }
-    public void setChatId(String chatId) { this.chatId = chatId; }
-    
-    public String getChatName() { return chatName; }
-    public void setChatName(String chatName) { this.chatName = chatName; }
-    
-    public String getChatType() { return chatType; }
-    public void setChatType(String chatType) { this.chatType = chatType; }
-    
-    public List<CallParticipant> getParticipants() { return participants; }
-    public void setParticipants(List<CallParticipant> participants) { this.participants = participants; }
     
     public String getStatus() { return status; }
+
     public void setStatus(String status) { this.status = status; }
-    
-    public long getStartedAt() { return startedAt; }
-    public void setStartedAt(long startedAt) { this.startedAt = startedAt; }
-    
-    public long getEndedAt() { return endedAt; }
-    public void setEndedAt(long endedAt) { this.endedAt = endedAt; }
-    
+
     public int getDuration() { return duration; }
+
     public void setDuration(int duration) { this.duration = duration; }
     
     public boolean isGroupCall() { return isGroupCall; }
-    public void setGroupCall(boolean groupCall) { isGroupCall = groupCall; }
-    
-    public String getCallerId() { return callerId; }
-    public void setCallerId(String callerId) { this.callerId = callerId; }
-    
-    public String getCallerName() { return callerName; }
-    public void setCallerName(String callerName) { this.callerName = callerName; }
     
     public String getCallerAvatar() { return callerAvatar; }
-    public void setCallerAvatar(String callerAvatar) { this.callerAvatar = callerAvatar; }
     
     // Helper methods
     public boolean isVideoCall() {
         return "video".equals(type);
     }
-    
-    public boolean isAudioCall() {
-        return "audio".equals(type);
-    }
-    
+
     public boolean isEnded() {
         return "ended".equals(status);
     }
-    
-    public boolean isDeclined() {
-        return "declined".equals(status);
-    }
-    
-    public boolean isMissed() {
-        return "missed".equals(status);
-    }
-    
-    public boolean isCancelled() {
-        return "cancelled".equals(status);
-    }
-    
+
+    @SuppressLint("DefaultLocale")
     public String getFormattedDuration() {
         if (duration <= 0) return "0:00";
         
@@ -235,15 +199,6 @@ public class Call {
     public String getDisplayName() {
         return getDisplayName("");
     }
-    
-    public String getOtherParticipantName() {
-        return getOtherParticipantName("");
-    }
-    
-    public String getOtherParticipantAvatar() {
-        return getOtherParticipantAvatar("");
-    }
-    
     public String getCallTypeIcon() {
         return isVideoCall() ? "📹" : "📞";
     }

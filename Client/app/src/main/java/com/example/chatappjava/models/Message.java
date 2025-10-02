@@ -1,5 +1,7 @@
 package com.example.chatappjava.models;
 
+import androidx.annotation.NonNull;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -202,19 +204,11 @@ public class Message {
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-    
-    public String getChatId() { return chatId; }
     public void setChatId(String chatId) { this.chatId = chatId; }
     
     public String getSenderId() { return senderId; }
     public void setSenderId(String senderId) { this.senderId = senderId; }
 
-    public String getSenderDisplayName() { return senderDisplayName; }
-    public void setSenderDisplayName(String senderDisplayName) { this.senderDisplayName = senderDisplayName; }
-
-    public String getSenderAvatarUrl() { return senderAvatarUrl; }
-    public void setSenderAvatarUrl(String senderAvatarUrl) { this.senderAvatarUrl = senderAvatarUrl; }
-    
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
     
@@ -226,29 +220,14 @@ public class Message {
     
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
-    
-    public boolean isRead() { return isRead; }
-    public void setRead(boolean read) { isRead = read; }
-    
-    public boolean isDeleted() { return isDeleted; }
     public void setDeleted(boolean deleted) { isDeleted = deleted; }
-    
-    public Sender getSender() { return sender; }
-    public void setSender(Sender sender) { this.sender = sender; }
-    
-    public SenderInfo getSenderInfo() { return senderInfo; }
-    public void setSenderInfo(SenderInfo senderInfo) { this.senderInfo = senderInfo; }
-    
+
     public String getAttachments() { return attachments; }
-    public void setAttachments(String attachments) { this.attachments = attachments; }
-    
     public String getLocalImageUri() { return localImageUri; }
     public void setLocalImageUri(String localImageUri) { this.localImageUri = localImageUri; }
 
     public java.util.Map<String, Integer> getReactionSummary() { return reactionSummary; }
-    public void setReactionSummary(java.util.Map<String, Integer> reactionSummary) { this.reactionSummary = reactionSummary; }
     public String getReactionsRaw() { return reactionsRaw; }
-    public void setReactionsRaw(String reactionsRaw) { this.reactionsRaw = reactionsRaw; }
     
     public String getReplyToMessageId() { return replyToMessageId; }
     public void setReplyToMessageId(String replyToMessageId) { this.replyToMessageId = replyToMessageId; }
@@ -258,8 +237,6 @@ public class Message {
     public void setReplyToSenderName(String replyToSenderName) { this.replyToSenderName = replyToSenderName; }
     public boolean isEdited() { return edited; }
     public void setEdited(boolean edited) { this.edited = edited; }
-    public long getEditedAt() { return editedAt; }
-    public void setEditedAt(long editedAt) { this.editedAt = editedAt; }
     
     // Helper methods
     public boolean isTextMessage() {
@@ -269,19 +246,11 @@ public class Message {
     public boolean isImageMessage() {
         return "image".equals(type);
     }
-    
-    public boolean isFileMessage() {
-        return "file".equals(type);
-    }
-    
+
     public boolean isGroupChat() {
         return "group".equals(chatType);
     }
-    
-    public boolean isPrivateChat() {
-        return "private".equals(chatType);
-    }
-    
+
     // Get sender avatar with fallback
     public String getSenderAvatar() {
         if (sender != null && sender.getAvatar() != null && !sender.getAvatar().isEmpty()) {
@@ -304,6 +273,7 @@ public class Message {
         return senderDisplayName != null ? senderDisplayName : "";
     }
     
+    @NonNull
     @Override
     public String toString() {
         return "Message{" +

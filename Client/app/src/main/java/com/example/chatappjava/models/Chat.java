@@ -1,10 +1,15 @@
 package com.example.chatappjava.models;
 
+import android.annotation.SuppressLint;
+
+import androidx.annotation.NonNull;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class Chat {
     private String id;
@@ -16,7 +21,7 @@ public class Chat {
     private long lastMessageTime;
     private int unreadCount;
     private boolean isActive;
-    private List<String> participantIds;
+    private final List<String> participantIds;
     private String creatorId;
     private long createdAt;
     private long updatedAt;
@@ -189,46 +194,27 @@ public class Chat {
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
     public String getGroupId() { return groupId; }
-    public void setGroupId(String groupId) { this.groupId = groupId; }
-    
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    
+
     public String getLastMessage() { return lastMessage; }
-    public void setLastMessage(String lastMessage) { this.lastMessage = lastMessage; }
-    
-    public long getLastMessageTime() { return lastMessageTime; }
-    public void setLastMessageTime(long lastMessageTime) { this.lastMessageTime = lastMessageTime; }
-    
+
     public int getUnreadCount() { return unreadCount; }
-    public void setUnreadCount(int unreadCount) { this.unreadCount = unreadCount; }
-    
-    public boolean isActive() { return isActive; }
-    public void setActive(boolean active) { isActive = active; }
-    
     public List<String> getParticipantIds() { return participantIds; }
-    public void setParticipantIds(List<String> participantIds) { this.participantIds = participantIds; }
     
     public String getCreatorId() { return creatorId; }
-    public void setCreatorId(String creatorId) { this.creatorId = creatorId; }
     
     public boolean isUserAdmin(String userId) {
         if (userId == null || userId.isEmpty() || participantIds == null) return false;
         
         // For now, assume first participant is admin (creator)
         // This is a simplified check - in a real app, you'd need role information
-        return participantIds.size() > 0 && userId.equals(participantIds.get(0));
+        return !participantIds.isEmpty() && userId.equals(participantIds.get(0));
     }
     
     public long getCreatedAt() { return createdAt; }
-    public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
-    
-    public long getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
-    
+
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
     public boolean isPublicGroup() { return isGroupChat() && isPublic; }
@@ -307,21 +293,7 @@ public class Chat {
             return days / 7 + "w";
         }
     }
-    
-    public void addParticipant(String participantId) {
-        if (!participantIds.contains(participantId)) {
-            participantIds.add(participantId);
-        }
-    }
-    
-    public void removeParticipant(String participantId) {
-        participantIds.remove(participantId);
-    }
-    
-    public boolean hasParticipant(String participantId) {
-        return participantIds.contains(participantId);
-    }
-    
+
     public int getParticipantCount() {
         return participantIds.size();
     }
@@ -331,7 +303,7 @@ public class Chat {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         Chat chat = (Chat) obj;
-        return id != null ? id.equals(chat.id) : chat.id == null;
+        return Objects.equals(id, chat.id);
     }
     
     @Override
@@ -351,15 +323,16 @@ public class Chat {
             return java.time.Instant.parse(iso).toEpochMilli();
         } catch (Throwable t) {
             try {
-                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                @SuppressLint("SimpleDateFormat") java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
                 sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                return sdf.parse(iso).getTime();
+                return Objects.requireNonNull(sdf.parse(iso)).getTime();
             } catch (Throwable ignored) {
                 return 0;
             }
         }
     }
     
+    @NonNull
     @Override
     public String toString() {
         return "Chat{" +

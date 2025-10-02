@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,8 +23,8 @@ import android.widget.ImageView;
 public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdapter.FriendRequestViewHolder> {
 
     private List<FriendRequest> friendRequests;
-    private OnFriendRequestActionListener listener;
-    private String currentUserId;
+    private final OnFriendRequestActionListener listener;
+    private final String currentUserId;
 
     public interface OnFriendRequestActionListener {
         void onAcceptRequest(FriendRequest request);
@@ -56,6 +57,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
         return friendRequests.size();
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void updateRequests(List<FriendRequest> newRequests) {
         System.out.println("FriendRequestAdapter: Updating with " + newRequests.size() + " requests");
         this.friendRequests = newRequests;
@@ -71,16 +73,16 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
     }
 
     class FriendRequestViewHolder extends RecyclerView.ViewHolder {
-        private ImageView civProfilePicture;
-        private TextView tvUsername;
-        private TextView tvEmail;
-        private TextView tvRequestType;
-        private LinearLayout llActionButtons;
-        private Button btnAccept;
-        private Button btnReject;
-        private LinearLayout llSentRequestActions;
-        private TextView tvStatus;
-        private Button btnCancel;
+        private final ImageView civProfilePicture;
+        private final TextView tvUsername;
+        private final TextView tvEmail;
+        private final TextView tvRequestType;
+        private final LinearLayout llActionButtons;
+        private final Button btnAccept;
+        private final Button btnReject;
+        private final LinearLayout llSentRequestActions;
+        private final TextView tvStatus;
+        private final Button btnCancel;
 
         public FriendRequestViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -96,6 +98,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
             btnCancel = itemView.findViewById(R.id.btn_cancel);
         }
 
+        @SuppressLint("SetTextI18n")
         public void bind(FriendRequest request) {
             System.out.println("FriendRequestAdapter: Binding request " + request.getId() + " status: " + request.getStatus());
             System.out.println("Current User ID: " + currentUserId);
@@ -103,9 +106,9 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
             System.out.println("Request Receiver ID: " + request.getReceiverId());
             
             User userToShow;
-            boolean isReceivedRequest = currentUserId.equals(request.getReceiverId());
+            boolean isReceivedRequest;
             
-            if (currentUserId == null || currentUserId.isEmpty()) {
+            if (currentUserId.isEmpty()) {
                 return;
             }
             

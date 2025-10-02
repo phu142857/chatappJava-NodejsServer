@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,13 +18,13 @@ import java.util.List;
 
 public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.UserViewHolder> {
     
-    private List<User> users;
-    private OnUserClickListener listener;
-    private Context context;
-    private AvatarManager avatarManager;
+    private final List<User> users;
+    private final OnUserClickListener listener;
+    private final Context context;
+    private final AvatarManager avatarManager;
     private static String mode; // "add_members" or null for normal search
     private static List<String> currentGroupMemberIds; // Track current group members
-    
+
     public interface OnUserClickListener {
         void onUserClick(User user);
         void onUserLongClick(User user);
@@ -31,31 +32,14 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
         void onStartChatClick(User user);
         void onRespondFriendRequest(User user, boolean accept);
     }
-    
-    public UserSearchAdapter(Context context, List<User> users, OnUserClickListener listener) {
-        this.context = context;
-        this.users = users;
-        this.listener = listener;
-        this.avatarManager = AvatarManager.getInstance(context);
-        this.mode = null; // Default to normal search mode
-    }
-    
-    public UserSearchAdapter(Context context, List<User> users, OnUserClickListener listener, String mode) {
-        this.context = context;
-        this.users = users;
-        this.listener = listener;
-        this.avatarManager = AvatarManager.getInstance(context);
-        this.mode = mode;
-        this.currentGroupMemberIds = null;
-    }
-    
+
     public UserSearchAdapter(Context context, List<User> users, OnUserClickListener listener, String mode, List<String> currentGroupMemberIds) {
         this.context = context;
         this.users = users;
         this.listener = listener;
         this.avatarManager = AvatarManager.getInstance(context);
-        this.mode = mode;
-        this.currentGroupMemberIds = currentGroupMemberIds;
+        UserSearchAdapter.mode = mode;
+        UserSearchAdapter.currentGroupMemberIds = currentGroupMemberIds;
     }
     
     @NonNull
@@ -78,15 +62,15 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
     }
     
     public static class UserViewHolder extends RecyclerView.ViewHolder {
-        private CircleImageView ivProfilePicture;
-        private TextView tvDisplayName;
-        private TextView tvUsername;
-        private TextView tvEmail;
-        private TextView tvStatus;
-        private ImageView ivStatusIndicator;
-        private Button btnAddFriend;
-        private Button btnSecondary;
-        private View itemView;
+        private final CircleImageView ivProfilePicture;
+        private final TextView tvDisplayName;
+        private final TextView tvUsername;
+        private final TextView tvEmail;
+        private final TextView tvStatus;
+        private final ImageView ivStatusIndicator;
+        private final Button btnAddFriend;
+        private final Button btnSecondary;
+        private final View itemView;
         
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -101,6 +85,7 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
             btnSecondary = itemView.findViewById(R.id.btn_secondary_action);
         }
         
+        @SuppressLint("SetTextI18n")
         public void bind(User user, OnUserClickListener listener) {
             // Set display name
             tvDisplayName.setText(user.getDisplayName());
@@ -136,16 +121,13 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
             }
             
             // Avatar click -> open ProfileViewActivity
-            ivProfilePicture.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    try {
-                        android.content.Intent intent = new android.content.Intent(itemView.getContext(), com.example.chatappjava.ui.theme.ProfileViewActivity.class);
-                        intent.putExtra("user", user.toJson().toString());
-                        itemView.getContext().startActivity(intent);
-                    } catch (org.json.JSONException e) {
-                        if (listener != null) listener.onUserClick(user);
-                    }
+            ivProfilePicture.setOnClickListener(v -> {
+                try {
+                    android.content.Intent intent = new android.content.Intent(itemView.getContext(), com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                    intent.putExtra("user", user.toJson().toString());
+                    itemView.getContext().startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    if (listener != null) listener.onUserClick(user);
                 }
             });
             
@@ -198,65 +180,53 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
                 }
             }
             
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (listener != null) {
-                        listener.onUserClick(user);
-                    }
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onUserClick(user);
                 }
             });
             
-            itemView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    if (listener != null) {
-                        listener.onUserLongClick(user);
-                        return true;
-                    }
-                    return false;
+            itemView.setOnLongClickListener(v -> {
+                if (listener != null) {
+                    listener.onUserLongClick(user);
+                    return true;
                 }
+                return false;
             });
 
-            btnAddFriend.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (listener != null) {
-                        if ("add_members".equals(mode)) {
-                            boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
-                            if (!isAlreadyMember) {
-                                listener.onUserClick(user);
-                            }
-                        } else {
-                            String s = user.getFriendRequestStatus();
-                            if (user.isFriend()) {
-                                listener.onStartChatClick(user);
-                            } else if ("received".equals(s)) {
-                                listener.onRespondFriendRequest(user, true);
-                            } else if ("sent".equals(s) || "pending".equals(s)) {
-                                // Pending: disabled
-                            } else {
-                                listener.onStartChatClick(user);
-                            }
+            btnAddFriend.setOnClickListener(v -> {
+                if (listener != null) {
+                    if ("add_members".equals(mode)) {
+                        boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
+                        if (!isAlreadyMember) {
+                            listener.onUserClick(user);
                         }
-                    }
-                }
-            });
-
-            btnSecondary.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (listener != null) {
+                    } else {
                         String s = user.getFriendRequestStatus();
                         if (user.isFriend()) {
-                            // no-op
-                        } else if ("received".equals(s)) {
-                            listener.onRespondFriendRequest(user, false);
-                        } else if ("sent".equals(s) || "pending".equals(s)) {
                             listener.onStartChatClick(user);
+                        } else if ("received".equals(s)) {
+                            listener.onRespondFriendRequest(user, true);
+                        } else if ("sent".equals(s) || "pending".equals(s)) {
+                            // Pending: disabled
                         } else {
-                            listener.onAddFriendClick(user);
+                            listener.onStartChatClick(user);
                         }
+                    }
+                }
+            });
+
+            btnSecondary.setOnClickListener(v -> {
+                if (listener != null) {
+                    String s = user.getFriendRequestStatus();
+                    if (user.isFriend()) {
+                        // no-op
+                    } else if ("received".equals(s)) {
+                        listener.onRespondFriendRequest(user, false);
+                    } else if ("sent".equals(s) || "pending".equals(s)) {
+                        listener.onStartChatClick(user);
+                    } else {
+                        listener.onAddFriendClick(user);
                     }
                 }
             });

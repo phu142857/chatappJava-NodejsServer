@@ -1,7 +1,11 @@
 package com.example.chatappjava.models;
 
+import androidx.annotation.NonNull;
+
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Objects;
 
 public class User {
     private String id;
@@ -93,14 +97,9 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     
     public String getFirstName() { return firstName; }
-    public void setFirstName(String firstName) { this.firstName = firstName; }
-    
     public String getLastName() { return lastName; }
-    public void setLastName(String lastName) { this.lastName = lastName; }
-    
     public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-    
+
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
     
@@ -114,32 +113,20 @@ public class User {
         // Construct full URL from relative path
         // Ensure avatar starts with / if it doesn't already
         String avatarPath = avatar.startsWith("/") ? avatar : "/" + avatar;
-        String fullUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+        return "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
                ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarPath;
-        return fullUrl;
     }
     
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     
     public String getBio() { return bio; }
-    public void setBio(String bio) { this.bio = bio; }
-    
-    public long getLastSeen() { return lastSeen; }
-    public void setLastSeen(long lastSeen) { this.lastSeen = lastSeen; }
-    
-    public boolean isActive() { return isActive; }
-    public void setActive(boolean active) { isActive = active; }
     
     public boolean isFriend() { return isFriend; }
     public void setFriend(boolean friend) { isFriend = friend; }
-    
-    public String getFriendshipStatus() { return friendshipStatus; }
-    public void setFriendshipStatus(String friendshipStatus) { this.friendshipStatus = friendshipStatus; }
+
     public String getFriendRequestStatus() { return friendRequestStatus; }
-    public void setFriendRequestStatus(String friendRequestStatus) { this.friendRequestStatus = friendRequestStatus; }
     public String getFriendRequestId() { return friendRequestId; }
-    public void setFriendRequestId(String friendRequestId) { this.friendRequestId = friendRequestId; }
     
     // Helper methods
     public String getDisplayName() {
@@ -151,18 +138,7 @@ public class User {
             return username;
         }
     }
-    
-    public String getFullName() {
-        if (firstName != null && !firstName.isEmpty() && lastName != null && !lastName.isEmpty()) {
-            return firstName + " " + lastName;
-        } else if (firstName != null && !firstName.isEmpty()) {
-            return firstName;
-        } else if (lastName != null && !lastName.isEmpty()) {
-            return lastName;
-        }
-        return "";
-    }
-    
+
     public boolean isOnline() {
         return "online".equals(status);
     }
@@ -195,7 +171,7 @@ public class User {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         User user = (User) obj;
-        return id != null ? id.equals(user.id) : user.id == null;
+        return Objects.equals(id, user.id);
     }
     
     @Override
@@ -203,6 +179,7 @@ public class User {
         return id != null ? id.hashCode() : 0;
     }
     
+    @NonNull
     @Override
     public String toString() {
         return "User{" +

@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,7 +14,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Call;
 import com.example.chatappjava.utils.AvatarManager;
-import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +22,10 @@ import de.hdodenhof.circleimageview.CircleImageView;
 
 public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallViewHolder> {
     
-    private Context context;
-    private List<Call> callList;
+    private final Context context;
+    private final List<Call> callList;
     private OnCallClickListener onCallClickListener;
-    private AvatarManager avatarManager;
+    private final AvatarManager avatarManager;
     private String currentUserId;
     
     public interface OnCallClickListener {
@@ -47,37 +47,13 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
         this.currentUserId = currentUserId;
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     public void updateCalls(List<Call> newCallList) {
         this.callList.clear();
         this.callList.addAll(newCallList);
         notifyDataSetChanged();
     }
-    
-    public void addCall(Call call) {
-        this.callList.add(0, call); // Add to beginning
-        notifyItemInserted(0);
-    }
-    
-    public void updateCall(Call updatedCall) {
-        for (int i = 0; i < callList.size(); i++) {
-            if (callList.get(i).getCallId().equals(updatedCall.getCallId())) {
-                callList.set(i, updatedCall);
-                notifyItemChanged(i);
-                break;
-            }
-        }
-    }
-    
-    public void removeCall(String callId) {
-        for (int i = 0; i < callList.size(); i++) {
-            if (callList.get(i).getCallId().equals(callId)) {
-                callList.remove(i);
-                notifyItemRemoved(i);
-                break;
-            }
-        }
-    }
-    
+
     @NonNull
     @Override
     public CallViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -97,13 +73,13 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
     }
     
     class CallViewHolder extends RecyclerView.ViewHolder {
-        private CircleImageView ivCallAvatar;
-        private TextView tvCallName;
-        private TextView tvCallTypeIcon;
-        private TextView tvCallStatus;
-        private TextView tvCallDuration;
-        private TextView tvCallTime;
-        private ImageButton btnCallAction;
+        private final CircleImageView ivCallAvatar;
+        private final TextView tvCallName;
+        private final TextView tvCallTypeIcon;
+        private final TextView tvCallStatus;
+        private final TextView tvCallDuration;
+        private final TextView tvCallTime;
+        private final ImageButton btnCallAction;
         
         public CallViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -115,67 +91,50 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
             tvCallDuration = itemView.findViewById(R.id.tv_call_duration);
             tvCallTime = itemView.findViewById(R.id.tv_call_time);
             btnCallAction = itemView.findViewById(R.id.btn_call_action);
-            
-            // Set click listeners
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (onCallClickListener != null) {
-                        int position = getAdapterPosition();
-                        if (position != RecyclerView.NO_POSITION) {
-                            onCallClickListener.onCallItemClick(callList.get(position));
-                        }
+
+            itemView.setOnClickListener(v -> {
+                if (onCallClickListener != null) {
+                    int position = getBindingAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) {
+                        onCallClickListener.onCallItemClick(callList.get(position));
                     }
                 }
             });
             
-            btnCallAction.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (onCallClickListener != null) {
-                        int position = getAdapterPosition();
-                        if (position != RecyclerView.NO_POSITION) {
-                            onCallClickListener.onCallActionClick(callList.get(position));
-                        }
+            btnCallAction.setOnClickListener(v -> {
+                if (onCallClickListener != null) {
+                    int position = getBindingAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) {
+                        onCallClickListener.onCallActionClick(callList.get(position));
                     }
                 }
             });
         }
         
         public void bind(Call call) {
-            // Set name - use currentUserId to show the other participant's name
             tvCallName.setText(call.getDisplayName(currentUserId));
-            
-            // Set call type icon
             tvCallTypeIcon.setText(call.getCallTypeIcon());
-            
-            // Set status
             tvCallStatus.setText(call.getStatusText());
-            
-            // Set duration
+
             if (call.isEnded() && call.getDuration() > 0) {
                 tvCallDuration.setText(call.getFormattedDuration());
                 tvCallDuration.setVisibility(View.VISIBLE);
             } else {
                 tvCallDuration.setVisibility(View.GONE);
             }
-            
-            // Set time
+
             tvCallTime.setText(call.getFormattedTime());
-            
-            // Set avatar - use other participant's avatar for private calls
+
             String avatarUrl;
             if (call.isGroupCall()) {
                 avatarUrl = call.getCallerAvatar(); // For group calls, use caller avatar
             } else {
                 avatarUrl = call.getOtherParticipantAvatar(currentUserId); // For private calls, use other participant's avatar
             }
-            
-            // Load avatar using AvatarManager (same logic as ChatListAdapter)
+
             if (avatarUrl != null && !avatarUrl.isEmpty()) {
                 android.util.Log.d("CallListAdapter", "Loading call avatar: " + avatarUrl);
-                
-                // Construct full URL if needed (like ChatListAdapter logic)
+
                 if (!avatarUrl.startsWith("http")) {
                     avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
                                ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;

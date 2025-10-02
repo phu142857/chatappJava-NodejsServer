@@ -1,5 +1,7 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
+import android.text.style.ClickableSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,8 +36,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         default void onReplyClick(String replyToMessageId) {}
     }
     
-    private List<Message> messages;
-    private String currentUserId;
+    private final List<Message> messages;
+    private final String currentUserId;
     private boolean isGroupChat;
     private static OnMessageClickListener listener;
     private static AvatarManager avatarManager;
@@ -44,20 +46,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.messages = messages;
         this.currentUserId = currentUserId;
     }
-    
-    public MessageAdapter(List<Message> messages, OnMessageClickListener listener) {
-        this.messages = messages;
-        this.listener = listener;
-    }
-    
-    public MessageAdapter(List<Message> messages, String currentUserId, AvatarManager avatarManager) {
-        this.messages = messages;
-        this.currentUserId = currentUserId;
-        this.avatarManager = avatarManager;
-    }
-    
+
     public void setOnMessageClickListener(OnMessageClickListener listener) {
-        this.listener = listener;
+        MessageAdapter.listener = listener;
     }
 
     public void setGroupChat(boolean groupChat) {
@@ -87,33 +78,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public int getItemCount() {
         return messages.size();
     }
-    
-    public void updateMessages(List<Message> newMessages) {
-        this.messages = newMessages;
-        notifyDataSetChanged();
-    }
-    
+
     public static class MessageViewHolder extends RecyclerView.ViewHolder {
-        private LinearLayout llSentMessage;
-        private LinearLayout llReceivedMessage;
-        private LinearLayout llSentReplyPreview;
-        private LinearLayout llReceivedReplyPreview;
-        private TextView tvSentMessage;
-        private TextView tvSentTime;
-        private TextView tvSentEdited;
-        private TextView tvSentReactionsBadge;
-        private TextView tvReceivedMessage;
-        private TextView tvReceivedTime;
-        private TextView tvReceivedEdited;
-        private TextView tvReceivedReactionsBadge;
-        private TextView tvSenderName;
-        private TextView tvSentReplyAuthor;
-        private TextView tvSentReplyContent;
-        private TextView tvReceivedReplyAuthor;
-        private TextView tvReceivedReplyContent;
-        private ImageView ivSenderAvatar;
-        private ImageView ivSentImage;
-        private ImageView ivReceivedImage;
+        private final LinearLayout llSentMessage;
+        private final LinearLayout llReceivedMessage;
+        private final LinearLayout llSentReplyPreview;
+        private final LinearLayout llReceivedReplyPreview;
+        private final TextView tvSentMessage;
+        private final TextView tvSentTime;
+        private final TextView tvSentEdited;
+        private final ImageView ivSentReactionImage;
+        private final TextView tvReceivedMessage;
+        private final TextView tvReceivedTime;
+        private final TextView tvReceivedEdited;
+        private final ImageView ivReceivedReactionImage;
+        private final TextView tvSenderName;
+        private final TextView tvSentReplyAuthor;
+        private final TextView tvSentReplyContent;
+        private final TextView tvReceivedReplyAuthor;
+        private final TextView tvReceivedReplyContent;
+        private final ImageView ivSenderAvatar;
+        private final ImageView ivSentImage;
+        private final ImageView ivReceivedImage;
         
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -124,11 +110,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             tvSentMessage = itemView.findViewById(R.id.tv_sent_message);
             tvSentTime = itemView.findViewById(R.id.tv_sent_time);
             tvSentEdited = itemView.findViewById(R.id.tv_sent_edited);
-            tvSentReactionsBadge = itemView.findViewById(R.id.tv_sent_reactions_badge);
+            ivSentReactionImage = itemView.findViewById(R.id.iv_sent_reaction_image);
             tvReceivedMessage = itemView.findViewById(R.id.tv_received_message);
             tvReceivedTime = itemView.findViewById(R.id.tv_received_time);
             tvReceivedEdited = itemView.findViewById(R.id.tv_received_edited);
-            tvReceivedReactionsBadge = itemView.findViewById(R.id.tv_received_reactions_badge);
+            ivReceivedReactionImage = itemView.findViewById(R.id.iv_received_reaction_image);
             tvSenderName = itemView.findViewById(R.id.tv_sender_name);
             tvSentReplyAuthor = itemView.findViewById(R.id.tv_sent_reply_author);
             tvSentReplyContent = itemView.findViewById(R.id.tv_sent_reply_content);
@@ -231,7 +217,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 
                 if (tvSentTime != null) tvSentTime.setText(timeString);
                 if (tvSentEdited != null) tvSentEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
-                updateReactionsBadge(tvSentReactionsBadge, message);
+                updateReactionIcon(ivSentReactionImage, message, context);
             } else {
                 // Show received message layout
                 llSentMessage.setVisibility(View.GONE);
@@ -311,7 +297,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 
                 if (tvReceivedTime != null) tvReceivedTime.setText(timeString);
                 if (tvReceivedEdited != null) tvReceivedEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
-                updateReactionsBadge(tvReceivedReactionsBadge, message);
+                updateReactionIcon(ivReceivedReactionImage, message, context);
 
                 // For group chats, show sender name and avatar
                 boolean shouldShowAvatar = isGroupChat || message.isGroupChat();
@@ -390,13 +376,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 if (tvSentMessage != null) tvSentMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (ivSentImage != null && ivSentImage.getVisibility() == View.VISIBLE)
                     ivSentImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
-                if (tvSentReactionsBadge != null) tvSentReactionsBadge.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
+                if (ivSentReactionImage != null) ivSentReactionImage.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
             } else if (llReceivedMessage.getVisibility() == View.VISIBLE) {
                 llReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (tvReceivedMessage != null) tvReceivedMessage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
                 if (ivReceivedImage != null && ivReceivedImage.getVisibility() == View.VISIBLE)
                     ivReceivedImage.setOnLongClickListener(v -> { if (listener != null) { listener.onMessageLongClick(message); return true; } return false; });
-                if (tvReceivedReactionsBadge != null) tvReceivedReactionsBadge.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
+                if (ivReceivedReactionImage != null) ivReceivedReactionImage.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
             }
         }
 
@@ -417,37 +403,68 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             });
             // Show as icons row by forcing show
             try {
-                java.lang.reflect.Field mFieldPopup = menu.getClass().getDeclaredField("mPopup");
+                @SuppressLint("DiscouragedPrivateApi") java.lang.reflect.Field mFieldPopup = menu.getClass().getDeclaredField("mPopup");
                 mFieldPopup.setAccessible(true);
                 Object mPopup = mFieldPopup.get(menu);
+                assert mPopup != null;
                 mPopup.getClass().getDeclaredMethod("setForceShowIcon", boolean.class).invoke(mPopup, true);
             } catch (Exception ignored) {}
             menu.show();
         }
 
-        private void updateReactionsBadge(TextView badgeView, Message message) {
+        private void updateReactionIcon(ImageView badgeView, Message message, Context context) {
             if (badgeView == null) return;
             java.util.Map<String, Integer> sum = message.getReactionSummary();
             if (sum == null || sum.isEmpty()) {
                 badgeView.setVisibility(View.GONE);
                 return;
             }
-            // Build compact badge like "👍 3  ❤️ 1"
-            StringBuilder sb = new StringBuilder();
-            int shown = 0;
+            // Pick the most frequent emoji
+            String topEmoji = null; int max = -1;
             for (java.util.Map.Entry<String, Integer> e : sum.entrySet()) {
-                if (e.getValue() == null || e.getValue() <= 0) continue;
-                if (shown > 0) sb.append("  ");
-                sb.append(e.getKey()).append(" ").append(e.getValue());
-                shown++;
-                if (shown >= 3) break; // cap to 3 types for compactness
+                Integer c = e.getValue();
+                if (c != null && c > max) { max = c; topEmoji = e.getKey(); }
             }
-            if (sb.length() > 0) {
-                badgeView.setText(sb.toString());
-                badgeView.setVisibility(View.VISIBLE);
-            } else {
+            if (topEmoji == null || topEmoji.isEmpty()) {
+                badgeView.setVisibility(View.GONE);
+                return;
+            }
+            try {
+                android.graphics.Bitmap bmp = createEmojiBitmap(topEmoji, context, 22);
+                if (bmp != null) {
+                    badgeView.setImageBitmap(bmp);
+                    // Optional background to mimic floating chip
+                    badgeView.setBackgroundResource(com.example.chatappjava.R.drawable.ripple_reaction_floating);
+                    badgeView.setVisibility(View.VISIBLE);
+                } else {
+                    badgeView.setVisibility(View.GONE);
+                }
+            } catch (Exception ignored) {
                 badgeView.setVisibility(View.GONE);
             }
+        }
+
+        private android.graphics.Bitmap createEmojiBitmap(String emoji, Context context, int dpSize) {
+            float density = context.getResources().getDisplayMetrics().density;
+            int sizePx = (int) (dpSize * density);
+            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            // Clear fully transparent to keep original emoji edges without clipping
+            canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR);
+            android.text.TextPaint paint = new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setTextSize(sizePx * 0.8f);
+            paint.setColor(android.graphics.Color.WHITE);
+            paint.setTextAlign(android.graphics.Paint.Align.CENTER);
+            // Center baseline calculation
+            android.graphics.Rect bounds = new android.graphics.Rect();
+            String draw = emoji;
+            paint.getTextBounds(draw, 0, draw.length(), bounds);
+            float x = sizePx / 2f;
+            float y = (sizePx / 2f) - (bounds.exactCenterY());
+            // Draw shadow-like glow for better contrast
+            paint.setShadowLayer(sizePx * 0.08f, 0, sizePx * 0.06f, 0x80000000);
+            canvas.drawText(draw, x, y, paint);
+            return bitmap;
         }
 
         private void showReactionsSheet(Context context, Message message) {
@@ -544,28 +561,33 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             // Clickable span to open profile
-            final String username = content.substring(start + 1, end);
-            android.text.style.ClickableSpan clickableSpan = new android.text.style.ClickableSpan() {
-                @Override
-                public void onClick(View widget) {
-                    Context ctx = widget.getContext();
-                    android.content.Intent intent = new android.content.Intent(ctx, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
-                    // Best-effort: pass username; ProfileViewActivity should handle fetching by username
-                    intent.putExtra("username", username);
-                    // Optional: also pass minimal user object if we can map username from avatarManager cache later
-                    ctx.startActivity(intent);
-                }
-
-                @Override
-                public void updateDrawState(android.text.TextPaint ds) {
-                    super.updateDrawState(ds);
-                    ds.setUnderlineText(false);
-                }
-            };
+            ClickableSpan clickableSpan = getClickableSpan(content, start, end);
             spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         textView.setText(spannable);
         textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+    }
+
+    @NonNull
+    private static ClickableSpan getClickableSpan(String content, int start, int end) {
+        final String username = content.substring(start + 1, end);
+        return new ClickableSpan() {
+            @Override
+            public void onClick(@NonNull View widget) {
+                Context ctx = widget.getContext();
+                android.content.Intent intent = new android.content.Intent(ctx, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                // Best-effort: pass username; ProfileViewActivity should handle fetching by username
+                intent.putExtra("username", username);
+                // Optional: also pass minimal user object if we can map username from avatarManager cache later
+                ctx.startActivity(intent);
+            }
+
+            @Override
+            public void updateDrawState(android.text.TextPaint ds) {
+                super.updateDrawState(ds);
+                ds.setUnderlineText(false);
+            }
+        };
     }
 
     public static class RequestsAdapter extends RecyclerView.Adapter<RequestsAdapter.VH> {

@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,8 +18,7 @@ import java.util.List;
 public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatViewHolder> {
     
     private List<Chat> chats;
-    private OnChatClickListener listener;
-    private Context context;
+    private final OnChatClickListener listener;
     private static AvatarManager avatarManager;
     
     public interface OnChatClickListener {
@@ -27,10 +27,9 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
     }
     
     public ChatListAdapter(Context context, List<Chat> chats, OnChatClickListener listener) {
-        this.context = context;
         this.chats = chats;
         this.listener = listener;
-        this.avatarManager = AvatarManager.getInstance(context);
+        avatarManager = AvatarManager.getInstance(context);
     }
     
     @NonNull
@@ -53,13 +52,13 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
     }
     
     public static class ChatViewHolder extends RecyclerView.ViewHolder {
-        private CircleImageView ivChatAvatar;
-        private TextView tvChatName;
-        private TextView tvLastMessage;
-        private TextView tvLastMessageTime;
-        private TextView tvUnreadCount;
-        private ImageView ivChatType;
-        private View itemView;
+        private final CircleImageView ivChatAvatar;
+        private final TextView tvChatName;
+        private final TextView tvLastMessage;
+        private final TextView tvLastMessageTime;
+        private final TextView tvUnreadCount;
+        private final ImageView ivChatType;
+        private final View itemView;
         
         public ChatViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -72,6 +71,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
             ivChatType = itemView.findViewById(R.id.iv_chat_type);
         }
         
+        @SuppressLint("SetTextI18n")
         public void bind(Chat chat, OnChatClickListener listener) {
             // Set chat name
             tvChatName.setText(chat.getDisplayName());
@@ -149,28 +149,23 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
             }
             
             // Set click listeners
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (listener != null) {
-                        listener.onChatClick(chat);
-                    }
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onChatClick(chat);
                 }
             });
             
-            itemView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    if (listener != null) {
-                        listener.onChatLongClick(chat);
-                        return true;
-                    }
-                    return false;
+            itemView.setOnLongClickListener(v -> {
+                if (listener != null) {
+                    listener.onChatLongClick(chat);
+                    return true;
                 }
+                return false;
             });
         }
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     public void updateChats(List<Chat> newChats) {
         this.chats = newChats;
         notifyDataSetChanged();

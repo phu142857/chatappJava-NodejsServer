@@ -114,7 +114,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
                 e.printStackTrace();
                 Toast.makeText(this, "Error loading chat data", Toast.LENGTH_SHORT).show();
                 finish();
-                return;
             }
         }
     }
@@ -199,6 +198,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         fetchJoinRequestCount();
     }
     
+    @SuppressLint("SetTextI18n")
     private void updatePermissionMessage(boolean isCreator) {
         // Find the description text view for privacy settings
         TextView tvPrivacyDescription = findViewById(R.id.tv_privacy_description);
@@ -240,7 +240,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 try {
-                    if (response.isSuccessful() && response.body() != null) {
+                    if (response.isSuccessful()) {
                         String body = response.body().string();
                         JSONObject json = new JSONObject(body);
                         int count = json.optJSONObject("data") != null ? json.optJSONObject("data").optInt("count", 0) : 0;
@@ -376,7 +376,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         }
         apiClient.leaveGroup(token, currentChat.getId(), new Callback() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         Toast.makeText(GroupSettingsActivity.this, "Left group", Toast.LENGTH_SHORT).show();
@@ -411,7 +411,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         }
         apiClient.deleteChat(token, currentChat.getId(), new Callback() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         Toast.makeText(GroupSettingsActivity.this, "Group deleted", Toast.LENGTH_SHORT).show();
@@ -449,7 +449,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
             
             apiClient.updateGroupSettings(token, currentChat.getId(), settingsData, new Callback() {
                 @Override
-                public void onResponse(Call call, Response response) throws IOException {
+                public void onResponse(Call call, Response response) {
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
                             Toast.makeText(GroupSettingsActivity.this, "Group settings updated successfully", Toast.LENGTH_SHORT).show();
@@ -532,7 +532,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         Toast.makeText(this, "Uploading avatar...", Toast.LENGTH_SHORT).show();
         apiClient.uploadGroupAvatar(token, currentChat.getId(), imageFile, new Callback() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         Toast.makeText(GroupSettingsActivity.this, "Avatar updated", Toast.LENGTH_SHORT).show();

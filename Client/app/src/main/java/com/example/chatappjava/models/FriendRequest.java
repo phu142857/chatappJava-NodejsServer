@@ -1,5 +1,7 @@
 package com.example.chatappjava.models;
 
+import androidx.annotation.NonNull;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -84,17 +86,8 @@ public class FriendRequest {
     public String getSenderId() {
         return senderId;
     }
-
-    public void setSenderId(String senderId) {
-        this.senderId = senderId;
-    }
-
     public String getReceiverId() {
         return receiverId;
-    }
-
-    public void setReceiverId(String receiverId) {
-        this.receiverId = receiverId;
     }
 
     public String getStatus() {
@@ -105,50 +98,18 @@ public class FriendRequest {
         this.status = status;
     }
 
-    public long getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(long createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public long getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(long updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
     public User getSender() {
         return sender;
     }
-
-    public void setSender(User sender) {
-        this.sender = sender;
-    }
-
     public User getReceiver() {
         return receiver;
-    }
-
-    public void setReceiver(User receiver) {
-        this.receiver = receiver;
     }
 
     public boolean isPending() {
         return "pending".equals(status);
     }
 
-    public boolean isAccepted() {
-        return "accepted".equals(status);
-    }
-
-    public boolean isRejected() {
-        return "rejected".equals(status);
-    }
-
+    @NonNull
     @Override
     public String toString() {
         return "FriendRequest{" +

@@ -14,15 +14,7 @@ public class CallParticipant {
     
     // Constructors
     public CallParticipant() {}
-    
-    public CallParticipant(String userId, String username, String avatar, boolean isCaller) {
-        this.userId = userId;
-        this.username = username;
-        this.avatar = avatar;
-        this.isCaller = isCaller;
-        this.status = "invited";
-    }
-    
+
     // Create CallParticipant from JSON
     public static CallParticipant fromJson(JSONObject json) throws JSONException {
         CallParticipant participant = new CallParticipant();
@@ -78,29 +70,6 @@ public class CallParticipant {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     
-    public long getJoinedAt() { return joinedAt; }
-    public void setJoinedAt(long joinedAt) { this.joinedAt = joinedAt; }
-    
-    public long getLeftAt() { return leftAt; }
-    public void setLeftAt(long leftAt) { this.leftAt = leftAt; }
-    
     public boolean isCaller() { return isCaller; }
-    public void setCaller(boolean caller) { isCaller = caller; }
-    
-    // Helper methods
-    public boolean isConnected() {
-        return "connected".equals(status);
-    }
-    
-    public boolean isDeclined() {
-        return "declined".equals(status);
-    }
-    
-    public boolean isMissed() {
-        return "missed".equals(status);
-    }
-    
-    public boolean hasLeft() {
-        return "left".equals(status);
-    }
+
 }

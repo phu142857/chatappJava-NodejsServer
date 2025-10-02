@@ -23,8 +23,6 @@ public class ApiClient {
 
     private static final String LOGIN_ENDPOINT = "/api/auth/login";
     private static final String REGISTER_ENDPOINT = "/api/auth/register";
-    private static final String REFRESH_TOKEN_ENDPOINT = "/api/auth/refresh";
-    private static final String SEARCH_USERS_ENDPOINT = "/api/users/search";
     private static final String CREATE_CHAT_ENDPOINT = "/api/chats/private";
     private static final String CREATE_GROUP_CHAT_ENDPOINT = "/api/chats/group";
     private static final String GET_CHATS_ENDPOINT = "/api/chats";
@@ -41,7 +39,7 @@ public class ApiClient {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private OkHttpClient client;
+    private final OkHttpClient client;
 
     public ApiClient() {
         client = new OkHttpClient.Builder()
@@ -82,27 +80,6 @@ public class ApiClient {
         client.newCall(request).enqueue(callback);
     }
 
-    /**
-     * Refreshes the authentication token.
-     */
-    public void refreshToken(String refreshToken, Callback callback) {
-        try {
-            JSONObject tokenData = new JSONObject();
-            tokenData.put("refreshToken", refreshToken);
-
-            RequestBody body = RequestBody.create(tokenData.toString(), JSON);
-            Request request = new Request.Builder()
-                    .url(getBaseUrl() + REFRESH_TOKEN_ENDPOINT)
-                    .post(body)
-                    .addHeader("Content-Type", "application/json")
-                    .build();
-
-            client.newCall(request).enqueue(callback);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     /**
      * Creates a request builder with an Authorization header.
@@ -327,7 +304,7 @@ public class ApiClient {
             callback.onFailure(null, new IOException("Failed to prepare remove reaction: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get messages from chat
      */

@@ -1,5 +1,6 @@
 package com.example.chatappjava.adapters;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
@@ -17,11 +19,11 @@ import java.util.List;
 
 public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.GroupViewHolder> {
     
-    private Context context;
+    private final Context context;
     private List<Chat> groups;
     private OnGroupClickListener listener;
     private boolean discoverMode = false; // when true, show join/request buttons
-    private AvatarManager avatarManager;
+    private final AvatarManager avatarManager;
     
     public interface OnGroupClickListener {
         void onGroupClick(Chat group);
@@ -36,8 +38,10 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     public void setOnGroupClickListener(OnGroupClickListener listener) {
         this.listener = listener;
     }
+    @SuppressLint("NotifyDataSetChanged")
     public void setDiscoverMode(boolean discover) { this.discoverMode = discover; notifyDataSetChanged(); }
     
+    @SuppressLint("NotifyDataSetChanged")
     public void updateGroups(List<Chat> newGroups) {
         this.groups = newGroups;
         notifyDataSetChanged();
@@ -62,11 +66,11 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     }
     
     class GroupViewHolder extends RecyclerView.ViewHolder {
-        private ImageView ivGroupAvatar;
-        private TextView tvGroupName;
-        private TextView tvMemberCount;
-        private TextView tvLastMessage;
-        private android.widget.Button btnAction;
+        private final ImageView ivGroupAvatar;
+        private final TextView tvGroupName;
+        private final TextView tvMemberCount;
+        private final TextView tvLastMessage;
+        private final android.widget.Button btnAction;
         
         public GroupViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -78,7 +82,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
             
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    int position = getAdapterPosition();
+                    int position = getBindingAdapterPosition();
                     if (position != RecyclerView.NO_POSITION) {
                         listener.onGroupClick(groups.get(position));
                     }
@@ -86,6 +90,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
             });
         }
         
+        @SuppressLint("SetTextI18n")
         public void bind(Chat group) {
             if (tvGroupName != null) {
                 tvGroupName.setText(group.getName());
@@ -148,17 +153,17 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 if (joinStatus != null && joinStatus.equals("pending")) {
                     btnAction.setText("Cancel Request");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(context.getResources().getColor(android.R.color.holo_red_light));
+                    btnAction.setBackgroundColor(ContextCompat.getColor(context, android.R.color.holo_red_light));
                     android.util.Log.d("GroupSearchAdapter", "Set button to Cancel Request (red)");
                 } else if (group.isPublicGroup()) {
                     btnAction.setText("Join");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(context.getResources().getColor(R.color.primary_color));
+                    btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
                     android.util.Log.d("GroupSearchAdapter", "Set button to Join (blue)");
                 } else {
                     btnAction.setText("Request");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(context.getResources().getColor(R.color.primary_color));
+                    btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
                     android.util.Log.d("GroupSearchAdapter", "Set button to Request (blue)");
                 }
 

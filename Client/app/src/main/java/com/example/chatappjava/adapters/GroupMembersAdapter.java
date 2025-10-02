@@ -22,8 +22,8 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
         void onMemberClick(User member);
     }
     
-    private List<User> members;
-    private OnMemberClickListener listener;
+    private final List<User> members;
+    private final OnMemberClickListener listener;
     
     public GroupMembersAdapter(List<User> members, OnMemberClickListener listener) {
         this.members = members;
@@ -49,8 +49,8 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
     }
     
     class MemberViewHolder extends RecyclerView.ViewHolder {
-        private CircleImageView ivAvatar;
-        private TextView tvName, tvStatus;
+        private final CircleImageView ivAvatar;
+        private final TextView tvName, tvStatus;
         
         public MemberViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -59,7 +59,7 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
             tvStatus = itemView.findViewById(R.id.tv_member_status);
             
             itemView.setOnClickListener(v -> {
-                int position = getAdapterPosition();
+                int position = getBindingAdapterPosition();
                 if (position != RecyclerView.NO_POSITION && listener != null) {
                     listener.onMemberClick(members.get(position));
                 }
