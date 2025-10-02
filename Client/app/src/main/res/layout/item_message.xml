@@ -37,7 +37,7 @@
                     android:id="@+id/tv_sent_reply_author"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/gray"
+                    android:textColor="@color/text_secondary"
                     android:textStyle="bold"
                     android:textSize="12sp"
                     tools:text="Alice"/>
@@ -47,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:maxLines="2"
                     android:ellipsize="end"
-                    android:textColor="@color/white"
+                    android:textColor="@color/chat_text_sent"
                     android:textSize="12sp"
                     tools:text="Previous message content preview"/>
             </LinearLayout>
@@ -64,7 +64,7 @@
                     android:background="@drawable/bg_message_sent"
                     android:padding="12dp"
                     android:text="This is a sent message"
-                    android:textColor="@color/white"
+                    android:textColor="@color/chat_text_sent"
                     android:textSize="14sp"
                     tools:text="This is a sent message" />
 
@@ -80,7 +80,7 @@
                     android:paddingTop="2dp"
                     android:paddingBottom="2dp"
                     android:textSize="10sp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/chat_text_sent"
                     android:background="@drawable/bg_message_reply_sent"
                     android:visibility="gone"
                     tools:text="👍 3" />
@@ -147,7 +147,7 @@
             android:layout_marginEnd="4dp"
             android:src="@drawable/ic_profile_placeholder"
             app:civ_border_width="1dp"
-            app:civ_border_color="#E0E0E0" />
+            app:civ_border_color="@color/border_light" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -169,7 +169,7 @@
                     android:id="@+id/tv_received_reply_author"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/gray"
+                    android:textColor="@color/text_secondary"
                     android:textStyle="bold"
                     android:textSize="12sp"
                     tools:text="Bob"/>
@@ -179,7 +179,7 @@
                     android:layout_height="wrap_content"
                     android:maxLines="2"
                     android:ellipsize="end"
-                    android:textColor="@color/black"
+                    android:textColor="@color/chat_text_received"
                     android:textSize="12sp"
                     tools:text="Previous message content preview"/>
             </LinearLayout>
@@ -205,7 +205,7 @@
                     android:background="@drawable/bg_message_received"
                     android:padding="12dp"
                     android:text="This is a received message"
-                    android:textColor="@color/black"
+                    android:textColor="@color/chat_text_received"
                     android:textSize="14sp"
                     tools:text="This is a received message" />
 
@@ -221,7 +221,7 @@
                     android:paddingTop="2dp"
                     android:paddingBottom="2dp"
                     android:textSize="10sp"
-                    android:textColor="@color/black"
+                    android:textColor="@color/chat_text_received"
                     android:background="@drawable/bg_message_reply_received"
                     android:visibility="gone"
                     tools:text="❤️ 2" />

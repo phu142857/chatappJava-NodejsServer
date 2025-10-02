@@ -87,49 +87,59 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
         }
         
         public void bind(Chat group) {
-            tvGroupName.setText(group.getName());
+            if (tvGroupName != null) {
+                tvGroupName.setText(group.getName());
+            }
             
             // In Discover mode, hide member count
             if (discoverMode) {
-                tvMemberCount.setVisibility(View.GONE);
+                if (tvMemberCount != null) {
+                    tvMemberCount.setVisibility(View.GONE);
+                }
             } else {
-                tvMemberCount.setVisibility(View.VISIBLE);
-                tvMemberCount.setText(group.getParticipantCount() + " members");
+                if (tvMemberCount != null) {
+                    tvMemberCount.setVisibility(View.VISIBLE);
+                    tvMemberCount.setText(group.getParticipantCount() + " members");
+                }
             }
             
             // Set last message preview
-            if (group.getLastMessage() != null && !group.getLastMessage().isEmpty()) {
-                tvLastMessage.setText(group.getLastMessage());
-            } else {
-                tvLastMessage.setText("No messages yet");
+            if (tvLastMessage != null) {
+                if (group.getLastMessage() != null && !group.getLastMessage().isEmpty()) {
+                    tvLastMessage.setText(group.getLastMessage());
+                } else {
+                    tvLastMessage.setText("No messages yet");
+                }
             }
             
             // Load group avatar (ensure full URL if server returns relative path)
-            String avatarUrl = group.getAvatar();
-            if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                if (!(avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://"))) {
-                    String path = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
-                    avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + path;
-                }
-                try {
-                    avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_avatar);
-                } catch (Exception ignored) {}
-                // Also attempt Picasso as fallback to maximize success rate
-                try {
-                    Picasso.get()
-                            .load(avatarUrl)
-                            .placeholder(R.drawable.ic_group_avatar)
-                            .error(R.drawable.ic_group_avatar)
-                            .into(ivGroupAvatar);
-                } catch (Exception ignored) {
+            if (ivGroupAvatar != null) {
+                String avatarUrl = group.getAvatar();
+                if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                    if (!(avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://"))) {
+                        String path = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
+                        avatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + path;
+                    }
+                    try {
+                        avatarManager.loadAvatar(avatarUrl, ivGroupAvatar, R.drawable.ic_group_avatar);
+                    } catch (Exception ignored) {}
+                    // Also attempt Picasso as fallback to maximize success rate
+                    try {
+                        Picasso.get()
+                                .load(avatarUrl)
+                                .placeholder(R.drawable.ic_group_avatar)
+                                .error(R.drawable.ic_group_avatar)
+                                .into(ivGroupAvatar);
+                    } catch (Exception ignored) {
+                        ivGroupAvatar.setImageResource(R.drawable.ic_group_avatar);
+                    }
+                } else {
                     ivGroupAvatar.setImageResource(R.drawable.ic_group_avatar);
                 }
-            } else {
-                ivGroupAvatar.setImageResource(R.drawable.ic_group_avatar);
             }
 
             // Action button visibility and text for Discover
-            if (discoverMode) {
+            if (discoverMode && btnAction != null) {
                 btnAction.setVisibility(View.VISIBLE);
                 // Determine pending status from Chat model field
                 String joinStatus = group.getJoinRequestStatus();
@@ -157,7 +167,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                         listener.onGroupClick(group); // delegate action; activity decides join/request/cancel
                     }
                 });
-            } else {
+            } else if (btnAction != null) {
                 btnAction.setVisibility(View.GONE);
             }
         }

@@ -51,7 +51,6 @@ public class ProfileActivity extends AppCompatActivity {
     private CircleImageView civAvatar;
     private TextView tvChangeAvatar;
     private EditText etUsername, etFirstName, etLastName, etPhoneNumber, etBio;
-    private Button btnSaveProfile;
     private TextView tvSave;
     private ProgressBar progressBar;
     private ImageView ivBack;
@@ -86,7 +85,6 @@ public class ProfileActivity extends AppCompatActivity {
         etLastName = findViewById(R.id.et_last_name);
         etPhoneNumber = findViewById(R.id.et_phone_number);
         etBio = findViewById(R.id.et_bio);
-        btnSaveProfile = findViewById(R.id.btn_save_profile);
         tvSave = findViewById(R.id.tv_save);
         progressBar = findViewById(R.id.progress_bar);
         ivBack = findViewById(R.id.iv_back);
@@ -133,7 +131,6 @@ public class ProfileActivity extends AppCompatActivity {
         });
 
         tvSave.setOnClickListener(v -> saveProfile());
-        btnSaveProfile.setOnClickListener(v -> saveProfile());
 
         tvChangeAvatar.setOnClickListener(v -> {
             showImagePickerOptions();
@@ -242,10 +239,8 @@ public class ProfileActivity extends AppCompatActivity {
     private void updateSaveButtonVisibility() {
         if (hasChanges) {
             tvSave.setVisibility(View.VISIBLE);
-            btnSaveProfile.setVisibility(View.VISIBLE);
         } else {
             tvSave.setVisibility(View.GONE);
-            btnSaveProfile.setVisibility(View.GONE);
         }
     }
 
@@ -726,14 +721,5 @@ public class ProfileActivity extends AppCompatActivity {
         // Check if it's a valid phone number format
         // Allow: +1234567890, 1234567890, 0868788898, etc.
         return cleaned.matches("^[+]?[0-9]\\d{0,15}$");
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (hasChanges) {
-            showUnsavedChangesDialog();
-        } else {
-            super.onBackPressed();
-        }
     }
 }

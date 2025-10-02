@@ -61,6 +61,9 @@ import okhttp3.Response;
 
 public abstract class BaseChatActivity extends AppCompatActivity implements MessageAdapter.OnMessageClickListener {
 
+    // Request codes
+    private static final int CALL_REQUEST_CODE = 1001;
+
     // Common UI elements
     protected ImageView ivBack;
     protected CircleImageView ivProfile;
@@ -190,7 +193,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 intent.putExtra("callType", callType);
                                 intent.putExtra("isIncomingCall", false);
                                 
-                                startActivity(intent);
+                                startActivityForResult(intent, CALL_REQUEST_CODE);
                             } else {
                                 String errorMsg = jsonResponse.optString("message", "Failed to initiate call");
                                 Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
@@ -1537,4 +1540,5 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         });
     }
+    protected abstract void resetCallButtonState();
 }

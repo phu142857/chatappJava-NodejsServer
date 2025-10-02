@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.Animation;
@@ -48,12 +49,11 @@ public class RingingActivity extends AppCompatActivity {
     private TextView tvCallDuration;
     private TextView tvRingingStatus;
     private CircleImageView ivCallerAvatar;
-    // New slider UI for accept/decline
-    private android.view.View sliderContainer;
-    private android.widget.ImageView knob;
-    private android.widget.ImageView iconAccept;
-    private android.widget.ImageView iconDecline;
-    private TextView tvSliderHint;
+    // Swipe UI components
+    private FrameLayout swipeThumb;
+    private View acceptZone;
+    private View declineZone;
+    private FrameLayout swipeTrack;
     private LinearLayout outgoingCallInfo;
     private FrameLayout ringingAnimationContainer;
     private View ripple1;
@@ -71,6 +71,13 @@ public class RingingActivity extends AppCompatActivity {
     // Animation
     private AnimatorSet rippleAnimatorSet;
     private Animation avatarPulseAnimation;
+    
+    // Swipe gesture variables
+    private float initialX;
+    private float initialThumbX;
+    private boolean isDragging = false;
+    private int trackWidth;
+    private int thumbWidth;
     
     // Audio
     private MediaPlayer ringtonePlayer;
@@ -101,7 +108,7 @@ public class RingingActivity extends AppCompatActivity {
         
         // Initialize UI
         initializeViews();
-        setupSliderListener();
+        setupSwipeGesture();
         
         // Setup call based on type
         if (isIncomingCall) {
@@ -143,12 +150,11 @@ public class RingingActivity extends AppCompatActivity {
         tvCallDuration = findViewById(R.id.tv_call_duration);
         tvRingingStatus = findViewById(R.id.tv_ringing_status);
         ivCallerAvatar = findViewById(R.id.iv_caller_avatar);
-        // Slider views
-        sliderContainer = findViewById(R.id.slider_container);
-        knob = findViewById(R.id.knob);
-        iconAccept = findViewById(R.id.icon_accept);
-        iconDecline = findViewById(R.id.icon_decline);
-        tvSliderHint = findViewById(R.id.tv_slider_hint);
+        // Swipe components
+        swipeThumb = findViewById(R.id.swipe_thumb);
+        acceptZone = findViewById(R.id.accept_zone);
+        declineZone = findViewById(R.id.decline_zone);
+        swipeTrack = findViewById(R.id.swipe_track);
         outgoingCallInfo = findViewById(R.id.outgoing_call_info);
         ringingAnimationContainer = findViewById(R.id.ringing_animation_container);
         ripple1 = findViewById(R.id.ripple_1);
@@ -178,53 +184,101 @@ public class RingingActivity extends AppCompatActivity {
         }
     }
     
-    private void setupSliderListener() {
-        if (sliderContainer == null || knob == null) return;
-        knob.setOnTouchListener(new android.view.View.OnTouchListener() {
-            float dX;
-            float startCenterX;
+    private void setupSwipeGesture() {
+        if (swipeThumb == null || swipeTrack == null) return;
+        
+        // Get dimensions
+        swipeTrack.post(() -> {
+            trackWidth = swipeTrack.getWidth();
+            thumbWidth = swipeThumb.getWidth();
+        });
+        
+        // Set up touch listener for swipe gesture
+        swipeThumb.setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public boolean onTouch(android.view.View v, android.view.MotionEvent event) {
+            public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
-                    case android.view.MotionEvent.ACTION_DOWN: {
-                        dX = v.getX() - event.getRawX();
-                        startCenterX = (sliderContainer.getWidth() - v.getWidth()) / 2f;
-                        tvSliderHint.setVisibility(View.GONE);
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = event.getRawX();
+                        initialThumbX = swipeThumb.getX();
+                        isDragging = true;
                         return true;
-                    }
-                    case android.view.MotionEvent.ACTION_MOVE: {
-                        float newX = event.getRawX() + dX;
-                        // Constrain within track
-                        float minX = 4f;
-                        float maxX = sliderContainer.getWidth() - v.getWidth() - 4f;
-                        if (newX < minX) newX = minX;
-                        if (newX > maxX) newX = maxX;
-                        v.setX(newX);
-                        return true;
-                    }
-                    case android.view.MotionEvent.ACTION_UP: {
-                        float center = (sliderContainer.getWidth() - v.getWidth()) / 2f;
-                        float threshold = sliderContainer.getWidth() * 0.22f; // ~22% offset
-                        if (v.getX() > center + threshold) {
-                            acceptCall();
-                        } else if (v.getX() < center - threshold) {
-                            declineCall();
-                        } else {
-                            // Animate back to center
-                            v.animate().x(center).setDuration(150).start();
-                            tvSliderHint.setVisibility(View.VISIBLE);
+                        
+                    case MotionEvent.ACTION_MOVE:
+                        if (isDragging) {
+                            float deltaX = event.getRawX() - initialX;
+                            float newX = initialThumbX + deltaX;
+                            
+                            // Constrain movement within track bounds
+                            float minX = 0;
+                            float maxX = trackWidth - thumbWidth;
+                            newX = Math.max(minX, Math.min(maxX, newX));
+                            
+                            swipeThumb.setX(newX);
+                            
+                            // Update zone visibility based on position
+                            updateZoneVisibility(newX);
                         }
                         return true;
-                    }
+                        
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        if (isDragging) {
+                            handleSwipeRelease();
+                            isDragging = false;
+                        }
+                        return true;
                 }
                 return false;
             }
         });
     }
     
+    private void updateZoneVisibility(float thumbX) {
+        float centerX = trackWidth / 2f;
+        float thumbCenterX = thumbX + thumbWidth / 2f;
+        
+        if (thumbCenterX < centerX) {
+            // In decline zone
+            declineZone.setAlpha(0.6f);
+            acceptZone.setAlpha(0.1f);
+        } else {
+            // In accept zone
+            acceptZone.setAlpha(0.6f);
+            declineZone.setAlpha(0.1f);
+        }
+    }
+    
+    private void handleSwipeRelease() {
+        float thumbCenterX = swipeThumb.getX() + thumbWidth / 2f;
+        float centerX = trackWidth / 2f;
+        
+        if (thumbCenterX < centerX) {
+            // Swiped to decline
+            declineCall();
+        } else {
+            // Swiped to accept
+            acceptCall();
+        }
+        
+        // Reset thumb position
+        resetThumbPosition();
+    }
+    
+    private void resetThumbPosition() {
+        swipeThumb.animate()
+            .x(trackWidth / 2f - thumbWidth / 2f)
+            .setDuration(200)
+            .start();
+        
+        // Reset zone visibility
+        acceptZone.setAlpha(0.3f);
+        declineZone.setAlpha(0.3f);
+    }
+    
     private void setupIncomingCall() {
         tvCallerStatus.setText("is calling you...");
-        if (sliderContainer != null) sliderContainer.setVisibility(View.VISIBLE);
+        // Swipe gesture is always visible for incoming calls
         outgoingCallInfo.setVisibility(View.GONE);
         
         // Start ringing animations
@@ -243,7 +297,6 @@ public class RingingActivity extends AppCompatActivity {
     
     private void setupOutgoingCall() {
         tvCallerStatus.setText("Calling...");
-        if (sliderContainer != null) sliderContainer.setVisibility(View.VISIBLE);
         outgoingCallInfo.setVisibility(View.VISIBLE);
         tvRingingStatus.setText("Ringing");
         
@@ -283,6 +336,13 @@ public class RingingActivity extends AppCompatActivity {
                         if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
                             Log.d(TAG, "Call declined by other party");
                             Toast.makeText(RingingActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
+                            
+                            // Set result to indicate call was declined
+                            Intent resultIntent = new Intent();
+                            resultIntent.putExtra("callDeclined", true);
+                            resultIntent.putExtra("callId", callId);
+                            setResult(RESULT_OK, resultIntent);
+                            
                             finish();
                         }
                     });
@@ -294,6 +354,13 @@ public class RingingActivity extends AppCompatActivity {
                         if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
                             Log.d(TAG, "Call ended by other party");
                             Toast.makeText(RingingActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
+                            
+                            // Set result to indicate call was ended
+                            Intent resultIntent = new Intent();
+                            resultIntent.putExtra("callEnded", true);
+                            resultIntent.putExtra("callId", callId);
+                            setResult(RESULT_OK, resultIntent);
+                            
                             finish();
                         }
                     });

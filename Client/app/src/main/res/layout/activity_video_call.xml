@@ -69,7 +69,7 @@
         android:id="@+id/local_video_card"
         android:layout_width="120dp"
         android:layout_height="160dp"
-        app:cardCornerRadius="12dp"
+        app:cardCornerRadius="20dp"
         app:cardElevation="8dp"
         android:layout_marginTop="60dp"
         android:layout_marginEnd="20dp"
@@ -171,9 +171,10 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginEnd="32dp"
-            android:background="@drawable/bg_call_button"
+            android:background="@drawable/button_call_action"
             android:src="@drawable/ic_mic"
             android:scaleType="centerInside"
+            android:padding="12dp"
             app:tint="@android:color/white" />
 
         <!-- Camera toggle button -->
@@ -182,9 +183,10 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginEnd="32dp"
-            android:background="@drawable/bg_call_button"
+            android:background="@drawable/button_call_action"
             android:src="@drawable/ic_video_call"
             android:scaleType="centerInside"
+            android:padding="12dp"
             app:tint="@android:color/white" />
 
         <!-- Switch camera button -->
@@ -193,20 +195,22 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginEnd="32dp"
-            android:background="@drawable/bg_call_button"
+            android:background="@drawable/button_call_action"
             android:src="@drawable/ic_switch_camera"
             android:scaleType="centerInside"
+            android:padding="12dp"
             app:tint="@android:color/white" />
 
         <!-- End call button -->
         <ImageButton
             android:id="@+id/btn_end_call"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:background="@drawable/bg_end_call_button"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/button_call_end"
             android:src="@drawable/ic_end_call"
-            android:tint="@android:color/white"
-            android:scaleType="centerInside" />
+            android:padding="16dp"
+            android:scaleType="centerInside"
+            app:tint="@android:color/white" />
 
     </LinearLayout>
 
