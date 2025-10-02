@@ -134,12 +134,9 @@ public class GroupChatActivity extends BaseChatActivity {
                 ivProfile.setImageResource(R.drawable.ic_group_avatar);
             }
             
-            // Add click listener to group avatar for changing avatar
+            // Disable changing avatar from group chat avatar click
             if (ivProfile != null) {
-                ivProfile.setOnClickListener(v -> {
-                    Toast.makeText(this, "Tap to change group avatar", Toast.LENGTH_SHORT).show();
-                    showAvatarOptions();
-                });
+                ivProfile.setOnClickListener(null);
             }
         } else {
             android.util.Log.d("GroupAvatar", "Current chat is null");
