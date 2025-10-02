@@ -4,6 +4,9 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Switch;
@@ -11,6 +14,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
@@ -21,6 +27,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -38,6 +47,9 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private SharedPreferencesManager sharedPrefsManager;
     private ApiClient apiClient;
     private boolean isUpdatingSettings = false;
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private ActivityResultLauncher<String> galleryLauncher;
+    
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,8 +58,39 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         initViews();
         initData();
+        initPickers();
         setupClickListeners();
         loadGroupData();
+    }
+
+    private void initPickers() {
+        cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                Bundle extras = result.getData().getExtras();
+                if (extras != null) {
+                    Bitmap imageBitmap = (Bitmap) extras.get("data");
+                    if (imageBitmap != null) {
+                        File imageFile = saveBitmapToCache(imageBitmap);
+                        if (imageFile != null) {
+                            uploadGroupAvatar(imageFile);
+                        } else {
+                            Toast.makeText(this, "Failed to save image", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            }
+        });
+
+        galleryLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) {
+                File f = copyUriToCache(uri);
+                if (f != null) {
+                    uploadGroupAvatar(f);
+                } else {
+                    Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
     
     private void initViews() {
@@ -193,9 +236,35 @@ public class GroupSettingsActivity extends AppCompatActivity {
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) return;
         
-        // TODO: Implement fetch join request count
-        // For now, hide the badge
-        tvRequestCount.setVisibility(View.GONE);
+        apiClient.getJoinRequestsCount(token, currentChat.getId(), new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        String body = response.body().string();
+                        JSONObject json = new JSONObject(body);
+                        int count = json.optJSONObject("data") != null ? json.optJSONObject("data").optInt("count", 0) : 0;
+                        runOnUiThread(() -> {
+                            if (count > 0) {
+                                tvRequestCount.setVisibility(View.VISIBLE);
+                                tvRequestCount.setText(String.valueOf(count));
+                            } else {
+                                tvRequestCount.setVisibility(View.GONE);
+                            }
+                        });
+                    } else {
+                        runOnUiThread(() -> tvRequestCount.setVisibility(View.GONE));
+                    }
+                } catch (Exception e) {
+                    runOnUiThread(() -> tvRequestCount.setVisibility(View.GONE));
+                }
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> tvRequestCount.setVisibility(View.GONE));
+            }
+        });
     }
     
     private void showGroupInfo() {
@@ -231,12 +300,19 @@ public class GroupSettingsActivity extends AppCompatActivity {
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
                         case 0:
-                            // TODO: Implement camera capture
-                            Toast.makeText(this, "Camera feature coming soon", Toast.LENGTH_SHORT).show();
+                            try {
+                                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                                cameraLauncher.launch(takePictureIntent);
+                            } catch (Exception e) {
+                                Toast.makeText(this, "Camera not available", Toast.LENGTH_SHORT).show();
+                            }
                             break;
                         case 1:
-                            // TODO: Implement gallery selection
-                            Toast.makeText(this, "Gallery feature coming soon", Toast.LENGTH_SHORT).show();
+                            try {
+                                galleryLauncher.launch("image/*");
+                            } catch (Exception e) {
+                                Toast.makeText(this, "Gallery not available", Toast.LENGTH_SHORT).show();
+                            }
                             break;
                         case 2:
                             dialog.dismiss();
@@ -293,8 +369,29 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void leaveGroup() {
-        Toast.makeText(this, "Leave group feature coming soon", Toast.LENGTH_SHORT).show();
-        // TODO: Implement leave group functionality
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.leaveGroup(token, currentChat.getId(), new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(GroupSettingsActivity.this, "Left group", Toast.LENGTH_SHORT).show();
+                        finish();
+                    } else {
+                        Toast.makeText(GroupSettingsActivity.this, "Failed to leave group", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        });
     }
     
     private void confirmDeleteGroup() {
@@ -307,8 +404,29 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void deleteGroup() {
-        Toast.makeText(this, "Delete group feature coming soon", Toast.LENGTH_SHORT).show();
-        // TODO: Implement delete group functionality
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.deleteChat(token, currentChat.getId(), new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(GroupSettingsActivity.this, "Group deleted", Toast.LENGTH_SHORT).show();
+                        finish();
+                    } else {
+                        Toast.makeText(GroupSettingsActivity.this, "Failed to delete group", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        });
     }
     
     private void updateGroupSettings(boolean isPublic) {
@@ -366,5 +484,68 @@ public class GroupSettingsActivity extends AppCompatActivity {
             // Reset flag after update
             isUpdatingSettings = false;
         }
+    }
+
+    @Nullable
+    private File copyUriToCache(Uri uri) {
+        try {
+            InputStream in = getContentResolver().openInputStream(uri);
+            if (in == null) return null;
+            File outFile = new File(getCacheDir(), "group_avatar_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream out = new FileOutputStream(outFile);
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            in.close();
+            out.flush();
+            out.close();
+            return outFile;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Nullable
+    private File saveBitmapToCache(Bitmap bitmap) {
+        try {
+            File outFile = new File(getCacheDir(), "camera_avatar_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream out = new FileOutputStream(outFile);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            out.flush();
+            out.close();
+            return outFile;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void uploadGroupAvatar(File imageFile) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, "Uploading avatar...", Toast.LENGTH_SHORT).show();
+        apiClient.uploadGroupAvatar(token, currentChat.getId(), imageFile, new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(GroupSettingsActivity.this, "Avatar updated", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(GroupSettingsActivity.this, "Failed to upload avatar", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        });
     }
 }
