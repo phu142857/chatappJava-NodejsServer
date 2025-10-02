@@ -83,19 +83,19 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Settings"
+                    android:text="Group Settings"
                     android:textColor="@android:color/black"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tv_user_name"
+                    android:id="@+id/tv_group_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@android:color/darker_gray"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
-                    tools:text="John Doe" />
+                    tools:text="My Awesome Group" />
 
             </LinearLayout>
 
@@ -121,7 +121,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Account Settings Section -->
+            <!-- Group Information Section -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -139,15 +139,15 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Account Settings"
+                        android:text="Group Information"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@android:color/black"
                         android:layout_marginBottom="16dp" />
 
-                    <!-- Profile -->
+                    <!-- View Group Info -->
                     <LinearLayout
-                        android:id="@+id/option_profile"
+                        android:id="@+id/option_view_group_info"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
@@ -159,7 +159,7 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_myplaces"
+                            android:src="@android:drawable/ic_menu_info_details"
                             android:layout_marginEnd="12dp"
                             app:tint="#0E394B" />
 
@@ -167,7 +167,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Profile"
+                            android:text="View Group Info"
                             android:textSize="16sp"
                             android:textColor="#0E394B" />
 
@@ -179,49 +179,187 @@
 
                     </LinearLayout>
 
-                    <!-- Change Password -->
+                    <!-- Change Avatar -->
                     <LinearLayout
-                        android:id="@+id/option_change_password"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:layout_marginBottom="8dp">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_manage"
-                            android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Change Password"
-                            android:textSize="16sp"
-                            android:textColor="#0E394B" />
-
-                        <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
-
-                    </LinearLayout>
-
-                    <!-- Logout -->
-                    <LinearLayout
-                        android:id="@+id/option_logout"
+                        android:id="@+id/option_change_avatar"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
                         android:background="?android:attr/selectableItemBackground">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_gallery"
+                            android:layout_marginEnd="12dp"
+                            app:tint="#0E394B" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Change Avatar"
+                            android:textSize="16sp"
+                            android:textColor="#0E394B" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@android:drawable/ic_menu_more"
+                            app:tint="#0E394B" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Privacy Settings Section -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                android:backgroundTint="@android:color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Privacy Settings"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/black"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Public/Private Toggle -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Public Group"
+                                android:textSize="16sp"
+                                android:textColor="@android:color/black"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Anyone can join this group"
+                                android:textSize="12sp"
+                                android:textColor="@android:color/darker_gray"
+                                android:layout_marginTop="4dp" />
+
+                        </LinearLayout>
+
+                        <Switch
+                            android:id="@+id/switch_public"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="false" />
+
+                    </LinearLayout>
+
+                    <!-- Description -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="When enabled, anyone can find and join this group. When disabled, only invited members can join."
+                        android:textSize="12sp"
+                        android:textColor="@android:color/darker_gray" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Member Management Section -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                android:backgroundTint="@android:color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Member Management"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/black"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Add Members -->
+                    <LinearLayout
+                        android:id="@+id/option_add_members"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_add"
+                            android:layout_marginEnd="12dp"
+                            app:tint="#0E394B" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Add Members"
+                            android:textSize="16sp"
+                            android:textColor="#0E394B" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@android:drawable/ic_menu_more"
+                            app:tint="#0E394B" />
+
+                    </LinearLayout>
+
+                    <!-- Remove Members -->
+                    <LinearLayout
+                        android:id="@+id/option_remove_members"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:layout_marginBottom="8dp">
 
                         <ImageView
                             android:layout_width="24dp"
@@ -234,7 +372,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Logout"
+                            android:text="Remove Members"
                             android:textSize="16sp"
                             android:textColor="#E53935" />
 
@@ -246,11 +384,59 @@
 
                     </LinearLayout>
 
+                    <!-- Join Requests -->
+                    <LinearLayout
+                        android:id="@+id/option_join_requests"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:background="?android:attr/selectableItemBackground">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_agenda"
+                            android:layout_marginEnd="12dp"
+                            app:tint="#0E394B" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Join Requests"
+                            android:textSize="16sp"
+                            android:textColor="#0E394B" />
+
+                        <TextView
+                            android:id="@+id/tv_request_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:background="@drawable/badge_background"
+                            android:textColor="@android:color/white"
+                            android:textStyle="bold"
+                            android:text="0"
+                            android:visibility="gone"
+                            android:layout_marginEnd="8dp" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@android:drawable/ic_menu_more"
+                            app:tint="#0E394B" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Privacy &amp; Security Section -->
+            <!-- Danger Zone Section -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -268,15 +454,15 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Privacy &amp; Security"
+                        android:text="Danger Zone"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="#E53935"
                         android:layout_marginBottom="16dp" />
 
-                    <!-- Blocked Users -->
+                    <!-- Leave Group -->
                     <LinearLayout
-                        android:id="@+id/option_blocked_users"
+                        android:id="@+id/option_leave_group"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
@@ -290,27 +476,27 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_close_clear_cancel"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="#E53935" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Blocked Users"
+                            android:text="Leave Group"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="#E53935" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#E53935" />
 
                     </LinearLayout>
 
-                    <!-- Delete Account -->
+                    <!-- Delete Group -->
                     <LinearLayout
-                        android:id="@+id/option_delete_account"
+                        android:id="@+id/option_delete_group"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
@@ -329,7 +515,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Delete Account"
+                            android:text="Delete Group"
                             android:textSize="16sp"
                             android:textColor="#E53935" />
 
@@ -338,343 +524,6 @@
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
                             app:tint="#E53935" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Notifications Section -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Notifications"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/black"
-                        android:layout_marginBottom="16dp" />
-
-                    <!-- Push Notifications -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="8dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Push Notifications"
-                                android:textSize="16sp"
-                                android:textColor="@android:color/black"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Receive notifications for new messages"
-                                android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
-                                android:layout_marginTop="4dp" />
-
-                        </LinearLayout>
-
-                        <Switch
-                            android:id="@+id/switch_push_notifications"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:checked="true" />
-
-                    </LinearLayout>
-
-                    <!-- Sound -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="8dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Sound"
-                                android:textSize="16sp"
-                                android:textColor="@android:color/black"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Play sound for notifications"
-                                android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
-                                android:layout_marginTop="4dp" />
-
-                        </LinearLayout>
-
-                        <Switch
-                            android:id="@+id/switch_sound"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:checked="true" />
-
-                    </LinearLayout>
-
-                    <!-- Vibrate -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Vibrate"
-                                android:textSize="16sp"
-                                android:textColor="@android:color/black"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Vibrate for notifications"
-                                android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
-                                android:layout_marginTop="4dp" />
-
-                        </LinearLayout>
-
-                        <Switch
-                            android:id="@+id/switch_vibrate"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:checked="true" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Server Settings Section -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Server Settings"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/black"
-                        android:layout_marginBottom="16dp" />
-
-                    <!-- Server Configuration -->
-                    <LinearLayout
-                        android:id="@+id/option_server_config"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:layout_marginBottom="8dp">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_preferences"
-                            android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Server Configuration"
-                            android:textSize="16sp"
-                            android:textColor="#0E394B" />
-
-                        <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
-
-                    </LinearLayout>
-
-                    <!-- Reset Settings -->
-                    <LinearLayout
-                        android:id="@+id/option_reset_settings"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical"
-                        android:background="?android:attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_revert"
-                            android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Reset Settings"
-                            android:textSize="16sp"
-                            android:textColor="#E53935" />
-
-                        <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="#E53935" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- About Section -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="About"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/black"
-                        android:layout_marginBottom="16dp" />
-
-                    <!-- App Version -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="8dp">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_info_details"
-                            android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="App Version"
-                            android:textSize="16sp"
-                            android:textColor="#0E394B" />
-
-                        <TextView
-                            android:id="@+id/tv_app_version"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="1.0.0"
-                            android:textSize="16sp"
-                            android:textColor="@android:color/darker_gray" />
-
-                    </LinearLayout>
-
-                    <!-- Help &amp; Support -->
-                    <LinearLayout
-                        android:id="@+id/option_help_support"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical"
-                        android:background="?android:attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_help"
-                            android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Help &amp; Support"
-                            android:textSize="16sp"
-                            android:textColor="#0E394B" />
-
-                        <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
 
                     </LinearLayout>
 

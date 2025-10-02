@@ -46,7 +46,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="View Group Info"
+                android:text="View Info"
                 android:textSize="16sp"
                 android:textColor="#0E394B"
                 android:textStyle="bold" />
@@ -54,7 +54,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Change Avatar Option -->
+    <!-- Delete Chat Option -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -64,7 +64,7 @@
         android:backgroundTint="@android:color/white">
 
         <LinearLayout
-            android:id="@+id/option_change_avatar"
+            android:id="@+id/option_delete_chat"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -75,132 +75,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_gallery"
-                android:layout_marginEnd="12dp"
-                app:tint="#0E394B" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Change Avatar"
-                android:textSize="16sp"
-                android:textColor="#0E394B"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- Add Members Option -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="2dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white">
-
-        <LinearLayout
-            android:id="@+id/option_add_members"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_add"
-                android:layout_marginEnd="12dp"
-                app:tint="#0E394B" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Add Members"
-                android:textSize="16sp"
-                android:textColor="#0E394B"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- Join Requests Option with badge -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="2dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white">
-
-        <LinearLayout
-            android:id="@+id/option_join_requests"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_agenda"
-                android:layout_marginEnd="12dp"
-                app:tint="#0E394B" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Join Requests"
-                android:textSize="16sp"
-                android:textColor="#0E394B"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_request_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingLeft="10dp"
-                android:paddingRight="10dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp"
-                android:background="@drawable/badge_background"
-                android:textColor="@android:color/white"
-                android:textStyle="bold"
-                android:text="0"
-                android:visibility="gone" />
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- Remove Members Option -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="2dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white">
-
-        <LinearLayout
-            android:id="@+id/option_remove_members"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:src="@android:drawable/ic_menu_delete"
                 android:layout_marginEnd="12dp"
                 app:tint="#E53935" />
 
@@ -208,44 +83,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Remove Members"
-                android:textSize="16sp"
-                android:textColor="#E53935"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- Leave Group Option -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="2dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white">
-
-        <LinearLayout
-            android:id="@+id/option_leave_group"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
-                android:layout_marginEnd="12dp"
-                app:tint="#E53935" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Leave Group"
+                android:text="Delete Chat"
                 android:textSize="16sp"
                 android:textColor="#E53935"
                 android:textStyle="bold" />

@@ -199,17 +199,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void setupRecyclerView() {
-        chatAdapter = new ChatListAdapter(this, chatList, new ChatListAdapter.OnChatClickListener() {
-            @Override
-            public void onChatClick(Chat chat) {
-                openChatDetail(chat);
-            }
-            
-            @Override
-            public void onChatLongClick(Chat chat) {
-                showChatOptions(chat);
-            }
-        });
+        chatAdapter = new ChatListAdapter(this, chatList, this);
         
         // Setup call adapter
         callAdapter = new CallListAdapter(this);
@@ -565,86 +555,6 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
     }
     
-    private void showChatOptions(Chat chat) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_options, null);
-        
-        // Show/hide options based on chat type
-        if (chat.isGroupChat()) {
-            // Group chat options
-            dialogView.findViewById(R.id.card_add_members).setVisibility(View.VISIBLE);
-            dialogView.findViewById(R.id.card_remove_members).setVisibility(View.VISIBLE);
-            dialogView.findViewById(R.id.card_leave_group).setVisibility(View.VISIBLE);
-            dialogView.findViewById(R.id.card_delete_group).setVisibility(View.VISIBLE);
-            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
-        } else {
-            // Private chat options
-            dialogView.findViewById(R.id.card_add_members).setVisibility(View.GONE);
-            dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
-            dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
-            dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
-            // Always hide unfriend option on Home
-            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
-        }
-        
-        // Set click listeners for each option
-        dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {
-            showChatInfo(chat);
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_add_members).setOnClickListener(v -> {
-            // Open GroupMembersActivity in add mode
-            if (!chat.isGroupChat()) {
-                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
-            } else {
-                Intent intent = new Intent(this, GroupMembersActivity.class);
-                intent.putExtra("chatId", chat.getId());
-                intent.putExtra("mode", "add");
-                startActivity(intent);
-            }
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_remove_members).setOnClickListener(v -> {
-            // Open GroupMembersActivity in remove mode
-            if (!chat.isGroupChat()) {
-                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
-            } else {
-                Intent intent = new Intent(this, GroupMembersActivity.class);
-                intent.putExtra("chatId", chat.getId());
-                intent.putExtra("mode", "remove");
-                startActivity(intent);
-            }
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_leave_group).setOnClickListener(v -> {
-            // Confirm leave group
-            if (!chat.isGroupChat()) {
-                Toast.makeText(this, "Only available for group chats", Toast.LENGTH_SHORT).show();
-            } else {
-                confirmLeaveGroup(chat);
-            }
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
-            // Confirm delete chat (works for both private and group chat entries)
-            confirmDeleteChat(chat);
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-
-        dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
-            // Delete group functionality
-            Toast.makeText(this, "Delete group feature coming soon", Toast.LENGTH_SHORT).show();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        builder.setView(dialogView);
-        currentDialog = builder.create();
-        currentDialog.show();
-    }
     
     private void handleGroupChatOption(Chat chat, int which) {
         switch (which) {
@@ -1209,21 +1119,77 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
 
     @Override
     public void onChatLongClick(Chat chat) {
-        // Show chat options dialog
-        new AlertDialog.Builder(this)
-                .setTitle("Chat Options")
-                .setMessage("What would you like to do with this chat?")
-                .setPositiveButton("View Info", (dialog, which) -> {
-                    showChatInfo(chat);
-                })
-                .setNegativeButton("Delete Chat", (dialog, which) -> {
-                    // TODO: Delete chat
-                    Toast.makeText(this, "Delete chat feature coming soon", Toast.LENGTH_SHORT).show();
-                })
-                .setNeutralButton("Cancel", null)
-                .show();
+        if (chat.isGroupChat()) {
+            // Show group-specific options
+            showGroupChatOptions(chat);
+        } else {
+            // Show private chat options
+            showPrivateChatOptions(chat);
+        }
     }
     
+    private void showGroupChatOptions(Chat chat) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
+        
+        // Get option views
+        LinearLayout optionViewInfo = dialogView.findViewById(R.id.option_view_group_info);
+        LinearLayout optionDeleteChat = dialogView.findViewById(R.id.option_delete_chat);
+        LinearLayout optionDeleteGroup = dialogView.findViewById(R.id.option_delete_group);
+        
+        AlertDialog dialog = builder.setView(dialogView).create();
+        
+        // Set click listeners
+        optionViewInfo.setOnClickListener(v -> {
+            showChatInfo(chat);
+            dialog.dismiss();
+        });
+        
+        optionDeleteChat.setOnClickListener(v -> {
+            dialog.dismiss();
+            confirmDeleteChat(chat);
+        });
+        
+        optionDeleteGroup.setOnClickListener(v -> {
+            dialog.dismiss();
+            confirmDeleteGroup(chat);
+        });
+        
+        dialog.show();
+    }
+    
+    private void showPrivateChatOptions(Chat chat) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_options, null);
+        
+        // Hide group-specific options for private chat
+        dialogView.findViewById(R.id.card_add_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
+        
+        AlertDialog dialog = builder.setView(dialogView).create();
+        
+        // Set click listeners
+        dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {
+            showChatInfo(chat);
+            dialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
+            dialog.dismiss();
+            confirmDeleteChat(chat);
+        });
+        
+        dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
+            dialog.dismiss();
+            confirmUnfriend(chat);
+        });
+        
+        dialog.show();
+    }
+ 
     // CallListAdapter.OnCallClickListener implementation
     @Override
     public void onCallItemClick(Call call) {

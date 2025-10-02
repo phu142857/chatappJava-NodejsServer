@@ -109,7 +109,14 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         
         // Check if current user is the group owner
         String currentUserId = sharedPrefsManager.getUserId();
-        if (currentUserId != null && currentUserId.equals(currentChat.getCreatorId())) {
+        String creatorId = currentChat.getCreatorId();
+        
+        // Debug logging
+        android.util.Log.d("GroupMembersActivity", "Current User ID: " + currentUserId);
+        android.util.Log.d("GroupMembersActivity", "Creator ID: " + creatorId);
+        android.util.Log.d("GroupMembersActivity", "Is Owner: " + (currentUserId != null && currentUserId.equals(creatorId)));
+        
+        if (currentUserId != null && currentUserId.equals(creatorId)) {
             ivSettings.setVisibility(View.VISIBLE);
         } else {
             ivSettings.setVisibility(View.GONE);

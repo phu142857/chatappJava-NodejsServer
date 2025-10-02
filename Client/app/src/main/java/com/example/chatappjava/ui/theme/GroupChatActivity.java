@@ -13,12 +13,14 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 
+import com.example.chatappjava.network.ApiClient;
 import com.github.dhaval2404.imagepicker.ImagePicker;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
 
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Date;
@@ -140,7 +142,7 @@ public class GroupChatActivity extends BaseChatActivity {
     protected void showChatOptions() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
-        
+
         // Load and display join requests count if available
         TextView tvRequestCount = dialogView.findViewById(R.id.tv_request_count);
         View optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
@@ -164,29 +166,15 @@ public class GroupChatActivity extends BaseChatActivity {
             });
         }
 
+
         // Set click listeners for each option
         dialogView.findViewById(R.id.option_view_group_info).setOnClickListener(v -> {
             showGroupInfo();
             if (currentDialog != null) currentDialog.dismiss();
         });
         
-        dialogView.findViewById(R.id.option_change_avatar).setOnClickListener(v -> {
-            showAvatarOptions();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_add_members).setOnClickListener(v -> {
-            addMembers();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_remove_members).setOnClickListener(v -> {
-            removeMembers();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_leave_group).setOnClickListener(v -> {
-            confirmLeaveGroup();
+        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
+            confirmDeleteChat();
             if (currentDialog != null) currentDialog.dismiss();
         });
         
@@ -580,5 +568,108 @@ public class GroupChatActivity extends BaseChatActivity {
                 }
             }
         });
+    }
+    
+    private void showGroupSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_settings, null);
+        
+        // Set group name
+        TextView tvGroupName = dialogView.findViewById(R.id.tv_group_name);
+        tvGroupName.setText(currentChat.getName());
+        
+        // Set current privacy setting
+        android.widget.Switch switchPublic = dialogView.findViewById(R.id.switch_public);
+        switchPublic.setChecked(currentChat.isPublicGroup());
+        
+        // Set button listeners
+        android.widget.Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        android.widget.Button btnSave = dialogView.findViewById(R.id.btn_save);
+        
+        AlertDialog dialog = builder.setView(dialogView).create();
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSave.setOnClickListener(v -> {
+            boolean isPublic = switchPublic.isChecked();
+            updateGroupSettings(isPublic);
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+    
+    private void updateGroupSettings(boolean isPublic) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        try {
+            JSONObject settingsData = new JSONObject();
+            JSONObject settings = new JSONObject();
+            settings.put("isPublic", isPublic);
+            settingsData.put("settings", settings);
+            
+            Toast.makeText(this, "Updating group settings...", Toast.LENGTH_SHORT).show();
+            
+            apiClient.updateGroupSettings(token, currentChat.getId(), settingsData, new okhttp3.Callback() {
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(GroupChatActivity.this, "Group settings updated successfully", Toast.LENGTH_SHORT).show();
+                            // Update local chat object
+                            currentChat.setIsPublic(isPublic);
+                        } else {
+                            Toast.makeText(GroupChatActivity.this, "Failed to update group settings", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(okhttp3.Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error preparing request", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void confirmDeleteChat() {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Chat")
+                .setMessage("Are you sure you want to delete this chat? This will remove it from your chat list.")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    // Use the existing deleteChat method from HomeActivity
+                    String token = sharedPrefsManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    new ApiClient().deleteChat(token, currentChat.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(GroupChatActivity.this, "Failed to delete chat", Toast.LENGTH_SHORT).show());
+                        }
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            if (response.isSuccessful()) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(GroupChatActivity.this, "Chat deleted successfully", Toast.LENGTH_SHORT).show();
+                                    finish(); // Close this activity
+                                });
+                            } else {
+                                runOnUiThread(() -> Toast.makeText(GroupChatActivity.this, "Failed to delete chat", Toast.LENGTH_SHORT).show());
+                            }
+                        }
+                    });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 }

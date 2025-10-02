@@ -99,6 +99,11 @@
             android:label="Join Requests"
             android:theme="@style/Theme.ChatAppJava" />
         <activity
+            android:name=".ui.theme.GroupSettingsActivity"
+            android:exported="false"
+            android:label="Group Settings"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
             android:name=".ui.call.VideoCallActivity"
             android:exported="false"
             android:label="Video Call"
