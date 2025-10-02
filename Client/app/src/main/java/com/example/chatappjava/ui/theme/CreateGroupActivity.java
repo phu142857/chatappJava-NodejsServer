@@ -58,6 +58,9 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         rvFriends.setAdapter(adapter);
 
         btnCreate.setOnClickListener(v -> createGroup());
+        
+        // Back button
+        findViewById(R.id.iv_back).setOnClickListener(v -> finish());
 
         loadFriends();
     }

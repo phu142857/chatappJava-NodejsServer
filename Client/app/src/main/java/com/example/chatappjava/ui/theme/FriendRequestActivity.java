@@ -64,8 +64,6 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         rvFriendRequests = findViewById(R.id.rv_friend_requests);
         progressBar = findViewById(R.id.progress_bar);
         tvNoRequests = findViewById(R.id.tv_no_requests);
-        tvTitle = findViewById(R.id.tv_title);
-
         // Set up back button
         findViewById(R.id.iv_back).setOnClickListener(v -> finish());
     }
