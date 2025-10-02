@@ -539,6 +539,92 @@ const removeFriend = async (req, res) => {
   }
 };
 
+// @desc    ADMIN: Add friendship between two users
+// @route   POST /api/users/admin/friendship
+// @access  Private (Admin)
+const adminAddFriendship = async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.body;
+
+    if (!userId1 || !userId2) {
+      return res.status(400).json({ success: false, message: 'userId1 and userId2 are required' });
+    }
+    if (userId1 === userId2) {
+      return res.status(400).json({ success: false, message: 'Cannot befriend the same user' });
+    }
+
+    const user1 = await User.findById(userId1);
+    const user2 = await User.findById(userId2);
+    if (!user1 || !user2) {
+      return res.status(404).json({ success: false, message: 'One or both users not found' });
+    }
+
+    // Add both sides (idempotent via model methods)
+    await user1.addFriend(user2._id);
+    await user2.addFriend(user1._id);
+
+    // Ensure private chat exists
+    try {
+      let chat = await Chat.findOne({
+        type: 'private',
+        'participants.user': { $all: [user1._id, user2._id] },
+        'participants.isActive': true
+      });
+      if (!chat) {
+        chat = await Chat.create({
+          type: 'private',
+          createdBy: req.user.id,
+          participants: [
+            { user: user1._id, role: 'member', isActive: true },
+            { user: user2._id, role: 'member', isActive: true }
+          ]
+        });
+      }
+    } catch (e) {
+      console.error('Ensure private chat error:', e);
+    }
+
+    await logAuditAction(req.user.id, 'ADMIN_ADD_FRIENDSHIP', 'User', `Linked ${userId1} <-> ${userId2}`, req.ip);
+
+    return res.json({ success: true, message: 'Friendship added' });
+  } catch (error) {
+    console.error('Admin add friendship error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while adding friendship' });
+  }
+};
+
+// @desc    ADMIN: Remove friendship between two users
+// @route   DELETE /api/users/admin/friendship
+// @access  Private (Admin)
+const adminRemoveFriendship = async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.body;
+
+    if (!userId1 || !userId2) {
+      return res.status(400).json({ success: false, message: 'userId1 and userId2 are required' });
+    }
+    if (userId1 === userId2) {
+      return res.status(400).json({ success: false, message: 'Cannot unfriend the same user' });
+    }
+
+    const user1 = await User.findById(userId1);
+    const user2 = await User.findById(userId2);
+    if (!user1 || !user2) {
+      return res.status(404).json({ success: false, message: 'One or both users not found' });
+    }
+
+    await user1.removeFriend(user2._id);
+    await user2.removeFriend(user1._id);
+
+    await logAuditAction(req.user.id, 'ADMIN_REMOVE_FRIENDSHIP', 'User', `Unlinked ${userId1} <-> ${userId2}`, req.ip);
+
+    return res.json({ success: true, message: 'Friendship removed' });
+  } catch (error) {
+    console.error('Admin remove friendship error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while removing friendship' });
+  }
+};
+
 
 // @desc    Update user role
 // @route   PUT /api/users/:id/role or PUT /api/users/me/role
@@ -651,5 +737,7 @@ module.exports = {
   getUserFriends,
   removeFriend,
   setActive,
-  updateRole
+  updateRole,
+  adminAddFriendship,
+  adminRemoveFriendship
 };

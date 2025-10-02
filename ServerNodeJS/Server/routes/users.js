@@ -12,7 +12,9 @@ const {
   getUserFriends,
   removeFriend,
   setActive,
-  updateRole
+  updateRole,
+  adminAddFriendship,
+  adminRemoveFriendship
 } = require('../controllers/userController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { createUser, updateUser: adminUpdateUser, deleteUser: adminDeleteUser, setRole, resetPassword } = require('../controllers/adminUserController');
@@ -104,6 +106,15 @@ router.get('/:id', userIdValidation, getUserById);
 router.put('/:id/block', blockUserValidation, toggleBlockUser);
 router.post('/:id/report', reportUserValidation, reportUser);
 router.delete('/:id/friends', userIdValidation, removeFriend);
+// Admin-only: add/remove friendship by UUIDs
+router.post('/admin/friendship', [
+  body('userId1').isMongoId().withMessage('Invalid userId1'),
+  body('userId2').isMongoId().withMessage('Invalid userId2')
+], adminOnly, adminAddFriendship);
+router.delete('/admin/friendship', [
+  body('userId1').isMongoId().withMessage('Invalid userId1'),
+  body('userId2').isMongoId().withMessage('Invalid userId2')
+], adminOnly, adminRemoveFriendship);
 // Admin-only: activate/deactivate user
 router.put('/:id/active', userIdValidation, adminOnly, setActive);
 

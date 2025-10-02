@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Card, Space, Table, Tag, Avatar } from 'antd';
+import { App as AntdApp, Button, Card, Space, Table, Tag, Avatar, Form, Input, Divider } from 'antd';
 import apiClient from '../api/client';
 import { API_BASE_URL } from '../config';
 
@@ -15,6 +15,7 @@ export default function FriendRequests() {
   const { message } = AntdApp.useApp();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FriendRequest[]>([]);
+  const [form] = Form.useForm();
 
   const resolveAvatarUrl = (avatar?: string) => {
     if (!avatar) return undefined;
@@ -42,6 +43,36 @@ export default function FriendRequests() {
 
   return (
     <Card title="Friend Requests">
+      <Form form={form} layout="inline" onFinish={async (values) => {
+        try {
+          if (values.action === 'add') {
+            await apiClient.post('/users/admin/friendship', { userId1: values.userId1, userId2: values.userId2 });
+            message.success('Friendship added');
+          } else {
+            await apiClient.delete('/users/admin/friendship', { data: { userId1: values.userId1, userId2: values.userId2 } });
+            message.success('Friendship removed');
+          }
+          form.resetFields();
+          fetchData();
+        } catch (e: any) {
+          message.error(e?.response?.data?.message || 'Operation failed');
+        }
+      }}>
+        <Form.Item name="userId1" rules={[{ required: true, message: 'Enter first user UUID' }]}>
+          <Input placeholder="User UUID 1" style={{ width: 240 }} />
+        </Form.Item>
+        <Form.Item name="userId2" rules={[{ required: true, message: 'Enter second user UUID' }]}>
+          <Input placeholder="User UUID 2" style={{ width: 240 }} />
+        </Form.Item>
+        <Form.Item name="action" initialValue="add">
+          <Input hidden />
+        </Form.Item>
+        <Space>
+          <Button type="primary" onClick={() => { form.setFieldValue('action', 'add'); form.submit(); }}>Add Friendship</Button>
+          <Button danger onClick={() => { form.setFieldValue('action', 'remove'); form.submit(); }}>Remove Friendship</Button>
+        </Space>
+      </Form>
+      <Divider />
       <Table
         rowKey="_id"
         loading={loading}
