@@ -19,7 +19,8 @@ const {
   cancelJoinRequest,
   getJoinRequestsCount,
   respondJoinRequest,
-  getJoinRequests
+  getJoinRequests,
+  transferOwnership
 } = require('../controllers/groupController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 
@@ -147,6 +148,8 @@ router.put('/status', updateStatusValidation, updateStatus);
 // Group operations
 router.get('/:id', groupIdValidation, getGroupById);
 router.put('/:id', updateGroupValidation, updateGroup);
+// Transfer ownership (admin or current owner)
+router.put('/:id/owner', groupIdValidation, transferOwnership);
 router.delete('/:id', groupIdValidation, deleteGroup);
 
 // Group membership

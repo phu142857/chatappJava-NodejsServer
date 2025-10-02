@@ -8,6 +8,8 @@ type GroupItem = {
   description?: string;
   status?: 'active' | 'inactive' | 'archived';
   membersCount?: number;
+  settings?: { isPublic?: boolean };
+  createdBy?: { _id: string; username: string } | string;
 };
 
 export default function Groups() {
@@ -44,11 +46,12 @@ export default function Groups() {
           { title: 'Name', dataIndex: 'name' },
           { title: 'Description', dataIndex: 'description' },
           { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'active' ? 'green' : s === 'archived' ? 'red' : 'default'}>{s || 'active'}</Tag> },
+          { title: 'Visibility', key: 'visibility', render: (_, r) => (r.settings?.isPublic ? <Tag color="blue">Public</Tag> : <Tag>Private</Tag>) },
           {
             title: 'Actions',
             render: (_, r) => (
               <Space>
-                <Button size="small" onClick={() => { setOpenEdit(r); form.setFieldsValue({ name: r.name, description: r.description, status: r.status || 'active' }); }}>Edit</Button>
+                <Button size="small" onClick={() => { setOpenEdit(r); form.setFieldsValue({ name: r.name, description: r.description, status: r.status || 'active', isPublic: r.settings?.isPublic || false, ownerId: typeof r.createdBy === 'string' ? r.createdBy : (r.createdBy as any)?._id }); }}>Edit</Button>
                 <Button size="small" danger onClick={() => modal.confirm({ title: `Delete group ${r.name}?`, onOk: async () => { await apiClient.delete(`/groups/${r._id}`); message.success('Deleted'); fetchData(); } })}>Delete</Button>
                 <Button size="small" onClick={async () => {
                   const userId = prompt('Enter userId to add');
@@ -87,6 +90,14 @@ export default function Groups() {
           if (values.status && values.status !== openEdit?.status) {
             await apiClient.put(`/groups/status`, { status: values.status, groupId: openEdit?._id });
           }
+          // Update public/private via settings
+          if (typeof values.isPublic === 'boolean' && values.isPublic !== (openEdit?.settings?.isPublic || false)) {
+            await apiClient.put(`/groups/${openEdit?._id}`, { settings: { isPublic: values.isPublic } });
+          }
+          // Transfer ownership if changed
+          if (values.ownerId && values.ownerId !== (typeof openEdit?.createdBy === 'string' ? openEdit?.createdBy : (openEdit?.createdBy as any)?._id)) {
+            await apiClient.put(`/groups/${openEdit?._id}/owner`, { newOwnerId: values.ownerId });
+          }
           message.success('Updated'); setOpenEdit(null); fetchData();
         }}>
           <Form.Item label="Group Name" name="name" rules={[{ required: true }]}><Input /></Form.Item>
@@ -97,6 +108,15 @@ export default function Groups() {
               { value: 'inactive', label: 'Inactive' },
               { value: 'archived', label: 'Archived' },
             ]} />
+          </Form.Item>
+          <Form.Item label="Visibility" name="isPublic" valuePropName="value">
+            <Select options={[
+              { value: true, label: 'Public' },
+              { value: false, label: 'Private' },
+            ]} />
+          </Form.Item>
+          <Form.Item label="Owner (User ID)" name="ownerId">
+            <Input placeholder="Enter new owner userId" />
           </Form.Item>
         </Form>
       </Modal>

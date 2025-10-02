@@ -414,6 +414,57 @@ const createGroup = async (req, res) => {
   }
 };
 
+// @desc    Transfer group ownership to another user
+// @route   PUT /api/groups/:id/owner
+// @access  Private (Admin or current owner)
+const transferOwnership = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newOwnerId } = req.body;
+
+    if (!newOwnerId) {
+      return res.status(400).json({ success: false, message: 'newOwnerId is required' });
+    }
+
+    const group = await Group.findById(id);
+    if (!group || !group.isActive) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+
+    // Only global admin or current owner can transfer ownership
+    const isCreator = group.createdBy && group.createdBy.toString() === req.user.id;
+    if (req.user.role !== 'admin' && !isCreator) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
+    }
+
+    // Validate new owner
+    const newOwner = await User.findById(newOwnerId);
+    if (!newOwner || !newOwner.isActive) {
+      return res.status(404).json({ success: false, message: 'New owner not found or inactive' });
+    }
+
+    // Ensure new owner is a member and set role to admin
+    await group.addMember(newOwnerId, 'admin');
+
+    // Update creator
+    group.createdBy = newOwnerId;
+    await group.save();
+
+    // Update related chats' createdBy for consistency
+    try {
+      await Chat.updateMany(
+        { type: 'group', groupId: group._id },
+        { createdBy: newOwnerId }
+      );
+    } catch (e) {}
+
+    return res.json({ success: true, message: 'Ownership transferred successfully', data: { group } });
+  } catch (error) {
+    console.error('Transfer ownership error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while transferring ownership' });
+  }
+};
+
 // @desc    Update group
 // @route   PUT /api/groups/:id
 // @access  Private
@@ -1148,5 +1199,6 @@ module.exports = {
   cancelJoinRequest,
   getJoinRequestsCount,
   respondJoinRequest,
-  getJoinRequests
+  getJoinRequests,
+  transferOwnership
 };
