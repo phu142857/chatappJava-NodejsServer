@@ -933,10 +933,18 @@ const getGroupMembers = async (req, res) => {
       });
     }
 
+    const ownerId = group.createdBy ? group.createdBy.toString() : null;
+    const activeMembers = group.members
+      .filter(m => m.isActive)
+      .map(m => ({
+        ...m.toObject(),
+        isOwner: ownerId ? (m.user && m.user.toString() === ownerId) : false
+      }));
+
     res.json({
       success: true,
       data: {
-        members: group.members.filter(m => m.isActive),
+        members: activeMembers,
         membersCount: group.activeMembersCount
       }
     });

@@ -848,6 +848,7 @@ const getGroupMembers = async (req, res) => {
     }
 
     // Get active members only (filter out null users)
+    const ownerId = chat.createdBy ? chat.createdBy.toString() : null;
     const activeMembers = chat.participants
       .filter(p => p.isActive && p.user && p.user._id)
       .map(p => ({
@@ -859,7 +860,8 @@ const getGroupMembers = async (req, res) => {
         isOnline: p.user.isOnline,
         lastSeen: p.user.lastSeen,
         role: p.role,
-        joinedAt: p.joinedAt
+        joinedAt: p.joinedAt,
+        isOwner: ownerId ? (p.user._id && p.user._id.toString() === ownerId) : false
       }));
 
     res.json({
