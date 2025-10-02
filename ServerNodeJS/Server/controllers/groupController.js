@@ -450,12 +450,21 @@ const transferOwnership = async (req, res) => {
     group.createdBy = newOwnerId;
     await group.save();
 
-    // Update related chats' createdBy for consistency
+    // Update related chats' createdBy and ensure new owner is admin participant
     try {
-      await Chat.updateMany(
-        { type: 'group', groupId: group._id },
-        { createdBy: newOwnerId }
-      );
+      const chats = await Chat.find({ type: 'group', groupId: group._id });
+      for (const chat of chats) {
+        chat.createdBy = newOwnerId;
+        // Ensure participant record exists for new owner and set role to admin
+        const p = chat.participants.find(x => x.user && x.user.toString() === newOwnerId.toString());
+        if (p) {
+          p.role = 'admin';
+          p.isActive = true;
+        } else {
+          chat.participants.push({ user: newOwnerId, role: 'admin', isActive: true });
+        }
+        await chat.save();
+      }
     } catch (e) {}
 
     return res.json({ success: true, message: 'Ownership transferred successfully', data: { group } });

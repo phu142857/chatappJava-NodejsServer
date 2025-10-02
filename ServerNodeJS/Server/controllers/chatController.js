@@ -540,20 +540,12 @@ const removeParticipant = async (req, res) => {
       });
     }
 
-    // Check permissions
+    // Check permissions: allow if requester is chat admin/mod OR group admin/owner OR removing self
     const userParticipant = chat.participants.find(
       p => p.user && p.user.toString() === req.user.id && p.isActive
     );
-
     const isRemovingSelf = participantId === req.user.id;
-    const hasPermission = userParticipant && ['admin', 'moderator'].includes(userParticipant.role);
-
-    if (!isRemovingSelf && !hasPermission) {
-      return res.status(403).json({
-        success: false,
-        message: 'Permission denied'
-      });
-    }
+    let hasPermission = !!(userParticipant && ['admin', 'moderator'].includes(userParticipant.role));
 
     // Find associated group
     const group = await Group.findOne({ name: chat.name, isActive: true });
@@ -564,15 +556,14 @@ const removeParticipant = async (req, res) => {
       });
     }
 
-    // Check permissions in group
+    // Also allow if requester has admin/mod role in group OR is group owner
     const isRemovingSelfFromGroup = participantId === req.user.id;
-    const hasGroupPermission = group.hasPermission(req.user.id);
+    const isGroupOwner = group.createdBy && group.createdBy.toString() === req.user.id;
+    const hasGroupPermission = group.hasPermission(req.user.id) || isGroupOwner;
+    hasPermission = hasPermission || hasGroupPermission;
 
-    if (!isRemovingSelfFromGroup && !hasGroupPermission) {
-      return res.status(403).json({
-        success: false,
-        message: 'Permission denied in group'
-      });
+    if (!isRemovingSelfFromGroup && !hasPermission) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
     // Remove participant from both chat and group
