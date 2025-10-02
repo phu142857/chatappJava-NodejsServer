@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Card, Form, Input, Modal, Space, Table, Tag } from 'antd';
+import { App as AntdApp, Button, Card, Form, Input, Modal, Space, Table, Tag, Select } from 'antd';
 import apiClient from '../api/client';
 
 type GroupItem = {
@@ -48,7 +48,7 @@ export default function Groups() {
             title: 'Actions',
             render: (_, r) => (
               <Space>
-                <Button size="small" onClick={() => { setOpenEdit(r); form.setFieldsValue({ name: r.name, description: r.description }); }}>Edit</Button>
+                <Button size="small" onClick={() => { setOpenEdit(r); form.setFieldsValue({ name: r.name, description: r.description, status: r.status || 'active' }); }}>Edit</Button>
                 <Button size="small" danger onClick={() => modal.confirm({ title: `Delete group ${r.name}?`, onOk: async () => { await apiClient.delete(`/groups/${r._id}`); message.success('Deleted'); fetchData(); } })}>Delete</Button>
                 <Button size="small" onClick={async () => {
                   const userId = prompt('Enter userId to add');
@@ -81,11 +81,23 @@ export default function Groups() {
 
       <Modal title={`Edit Group: ${openEdit?.name}`} open={!!openEdit} onCancel={() => setOpenEdit(null)} onOk={() => form.submit()} confirmLoading={loading}>
         <Form layout="vertical" form={form} onFinish={async (values) => {
+          // Update basic info
           await apiClient.put(`/groups/${openEdit?._id}`, { name: values.name, description: values.description });
+          // Update status (separate endpoint)
+          if (values.status && values.status !== openEdit?.status) {
+            await apiClient.put(`/groups/status`, { status: values.status, groupId: openEdit?._id });
+          }
           message.success('Updated'); setOpenEdit(null); fetchData();
         }}>
           <Form.Item label="Group Name" name="name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item label="Description" name="description"><Input.TextArea rows={3} /></Form.Item>
+          <Form.Item label="Status" name="status" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'archived', label: 'Archived' },
+            ]} />
+          </Form.Item>
         </Form>
       </Modal>
     </Card>
