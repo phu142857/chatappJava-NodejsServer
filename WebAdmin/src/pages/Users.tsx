@@ -153,7 +153,7 @@ export default function Users() {
   return (
     <Card title="Users" extra={
       <Space>
-        <Input.Search allowClear placeholder="Search by username, email, name" onSearch={(val) => fetchUsers(1, pageSize, val)} style={{ width: 320 }} />
+        <Input.Search allowClear placeholder="Search by UUID, username, email, name" onSearch={(val) => fetchUsers(1, pageSize, val)} style={{ width: 360 }} />
         <Tooltip title={includeInactive ? 'Showing both locked and active' : 'Only showing active users'}>
           <Button onClick={() => { setIncludeInactive(!includeInactive); fetchUsers(1, pageSize, search); }}>
             {includeInactive ? 'Hide Locked' : 'Show Locked'}

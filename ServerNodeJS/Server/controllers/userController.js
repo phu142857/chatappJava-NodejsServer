@@ -28,14 +28,24 @@ const getUsers = async (req, res) => {
       query = { _id: req.user.id };
     }
 
-    // Add search functionality
+    // Add search functionality (support username/email/name and exact UUID)
     if (search && isAdmin) {
-      query.$or = [
+      const orConditions = [
         { username: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { 'profile.firstName': { $regex: search, $options: 'i' } },
         { 'profile.lastName': { $regex: search, $options: 'i' } }
       ];
+
+      try {
+        // If search looks like a valid ObjectId, also allow exact _id match
+        const mongoose = require('mongoose');
+        if (mongoose.Types.ObjectId.isValid(search)) {
+          orConditions.push({ _id: search });
+        }
+      } catch (_) {}
+
+      query.$or = orConditions;
     }
 
     const users = await User.find(query)
