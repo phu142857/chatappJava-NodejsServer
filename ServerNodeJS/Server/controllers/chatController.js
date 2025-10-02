@@ -918,18 +918,37 @@ const removeMember = async (req, res) => {
       });
     }
 
-    // Check if user is admin or creator
+    // Check permissions: allow if chat owner OR chat admin/mod OR group owner/admin/mod
     const userParticipant = chat.participants.find(p => p.user && p.user.toString() === req.user.id && p.isActive);
-    if (!userParticipant || !['admin', 'moderator'].includes(userParticipant.role)) {
+    const isChatOwner = chat.createdBy && chat.createdBy.toString() === req.user.id;
+    let hasPermission = isChatOwner || !!(userParticipant && ['admin', 'moderator'].includes(userParticipant.role));
+
+    // If not permitted by chat roles, check group permissions
+    if (!hasPermission) {
+      let group = null;
+      try {
+        if (chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        }
+        if (!group) {
+          group = await Group.findOne({ name: chat.name, isActive: true });
+        }
+      } catch (e) {}
+
+      if (group) {
+        const isGroupOwner = group.createdBy && group.createdBy.toString() === req.user.id;
+        const hasGroupPermission = group.hasPermission(req.user.id) || isGroupOwner;
+        hasPermission = hasPermission || hasGroupPermission;
+      }
+    }
+
+    if (!hasPermission) {
       console.log('Permission denied:', { 
-        chatCreatedBy: chat.createdBy.toString(), 
+        chatCreatedBy: chat.createdBy ? chat.createdBy.toString() : null, 
         requesterId: req.user.id,
         userParticipant: userParticipant ? { role: userParticipant.role, isActive: userParticipant.isActive } : null
       });
-      return res.status(403).json({
-        success: false,
-        message: 'Only group admins and moderators can remove members'
-      });
+      return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
     // Cannot remove creator
