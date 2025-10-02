@@ -7,6 +7,7 @@ const {
   createPrivateChat,
   createGroupChat,
   updateGroupChat,
+  updateGroupChatSettings,
   addParticipant,
   removeParticipant,
   leaveChat,
@@ -79,6 +80,19 @@ const updateGroupChatValidation = [
     .withMessage('Avatar must be a valid URL')
 ];
 
+const updateGroupChatSettingsValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid chat ID format'),
+  body('settings')
+    .isObject()
+    .withMessage('Settings must be an object'),
+  body('settings.isPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('isPublic must be a boolean')
+];
+
 const addParticipantValidation = [
   param('id')
     .isMongoId()
@@ -117,6 +131,7 @@ router.post('/group', createGroupChatValidation, createGroupChat);
 // Chat operations
 router.get('/:id', chatIdValidation, getChatById);
 router.put('/:id', updateGroupChatValidation, updateGroupChat);
+router.put('/:id/settings', updateGroupChatSettingsValidation, updateGroupChatSettings);
 router.delete('/:id', chatIdValidation, deleteChat);
 
 // Participant management

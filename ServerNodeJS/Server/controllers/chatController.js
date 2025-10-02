@@ -1156,6 +1156,80 @@ const deleteChatAdmin = async (req, res) => {
   }
 };
 
+// @desc    Update group chat settings
+// @route   PUT /api/chats/:id/settings
+// @access  Private
+const updateGroupChatSettings = async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { settings } = req.body;
+
+    const chat = await Chat.findById(id);
+    if (!chat || !chat.isActive || chat.type !== 'group') {
+      return res.status(404).json({
+        success: false,
+        message: 'Group chat not found'
+      });
+    }
+
+    // Check if user is creator or admin
+    const isCreator = chat.createdBy && chat.createdBy.toString() === req.user.id;
+    const userParticipant = chat.participants.find(
+      p => p.user && p.user.toString() === req.user.id && p.isActive
+    );
+    const isAdmin = userParticipant && userParticipant.role === 'admin';
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only group creator or admins can update settings'
+      });
+    }
+
+    // Update chat settings
+    if (settings) {
+      chat.settings = { ...chat.settings, ...settings };
+    }
+
+    await chat.updateLastActivity();
+
+    // Also update associated group if exists
+    const group = await Group.findOne({ name: chat.name, isActive: true });
+    if (group) {
+      if (settings) {
+        group.settings = { ...group.settings, ...settings };
+      }
+      await group.updateLastActivity();
+    }
+
+    res.json({
+      success: true,
+      message: 'Group chat settings updated successfully',
+      data: {
+        chat,
+        group: group || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Update group chat settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating group chat settings'
+    });
+  }
+};
+
 module.exports = {
   getChats,
   getAllChats,
@@ -1163,6 +1237,7 @@ module.exports = {
   createPrivateChat,
   createGroupChat,
   updateGroupChat,
+  updateGroupChatSettings,
   addParticipant,
   removeParticipant,
   leaveChat,

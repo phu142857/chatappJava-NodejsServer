@@ -203,6 +203,7 @@ public class Chat {
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
     public boolean isPublicGroup() { return isGroupChat() && isPublic; }
+    public void setIsPublic(boolean isPublic) { this.isPublic = isPublic; }
     public String getVisibility() { return visibility; }
     public String getJoinRequestStatus() { return joinRequestStatus; }
     public void setJoinRequestStatus(String status) { this.joinRequestStatus = status; }

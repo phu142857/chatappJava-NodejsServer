@@ -765,6 +765,22 @@ public class ApiClient {
     }
 
     /**
+     * Update group settings (privacy, etc.)
+     */
+    public void updateGroupSettings(String token, String groupId, JSONObject settingsData, Callback callback) {
+        String url = getBaseUrl() + "/api/chats/" + groupId + "/settings";
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .put(RequestBody.create(settingsData.toString(), MediaType.parse("application/json")))
+                .addHeader("Authorization", "Bearer " + token)
+                .addHeader("Content-Type", "application/json")
+                .build();
+        
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
      * Cancels all pending requests.
      */
     public void cancelAllRequests() {
