@@ -221,11 +221,9 @@ npm run seed:admin
 ---
 
 ## Team
--Android Client: Nguyen Tai Phu
-
--Backend (Node.js Server): Nguyen Tai Phu
-
--Web Admin (React): Nguyen Tai Phu
+- Android Client: Nguyen Tai Phu
+- Backend (Node.js Server): Nguyen Tai Phu
+- Web Admin (React): Nguyen Tai Phu
 
 ---
 
