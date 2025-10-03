@@ -62,19 +62,11 @@ chatapp/
 ### Architecture Diagram
 ```mermaid
 
-+----------------+        Socket.IO/HTTP         +-----------------+
-| Android Client | <--------------------------> |  Node.js Server |
-+----------------+                               +-----------------+
-                                                     |
-                                                     |  Mongoose
-                                                     v
-                                                +-----------+
-                                                | MongoDB   |
-                                                +-----------+
-
-+------------------+       HTTP         +-----------------+
-| WebAdmin (React) | <----------------> |  Node.js Server |
-+------------------+                    +-----------------+
+flowchart LR
+  A[Android Client] <-->|SocketIO+HTTPS| B[Node.js Server]
+  C[WebAdmin] <-->|HTTP| B
+  B -->|Mongoose| D[(MongoDB)]
+                +-----------------+
 
 ```
 
