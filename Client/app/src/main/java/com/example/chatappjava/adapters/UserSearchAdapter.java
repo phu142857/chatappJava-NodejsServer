@@ -133,7 +133,14 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
             
             String frStatus = user.getFriendRequestStatus();
             
-            if ("add_members".equals(mode)) {
+            if ("forward".equals(mode)) {
+                // Forward mode: show single Forward button
+                btnAddFriend.setText("Forward");
+                btnAddFriend.setVisibility(View.VISIBLE);
+                btnAddFriend.setEnabled(true);
+                btnAddFriend.setAlpha(1.0f);
+                btnSecondary.setVisibility(View.GONE);
+            } else if ("add_members".equals(mode)) {
                 boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
                 
                 if (isAlreadyMember) {
@@ -196,7 +203,9 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
 
             btnAddFriend.setOnClickListener(v -> {
                 if (listener != null) {
-                    if ("add_members".equals(mode)) {
+                    if ("forward".equals(mode)) {
+                        listener.onUserClick(user);
+                    } else if ("add_members".equals(mode)) {
                         boolean isAlreadyMember = currentGroupMemberIds != null && currentGroupMemberIds.contains(user.getId());
                         if (!isAlreadyMember) {
                             listener.onUserClick(user);

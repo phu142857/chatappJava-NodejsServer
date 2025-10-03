@@ -591,10 +591,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void confirmDeleteChat(Chat chat) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Delete Chat")
-                .setMessage("Are you sure you want to delete this chat?")
-                .setPositiveButton("Delete", (dialog, which) -> {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Chat",
+                "Are you sure you want to delete this chat?",
+                "Delete",
+                "Cancel",
+                () -> {
                     String token = sharedPrefsManager.getToken();
                     if (token == null || token.isEmpty()) {
                         Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -617,9 +620,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             });
                         }
                     });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                },
+                null,
+                false
+        );
     }
 
     private void confirmUnfriend(Chat chat) {
@@ -627,10 +631,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             Toast.makeText(this, "Unfriend applies to private chats", Toast.LENGTH_SHORT).show();
             return;
         }
-        new AlertDialog.Builder(this)
-                .setTitle("Unfriend")
-                .setMessage("Are you sure you want to unfriend this user?")
-                .setPositiveButton("Unfriend", (d, w) -> {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Unfriend",
+                "Are you sure you want to unfriend this user?",
+                "Unfriend",
+                "Cancel",
+                () -> {
                     String token = sharedPrefsManager.getToken();
                     if (token == null || token.isEmpty()) {
                         Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -670,9 +677,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             });
                         }
                     });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                },
+                null,
+                false
+        );
     }
     
     @Override
@@ -768,15 +776,16 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void showExitConfirm() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Exit App")
-                .setMessage("Are you sure you want to exit?")
-                .setPositiveButton("Yes", (dialog, which) -> {
-                    stopHomePolling();
-                    finish();
-                })
-                .setNegativeButton("No", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Exit App",
+                "Are you sure you want to exit?",
+                "Yes",
+                "No",
+                () -> { stopHomePolling(); finish(); },
+                null,
+                false
+        );
     }
 
     private void loadFriendRequestCount() {
@@ -974,12 +983,16 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void confirmLeaveGroup(Chat chat) {
-        new AlertDialog.Builder(this)
-                .setTitle("Leave Group")
-                .setMessage("Are you sure you want to leave this group? You will no longer receive messages from this group.")
-                .setPositiveButton("Leave", (dialog, which) -> leaveGroup(chat))
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Leave Group",
+                "Are you sure you want to leave this group? You will no longer receive messages from this group.",
+                "Leave",
+                "Cancel",
+                () -> leaveGroup(chat),
+                null,
+                false
+        );
     }
     
     private void leaveGroup(Chat chat) {
@@ -1029,12 +1042,16 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void confirmDeleteGroup(Chat chat) {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Group")
-                .setMessage("Are you sure you want to delete this group? This action cannot be undone and all messages will be lost.")
-                .setPositiveButton("Delete", (dialog, which) -> deleteGroup(chat))
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Group",
+                "Are you sure you want to delete this group? This action cannot be undone and all messages will be lost.",
+                "Delete",
+                "Cancel",
+                () -> deleteGroup(chat),
+                null,
+                false
+        );
     }
     
     private void deleteGroup(Chat chat) {

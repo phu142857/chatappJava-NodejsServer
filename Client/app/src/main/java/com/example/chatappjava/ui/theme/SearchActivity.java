@@ -49,7 +49,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private List<User> searchResults;
     private List<Chat> groupResults;
     
-    private String mode; // "add_members" or null for normal search
+    private String mode; // "add_members", "forward" or null for normal search
+    private String forwardContent; // for forward mode
     private Chat currentChat; // For add_members mode
     private List<String> currentGroupMemberIds; // Track current group members
     private boolean isSearchingGroups = false; // Track current search mode
@@ -97,6 +98,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         // Get mode and chat data from intent
         Intent intent = getIntent();
         mode = intent.getStringExtra("mode");
+        if ("forward".equals(mode)) {
+            forwardContent = intent.getStringExtra("forward_content");
+        }
         if ("add_members".equals(mode) && intent.hasExtra("chat")) {
             try {
                 String chatJson = intent.getStringExtra("chat");
@@ -685,8 +689,72 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     public void onUserClick(User user) {
         if ("add_members".equals(mode)) {
             addMemberToGroup(user);
+        } else if ("forward".equals(mode)) {
+            // Create/open chat like normal, but pass forward_content so BaseChatActivity can send it
+            createChatWithUserForward(user);
         } else {
             createChatWithUser(user);
+        }
+    }
+
+    private void createChatWithUserForward(User user) {
+        showLoading(true);
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        try {
+            JSONObject chatData = new JSONObject();
+            chatData.put("participantId", user.getId());
+            chatData.put("type", "private");
+
+            apiClient.createChat(token, chatData, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(SearchActivity.this, "Failed to create chat: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        handleCreateChatResponseForward(response.code(), responseBody, user);
+                    });
+                }
+            });
+
+        } catch (JSONException e) {
+            showLoading(false);
+            Toast.makeText(this, "Error creating chat request", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleCreateChatResponseForward(int statusCode, String responseBody, User user) {
+        try {
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            if (statusCode == 200 || statusCode == 201) {
+                Intent intent = new Intent(this, PrivateChatActivity.class);
+                intent.putExtra("user", user.toJson().toString());
+                JSONObject data = jsonResponse.getJSONObject("data");
+                if (data.has("chat")) {
+                    intent.putExtra("chat", data.getJSONObject("chat").toString());
+                }
+                if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
+                startActivity(intent);
+                finish();
+            } else {
+                String message = jsonResponse.optString("message", "Failed to create chat");
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            Toast.makeText(this, "Error processing response", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1103,10 +1171,14 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             }
             return;
         }
-        // Open group chat
+        // Open group chat (support forward mode)
         Intent intent = new Intent(this, GroupChatActivity.class);
         try {
             intent.putExtra("chat", group.toJson().toString());
+            if ("forward".equals(mode) && forwardContent != null) {
+                intent.putExtra("forward_content", forwardContent);
+                finish();
+            }
             startActivity(intent);
         } catch (JSONException e) {
             e.printStackTrace();

@@ -5,9 +5,9 @@
     android:layout_height="wrap_content"
     android:layout_margin="0dp"
     android:soundEffectsEnabled="true"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="8dp"
-    android:backgroundTint="@android:color/white"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="10dp"
+    android:backgroundTint="@android:color/transparent"
     android:clipToPadding="false"
     android:clipChildren="false">
 
@@ -15,7 +15,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:background="@drawable/bg_dialog_bar">
 
     <!-- Profile Option -->
     <androidx.cardview.widget.CardView

@@ -91,6 +91,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected AvatarManager avatarManager;
     protected SocketManager socketManager;
     protected AlertDialog currentDialog;
+    // Forwarding support
+    protected String pendingForwardContent;
     // Mentions
     protected ListPopupWindow mentionPopup;
     protected java.util.List<String> mentionCandidates = new java.util.ArrayList<>();
@@ -680,6 +682,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         }
 
+        // Forwarding: capture pending content to send when chat is ready
+        if (intent.hasExtra("forward_content")) {
+            pendingForwardContent = intent.getStringExtra("forward_content");
+        }
+
         // Preload group members for mentions
         if (currentChat != null && currentChat.isGroupChat()) {
             fetchGroupMembersForMentions();
@@ -822,6 +829,17 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 }
             }
         });
+
+        // If there is a pending forward content and chat is known, send it now (post to ensure UI ready)
+        if (pendingForwardContent != null && !pendingForwardContent.isEmpty() && currentChat != null) {
+            rvMessages.postDelayed(() -> {
+                try {
+                    sendMessage(pendingForwardContent);
+                } finally {
+                    pendingForwardContent = null;
+                }
+            }, 150);
+        }
     }
 
     protected void loadMessages() {
@@ -1419,7 +1437,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         });
         
         dialogView.findViewById(R.id.option_forward).setOnClickListener(v -> {
-            Toast.makeText(this, "Forward message feature coming soon", Toast.LENGTH_SHORT).show();
+            // Start SearchActivity in forward mode
+            Intent i = new Intent(this, SearchActivity.class);
+            i.putExtra("mode", "forward");
+            // Pack content to forward (text only for now)
+            String forwardContent = message.isImageMessage() ? (message.getContent() != null ? message.getContent() : "") : message.getContent();
+            i.putExtra("forward_content", forwardContent != null ? forwardContent : "");
+            startActivity(i);
             if (currentDialog != null) currentDialog.dismiss();
         });
         
@@ -1461,17 +1485,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void promptEditMessage(Message message) {
         android.widget.EditText input = new android.widget.EditText(this);
         input.setText(message.getContent());
-        new AlertDialog.Builder(this)
-            .setTitle("Edit Message")
-            .setView(input)
-            .setPositiveButton("Save", (d, w) -> {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+            this,
+            "Edit Message",
+            null,
+            "Save",
+            "Cancel",
+            () -> {
                 String newContent = input.getText().toString().trim();
                 if (!newContent.isEmpty()) {
                     performEditMessage(message, newContent);
                 }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+            },
+            null,
+            false
+        );
     }
 
     protected void performEditMessage(Message message, String newContent) {

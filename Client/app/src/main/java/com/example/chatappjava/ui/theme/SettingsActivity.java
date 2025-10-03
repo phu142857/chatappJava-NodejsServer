@@ -150,12 +150,16 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void confirmLogout() {
-        new AlertDialog.Builder(this)
-                .setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Logout", (dialog, which) -> logout())
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Logout",
+                "Are you sure you want to logout?",
+                "Logout",
+                "Cancel",
+                this::logout,
+                null,
+                false
+        );
     }
 
     private void logout() {
@@ -173,12 +177,16 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void confirmDeleteAccount() {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Account")
-                .setMessage("Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.")
-                .setPositiveButton("Delete", (dialog, which) -> deleteAccount())
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Account",
+                "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.",
+                "Delete",
+                "Cancel",
+                this::deleteAccount,
+                null,
+                false
+        );
     }
 
     private void deleteAccount() {
