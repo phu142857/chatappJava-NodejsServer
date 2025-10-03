@@ -1,14 +1,15 @@
-# NT118 Final Project - Multi-Platform Chat Application
+## NT118 Final Project - Multi-Platform Chat Application
 
-## Project Overview
+### Project Overview
 
 This is a comprehensive multi-platform chat application consisting of three main components:
 
-- **Android Client** - Mobile application for end users
-- **Node.js Server** - Backend API and real-time communication server  
-- **Web Admin** - Web-based administration panel
+- **Android Client** – Mobile application for end users
+- **Node.js Server** – Backend API and real-time communication server
+- **Web Admin** – Web-based administration panel
 
-## Project Structure
+
+### Monorepo Structure
 
 ```
 NT118_FinalProject/
@@ -30,72 +31,78 @@ NT118_FinalProject/
     └── package.json
 ```
 
+
 ## Features
 
 ### Android Client
 - User authentication and registration
-- Real-time messaging
+- Real-time messaging (Socket.IO)
 - Group chat functionality
 - Friend request system
-- Voice/video calling
-- File sharing
-- Push notifications
+- Voice/video calling (WebRTC activities)
+- File/image sharing and avatar upload
+- Optional notifications and rich chat UI dialogs
+
+Required Android permissions are declared (Internet, Camera, Record Audio, Media/Storage). Cleartext traffic is enabled via `network_security_config` for development.
 
 ### Node.js Server
-- RESTful API endpoints
-- WebSocket real-time communication
-- JWT authentication
-- File upload handling
-- Database management (MongoDB)
-- Admin user management
-- Statistics and analytics
+- RESTful API endpoints (auth, users, chats, messages, friend-requests, groups, upload, calls, server, statistics, security)
+- WebSocket real-time communication via Socket.IO
+- JWT authentication and role handling (admin/user/moderator)
+- File upload handling (Multer), static serving from `/uploads`
+- Database management using MongoDB with Mongoose
+- Robust CORS configuration for `CLIENT_URL` and `WEBADMIN_URL`
+- Helmet, morgan (non-production), centralized error handling
 
 ### Web Admin Panel
 - User management dashboard
-- Chat monitoring
-- Group management
-- Call statistics
+- Chat and group monitoring/management
+- Call and statistics pages
 - Friend request management
-- System statistics
 - Security monitoring
+- Auth guards and role-based routing (admin-only sections), plus user-facing `Profile` and `My Chats`
+
 
 ## Technology Stack
 
 ### Android Client
-- **Language**: Java
-- **Framework**: Android SDK
-- **Build Tool**: Gradle
-- **UI**: Material Design
-- **Networking**: Retrofit, OkHttp
-- **Real-time**: Socket.IO
+- Language: Java
+- Build Tool: Gradle (Kotlin DSL), Java 11 compatibility
+- UI: Material Design
+- Networking: OkHttp
+- Real-time: Socket.IO client
+- Media/UI: ImagePicker, Picasso, PhotoView
+- Calls: Google WebRTC AAR
 
 ### Node.js Server
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: MongoDB with Mongoose
-- **Authentication**: JWT
-- **Real-time**: Socket.IO
-- **File Upload**: Multer
-- **Validation**: Joi
+- Runtime: Node.js
+- Framework: Express.js
+- Database: MongoDB with Mongoose
+- Authentication: JWT
+- Real-time: Socket.IO 4.x
+- File Upload: Multer
+- Security/Utils: Helmet, CORS, morgan
+- Validation: express-validator
 
 ### Web Admin Panel
-- **Framework**: React with TypeScript
-- **Build Tool**: Vite
-- **UI Library**: Ant Design
-- **State Management**: React hooks
-- **HTTP Client**: Axios
-- **Routing**: React Router
+- Framework: React with TypeScript
+- Build Tool: Vite
+- UI Library: Ant Design
+- State Management: React hooks
+- HTTP Client: Axios
+- Routing: React Router
+
 
 ## Quick Start
 
 ### Prerequisites
 - Android Studio (for Android development)
-- Node.js (v16 or higher)
+- Node.js (v18 or higher recommended)
 - MongoDB
 - Git
 
 ### 1. Clone Repository
-```bash
+```
 git clone <repository-url>
 cd NT118_FinalProject
 ```
@@ -103,136 +110,96 @@ cd NT118_FinalProject
 ### 2. Environment Setup
 
 #### Server Configuration
-Create `.env` file in `ServerNodeJS/Server/`:
-```env
+Create `.env` file in `ServerNodeJS/Server/` (example):
+```
 # Server Configuration
-PORT=5000
+PORT=3000
 NODE_ENV=development
 
 # Database Configuration
-MONGODB_URI=mongodb://localhost:27017/chat-app
+MONGODB_URI=mongodb://localhost:27017/chatapp
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
 
 # File Upload Configuration
 UPLOAD_PATH=./uploads
 MAX_FILE_SIZE=10485760
 
-# CORS Configuration
-CLIENT_URL=http://localhost:3000
+# CORS Configuration (must match actual origins)
+CLIENT_URL=http://localhost:8081
 WEBADMIN_URL=http://localhost:5173
-
-# Security Configuration
-BCRYPT_SALT_ROUNDS=12
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
 ```
 
 Notes:
-- `PORT` is required by the server (no default in code).
-- `CLIENT_URL` and `WEBADMIN_URL` must match the actual origins used by your apps for CORS and Socket.IO.
+- The server reads `PORT` from the environment.
+- `CLIENT_URL` and `WEBADMIN_URL` must match your app/browser origins for CORS and Socket.IO.
 
 #### WebAdmin Configuration
 Create `.env` file in `WebAdmin/`:
-```env
-# API Configuration
-VITE_API_BASE_URL=http://localhost:5000
-
-# Development Configuration
-VITE_DEV_MODE=true
+```
+VITE_API_BASE_URL=http://localhost:3000
 ```
 
 #### Android Configuration
-1. **Update Server IP** in `Client/app/src/main/java/com/example/chatappjava/config/ServerConfig.java`:
-```java
-private static final String SERVER_IP = "localhost"; // Change to your server IP
-private static final int SERVER_PORT = 5000;
-```
-
-2. **Add IP to Network Security** in `Client/app/src/main/res/xml/network_security_config.xml`:
-```xml
-<domain-config cleartextTrafficPermitted="true">
-    <!-- Android Emulator localhost -->
-    <domain includeSubdomains="true">10.0.2.2</domain>
-    <!-- Your server IP address -->
-    <domain includeSubdomains="true">localhost</domain>
-    <domain includeSubdomains="true">127.0.0.1</domain>
-    <!-- Add your server's IP address here -->
-    <domain includeSubdomains="true">YOUR_SERVER_IP_HERE</domain>
-</domain-config>
-```
-
-**IP Configuration Notes:**
-- **Android Emulator**: Use `10.0.2.2` to access localhost
-- **Physical Device**: Use your computer's actual IP address
-- **Find IP**: Windows (`ipconfig`) or Mac/Linux (`ifconfig`)
+- Ensure the app can reach your backend. If using an emulator, `http://10.0.2.2:<PORT>` points to the host machine.
+- The project permits cleartext traffic in development via `network_security_config`.
+- If there is a configurable API base URL in the client code, set it to your backend URL.
 
 ### 3. Installation & Running
 
 #### Server
-```bash
+```
 cd ServerNodeJS/Server
 npm install
-npm start
+npm run dev   # or: npm start
 ```
 
+The server exposes REST endpoints under `/api`. Health check: `/api/health`.
+
 #### WebAdmin
-```bash
+```
 cd WebAdmin
 npm install
 npm run dev
 ```
 
+Open `http://localhost:5173`.
+
 #### Android
-1. Open `Client` folder in Android Studio
-2. Sync Gradle files
-3. Build and run on device/emulator
+1) Open `Client/` in Android Studio
+2) Sync Gradle files (targetSdk 36, Java 11)
+3) Build and run on device/emulator
 
-## API Documentation
 
-### Authentication Endpoints
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
+## API Overview (High-Level)
 
-### Chat Endpoints
-- `GET /api/chats` - Get user chats
-- `POST /api/chats` - Create new chat
-- `GET /api/chats/:id/messages` - Get chat messages
-- `POST /api/chats/:id/messages` - Send message
+Mounted under `/api` in `server.js`:
+- `/api/auth` – register, login, logout, me, profile, change-password, refresh, upload-avatar, delete account
+- `/api/users` – list, search, friends, contacts, online, status, CRUD/admin actions, role updates, reports, friendship admin
+- `/api/chats` – chat listing and details
+- `/api/messages` – message CRUD/retrieval
+- `/api/friend-requests` – send/accept/reject/list
+- `/api/groups` – groups and members management
+- `/api/upload` – media upload endpoints
+- `/api/calls` – call signaling endpoints
+- `/api/server` – server info
+- `/api/statistics` – statistics endpoints
+- `/api/security` – security endpoints
 
-### Group Endpoints
-- `GET /api/groups` - Get user groups
-- `POST /api/groups` - Create new group
-- `PUT /api/groups/:id` - Update group
-- `DELETE /api/groups/:id` - Delete group
+Static files are served from `/uploads` with appropriate CORS headers.
 
-### User Management
-- `GET /api/users` - Get all users (admin)
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
 
-## WebSocket Events
+## WebSocket Events (Typical)
 
-### Client to Server
-- `join_chat` - Join a chat room
-- `leave_chat` - Leave a chat room
-- `send_message` - Send a message
-- `typing` - User typing indicator
-- `stop_typing` - Stop typing indicator
+Client → Server:
+- `join_chat`, `leave_chat`, `send_message`, `typing`, `stop_typing`
 
-### Server to Client
-- `new_message` - New message received
-- `user_typing` - User typing notification
-- `user_stopped_typing` - User stopped typing
-- `user_joined` - User joined chat
-- `user_left` - User left chat
+Server → Client:
+- `new_message`, `user_typing`, `user_stopped_typing`, `user_joined`, `user_left`
 
-## Database Schema
+
+## Database Schema (Simplified Examples)
 
 ### User Model
 ```javascript
@@ -243,7 +210,7 @@ npm run dev
   avatar: String,
   isOnline: Boolean,
   lastSeen: Date,
-  role: String // 'user' or 'admin'
+  role: String // 'user' | 'admin' | 'moderator'
 }
 ```
 
@@ -251,8 +218,8 @@ npm run dev
 ```javascript
 {
   participants: [ObjectId],
-  type: String, // 'private' or 'group'
-  name: String, // for group chats
+  type: String, // 'private' | 'group'
+  name: String, // group name
   lastMessage: ObjectId,
   createdAt: Date
 }
@@ -264,113 +231,100 @@ npm run dev
   chat: ObjectId,
   sender: ObjectId,
   content: String,
-  type: String, // 'text', 'image', 'file'
+  type: String, // 'text' | 'image' | 'file'
   timestamp: Date,
   readBy: [ObjectId]
 }
 ```
 
+
+## Realtime Messaging & Calls
+
+- Socket.IO server is initialized in `ServerNodeJS/Server/server.js` and shared via `app.set('io', io)`.
+- CORS origins are restricted by `CLIENT_URL` and `WEBADMIN_URL`.
+- Android Client uses `io.socket:socket.io-client`.
+- Ensure client and server Socket.IO versions are compatible.
+
+
 ## Security Features
 
 - JWT-based authentication
-- Password hashing with bcrypt
-- Input validation and sanitization
+- Password hashing (bcryptjs)
+- Input validation and sanitization (express-validator)
 - CORS configuration
-- Rate limiting
-- File upload security
-- Audit logging
-- IP blocking capabilities
+- Helmet hardening and structured logging
+- File upload checks and static file CORS
+- Admin-only routes and role checks
 
-## Deployment
 
-### Android App
-1. Generate signed APK in Android Studio
-2. Upload to Google Play Store or distribute directly
+## Seeding Admin User
 
-### Server
-1. Deploy to cloud platform (Heroku, AWS, DigitalOcean)
-2. Set up MongoDB Atlas for production database
-3. Configure environment variables
-4. Set up SSL certificate
+```
+cd ServerNodeJS/Server
+npm run seed:admin
+```
 
-### Web Admin
-1. Build production version: `npm run build`
-2. Deploy to static hosting (Netlify, Vercel, AWS S3)
 
-## Testing
+## Production Notes
 
-### Android
-- Unit tests in `src/test/`
-- UI tests in `src/androidTest/`
+- Set `NODE_ENV=production` to reduce logs
+- Use a strong `JWT_SECRET` and managed MongoDB (e.g., Atlas)
+- Serve the WebAdmin production build behind a reverse proxy
+- Use HTTPS in production; disable cleartext traffic on Android
 
-### Server
-- API tests using Jest
-- WebSocket tests
 
-### Web Admin
-- Component tests using React Testing Library
-- E2E tests using Cypress
+## Scripts
 
-## Monitoring & Analytics
+### Backend (from `ServerNodeJS/Server`)
+- `npm run dev` – start server with nodemon
+- `npm start` – start server
+- `npm run seed:admin` – seed an admin account
 
-- User activity tracking
-- Message statistics
-- Call duration metrics
-- Error logging and monitoring
-- Performance metrics
+### WebAdmin
+- `npm run dev` – start Vite dev server
+- `npm run build` – type-check and build production bundle
+- `npm run preview` – preview production build
 
-## Environment Variables Reference
 
-### Server (.env)
-- `PORT`: Server port (default: 5000)
-- `NODE_ENV`: Environment mode (development/production)
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: Secret key for JWT token signing
-- `JWT_EXPIRES_IN`: JWT token expiration time
-- `JWT_REFRESH_EXPIRES_IN`: Refresh token expiration time
-- `UPLOAD_PATH`: Directory for file uploads
-- `MAX_FILE_SIZE`: Maximum file size in bytes (10MB default)
-- `CLIENT_URL`: Android client URL for CORS
-- `WEBADMIN_URL`: WebAdmin URL for CORS
-- `BCRYPT_ROUNDS`: Password hashing rounds
-- `RATE_LIMIT_WINDOW_MS`: Rate limiting window in milliseconds
-- `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window
+## Testing (High-Level)
 
-### WebAdmin (.env)
-- `VITE_API_BASE_URL`: Backend API base URL
-- `VITE_DEV_MODE`: Development mode flag
+- Android: unit/UI tests under `src/test` and `src/androidTest`
+- Server: add API/socket tests (e.g., Jest) as needed
+- WebAdmin: component tests (RTL) and E2E (Cypress) as desired
 
-### Security Notes
-1. **Never commit .env files** to version control
-2. **Use strong, unique JWT secrets** in production
-3. **Change default passwords** for database and services
-4. **Use HTTPS** in production environments
-5. **Regularly rotate secrets** and API keys
+
+## Monitoring & Analytics (Optional)
+
+- User activity tracking, message stats, call duration, error logging, performance metrics
+
 
 ## Version History
 
-- **v1.0.0** - Initial release with basic chat functionality
-- **v1.1.0** - Added group chat and file sharing
-- **v1.2.0** - Added voice/video calling
-- **v1.3.0** - Added web admin panel
+- v1.0.0 – Initial release with basic chat functionality
+- v1.1.0 – Added group chat and file sharing
+- v1.2.0 – Added voice/video calling
+- v1.3.0 – Added web admin panel
+
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+1) Fork the repository
+2) Create a feature branch
+3) Make changes and add tests when applicable
+4) Submit a pull request
+
 
 ## License
 
 This is a final project for the NT118 course at University of Information Technology (UIT), Vietnam. This project is developed for educational purposes only and is not intended for commercial use.
 
+
 ## Team
 
-- **Coder**: Nguyen Tai Phu 
-- **Course**: NT118 - Final Project
-- **Institution**: UIT - VN
+- Coder: Nguyen Tai Phu
+- Course: NT118 - Final Project
+- Institution: UIT - VN
+
 
 ## Support
 
@@ -378,6 +332,4 @@ For support and questions:
 - Create an issue in the repository
 - Contact: nguyentaiphu980@gmail.com
 
----
 
-**Note**: This is a final project for NT118 course. Please ensure all components are properly configured before running the application.

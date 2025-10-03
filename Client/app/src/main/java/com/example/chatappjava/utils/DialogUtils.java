@@ -16,14 +16,14 @@ import com.example.chatappjava.R;
 public final class DialogUtils {
     private DialogUtils() {}
 
-    public static AlertDialog showConfirm(Context context,
-                                          String title,
-                                          String message,
-                                          String positive,
-                                          String negative,
-                                          Runnable onPositive,
-                                          Runnable onNegative,
-                                          boolean noDim) {
+    public static void showConfirm(Context context,
+                                   String title,
+                                   String message,
+                                   String positive,
+                                   String negative,
+                                   Runnable onPositive,
+                                   Runnable onNegative,
+                                   boolean noDim) {
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_confirm, null);
         TextView tvTitle = view.findViewById(R.id.tv_title);
         TextView tvMsg = view.findViewById(R.id.tv_message);
@@ -58,7 +58,6 @@ public final class DialogUtils {
         }
 
         dialog.show();
-        return dialog;
     }
 }
 
