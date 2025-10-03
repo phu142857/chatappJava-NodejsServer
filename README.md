@@ -230,7 +230,7 @@ npm run seed:admin
 ---
 
 ## Support
-For any questions or support, feel free to contact: **nguyentaiphu980@gmail.comcom**
+For any questions or support, feel free to contact: **nguyentaiphu980@gmail.com**
 
 ---
 
