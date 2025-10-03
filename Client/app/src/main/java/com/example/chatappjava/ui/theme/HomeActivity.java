@@ -84,6 +84,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     
     // Current tab tracking
     private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls
+    // Hold reference to message listener for add/remove
+    private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -710,6 +712,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     protected void onPause() {
         super.onPause();
         stopHomePolling();
+        // Remove message listener to avoid leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null && homeMessageListener != null) {
+            socketManager.removeMessageListener(homeMessageListener);
+        }
     }
     
     private void setupSocketManager() {
@@ -753,6 +761,33 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     });
                 }
             });
+
+            // Add message multi-listener to refresh list on new messages
+            if (homeMessageListener == null) {
+                homeMessageListener = new com.example.chatappjava.network.SocketManager.MessageListener() {
+                    @Override
+                    public void onPrivateMessage(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> loadChats());
+                    }
+                    @Override
+                    public void onGroupMessage(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> loadChats());
+                    }
+                    @Override
+                    public void onMessageEdited(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> loadChats());
+                    }
+                    @Override
+                    public void onMessageDeleted(org.json.JSONObject messageMetaJson) {
+                        runOnUiThread(() -> loadChats());
+                    }
+                    @Override
+                    public void onReactionUpdated(org.json.JSONObject reactionJson) {
+                        // no-op for home list
+                    }
+                };
+            }
+            socketManager.addMessageListener(homeMessageListener);
         }
     }
     

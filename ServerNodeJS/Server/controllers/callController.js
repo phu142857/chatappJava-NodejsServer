@@ -233,6 +233,21 @@ const joinCall = async (req, res) => {
             });
         }
 
+        // Idempotency: if already connected, return current state without emitting again
+        if (participant.status === 'connected') {
+            // Populate call data for response
+            await call.populate([
+                { path: 'chatId', select: 'name type' },
+                { path: 'participants.userId', select: 'username avatar status' }
+            ]);
+
+            return res.json({
+                success: true,
+                message: 'Already joined',
+                data: call
+            });
+        }
+
         // Update participant status
         participant.status = 'connected';
         participant.joinedAt = new Date();
@@ -257,7 +272,7 @@ const joinCall = async (req, res) => {
             { path: 'participants.userId', select: 'username avatar status' }
         ]);
 
-        // Send call_accepted notification to other participants via Socket.io
+        // Send call_accepted notification to other participants via Socket.io (idempotent by status guard above)
         const io = req.app.get('io');
         if (io) {
             const userIdStr = userId.toString();
@@ -324,6 +339,15 @@ const declineCall = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: 'You are not a participant in this call'
+            });
+        }
+
+        // Idempotency: if already declined, return current state without emitting again
+        if (participant.status === 'declined') {
+            return res.json({
+                success: true,
+                message: 'Already declined',
+                data: call
             });
         }
 
@@ -474,6 +498,15 @@ const endCall = async (req, res) => {
             });
         }
 
+        // Idempotency: if already ended, return current state without emitting again
+        if (call.status === 'ended') {
+            return res.json({
+                success: true,
+                message: 'Call already ended',
+                data: call
+            });
+        }
+
         // End the call
         await call.endCall();
 
@@ -486,7 +519,7 @@ const endCall = async (req, res) => {
 
         await call.save();
 
-        // Send call_ended notification to all participants via Socket.io
+        // Send call_ended notification to all participants via Socket.io (idempotent by status guard above)
         const io = req.app.get('io');
         if (io) {
             const callData = {

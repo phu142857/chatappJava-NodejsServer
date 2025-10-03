@@ -22,6 +22,8 @@ public class SocketManager {
     private boolean isConnected = false;
     private String currentToken;
     private String currentUserId;
+    // Active call guard to prevent duplicate ringing/offer handling across screens
+    private String activeCallId;
     
     // Callback interfaces
     public interface IncomingCallListener {
@@ -66,9 +68,13 @@ public class SocketManager {
     private CallStatusListener callStatusListener;
     private WebRTCListener webrtcListener;
     private CallRoomListener callRoomListener;
-    private ContactStatusListener contactStatusListener;
+    private ContactStatusListener contactStatusListener; // legacy single-listener (kept for backward compatibility)
     private MemberRemovedListener memberRemovedListener;
-    private MessageListener messageListener;
+    private MessageListener messageListener; // legacy single-listener (kept for backward compatibility)
+
+    // New: support multiple listeners for message and contact status to avoid clobbering between screens
+    private final java.util.List<ContactStatusListener> contactStatusListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<MessageListener> messageListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     private SocketManager() {
         // Private constructor for singleton
@@ -189,6 +195,21 @@ public class SocketManager {
                     String chatId = data.getString("chatId");
                     String callType = data.getString("callType");
                     
+                    // De-dup guard: only allow first handler to process a specific callId
+                    synchronized (SocketManager.this) {
+                        if (activeCallId != null && !activeCallId.isEmpty()) {
+                            if (activeCallId.equals(callId)) {
+                                Log.d(TAG, "Ignoring duplicate incoming_call for active callId: " + callId);
+                                return;
+                            } else {
+                                Log.w(TAG, "Another call is already active (" + activeCallId + "), ignoring incoming_call: " + callId);
+                                return;
+                            }
+                        }
+                        activeCallId = callId;
+                        Log.d(TAG, "Set activeCallId on incoming_call: " + activeCallId);
+                    }
+
                     // Parse caller info
                     JSONObject callerJson = data.getJSONObject("caller");
                     User caller = User.fromJson(callerJson);
@@ -268,13 +289,19 @@ public class SocketManager {
                     String userId = data.getString("userId");
                     String status = data.getString("status");
                     Log.d(TAG, "Received contact_status_change event: " + userId + " -> " + status);
-                    Log.d(TAG, "Contact status listener is " + (contactStatusListener != null ? "set" : "null"));
+                    Log.d(TAG, "Contact status listener is " + (contactStatusListener != null ? "set" : "null") + ", multi count=" + contactStatusListeners.size());
                     
+                    // Legacy single listener
                     if (contactStatusListener != null) {
-                        Log.d(TAG, "Calling contact status listener");
                         contactStatusListener.onContactStatusChange(userId, status);
-                    } else {
-                        Log.w(TAG, "No contact status listener set, ignoring event");
+                    }
+                    // Notify all registered listeners
+                    for (ContactStatusListener l : contactStatusListeners) {
+                        try {
+                            l.onContactStatusChange(userId, status);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying contact status listener", ex);
+                        }
                     }
                     
                 } catch (JSONException e) {
@@ -324,7 +351,17 @@ public class SocketManager {
             public void call(Object... args) {
                 try {
                     JSONObject data = (JSONObject) args[0];
-                    if (messageListener != null) messageListener.onPrivateMessage(data.getJSONObject("message"));
+                    JSONObject message = data.getJSONObject("message");
+                    // Legacy single listener
+                    if (messageListener != null) messageListener.onPrivateMessage(message);
+                    // Multi listeners
+                    for (MessageListener l : messageListeners) {
+                        try {
+                            l.onPrivateMessage(message);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying private message listener", ex);
+                        }
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error parsing private_message", e);
                 }
@@ -335,7 +372,15 @@ public class SocketManager {
             public void call(Object... args) {
                 try {
                     JSONObject data = (JSONObject) args[0];
-                    if (messageListener != null) messageListener.onGroupMessage(data.getJSONObject("message"));
+                    JSONObject message = data.getJSONObject("message");
+                    if (messageListener != null) messageListener.onGroupMessage(message);
+                    for (MessageListener l : messageListeners) {
+                        try {
+                            l.onGroupMessage(message);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying group message listener", ex);
+                        }
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error parsing group_message", e);
                 }
@@ -346,7 +391,15 @@ public class SocketManager {
             public void call(Object... args) {
                 try {
                     JSONObject data = (JSONObject) args[0];
-                    if (messageListener != null) messageListener.onMessageEdited(data.getJSONObject("message"));
+                    JSONObject message = data.getJSONObject("message");
+                    if (messageListener != null) messageListener.onMessageEdited(message);
+                    for (MessageListener l : messageListeners) {
+                        try {
+                            l.onMessageEdited(message);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying message edited listener", ex);
+                        }
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error parsing message_edited", e);
                 }
@@ -358,6 +411,13 @@ public class SocketManager {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     if (messageListener != null) messageListener.onMessageDeleted(data);
+                    for (MessageListener l : messageListeners) {
+                        try {
+                            l.onMessageDeleted(data);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying message deleted listener", ex);
+                        }
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error parsing message_deleted", e);
                 }
@@ -369,6 +429,13 @@ public class SocketManager {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     if (messageListener != null) messageListener.onReactionUpdated(data);
+                    for (MessageListener l : messageListeners) {
+                        try {
+                            l.onReactionUpdated(data);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error notifying reaction updated listener", ex);
+                        }
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error parsing reaction_updated", e);
                 }
@@ -388,6 +455,13 @@ public class SocketManager {
                         offer.put("fromUserId", data.getString("fromUserId"));
                     }
                     Log.d(TAG, "Received WebRTC offer for call: " + callId);
+                    // Ignore offers for non-active calls to avoid duplicates across screens
+                    synchronized (SocketManager.this) {
+                        if (activeCallId != null && !activeCallId.equals(callId)) {
+                            Log.w(TAG, "Ignoring WebRTC offer for non-active callId: " + callId + ", active: " + activeCallId);
+                            return;
+                        }
+                    }
                     
                     if (webrtcListener != null) {
                         webrtcListener.onWebRTCOffer(callId, offer);
@@ -411,6 +485,12 @@ public class SocketManager {
                         answer.put("fromUserId", data.getString("fromUserId"));
                     }
                     Log.d(TAG, "Received WebRTC answer for call: " + callId);
+                    synchronized (SocketManager.this) {
+                        if (activeCallId != null && !activeCallId.equals(callId)) {
+                            Log.w(TAG, "Ignoring WebRTC answer for non-active callId: " + callId + ", active: " + activeCallId);
+                            return;
+                        }
+                    }
                     
                     if (webrtcListener != null) {
                         webrtcListener.onWebRTCAnswer(callId, answer);
@@ -434,6 +514,12 @@ public class SocketManager {
                         candidate.put("fromUserId", data.getString("fromUserId"));
                     }
                     Log.d(TAG, "Received ICE candidate for call: " + callId);
+                    synchronized (SocketManager.this) {
+                        if (activeCallId != null && !activeCallId.equals(callId)) {
+                            Log.w(TAG, "Ignoring ICE candidate for non-active callId: " + callId + ", active: " + activeCallId);
+                            return;
+                        }
+                    }
                     
                     if (webrtcListener != null) {
                         webrtcListener.onICECandidate(callId, candidate);
@@ -570,6 +656,36 @@ public class SocketManager {
             }
         }
     }
+
+    // Active call guard APIs
+    public synchronized void setActiveCallId(String callId) {
+        this.activeCallId = callId;
+        Log.d(TAG, "Active call set: " + callId);
+    }
+
+    public synchronized void clearActiveCallId(String callId) {
+        if (this.activeCallId != null && (callId == null || this.activeCallId.equals(callId))) {
+            Log.d(TAG, "Clearing active call: " + this.activeCallId);
+            this.activeCallId = null;
+        }
+    }
+
+    public synchronized String getActiveCallId() {
+        return activeCallId;
+    }
+
+    /**
+     * Reset call-related realtime state and listeners.
+     * Use this when a call is ended/declined/cancelled to avoid duplicates.
+     */
+    public synchronized void resetActiveCall() {
+        Log.d(TAG, "Resetting active call state and call listeners");
+        this.activeCallId = null;
+        // Clear call-related listeners only; keep message/contact listeners intact
+        removeCallStatusListener();
+        removeWebRTCListener();
+        removeCallRoomListener();
+    }
     
     // Getters and setters
     public boolean isConnected() {
@@ -605,6 +721,7 @@ public class SocketManager {
     }
     
     public void setContactStatusListener(ContactStatusListener listener) {
+        // legacy behavior: replace the single listener reference
         this.contactStatusListener = listener;
     }
 
@@ -614,6 +731,7 @@ public class SocketManager {
     
     public void removeContactStatusListener() {
         this.contactStatusListener = null;
+        // does not clear multi-listeners
     }
     
     public void setMemberRemovedListener(MemberRemovedListener listener) {
@@ -625,10 +743,37 @@ public class SocketManager {
     }
     
     public void setMessageListener(MessageListener listener) {
+        // legacy behavior: replace the single listener reference
         this.messageListener = listener;
     }
     
     public void removeMessageListener() {
         this.messageListener = null;
+        // does not clear multi-listeners
+    }
+
+    // New multi-listener APIs
+    public void addContactStatusListener(ContactStatusListener listener) {
+        if (listener != null && !contactStatusListeners.contains(listener)) {
+            contactStatusListeners.add(listener);
+        }
+    }
+
+    public void removeContactStatusListener(ContactStatusListener listener) {
+        if (listener != null) {
+            contactStatusListeners.remove(listener);
+        }
+    }
+
+    public void addMessageListener(MessageListener listener) {
+        if (listener != null && !messageListeners.contains(listener)) {
+            messageListeners.add(listener);
+        }
+    }
+
+    public void removeMessageListener(MessageListener listener) {
+        if (listener != null) {
+            messageListeners.remove(listener);
+        }
     }
 }

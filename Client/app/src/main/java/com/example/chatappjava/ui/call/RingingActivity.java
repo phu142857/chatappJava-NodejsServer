@@ -281,6 +281,12 @@ public class RingingActivity extends AppCompatActivity {
         // Swipe gesture is always visible for incoming calls
         outgoingCallInfo.setVisibility(View.GONE);
         
+        // Mark active call to avoid duplicate handling in other screens
+        com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (sm != null) {
+            sm.setActiveCallId(callId);
+        }
+
         // Start ringing animations
         startRingingAnimations();
         
@@ -300,6 +306,12 @@ public class RingingActivity extends AppCompatActivity {
         outgoingCallInfo.setVisibility(View.VISIBLE);
         tvRingingStatus.setText("Ringing");
         
+        // Mark active call to avoid duplicate handling across screens
+        com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (sm != null) {
+            sm.setActiveCallId(callId);
+        }
+
         // Start ringing animations
         startRingingAnimations();
         
@@ -496,6 +508,9 @@ public class RingingActivity extends AppCompatActivity {
             public void onFailure(Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Log.e(TAG, "Failed to decline call", e);
+                    // Reset active call on failure as well to avoid stuck state
+                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                    if (sm != null) sm.resetActiveCall();
                     finish();
                 });
             }
@@ -504,6 +519,8 @@ public class RingingActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws java.io.IOException {
                 runOnUiThread(() -> {
                     Log.d(TAG, "Call declined: " + response.code());
+                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                    if (sm != null) sm.resetActiveCall();
                     finish();
                 });
             }
@@ -518,6 +535,9 @@ public class RingingActivity extends AppCompatActivity {
             public void onFailure(Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Log.e(TAG, "Failed to end call", e);
+                    // Ensure reset to avoid duplicates later
+                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                    if (sm != null) sm.resetActiveCall();
                     finish();
                 });
             }
@@ -526,6 +546,8 @@ public class RingingActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws java.io.IOException {
                 runOnUiThread(() -> {
                     Log.d(TAG, "Call ended: " + response.code());
+                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                    if (sm != null) sm.resetActiveCall();
                     finish();
                 });
             }

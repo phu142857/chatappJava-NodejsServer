@@ -1299,6 +1299,11 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         
         // Initialize WebRTC (placeholder)
         initializeWebRTC();
+
+        // Mark active call for de-duplication
+        if (socketManager != null) {
+            socketManager.setActiveCallId(callId);
+        }
     }
     
     private void startCallDurationTimer() {
@@ -1504,6 +1509,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             socketManager.leaveCallRoom(callId);
             socketManager.removeCallStatusListener();
             socketManager.removeWebRTCListener();
+            socketManager.clearActiveCallId(callId);
         }
         
         // Clean up WebRTC resources

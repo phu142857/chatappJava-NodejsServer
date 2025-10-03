@@ -107,6 +107,8 @@ public class PrivateChatActivity extends BaseChatActivity {
                         if (currentCallId != null && currentCallId.equals(callId)) {
                             android.util.Log.d("PrivateChatActivity", "Call declined, resetting UI");
                             Toast.makeText(PrivateChatActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
+                            com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) sm.resetActiveCall();
                             currentCallId = null;
                             isJoiningCall = false; // Reset flag
                             updateCallUI(false); // Hide cancel button
@@ -116,6 +118,8 @@ public class PrivateChatActivity extends BaseChatActivity {
                             if (isCancelVisible) {
                                 android.util.Log.w("PrivateChatActivity", "CallDeclined for different callId but UI shows calling. Forcing reset.");
                                 Toast.makeText(PrivateChatActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
+                                com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                if (sm != null) sm.resetActiveCall();
                                 currentCallId = null;
                                 isJoiningCall = false;
                                 updateCallUI(false);
@@ -130,6 +134,8 @@ public class PrivateChatActivity extends BaseChatActivity {
                         if (currentCallId != null && currentCallId.equals(callId) && !isJoiningCall) {
                             android.util.Log.d("PrivateChatActivity", "Call ended, resetting UI");
                             Toast.makeText(PrivateChatActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
+                            com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) sm.resetActiveCall();
                             currentCallId = null;
                             updateCallUI(false); // Hide cancel button
                         }
@@ -217,6 +223,8 @@ public class PrivateChatActivity extends BaseChatActivity {
                             android.util.Log.e("PrivateChatActivity", "Failed to cancel call: " + response.code());
                             Toast.makeText(PrivateChatActivity.this, "Failed to cancel call", Toast.LENGTH_SHORT).show();
                         }
+                        com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                        if (sm != null) sm.resetActiveCall();
                         currentCallId = null;
                         isJoiningCall = false; // Reset flag
                         updateCallUI(false); // Hide cancel button
