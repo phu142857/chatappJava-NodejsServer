@@ -63,10 +63,9 @@ chatapp/
 ```mermaid
 
 flowchart LR
-  A[Android Client] <-->|SocketIO+HTTPS| B[Node.js Server]
+  A[Android Client] <-->|SocketIO+HTTP| B[Node.js Server]
   C[WebAdmin] <-->|HTTP| B
   B -->|Mongoose| D[(MongoDB)]
-                +-----------------+
 
 ```
 
