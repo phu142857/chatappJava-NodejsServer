@@ -276,6 +276,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         
         rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
         rvSearchResults.setAdapter(userAdapter); // Start with user adapter
+        // Forward mode: ensure groups tab shows Forward button
+        groupAdapter.setForwardMode("forward".equals(mode));
     }
     
     private void setupClickListeners() {
@@ -323,6 +325,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         if (tabDiscover != null) tabDiscover.setSelected(false);
         rvSearchResults.setAdapter(groupAdapter);
         groupAdapter.setDiscoverMode(false);
+        groupAdapter.setForwardMode("forward".equals(mode));
         // Do not clear results after load finishes; show loading then populate
         etSearch.setHint("Search groups...");
         loadUserGroups(); // Load user's groups when switching to group search
@@ -336,6 +339,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         if (tabDiscover != null) tabDiscover.setSelected(true);
         rvSearchResults.setAdapter(groupAdapter);
         groupAdapter.setDiscoverMode(true);
+        groupAdapter.setForwardMode(false);
         etSearch.setHint("Discover public groups...");
         // Do not load or show groups until user types a search
         groupResults.clear();
@@ -735,6 +739,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             Toast.makeText(this, "Error creating chat request", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     private void handleCreateChatResponseForward(int statusCode, String responseBody, User user) {
         try {

@@ -23,6 +23,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     private List<Chat> groups;
     private OnGroupClickListener listener;
     private boolean discoverMode = false; // when true, show join/request buttons
+    private boolean forwardMode = false;  // when true (in "forward" mode on groups tab), show Forward button
     private final AvatarManager avatarManager;
     
     public interface OnGroupClickListener {
@@ -40,6 +41,8 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
     }
     @SuppressLint("NotifyDataSetChanged")
     public void setDiscoverMode(boolean discover) { this.discoverMode = discover; notifyDataSetChanged(); }
+    @SuppressLint("NotifyDataSetChanged")
+    public void setForwardMode(boolean forward) { this.forwardMode = forward; notifyDataSetChanged(); }
     
     @SuppressLint("NotifyDataSetChanged")
     public void updateGroups(List<Chat> newGroups) {
@@ -143,7 +146,7 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 }
             }
 
-            // Action button visibility and text for Discover
+            // Action button visibility and text for Discover / Forward
             if (discoverMode && btnAction != null) {
                 btnAction.setVisibility(View.VISIBLE);
                 // Determine pending status from Chat model field
@@ -171,6 +174,15 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                     if (listener != null && btnAction.isEnabled()) {
                         listener.onGroupClick(group); // delegate action; activity decides join/request/cancel
                     }
+                });
+            } else if (forwardMode && btnAction != null) {
+                // Forward mode on My Groups tab: show a Forward button
+                btnAction.setVisibility(View.VISIBLE);
+                btnAction.setText("FORWARD");
+                btnAction.setEnabled(true);
+                btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
+                btnAction.setOnClickListener(v -> {
+                    if (listener != null) listener.onGroupClick(group);
                 });
             } else if (btnAction != null) {
                 btnAction.setVisibility(View.GONE);
