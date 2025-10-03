@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageButton;
@@ -44,10 +43,7 @@ import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
-import org.webrtc.RTCStatsCollectorCallback;
 import org.webrtc.RtpReceiver;
-import org.webrtc.RtpSender;
-import org.webrtc.RtpTransceiver;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.SurfaceViewRenderer;
@@ -120,7 +116,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     
     // Call duration
     private Timer callDurationTimer;
-    private long callStartTime;
     private int callDurationSeconds = 0;
     
     // Managers
@@ -1307,7 +1302,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     }
     
     private void startCallDurationTimer() {
-        callStartTime = System.currentTimeMillis();
         callDurationTimer = new Timer();
         callDurationTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
