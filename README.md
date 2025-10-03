@@ -112,23 +112,23 @@ cd NT118_FinalProject
 #### Server Configuration
 Create `.env` file in `ServerNodeJS/Server/` (example):
 ```
-# Server Configuration
-PORT=3000
+PORT=49664
 NODE_ENV=development
-
-# Database Configuration
 MONGODB_URI=mongodb://localhost:27017/chatapp
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-
-# File Upload Configuration
-UPLOAD_PATH=./uploads
-MAX_FILE_SIZE=10485760
-
-# CORS Configuration (must match actual origins)
-CLIENT_URL=http://localhost:8081
+DB_NAME=chatapp
+JWT_SECRET="WOzMf2fO7jy6hfjxHBXYNcfzcX6/CSySlQr/RjrKhxzOp1edU+4IAZtAQMXb3lYNjjkz+DN1wjZsHhxrQo0WJQ=="
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+CLIENT_URL=http://localhost:3000
+SOCKET_CORS_ORIGIN=localhost:3000
+BCRYPT_SALT_ROUNDS=12
+MAX_FILE_SIZE=10mb
+ADMIN_EMAIL=admin@example.com
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=Admin@123
+VITE_API_BASE_URL=http://localhost:49664
 WEBADMIN_URL=http://localhost:5173
+
 ```
 
 Notes:
