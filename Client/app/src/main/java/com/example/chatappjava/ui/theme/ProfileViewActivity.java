@@ -192,6 +192,10 @@ public class ProfileViewActivity extends AppCompatActivity {
         
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         if (ivClose != null) {
             ivClose.setOnClickListener(v -> {
                 if (currentDialog != null) currentDialog.dismiss();
@@ -227,6 +231,10 @@ public class ProfileViewActivity extends AppCompatActivity {
         
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         currentDialog.show();
     }
     

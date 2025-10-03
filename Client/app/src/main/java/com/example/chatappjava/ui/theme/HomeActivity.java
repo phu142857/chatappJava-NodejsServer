@@ -480,6 +480,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         currentDialog.show();
     }
 
@@ -1155,6 +1159,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         LinearLayout optionDeleteGroup = dialogView.findViewById(R.id.option_delete_group);
         
         AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         
         // Set click listeners
         optionViewInfo.setOnClickListener(v -> {
@@ -1187,6 +1195,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
         
         AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         
         // Set click listeners
         dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {

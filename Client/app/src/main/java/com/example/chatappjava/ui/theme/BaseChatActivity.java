@@ -154,8 +154,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     String callType = (which == 0) ? "video" : "audio";
                     initiateCall(callType);
                 })
-                .setNegativeButton("Cancel", null)
-                .show();
+                .setNegativeButton("Cancel", null);
+        AlertDialog dlg = builder.create();
+        if (dlg.getWindow() != null) {
+            android.view.Window w = dlg.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        dlg.show();
     }
     
     private void initiateCall(String callType) {
@@ -1449,6 +1454,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         currentDialog.show();
     }
 

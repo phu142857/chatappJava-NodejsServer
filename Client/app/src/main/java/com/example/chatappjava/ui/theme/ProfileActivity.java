@@ -336,6 +336,10 @@ public class ProfileActivity extends AppCompatActivity {
             } catch (Exception ignored) {}
             builder.setView(dialogView);
             AlertDialog dialog = builder.create();
+            if (dialog.getWindow() != null) {
+                android.view.Window w = dialog.getWindow();
+                w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            }
             if (ivClose != null) ivClose.setOnClickListener(v -> dialog.dismiss());
             dialog.show();
             return;
@@ -366,6 +370,10 @@ public class ProfileActivity extends AppCompatActivity {
         }
         builder.setView(dialogView);
         AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         if (ivClose != null) ivClose.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }

@@ -119,6 +119,10 @@ public class SettingsActivity extends AppCompatActivity {
         Button btnCancel = dialogView.findViewById(R.id.btn_cancel_password);
 
         AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnSave.setOnClickListener(v -> {
@@ -212,6 +216,10 @@ public class SettingsActivity extends AppCompatActivity {
         cbUseWss.setChecked(ServerConfig.isUsingWss());
 
         AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnSave.setOnClickListener(v -> {

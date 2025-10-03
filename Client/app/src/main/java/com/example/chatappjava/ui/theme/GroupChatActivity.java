@@ -212,6 +212,10 @@ public class GroupChatActivity extends BaseChatActivity {
 
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         currentDialog.show();
     }
 
@@ -656,6 +660,10 @@ public class GroupChatActivity extends BaseChatActivity {
         android.widget.Button btnSave = dialogView.findViewById(R.id.btn_save);
         
         AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnSave.setOnClickListener(v -> {

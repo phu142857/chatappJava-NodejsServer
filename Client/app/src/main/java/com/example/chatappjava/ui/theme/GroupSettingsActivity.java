@@ -191,8 +191,8 @@ public class GroupSettingsActivity extends AppCompatActivity {
         // Show/hide permission message
         updatePermissionMessage(isCreator);
         
-        // Show/hide other creator-only options
-        updateCreatorOnlyOptions(isCreator);
+        // Lock other creator-only options instead of hiding
+        lockCreatorOnlyOptions(isCreator);
         
         // Load join requests count
         fetchJoinRequestCount();
@@ -212,24 +212,26 @@ public class GroupSettingsActivity extends AppCompatActivity {
         }
     }
     
-    private void updateCreatorOnlyOptions(boolean isCreator) {
-        // Change Avatar - only for creator
-        findViewById(R.id.option_change_avatar).setVisibility(isCreator ? View.VISIBLE : View.GONE);
-        
-        // Add Members - only for creator
-        findViewById(R.id.option_add_members).setVisibility(isCreator ? View.VISIBLE : View.GONE);
-        
-        // Remove Members - only for creator
-        findViewById(R.id.option_remove_members).setVisibility(isCreator ? View.VISIBLE : View.GONE);
-        
-        // Join Requests - only for creator
-        findViewById(R.id.option_join_requests).setVisibility(isCreator ? View.VISIBLE : View.GONE);
-        
-        // Delete Group - only for creator
-        findViewById(R.id.option_delete_group).setVisibility(isCreator ? View.VISIBLE : View.GONE);
-        
-        // Leave Group - only for non-creator members
-        findViewById(R.id.option_leave_group).setVisibility(isCreator ? View.GONE : View.VISIBLE);
+    private void lockCreatorOnlyOptions(boolean isCreator) {
+        // We keep items visible, but disable and show a small lock message if not creator
+        lockOption(R.id.option_change_avatar, !isCreator, "Only group creator can change avatar");
+        lockOption(R.id.option_add_members, !isCreator, "Only group creator can add members");
+        lockOption(R.id.option_remove_members, !isCreator, "Only group creator can remove members");
+        lockOption(R.id.option_join_requests, !isCreator, "Only group creator can view join requests");
+        lockOption(R.id.option_delete_group, !isCreator, "Only group creator can delete group");
+
+        // Leave group is allowed for members; if creator, disable/guide
+        lockOption(R.id.option_leave_group, isCreator, "Creator cannot leave. Delete group instead");
+    }
+
+    private void lockOption(int optionId, boolean lock, String message) {
+        View v = findViewById(optionId);
+        if (v == null) return;
+        v.setEnabled(!lock);
+        v.setAlpha(lock ? 0.5f : 1.0f);
+        if (lock) {
+            v.setOnClickListener(x -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
+        }
     }
     
     private void fetchJoinRequestCount() {
@@ -289,7 +291,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
                     showAvatarOptions();
                 })
                 .setNegativeButton("Close", null)
-                .show();
+                .create().show();
     }
     
     private void showAvatarOptions() {

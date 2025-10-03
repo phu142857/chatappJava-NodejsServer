@@ -297,6 +297,10 @@ public class PrivateChatActivity extends BaseChatActivity {
         
         builder.setView(dialogView);
         currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
         currentDialog.show();
     }
     
