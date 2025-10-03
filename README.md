@@ -138,7 +138,7 @@ Notes:
 #### WebAdmin Configuration
 Create `.env` file in `WebAdmin/`:
 ```
-VITE_API_BASE_URL=http://localhost:3000
+VITE_API_BASE_URL=http://localhost:49664
 ```
 
 #### Android Configuration
