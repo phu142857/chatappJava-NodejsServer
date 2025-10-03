@@ -78,10 +78,9 @@ flowchart LR
 ---
 
 ## Technology Stack
-- **Android Client**: Java, WebRTC, Firebase Auth, Firebase Firestore
+- **Android Client**: Java, WebRTC
 - **Backend Server**: Node.js, Express, Socket.IO, Redis, MongoDB, JWT
 - **Admin Panel**: React, Vite, Tailwind, shadcn/ui
-- **Infra**: Docker, Nginx, PM2
 
 ---
 
