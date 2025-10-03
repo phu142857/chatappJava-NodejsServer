@@ -1,15 +1,10 @@
-# 📱 ChatApp - Fullstack Realtime Messaging & Video Calling
+# ChatApp - Fullstack Realtime Messaging & Video Calling
 
-![Android](https://img.shields.io/badge/Android-Java-green?logo=android)
-![Node.js](https://img.shields.io/badge/Node.js-Express-yellowgreen?logo=node.js)
-![WebRTC](https://img.shields.io/badge/WebRTC-Signaling-blue?logo=webrtc)
-![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-green?logo=mongodb)
-![Redis](https://img.shields.io/badge/Redis-Cache-red?logo=redis)
-![Firebase](https://img.shields.io/badge/Firebase-Auth-orange?logo=firebase)
+ 
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 - [Project Overview](#project-overview)
 - [Monorepo Structure](#monorepo-structure)
 - [Visual Overview](#visual-overview)
@@ -36,7 +31,7 @@
 
 ---
 
-## 📖 Project Overview
+## Project Overview
 A **fullstack real-time chat application** with:
 - Android native client (Java)
 - Node.js backend (Express, WebSocket, Redis, MongoDB)
@@ -45,7 +40,7 @@ A **fullstack real-time chat application** with:
 
 ---
 
-## 🗂 Monorepo Structure
+## Monorepo Structure
 ```
 chatapp/
 ├── server/              # Node.js backend (FastAPI-like with Express)
@@ -57,7 +52,7 @@ chatapp/
 
 ---
 
-## 🖼 Visual Overview
+## Visual Overview
 
 ### Architecture Diagram
 ```mermaid
@@ -71,7 +66,7 @@ flowchart LR
 
 ---
 
-## ✨ Features
+## Features
 - ✅ User Authentication (Firebase + JWT)
 - ✅ Friend Requests & Contact List
 - ✅ 1:1 & Group Chat with real-time sync
@@ -82,7 +77,7 @@ flowchart LR
 
 ---
 
-## 🛠 Technology Stack
+## Technology Stack
 - **Android Client**: Java, WebRTC, Firebase Auth, Firebase Firestore
 - **Backend Server**: Node.js, Express, Socket.IO, Redis, MongoDB, JWT
 - **Admin Panel**: React, Vite, Tailwind, shadcn/ui
@@ -90,7 +85,7 @@ flowchart LR
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Backend
 ```bash
@@ -113,7 +108,7 @@ npm run dev
 
 ---
 
-## 🎥 Demo
+## Demo
 - [Video Demo](docs/demo.mp4)
 - ![Login Screen](docs/android_login.png)
 - ![Chat Screen](docs/android_chat.png)
@@ -121,7 +116,7 @@ npm run dev
 
 ---
 
-## 📡 API Overview
+## API Overview
 | Endpoint                | Method | Description                   |
 |--------------------------|--------|-------------------------------|
 | `/api/auth/register`     | POST   | Register new user             |
@@ -135,7 +130,7 @@ npm run dev
 
 ---
 
-## 🔌 WebSocket Events
+## WebSocket Events
 - `message:new` → Send/receive message
 - `friend:request` → Handle friend requests
 - `call:offer` / `call:answer` → WebRTC signaling
@@ -143,7 +138,7 @@ npm run dev
 
 ---
 
-## 🗄 Database Schema
+## Database Schema
 - **Users**: { uid, email, passwordHash, friends[], status }
 - **Messages**: { from, to, content, type, timestamp }
 - **Groups**: { name, members[], admins[], createdAt }
@@ -151,14 +146,14 @@ npm run dev
 
 ---
 
-## 📞 Realtime Messaging & Calls
+## Realtime Messaging & Calls
 - Built with **Socket.IO** for reliable messaging.
 - **WebRTC** handles P2P video/audio streaming.
 - Signaling is managed via backend WebSocket.
 
 ---
 
-## 🔒 Security Features
+## Security Features
 - JWT Authentication
 - Firebase Authentication
 - End-to-End encryption (planned)
@@ -167,7 +162,7 @@ npm run dev
 
 ---
 
-## 👤 Seeding Admin User
+## Seeding Admin User
 ```bash
 cd server
 npm run seed:admin
@@ -175,7 +170,7 @@ npm run seed:admin
 
 ---
 
-## 📦 Production Notes
+## Production Notes
 - Reverse proxy with Nginx
 - HTTPS via Let’s Encrypt
 - PM2 for process management
@@ -184,7 +179,7 @@ npm run seed:admin
 
 ---
 
-## 📜 Scripts
+## Scripts
 - `npm run dev` → Development
 - `npm run build` → Production build
 - `npm run lint` → Code linting
@@ -192,28 +187,28 @@ npm run seed:admin
 
 ---
 
-## 🧪 Testing (High-level)
+## Testing (High-level)
 - **Unit tests** (Jest for server, JUnit for Android)
 - **Integration tests** (API endpoints, DB)
 - **End-to-end**: WebSocket & video call flows
 
 ---
 
-## 📊 Monitoring & Analytics (Optional)
+## Monitoring & Analytics (Optional)
 - Prometheus + Grafana for server metrics
 - Firebase Analytics for Android
 - Google Analytics for Admin Panel
 
 ---
 
-## 🕘 Version History
+## Version History
 - v1.0: Initial release (Auth, Chat, Groups, Admin)
 - v1.1: Added file sharing, Redis cache
 - v1.2: Implemented WebRTC video calling
 
 ---
 
-## 🤝 Contributing
+## Contributing
 1. Fork the repo
 2. Create feature branch (`git checkout -b feature/foo`)
 3. Commit changes
@@ -221,26 +216,27 @@ npm run seed:admin
 
 ---
 
-## 📄 License
-MIT License © 2025 ChatApp Team
+## License
+ This is a final project for the NT118 course at University of Information Technology (UIT), Vietnam. This project is developed for educational purposes only and is not intended for commercial use.
 
 ---
 
-## 👥 Team
-- Android: Nguyen Tai Phu
-- Backend: Team
-- Web Admin: Team
+## Team
+-Android Client: Nguyen Tai Phu
+-Backend (Node.js Server): Nguyen Tai Phu
+-Web Admin (React): Nguyen Tai Phu
 
 ---
 
-## 🆘 Support
-For support, email **support@chatapp.local**
+## Support
+For any questions or support, feel free to contact: **nguyentaiphu980@gmail.comcom**
 
 ---
 
-## 🔮 Future Work / Limitations
+## Future Work / Limitations
 - End-to-End encryption for messages/calls
 - Group video calling
 - Multi-device sync
 - Push notifications via FCM
 - File preview and CDN integration
+- Full HTTPS/WSS support for secure communication
