@@ -1,4 +1,4 @@
-## NT118 Final Project - Multi-Platform Chat Application
+## NT118 Final Project - Android Chat Application
 
 ### Project Overview
 
