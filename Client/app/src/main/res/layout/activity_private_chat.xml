@@ -5,8 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/background_primary">
-    tools:context=".ui.theme.PrivateChatActivity">
+    android:background="@color/background_primary"
+    tools:ignore="ExtraText">
+    tools:context=".ui.activities.PrivateChatActivity">
 
     <!-- Background geometric shapes -->
     <View
@@ -292,7 +293,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/attach_file_description"
-                android:src="@android:drawable/ic_menu_share"
+                android:src="@android:drawable/ic_menu_gallery"
                 android:padding="12dp"
                 app:tint="@android:color/black" />
 
@@ -322,7 +323,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/send_sticker_description"
-                android:src="@android:drawable/ic_menu_edit"
+                android:src="@drawable/ic_emoji_smile"
                 android:padding="12dp"
                 app:tint="@android:color/black" />
 

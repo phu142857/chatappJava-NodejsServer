@@ -12,6 +12,9 @@ import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.LinearLayout;
+
+import androidx.cardview.widget.CardView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.result.ActivityResultLauncher;
@@ -49,6 +52,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private boolean isUpdatingSettings = false;
     private ActivityResultLauncher<Intent> cameraLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
+    private AlertDialog imageSelectDialog;
     
     
     @Override
@@ -295,33 +299,58 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void showAvatarOptions() {
-        String[] options = {"Take Photo", "Choose from Gallery", "Cancel"};
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
         
+        // Get views
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        
+        // Set click listeners
+        cameraOption.setOnClickListener(v -> {
+            try {
+                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraLauncher.launch(takePictureIntent);
+            } catch (Exception e) {
+                Toast.makeText(this, "Camera not available", Toast.LENGTH_SHORT).show();
+            }
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            try {
+                galleryLauncher.launch("image/*");
+            } catch (Exception e) {
+                Toast.makeText(this, "Gallery not available", Toast.LENGTH_SHORT).show();
+            }
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        cancelButton.setOnClickListener(v -> {
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Avatar")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            try {
-                                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                                cameraLauncher.launch(takePictureIntent);
-                            } catch (Exception e) {
-                                Toast.makeText(this, "Camera not available", Toast.LENGTH_SHORT).show();
-                            }
-                            break;
-                        case 1:
-                            try {
-                                galleryLauncher.launch("image/*");
-                            } catch (Exception e) {
-                                Toast.makeText(this, "Gallery not available", Toast.LENGTH_SHORT).show();
-                            }
-                            break;
-                        case 2:
-                            dialog.dismiss();
-                            break;
-                    }
-                });
-        builder.show();
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        imageSelectDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        imageSelectDialog.show();
     }
     
     private void addMembers() {

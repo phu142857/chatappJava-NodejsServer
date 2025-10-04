@@ -18,6 +18,9 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.LinearLayout;
+
+import androidx.cardview.widget.CardView;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
@@ -63,6 +66,7 @@ public class ProfileActivity extends AppCompatActivity {
     
     // Image picker launcher
     private ActivityResultLauncher<Intent> imagePickerLauncher;
+    private AlertDialog imageSelectDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -610,44 +614,78 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void showImagePickerOptions() {
-        String[] options;
-        if (currentUser != null && currentUser.getAvatar() != null && !currentUser.getAvatar().isEmpty()) {
-            options = new String[]{"Camera", "Gallery", "Remove Avatar"};
-        } else {
-            options = new String[]{"Camera", "Gallery"};
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
+        
+        // Get views
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        CardView removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
+        LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
+        
+        // Show/hide remove avatar option based on current avatar
+        boolean hasAvatar = currentUser != null && currentUser.getAvatar() != null && !currentUser.getAvatar().isEmpty();
+        removeAvatarCard.setVisibility(hasAvatar ? View.VISIBLE : View.GONE);
+        
+        // Set click listeners
+        cameraOption.setOnClickListener(v -> {
+            ImagePicker.with(this)
+                    .cameraOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(512, 512)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            ImagePicker.with(this)
+                    .galleryOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(512, 512)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        removeAvatarButton.setOnClickListener(v -> {
+            removeAvatar();
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        cancelButton.setOnClickListener(v -> {
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        // Create dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        imageSelectDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
         
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Select Avatar")
-                .setItems(options, (dialog, which) -> {
-                    if (which == 0) {
-                        // Camera
-                        ImagePicker.with(this)
-                                .cameraOnly()
-                                .crop()
-                                .compress(1024)
-                                .maxResultSize(512, 512)
-                                .createIntent(intent -> {
-                                    imagePickerLauncher.launch(intent);
-                                    return null;
-                                });
-                    } else if (which == 1) {
-                        // Gallery
-                        ImagePicker.with(this)
-                                .galleryOnly()
-                                .crop()
-                                .compress(1024)
-                                .maxResultSize(512, 512)
-                                .createIntent(intent -> {
-                                    imagePickerLauncher.launch(intent);
-                                    return null;
-                                });
-                    } else if (which == 2) {
-                        // Remove Avatar
-                        removeAvatar();
-                    }
-                })
-                .show();
+        imageSelectDialog.show();
     }
 
     private void removeAvatar() {

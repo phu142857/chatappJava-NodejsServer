@@ -9,6 +9,9 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.LinearLayout;
+
+import androidx.cardview.widget.CardView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -35,6 +38,7 @@ public class GroupChatActivity extends BaseChatActivity {
     private ActivityResultLauncher<Intent> imagePickerLauncher;
     private Uri selectedImageUri;
     private boolean isChangingAvatar = false;
+    private AlertDialog imageSelectDialog;
     
     @Override
     protected int getLayoutResource() {
@@ -281,45 +285,85 @@ public class GroupChatActivity extends BaseChatActivity {
     }
     
     private void showAvatarOptions() {
-        String[] options = {"Take Photo", "Choose from Gallery", "Remove Avatar"};
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
         
+        // Get views
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        CardView removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
+        LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
+        
+        // Show remove avatar option
+        removeAvatarCard.setVisibility(View.VISIBLE);
+        
+        // Update title
+        TextView titleView = dialogView.findViewById(R.id.title);
+        if (titleView != null) {
+            titleView.setText("Group Avatar - All members can change");
+        }
+        
+        // Set click listeners
+        cameraOption.setOnClickListener(v -> {
+            isChangingAvatar = true;
+            ImagePicker.with(this)
+                    .cameraOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(1080, 1080)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            isChangingAvatar = true;
+            ImagePicker.with(this)
+                    .galleryOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(1080, 1080)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        removeAvatarButton.setOnClickListener(v -> {
+            confirmRemoveAvatar();
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        cancelButton.setOnClickListener(v -> {
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Group Avatar - All members can change")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            // Take photo
-                            isChangingAvatar = true;
-                            ImagePicker.with(this)
-                                    .cameraOnly()
-                                    .crop()
-                                    .compress(1024)
-                                    .maxResultSize(1080, 1080)
-                                    .createIntent(intent -> {
-                                        imagePickerLauncher.launch(intent);
-                                        return null;
-                                    });
-                            break;
-                        case 1:
-                            // Choose from gallery
-                            isChangingAvatar = true;
-                            ImagePicker.with(this)
-                                    .galleryOnly()
-                                    .crop()
-                                    .compress(1024)
-                                    .maxResultSize(1080, 1080)
-                                    .createIntent(intent -> {
-                                        imagePickerLauncher.launch(intent);
-                                        return null;
-                                    });
-                            break;
-                        case 2:
-                            // Remove avatar
-                            confirmRemoveAvatar();
-                            break;
-                    }
-                });
-        builder.show();
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        imageSelectDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        imageSelectDialog.show();
     }
     
     private void confirmRemoveAvatar() {

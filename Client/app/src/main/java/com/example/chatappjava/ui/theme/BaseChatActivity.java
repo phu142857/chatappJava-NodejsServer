@@ -20,6 +20,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -89,6 +90,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected SharedPreferencesManager sharedPrefsManager;
     protected ApiClient apiClient;
     protected AvatarManager avatarManager;
+    protected AlertDialog emojiDialog;
+    protected AlertDialog imageSelectDialog;
     protected SocketManager socketManager;
     protected AlertDialog currentDialog;
     // Forwarding support
@@ -228,24 +231,61 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     
     // Gallery and attachment handling
     protected void showAttachmentOptions() {
-        String[] options = {"Take Photo", "Choose from Gallery", "Cancel"};
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
         
+        // Get views
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        
+        // Set click listeners
+        cameraOption.setOnClickListener(v -> {
+            if (checkCameraPermission()) {
+                openCamera();
+            } else {
+                requestCameraPermission();
+            }
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            openGallery();
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        cancelButton.setOnClickListener(v -> {
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Image")
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            openCamera();
-                            break;
-                        case 1:
-                            openGallery();
-                            break;
-                        case 2:
-                            dialog.dismiss();
-                            break;
-                    }
-                });
-        builder.show();
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        imageSelectDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        imageSelectDialog.show();
+    }
+    
+    protected boolean checkCameraPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+    
+    protected void requestCameraPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CODE_CAMERA_PERMISSION);
     }
     
     protected void openCamera() {
@@ -585,37 +625,55 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             "😹", "😻", "😼", "😽", "🙀", "😿", "😾"
         };
         
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Choose emoji");
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_emoji_picker, null);
         
-        // Create a grid layout for emojis
-        android.widget.GridLayout gridLayout = new android.widget.GridLayout(this);
-        gridLayout.setColumnCount(8);
-        gridLayout.setPadding(16, 16, 16, 16);
+        // Get GridLayout from the inflated view
+        android.widget.GridLayout gridLayout = dialogView.findViewById(R.id.emoji_grid);
         
+        // Add emojis to the grid
         for (String emoji : emojis) {
             TextView emojiView = new TextView(this);
             emojiView.setText(emoji);
-            emojiView.setTextSize(24);
-            emojiView.setPadding(8, 8, 8, 8);
+            emojiView.setTextSize(24); 
+            emojiView.setPadding(16, 16, 16, 16); 
             emojiView.setGravity(android.view.Gravity.CENTER);
-            emojiView.setBackground(android.graphics.drawable.ColorDrawable.createFromPath("@android:color/transparent"));
+            emojiView.setBackgroundResource(android.R.drawable.list_selector_background);
             emojiView.setOnClickListener(v -> {
                 insertEmoji(emoji);
-                builder.create().dismiss();
             });
             
             android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
-            params.width = 80;
-            params.height = 80;
+            params.width = 120; // Increased from 80 to 120
+            params.height = 120; // Increased from 80 to 120
+            params.setMargins(8, 8, 8, 8); // Increased margins
             emojiView.setLayoutParams(params);
             
             gridLayout.addView(emojiView);
         }
         
-        builder.setView(gridLayout);
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
+        // Create dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        // Set cancel button click listener
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        cancelButton.setOnClickListener(v -> {
+            if (emojiDialog != null) {
+                emojiDialog.dismiss();
+            }
+        });
+        
+        emojiDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (emojiDialog.getWindow() != null) {
+            android.view.Window w = emojiDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        emojiDialog.show();
     }
     
     protected void insertEmoji(String emoji) {
