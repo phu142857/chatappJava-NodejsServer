@@ -7,6 +7,7 @@
     android:soundEffectsEnabled="true"
     app:cardCornerRadius="20dp"
     app:cardElevation="10dp"
+    android:fitsSystemWindows="true"
     android:backgroundTint="@android:color/transparent"
     android:clipToPadding="false"
     android:clipChildren="false">
@@ -42,7 +43,7 @@
             <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxHeight="125dp"
+                android:maxHeight="320dp"
                 android:fillViewport="true"
                 android:scrollbars="vertical">
 
@@ -50,11 +51,57 @@
                     android:id="@+id/emoji_grid"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="10dp"
-                    android:columnCount="8">
+                    android:padding="30dp"
+                    android:columnCount="6">
+                    <!-- Static emoji items -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😀" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😃" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😄" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😁" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😆" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😅" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
 
-                    <!-- Emojis will be added programmatically -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😂" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤣" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😊" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😇" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙂" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙃" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
 
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😉" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😍" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🥰" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😘" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😗" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😙" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😚" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😋" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😛" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😝" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😜" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤪" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😒" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😞" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😔" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😟" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😕" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙁" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😣" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😖" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😫" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😩" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🥺" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😢" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😭" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😤" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😠" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😡" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤬" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤯" android:textSize="24sp" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="@android:drawable/list_selector_background" />
                 </android.widget.GridLayout>
 
             </ScrollView>

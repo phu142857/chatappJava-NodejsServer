@@ -67,6 +67,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private boolean isLoadingCalls = false;
     private boolean isPolling = false;
     private AlertDialog currentDialog;
+    private final java.util.Set<String> blockedUserIds = new java.util.HashSet<>();
     private static final long HOME_POLL_INTERVAL_MS = 2000L;
     private final Handler homePollHandler = new Handler(Looper.getMainLooper());
     private final Runnable homePollRunnable = new Runnable() {
@@ -86,6 +87,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls
     // Hold reference to message listener for add/remove
     private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
+    private android.content.BroadcastReceiver blockedChangedReceiver;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,6 +101,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         loadUserData();
         loadUserProfile();
         loadFriendRequestCount();
+        // Preload blocked users to filter chat list
+        loadBlockedUsers();
         // Load chats initially so private chats are visible on Home
         loadChats();
         
@@ -112,7 +116,21 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 showExitConfirm();
             }
         });
+
+        // Listen for blocked list changes (unblock triggers refresh)
+        blockedChangedReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                if ("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED".equals(intent.getAction())) {
+                    loadBlockedUsers();
+                    loadChats();
+                }
+            }
+        };
+        registerReceiver(blockedChangedReceiver, new android.content.IntentFilter("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED"));
     }
+
+    // removed duplicate onResume (blocked users refresh handled in main onResume below)
     
     private void initializeViews() {
         // messages_title removed from layout
@@ -331,7 +349,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         List<Chat> privates = new ArrayList<>();
         for (Chat c : chatList) {
             if (c != null && !c.isGroupChat()) {
-                privates.add(c);
+                if (!isChatWithBlockedUser(c)) {
+                    privates.add(c);
+                }
             }
         }
         chatAdapter.updateChats(privates);
@@ -700,6 +720,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             loadUserProfile();
             // Refresh friend request count when returning to activity
             loadFriendRequestCount();
+            // Refresh blocked users and then chats
+            loadBlockedUsers();
             // Also refresh chat list to keep it up to date
             loadChats();
             startHomePolling();
@@ -800,6 +822,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (socketManager != null) {
             socketManager.removeContactStatusListener();
             socketManager.removeMemberRemovedListener();
+        }
+        if (blockedChangedReceiver != null) {
+            try { unregisterReceiver(blockedChangedReceiver); } catch (Exception ignored) {}
         }
     }
 
@@ -933,6 +958,55 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     handleChatsResponse(response.code(), responseBody);
                     isLoadingChats = false;
                 });
+            }
+        });
+    }
+
+    private boolean isChatWithBlockedUser(Chat chat) {
+        try {
+            if (chat == null || chat.isGroupChat()) return false;
+            // Prefer otherParticipant when available
+            String otherId = null;
+            if (chat.getParticipantIds() != null) {
+                for (String pid : chat.getParticipantIds()) {
+                    if (pid != null && !pid.equals(sharedPrefsManager.getUserId())) { otherId = pid; break; }
+                }
+            }
+            // Fallback to potential field on otherParticipant if provided
+            if (otherId == null && chat.toJson().has("otherParticipant")) {
+                // no-op: participantIds already covers this normally
+            }
+            return otherId != null && blockedUserIds.contains(otherId);
+        } catch (Exception ignored) { return false; }
+    }
+
+    private void loadBlockedUsers() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        apiClient.getBlockedUsers(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* ignore */ }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (!response.isSuccessful()) return;
+                String body = response.body().string();
+                try {
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONArray arr = json.getJSONObject("data").getJSONArray("users");
+                    java.util.Set<String> ids = new java.util.HashSet<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        String id = u.optString("_id", u.optString("id", ""));
+                        if (!id.isEmpty()) ids.add(id);
+                    }
+                    runOnUiThread(() -> {
+                        blockedUserIds.clear();
+                        blockedUserIds.addAll(ids);
+                        // Refresh current list view if on Chats tab
+                        if (currentTab == 0) applyChatsFilter();
+                    });
+                } catch (Exception ignored) {}
             }
         });
     }

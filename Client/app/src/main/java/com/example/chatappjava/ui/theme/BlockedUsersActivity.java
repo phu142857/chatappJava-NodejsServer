@@ -137,6 +137,9 @@ public class BlockedUsersActivity extends AppCompatActivity {
                         adapter.notifyDataSetChanged();
                         emptyState.setVisibility(blockedUsers.isEmpty() ? View.VISIBLE : View.GONE);
                         Toast.makeText(BlockedUsersActivity.this, "Unblocked", Toast.LENGTH_SHORT).show();
+                        // Notify home to refresh blocked list and chats
+                        android.content.Intent intent = new android.content.Intent("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED");
+                        sendBroadcast(intent);
                     } else {
                         Toast.makeText(BlockedUsersActivity.this, "Failed: " + response.code(), Toast.LENGTH_SHORT).show();
                     }

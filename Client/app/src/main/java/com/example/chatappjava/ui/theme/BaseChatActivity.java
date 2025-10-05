@@ -611,72 +611,40 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     
     // Emoji picker handling
     protected void showEmojiPicker() {
-        String[] emojis = {
-            "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣",
-            "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰",
-            "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜",
-            "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏",
-            "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣",
-            "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠",
-            "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨",
-            "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥",
-            "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧",
-            "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐",
-            "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑",
-            "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻",
-            "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸",
-            "😹", "😻", "😼", "😽", "🙀", "😿", "😾"
-        };
-        
-        // Inflate custom dialog layout
+        // Inflate custom dialog layout (layout defines design completely)
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_emoji_picker, null);
-        
-        // Get GridLayout from the inflated view
-        android.widget.GridLayout gridLayout = dialogView.findViewById(R.id.emoji_grid);
-        
-        // Add emojis to the grid
-        for (String emoji : emojis) {
-            TextView emojiView = new TextView(this);
-            emojiView.setText(emoji);
-            emojiView.setTextSize(24); 
-            emojiView.setPadding(16, 16, 16, 16); 
-            emojiView.setGravity(android.view.Gravity.CENTER);
-            emojiView.setBackgroundResource(android.R.drawable.list_selector_background);
-            emojiView.setOnClickListener(v -> {
-                insertEmoji(emoji);
-            });
-            
-            android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
-            params.width = 120; // Increased from 80 to 120
-            params.height = 120; // Increased from 80 to 120
-            params.setMargins(8, 8, 8, 8); // Increased margins
-            emojiView.setLayoutParams(params);
-            
-            gridLayout.addView(emojiView);
-        }
-        
+
+        // Wire up static emoji clicks declared via android:onClick in XML
+        dialogView.findViewsWithText(new java.util.ArrayList<>(), "", View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION);
+
         // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
         builder.setCancelable(true);
-        
-        // Set cancel button click listener
+
+        // Cancel button
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         cancelButton.setOnClickListener(v -> {
             if (emojiDialog != null) {
                 emojiDialog.dismiss();
             }
         });
-        
+
+
         emojiDialog = builder.create();
-        
-        // Set transparent background to avoid white area issues
         if (emojiDialog.getWindow() != null) {
             android.view.Window w = emojiDialog.getWindow();
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
-        
         emojiDialog.show();
+    }
+
+    // onClick handler referenced by emoji TextViews in dialog_emoji_picker.xml
+    public void onEmojiClicked(View v) {
+        if (!(v instanceof TextView)) return;
+        CharSequence emoji = ((TextView) v).getText();
+        if (emoji != null) insertEmoji(emoji.toString());
+        // Do not dismiss here to allow selecting multiple emojis
     }
     
     protected void insertEmoji(String emoji) {
@@ -865,14 +833,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Disable input and show a simple banner in status line
         if (etMessage != null) {
             etMessage.setEnabled(!(blockedByMe || blockedMe));
-            etMessage.setHint(blockedMe ? "Không thể nhắn tin cho người này" : (blockedByMe ? "Bạn đã chặn người này" : "Type a message"));
+            etMessage.setHint(blockedMe ? "You cannot message this user" : (blockedByMe ? "You have blocked this user" : "Type a message"));
         }
         if (ivSend != null) ivSend.setEnabled(!(blockedByMe || blockedMe));
         if (tvStatus != null && currentChat != null && !currentChat.isGroupChat()) {
             if (blockedMe) {
-                tvStatus.setText("Bạn không thể nhắn tin cho người này");
+                tvStatus.setText("You cannot message this user");
             } else if (blockedByMe) {
-                tvStatus.setText("Bạn đã chặn người này - Nhấn More để Unblock");
+                tvStatus.setText("You blocked this user - Unblock to continue");
             }
         }
     }
@@ -1030,11 +998,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Prevent sending if blocked in private chat
         if (currentChat != null && !currentChat.isGroupChat()) {
             if (isBlockedByMe) {
-                Toast.makeText(this, "Bạn đã chặn người này. Hủy chặn để tiếp tục.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "You blocked this user. Unblock to continue.", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (hasBlockedMe) {
-                Toast.makeText(this, "Bạn không thể nhắn tin cho người này", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "You cannot message this user", Toast.LENGTH_SHORT).show();
                 return;
             }
         }

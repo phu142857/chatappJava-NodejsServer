@@ -209,10 +209,7 @@ public class GroupChatActivity extends BaseChatActivity {
         });
         
         // Remove/disable call options for group chat if present in layout
-        View callOption = dialogView.findViewById(R.id.option_call);
-        if (callOption != null) callOption.setVisibility(View.GONE);
-        View videoCallOption = dialogView.findViewById(R.id.option_video_call);
-        if (videoCallOption != null) videoCallOption.setVisibility(View.GONE);
+
 
         builder.setView(dialogView);
         currentDialog = builder.create();

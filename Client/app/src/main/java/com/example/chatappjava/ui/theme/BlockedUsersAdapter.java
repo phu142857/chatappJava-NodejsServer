@@ -52,19 +52,22 @@ public class BlockedUsersAdapter extends RecyclerView.Adapter<BlockedUsersAdapte
         CircleImageView ivAvatar;
         TextView tvName;
         TextView tvUsername;
+        TextView tvStatus;
         Button btnUnblock;
 
         VH(@NonNull View itemView) {
             super(itemView);
-            ivAvatar = itemView.findViewById(R.id.iv_avatar);
-            tvName = itemView.findViewById(R.id.tv_name);
+            ivAvatar = itemView.findViewById(R.id.iv_profile_picture);
+            tvName = itemView.findViewById(R.id.tv_display_name);
             tvUsername = itemView.findViewById(R.id.tv_username);
+            tvStatus = itemView.findViewById(R.id.tv_status);
             btnUnblock = itemView.findViewById(R.id.btn_unblock);
         }
 
         void bind(User u) {
             tvName.setText(u.getDisplayName());
-            tvUsername.setText(u.getUsername());
+            tvUsername.setText("@" + (u.getUsername() != null ? u.getUsername() : ""));
+            tvStatus.setText(u.getStatusText());
             String avatarUrl = u.getFullAvatarUrl();
             if (avatarUrl != null) {
                 AvatarManager.getInstance(itemView.getContext())
