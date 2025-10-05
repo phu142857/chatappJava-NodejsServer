@@ -273,6 +273,9 @@ const searchUsers = async (req, res) => {
       $and: [
         { isActive: true },
         { _id: { $nin: excludeIds } },
+        // Exclude users blocked by current user or who have blocked current user
+        { _id: { $nin: (await User.findById(req.user.id).select('blockedUsers')).blockedUsers } },
+        { blockedUsers: { $ne: req.user.id } },
         {
           $or: [
             { username: { $regex: q.trim(), $options: 'i' } },
@@ -404,35 +407,49 @@ const toggleBlockUser = async (req, res) => {
     const { action } = req.body; // 'block' or 'unblock'
 
     if (id === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot block yourself'
-      });
+      return res.status(400).json({ success: false, message: 'Cannot block yourself' });
     }
 
+    const currentUser = await User.findById(req.user.id);
     const targetUser = await User.findById(id);
-    if (!targetUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+    if (!currentUser || !targetUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Note: Implement blocking logic based on your requirements
-    // This could involve adding a blocked users array to the User model
-    // or implementing a separate BlockedUsers collection
+    if (action === 'block') {
+      // Add to blockedUsers (one-way is enough to enforce both-direction restrictions)
+      if (!currentUser.blockedUsers.some(u => u.toString() === id)) {
+        currentUser.blockedUsers.push(id);
+        await currentUser.save();
+      }
 
-    res.json({
-      success: true,
-      message: `User ${action}ed successfully`
-    });
+      // Remove friendship both directions if exists
+      await currentUser.removeFriend(targetUser._id);
+      await targetUser.removeFriend(currentUser._id);
 
+      // Find private chat between the two users and delete all messages for both sides
+      const privateChat = await Chat.findOne({
+        type: 'private',
+        isActive: true,
+        'participants.user': { $all: [currentUser._id, targetUser._id] }
+      });
+      if (privateChat) {
+        await Message.deleteMany({ chat: privateChat._id });
+      }
+
+      return res.json({ success: true, message: 'User blocked, friendship removed, messages deleted' });
+    }
+
+    if (action === 'unblock') {
+      currentUser.blockedUsers = currentUser.blockedUsers.filter(u => u.toString() !== id);
+      await currentUser.save();
+      return res.json({ success: true, message: 'User unblocked' });
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid action' });
   } catch (error) {
     console.error('Toggle block user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating block status'
-    });
+    res.status(500).json({ success: false, message: 'Server error while updating block status' });
   }
 };
 

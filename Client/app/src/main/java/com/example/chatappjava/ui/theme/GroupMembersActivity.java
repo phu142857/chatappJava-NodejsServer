@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,6 +28,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -39,9 +41,12 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private RecyclerView rvMembers;
     private android.view.View btnAddMember;
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabAddMember;
+    private EditText etSearch;
+    private View emptyState;
     
     private Chat currentChat;
     private List<User> members;
+    private List<User> allMembers;
     private GroupMembersAdapter membersAdapter;
     private SharedPreferencesManager sharedPrefsManager;
     private ApiClient apiClient;
@@ -65,6 +70,8 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         ivBack = findViewById(R.id.iv_back);
         rvMembers = findViewById(R.id.rv_members);
         btnAddMember = findViewById(R.id.btn_add_member);
+        etSearch = findViewById(R.id.et_search);
+        emptyState = findViewById(R.id.empty_state);
     }
     
     private void initData() {
@@ -72,6 +79,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         apiClient = new ApiClient();
         avatarManager = AvatarManager.getInstance(this);
         members = new ArrayList<>();
+        allMembers = new ArrayList<>();
         
         Intent intent = getIntent();
         if (intent.hasExtra("chat")) {
@@ -91,6 +99,21 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private void setupClickListeners() {
         ivBack.setOnClickListener(v -> finish());
         btnAddMember.setOnClickListener(v -> showAddMemberDialog());
+
+        if (etSearch != null) {
+            etSearch.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    filterMembers(s != null ? s.toString() : "");
+                }
+
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+        }
     }
     
     private void setupRecyclerView() {
@@ -163,6 +186,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                     JSONArray membersArray = data.getJSONArray("members");
                     
                     members.clear();
+                    allMembers.clear();
                     for (int i = 0; i < membersArray.length(); i++) {
                         JSONObject memberJson = membersArray.getJSONObject(i);
                         android.util.Log.d("GroupMembersActivity", "Parsing member " + i + ": " + memberJson.toString());
@@ -170,10 +194,12 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                         android.util.Log.d("GroupMembersActivity", "Parsed member: " + member.getDisplayName() + 
                                           ", ID: " + member.getId());
                         members.add(member);
+                        allMembers.add(member);
                     }
                     
-                    membersAdapter.notifyDataSetChanged();
-                    tvMemberCount.setText(members.size() + " members");
+                    // Apply current filter text if any
+                    String currentQuery = etSearch != null && etSearch.getText() != null ? etSearch.getText().toString() : "";
+                    filterMembers(currentQuery);
                     
                     if (members.isEmpty()) {
                         Toast.makeText(this, "No members found", Toast.LENGTH_SHORT).show();
@@ -189,6 +215,31 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
             e.printStackTrace();
             Toast.makeText(this, "Error parsing members data", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void filterMembers(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        members.clear();
+        if (q.isEmpty()) {
+            members.addAll(allMembers);
+        } else {
+            for (User u : allMembers) {
+                String displayName = u.getDisplayName() != null ? u.getDisplayName().toLowerCase(Locale.ROOT) : "";
+                String username = u.getUsername() != null ? u.getUsername().toLowerCase(Locale.ROOT) : "";
+                String email = u.getEmail() != null ? u.getEmail().toLowerCase(Locale.ROOT) : "";
+                String phone = u.getPhoneNumber() != null ? u.getPhoneNumber().toLowerCase(Locale.ROOT) : "";
+                if (displayName.contains(q) || username.contains(q) || email.contains(q) || phone.contains(q)) {
+                    members.add(u);
+                }
+            }
+        }
+        membersAdapter.notifyDataSetChanged();
+        // Toggle empty state
+        if (emptyState != null) {
+            emptyState.setVisibility(members.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+        // Update count to reflect current visible items
+        tvMemberCount.setText(members.size() + " members");
     }
     
     private void showAddMemberDialog() {
@@ -261,7 +312,10 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                             Toast.makeText(GroupMembersActivity.this, "Member removed successfully", Toast.LENGTH_SHORT).show();
                             // Remove from local list
                             members.remove(member);
-                            membersAdapter.notifyDataSetChanged();
+                            allMembers.remove(member);
+                            // Re-apply current filter to keep view consistent
+                            String currentQuery = etSearch != null && etSearch.getText() != null ? etSearch.getText().toString() : "";
+                            filterMembers(currentQuery);
                             // Update member count
                             tvMemberCount.setText(members.size() + " members");
                         } else {

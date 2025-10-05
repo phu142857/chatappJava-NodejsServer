@@ -36,6 +36,7 @@ public class ApiClient {
     private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
+    private static final String BLOCK_USER_ENDPOINT = "/api/users/%s/block"; // PUT { action: 'block'|'unblock' }
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
@@ -126,6 +127,21 @@ public class ApiClient {
                 .build();
 
         client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Block or unblock a user
+     */
+    public void blockUser(String token, String userId, String action, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("action", action);
+            String endpoint = String.format(BLOCK_USER_ENDPOINT, userId);
+            authenticatedPut(endpoint, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to build request body"));
+        }
     }
 
     /**

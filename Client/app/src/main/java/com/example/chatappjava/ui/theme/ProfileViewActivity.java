@@ -39,6 +39,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     private SharedPreferencesManager sharedPrefsManager;
     private ApiClient apiClient;
     private AlertDialog currentDialog;
+    private boolean isBlockedInSession; // local flag to reflect block state in this session
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +98,45 @@ public class ProfileViewActivity extends AppCompatActivity {
         civAvatar.setOnClickListener(v -> showAvatarZoom());
         
         ivMore.setOnClickListener(v -> showMoreOptions());
+    }
+
+    private void performBlockUser() {
+        if (otherUser == null) {
+            Toast.makeText(this, "No user to block", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String action = isBlockedInSession ? "unblock" : "block";
+        apiClient.blockUser(token, otherUser.getId(), action, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, "Network error", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        isBlockedInSession = !isBlockedInSession;
+                        Toast.makeText(ProfileViewActivity.this, (isBlockedInSession ? "Blocked" : "Unblocked") + " successfully", Toast.LENGTH_SHORT).show();
+                        // Optionally finish or refresh UI
+                    } else {
+                        String message = "Action failed";
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            message = json.optString("message", message);
+                        } catch (Exception ignored) {}
+                        Toast.makeText(ProfileViewActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
     
     private void loadUserData() {
@@ -225,8 +265,8 @@ public class ProfileViewActivity extends AppCompatActivity {
         });
         
         dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
-            Toast.makeText(this, "Block user feature coming soon", Toast.LENGTH_SHORT).show();
             if (currentDialog != null) currentDialog.dismiss();
+            performBlockUser();
         });
         
         builder.setView(dialogView);
