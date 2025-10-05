@@ -20,16 +20,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.ChatListAdapter;
-import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.models.Chat;
-import com.example.chatappjava.models.FriendRequest;
-import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 import com.example.chatappjava.config.ServerConfig;
 import com.squareup.picasso.Picasso;
-import com.example.chatappjava.ui.theme.ProfileViewActivity;
 import com.example.chatappjava.adapters.CallListAdapter;
 import com.example.chatappjava.models.Call;
 
@@ -127,7 +123,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 }
             }
         };
-        registerReceiver(blockedChangedReceiver, new android.content.IntentFilter("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED"));
+        registerReceiver(blockedChangedReceiver,
+                new android.content.IntentFilter("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED"),
+                android.content.Context.RECEIVER_NOT_EXPORTED);
     }
 
     // removed duplicate onResume (blocked users refresh handled in main onResume below)
