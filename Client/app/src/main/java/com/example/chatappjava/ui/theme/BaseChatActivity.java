@@ -108,6 +108,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected Runnable pollRunnable;
     protected boolean hasNewMessages = false;
     protected boolean isInitialLoad = true;
+    // Block state for private chats
+    protected boolean isBlockedByMe = false;
+    protected boolean hasBlockedMe = false;
     
     // Gallery and camera constants
     private static final int REQUEST_CODE_GALLERY = 1001;
@@ -858,6 +861,22 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
 
+    protected void applyBlockUiState(boolean blockedByMe, boolean blockedMe) {
+        // Disable input and show a simple banner in status line
+        if (etMessage != null) {
+            etMessage.setEnabled(!(blockedByMe || blockedMe));
+            etMessage.setHint(blockedMe ? "Không thể nhắn tin cho người này" : (blockedByMe ? "Bạn đã chặn người này" : "Type a message"));
+        }
+        if (ivSend != null) ivSend.setEnabled(!(blockedByMe || blockedMe));
+        if (tvStatus != null && currentChat != null && !currentChat.isGroupChat()) {
+            if (blockedMe) {
+                tvStatus.setText("Bạn không thể nhắn tin cho người này");
+            } else if (blockedByMe) {
+                tvStatus.setText("Bạn đã chặn người này - Nhấn More để Unblock");
+            }
+        }
+    }
+
     protected void setupRecyclerView() {
         String currentUserId = sharedPrefsManager.getUserId();
         messageAdapter = new MessageAdapter(messages, currentUserId);
@@ -947,7 +966,15 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 // Update chat info if available
                                 if (data.has("chatInfo")) {
                                     JSONObject chatInfo = data.getJSONObject("chatInfo");
-                                    // Update current chat with new info if needed
+                                    if (chatInfo != null && "private".equalsIgnoreCase(chatInfo.optString("type"))) {
+                                        isBlockedByMe = chatInfo.optBoolean("isBlockedByMe", false);
+                                        hasBlockedMe = chatInfo.optBoolean("hasBlockedMe", false);
+                                        applyBlockUiState(isBlockedByMe, hasBlockedMe);
+                                    } else {
+                                        isBlockedByMe = false;
+                                        hasBlockedMe = false;
+                                        applyBlockUiState(false, false);
+                                    }
                                 }
 
                                 messageAdapter.notifyDataSetChanged();
@@ -998,6 +1025,18 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (currentChat == null) {
             Toast.makeText(this, "Chat not available", Toast.LENGTH_SHORT).show();
             return;
+        }
+
+        // Prevent sending if blocked in private chat
+        if (currentChat != null && !currentChat.isGroupChat()) {
+            if (isBlockedByMe) {
+                Toast.makeText(this, "Bạn đã chặn người này. Hủy chặn để tiếp tục.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (hasBlockedMe) {
+                Toast.makeText(this, "Bạn không thể nhắn tin cho người này", Toast.LENGTH_SHORT).show();
+                return;
+            }
         }
 
         // Create message object

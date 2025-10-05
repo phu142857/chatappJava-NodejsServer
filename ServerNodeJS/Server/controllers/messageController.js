@@ -61,6 +61,23 @@ const getMessages = async (req, res) => {
       };
     });
 
+    let isBlockedByMe = false;
+    let hasBlockedMe = false;
+    if (chat.type === 'private') {
+      const otherParticipant = chat.participants.find(p => p.user && p.user.toString() !== req.user.id);
+      if (otherParticipant) {
+        try {
+          const [meDoc, otherDoc] = await Promise.all([
+            User.findById(req.user.id).select('blockedUsers'),
+            User.findById(otherParticipant.user).select('blockedUsers')
+          ]);
+          const otherIdStr = otherParticipant.user.toString();
+          isBlockedByMe = !!(meDoc && meDoc.blockedUsers && meDoc.blockedUsers.some(id => id.toString() === otherIdStr));
+          hasBlockedMe = !!(otherDoc && otherDoc.blockedUsers && otherDoc.blockedUsers.some(id => id.toString() === req.user.id));
+        } catch (_) {}
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -68,7 +85,9 @@ const getMessages = async (req, res) => {
         chatInfo: {
           id: chat._id,
           type: chat.type,
-          name: chat.name
+          name: chat.name,
+          isBlockedByMe,
+          hasBlockedMe
         }
       }
     });
@@ -117,6 +136,19 @@ const sendMessage = async (req, res) => {
         success: false,
         message: 'Access denied to this chat'
       });
+    }
+
+    // If private chat, enforce block status: sender cannot send if either side blocked the other
+    if (chat.type === 'private') {
+      // Get the other participant id
+      const otherParticipant = chat.participants.find(p => p.user && p.user.toString() !== req.user.id);
+      const me = await User.findById(req.user.id).select('blockedUsers');
+      const other = otherParticipant ? await User.findById(otherParticipant.user).select('blockedUsers') : null;
+      const iBlockedThem = me && me.blockedUsers && me.blockedUsers.some(id => id.toString() === otherParticipant.user.toString());
+      const theyBlockedMe = other && other.blockedUsers && other.blockedUsers.some(id => id.toString() === req.user.id);
+      if (iBlockedThem || theyBlockedMe) {
+        return res.status(403).json({ success: false, message: 'Messaging is blocked between these users' });
+      }
     }
 
     // Create message

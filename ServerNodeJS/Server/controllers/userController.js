@@ -210,7 +210,7 @@ const getContacts = async (req, res) => {
       'participants.user': req.user.id,
       'participants.isActive': true,
       isActive: true
-    }).populate('participants.user', 'username email avatar status lastSeen');
+    }).populate('participants.user', 'username email avatar status lastSeen blockedUsers');
 
     // Extract unique contacts from chats
     const contactsMap = new Map();
@@ -230,7 +230,18 @@ const getContacts = async (req, res) => {
       });
     });
 
+    // Filter out blocked contacts (either direction)
+    const me = await User.findById(req.user.id).select('blockedUsers');
+    const myBlocked = new Set((me && me.blockedUsers ? me.blockedUsers : []).map(id => id.toString()));
     const contacts = Array.from(contactsMap.values())
+      .filter(c => {
+        const otherId = c._id.toString();
+        // Exclude if I blocked them
+        if (myBlocked.has(otherId)) return false;
+        // Exclude if they blocked me
+        const theirBlocked = (c.blockedUsers || []).map(id => id.toString());
+        return !theirBlocked.includes(req.user.id);
+      })
       .sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
 
     res.json({
@@ -427,17 +438,8 @@ const toggleBlockUser = async (req, res) => {
       await currentUser.removeFriend(targetUser._id);
       await targetUser.removeFriend(currentUser._id);
 
-      // Find private chat between the two users and delete all messages for both sides
-      const privateChat = await Chat.findOne({
-        type: 'private',
-        isActive: true,
-        'participants.user': { $all: [currentUser._id, targetUser._id] }
-      });
-      if (privateChat) {
-        await Message.deleteMany({ chat: privateChat._id });
-      }
-
-      return res.json({ success: true, message: 'User blocked, friendship removed, messages deleted' });
+      // Do NOT delete messages; block only restricts new messages and discovery
+      return res.json({ success: true, message: 'User blocked, friendship removed' });
     }
 
     if (action === 'unblock') {
