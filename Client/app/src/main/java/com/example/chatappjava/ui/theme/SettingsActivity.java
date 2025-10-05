@@ -176,8 +176,8 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void showBlockedUsers() {
-        Toast.makeText(this, "Blocked users feature coming soon", Toast.LENGTH_SHORT).show();
-        // TODO: Implement blocked users activity
+        Intent intent = new Intent(this, BlockedUsersActivity.class);
+        startActivity(intent);
     }
 
     private void confirmDeleteAccount() {

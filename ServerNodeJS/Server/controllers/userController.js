@@ -409,6 +409,24 @@ const getOnlineUsers = async (req, res) => {
   }
 };
 
+// @desc    Get my blocked users
+// @route   GET /api/users/blocked
+// @access  Private
+const getBlockedUsers = async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('blockedUsers');
+    if (!me) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const users = await User.find({ _id: { $in: me.blockedUsers } })
+      .select('username email avatar status profile lastSeen');
+    res.json({ success: true, data: { users } });
+  } catch (error) {
+    console.error('Get blocked users error:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching blocked users' });
+  }
+};
+
 // @desc    Block/Unblock user
 // @route   PUT /api/users/:id/block
 // @access  Private
@@ -749,6 +767,7 @@ module.exports = {
   getUserById,
   updateStatus,
   getContacts,
+  getBlockedUsers,
   searchUsers,
   getOnlineUsers,
   toggleBlockUser,

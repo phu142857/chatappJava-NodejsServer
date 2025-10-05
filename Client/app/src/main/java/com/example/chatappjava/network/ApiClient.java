@@ -37,6 +37,7 @@ public class ApiClient {
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String BLOCK_USER_ENDPOINT = "/api/users/%s/block"; // PUT { action: 'block'|'unblock' }
+    private static final String BLOCKED_USERS_ENDPOINT = "/api/users/blocked";
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
@@ -142,6 +143,13 @@ public class ApiClient {
             e.printStackTrace();
             callback.onFailure(null, new IOException("Failed to build request body"));
         }
+    }
+
+    /**
+     * Get my blocked users
+     */
+    public void getBlockedUsers(String token, Callback callback) {
+        authenticatedGet(BLOCKED_USERS_ENDPOINT, token, callback);
     }
 
     /**

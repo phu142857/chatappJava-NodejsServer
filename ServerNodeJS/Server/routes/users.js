@@ -5,6 +5,7 @@ const {
   getUserById,
   updateStatus,
   getContacts,
+  getBlockedUsers,
   searchUsers,
   getOnlineUsers,
   toggleBlockUser,
@@ -71,6 +72,7 @@ const reportUserValidation = [
 // Routes
 router.get('/', getUsers);
 router.get('/contacts', getContacts);
+router.get('/blocked', getBlockedUsers);
 router.get('/friends', getUserFriends);
 router.get('/online', getOnlineUsers);
 router.get('/search', searchValidation, searchUsers);
