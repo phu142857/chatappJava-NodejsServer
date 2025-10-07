@@ -53,6 +53,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> cameraLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
     private AlertDialog imageSelectDialog;
+    private AlertDialog groupInfoDialog;
     
     
     @Override
@@ -275,24 +276,73 @@ public class GroupSettingsActivity extends AppCompatActivity {
     
     private void showGroupInfo() {
         if (currentChat == null) return;
-        
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Group Information")
-                .setMessage("Group Name: " + currentChat.getName() + "\n" +
-                           "Members: " + currentChat.getParticipantCount() + "\n" +
-                           "Created: " + (currentChat.getCreatedAt() != 0 ? new java.util.Date(currentChat.getCreatedAt()).toString() : "Unknown"))
-                .setPositiveButton("View Members", (dialog, which) -> {
-                    Intent intent = new Intent(this, GroupMembersActivity.class);
-                    try {
-                        intent.putExtra("chat", currentChat.toJson().toString());
-                        startActivity(intent);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                        Toast.makeText(this, "Error opening members list", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Close", null)
-                .create().show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_info, null);
+
+        de.hdodenhof.circleimageview.CircleImageView ivAvatar = dialogView.findViewById(R.id.iv_group_avatar);
+        TextView tvName = dialogView.findViewById(R.id.tv_group_name);
+        TextView tvMembers = dialogView.findViewById(R.id.tv_group_members);
+        TextView tvCreated = dialogView.findViewById(R.id.tv_group_created);
+        TextView tvGroupId = dialogView.findViewById(R.id.tv_group_id);
+        View btnCopyId = dialogView.findViewById(R.id.btn_copy_id);
+        View btnViewMembers = dialogView.findViewById(R.id.btn_view_members);
+        View btnChangeAvatar = dialogView.findViewById(R.id.btn_change_avatar);
+        View btnClose = dialogView.findViewById(R.id.btn_close);
+
+        tvName.setText(currentChat.getName());
+        tvMembers.setText(currentChat.getParticipantCount() + " members");
+        tvCreated.setText("Created: " + (currentChat.getCreatedAt() != 0 ? new java.util.Date(currentChat.getCreatedAt()).toString() : "Unknown"));
+        tvGroupId.setText("ID: " + currentChat.getId());
+
+        // Avatar
+        String avatarUrl = currentChat.getFullAvatarUrl();
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            // Use a placeholder loader via ImageView setImageURI or a loader in your project
+            try {
+                com.squareup.picasso.Picasso.get().load(avatarUrl).placeholder(R.drawable.ic_group_avatar).error(R.drawable.ic_group_avatar).into(ivAvatar);
+            } catch (Exception ignored) {
+                ivAvatar.setImageResource(R.drawable.ic_group_avatar);
+            }
+        } else {
+            ivAvatar.setImageResource(R.drawable.ic_group_avatar);
+        }
+
+        btnCopyId.setOnClickListener(v -> {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("Group ID", currentChat.getId());
+            cm.setPrimaryClip(clip);
+            Toast.makeText(this, "Copied group ID", Toast.LENGTH_SHORT).show();
+        });
+
+        btnViewMembers.setOnClickListener(v -> {
+            Intent intent = new Intent(this, GroupMembersActivity.class);
+            try {
+                intent.putExtra("chat", currentChat.toJson().toString());
+                startActivity(intent);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Error opening members list", Toast.LENGTH_SHORT).show();
+            }
+            if (groupInfoDialog != null) groupInfoDialog.dismiss();
+        });
+
+        btnChangeAvatar.setOnClickListener(v -> {
+            if (groupInfoDialog != null) groupInfoDialog.dismiss();
+            showAvatarOptions();
+        });
+
+        btnClose.setOnClickListener(v -> {
+            if (groupInfoDialog != null) groupInfoDialog.dismiss();
+        });
+
+        builder.setView(dialogView);
+        groupInfoDialog = builder.create();
+        if (groupInfoDialog.getWindow() != null) {
+            android.view.Window w = groupInfoDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        groupInfoDialog.show();
     }
     
     private void showAvatarOptions() {

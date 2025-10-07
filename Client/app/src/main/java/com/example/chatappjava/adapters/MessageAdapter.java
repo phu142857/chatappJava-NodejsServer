@@ -524,6 +524,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             menu.show();
         }
 
+        @SuppressLint("SetTextI18n")
         private void showReactPicker(Context context, Message message) {
             android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
             android.view.View dialogView = inflater.inflate(com.example.chatappjava.R.layout.dialog_react_picker, null);
@@ -583,23 +584,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 return;
             }
             try {
-                android.graphics.Bitmap bmp = createEmojiBitmap(topEmoji, context, 22);
-                if (bmp != null) {
-                    badgeView.setImageBitmap(bmp);
-                    // Optional background to mimic floating chip
-                    badgeView.setBackgroundResource(com.example.chatappjava.R.drawable.ripple_reaction_floating);
-                    badgeView.setVisibility(View.VISIBLE);
-                } else {
-                    badgeView.setVisibility(View.GONE);
-                }
+                android.graphics.Bitmap bmp = createEmojiBitmap(topEmoji, context);
+                badgeView.setImageBitmap(bmp);
+                // Optional background to mimic floating chip
+                badgeView.setBackgroundResource(R.drawable.ripple_reaction_floating);
+                badgeView.setVisibility(View.VISIBLE);
             } catch (Exception ignored) {
                 badgeView.setVisibility(View.GONE);
             }
         }
 
-        private android.graphics.Bitmap createEmojiBitmap(String emoji, Context context, int dpSize) {
+        private android.graphics.Bitmap createEmojiBitmap(String emoji, Context context) {
             float density = context.getResources().getDisplayMetrics().density;
-            int sizePx = (int) (dpSize * density);
+            int sizePx = (int) (22 * density);
             android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888);
             android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
             // Clear fully transparent to keep original emoji edges without clipping
@@ -610,16 +607,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             paint.setTextAlign(android.graphics.Paint.Align.CENTER);
             // Center baseline calculation
             android.graphics.Rect bounds = new android.graphics.Rect();
-            String draw = emoji;
-            paint.getTextBounds(draw, 0, draw.length(), bounds);
+            paint.getTextBounds(emoji, 0, emoji.length(), bounds);
             float x = sizePx / 2f;
             float y = (sizePx / 2f) - (bounds.exactCenterY());
             // Draw shadow-like glow for better contrast
             paint.setShadowLayer(sizePx * 0.08f, 0, sizePx * 0.06f, 0x80000000);
-            canvas.drawText(draw, x, y, paint);
+            canvas.drawText(emoji, x, y, paint);
             return bitmap;
         }
 
+        @SuppressLint("SetTextI18n")
         private void showReactionsSheet(Context context, Message message) {
             android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
             android.view.View dialogView = inflater.inflate(com.example.chatappjava.R.layout.dialog_reactions, null);

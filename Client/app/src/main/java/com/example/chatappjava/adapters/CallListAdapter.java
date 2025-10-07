@@ -9,6 +9,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatappjava.R;
@@ -162,13 +163,13 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
         private int getStatusColor(String status) {
             switch (status) {
                 case "ended":
-                    return context.getResources().getColor(android.R.color.holo_green_dark);
+                    return ContextCompat.getColor(context, android.R.color.holo_green_dark);
                 case "declined":
                 case "missed":
                 case "cancelled":
-                    return context.getResources().getColor(android.R.color.holo_red_dark);
+                    return ContextCompat.getColor(context, android.R.color.holo_red_dark);
                 default:
-                    return context.getResources().getColor(android.R.color.darker_gray);
+                    return ContextCompat.getColor(context, android.R.color.darker_gray);
             }
         }
         

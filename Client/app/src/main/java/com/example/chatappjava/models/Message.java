@@ -140,17 +140,17 @@ public class Message {
                 if (arr.length() > 0) {
                     org.json.JSONObject att = arr.getJSONObject(0);
                     String url = att.optString("url", "");
-                    if (url != null && !url.isEmpty()) message.replyToImageThumb = url;
+                    if (!url.isEmpty()) message.replyToImageThumb = url;
                 }
             }
             // Fallbacks
             String c = replyJson.optString("content", "");
             if ((message.replyToImageThumb == null || message.replyToImageThumb.isEmpty()) && "image".equals(replyType)) {
-                if (c != null && !c.isEmpty()) message.replyToImageThumb = c;
+                if (!c.isEmpty()) message.replyToImageThumb = c;
             }
             if (message.replyToImageThumb == null || message.replyToImageThumb.isEmpty()) {
                 // Heuristic: if content looks like an image URL/path, use it
-                if (c != null && !c.isEmpty()) {
+                if (!c.isEmpty()) {
                     String lc = c.toLowerCase();
                     if (lc.startsWith("http") || lc.startsWith("/") || lc.contains("/uploads")) {
                         if (lc.endsWith(".jpg") || lc.endsWith(".jpeg") || lc.endsWith(".png") || lc.endsWith(".webp") || lc.endsWith(".gif")) {
@@ -260,13 +260,17 @@ public class Message {
     public void setReplyToImageThumb(String v) { this.replyToImageThumb = v; }
 
     public java.util.Map<String, Integer> getReactionSummary() { return reactionSummary; }
-    public void setReactionSummary(java.util.Map<String, Integer> reactionSummary) { this.reactionSummary = reactionSummary; }
+
     public void incrementReaction(String emoji) {
         if (emoji == null) return;
         if (reactionSummary == null) reactionSummary = new java.util.HashMap<>();
-        int c = reactionSummary.getOrDefault(emoji, 0);
+
+        Integer value = reactionSummary.get(emoji);
+        int c = (value == null) ? 0 : value;
         reactionSummary.put(emoji, c + 1);
     }
+
+
     public void decrementReaction(String emoji) {
         if (emoji == null || reactionSummary == null) return;
         Integer c = reactionSummary.get(emoji);
@@ -278,7 +282,6 @@ public class Message {
         }
     }
     public String getReactionsRaw() { return reactionsRaw; }
-    public void setReactionsRaw(String reactionsRaw) { this.reactionsRaw = reactionsRaw; }
     public String getClientNonce() { return clientNonce; }
     public void setClientNonce(String clientNonce) { this.clientNonce = clientNonce; }
     

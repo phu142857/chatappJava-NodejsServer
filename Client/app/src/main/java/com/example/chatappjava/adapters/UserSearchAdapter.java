@@ -20,8 +20,6 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
     
     private final List<User> users;
     private final OnUserClickListener listener;
-    private final Context context;
-    private final AvatarManager avatarManager;
     private static String mode; // "add_members" or null for normal search
     private static List<String> currentGroupMemberIds; // Track current group members
 
@@ -34,10 +32,9 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
     }
 
     public UserSearchAdapter(Context context, List<User> users, OnUserClickListener listener, String mode, List<String> currentGroupMemberIds) {
-        this.context = context;
         this.users = users;
         this.listener = listener;
-        this.avatarManager = AvatarManager.getInstance(context);
+        AvatarManager avatarManager = AvatarManager.getInstance(context);
         UserSearchAdapter.mode = mode;
         UserSearchAdapter.currentGroupMemberIds = currentGroupMemberIds;
     }

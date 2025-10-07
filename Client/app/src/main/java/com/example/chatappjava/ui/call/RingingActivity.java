@@ -2,6 +2,7 @@ package com.example.chatappjava.ui.call;
 
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -16,7 +17,6 @@ import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -41,12 +41,8 @@ import okhttp3.Response;
 public class RingingActivity extends AppCompatActivity {
     
     private static final String TAG = "RingingActivity";
-    
-    // UI Components
-    private TextView tvCallType;
-    private TextView tvCallerName;
+
     private TextView tvCallerStatus;
-    private TextView tvCallDuration;
     private TextView tvRingingStatus;
     private CircleImageView ivCallerAvatar;
     // Swipe UI components
@@ -55,7 +51,6 @@ public class RingingActivity extends AppCompatActivity {
     private View declineZone;
     private FrameLayout swipeTrack;
     private LinearLayout outgoingCallInfo;
-    private FrameLayout ringingAnimationContainer;
     private View ripple1;
     private View ripple2;
     private View ripple3;
@@ -143,11 +138,12 @@ public class RingingActivity extends AppCompatActivity {
         }
     }
     
+    @SuppressLint("SetTextI18n")
     private void initializeViews() {
-        tvCallType = findViewById(R.id.tv_call_type);
-        tvCallerName = findViewById(R.id.tv_caller_name);
+        // UI Components
+        TextView tvCallType = findViewById(R.id.tv_call_type);
+        TextView tvCallerName = findViewById(R.id.tv_caller_name);
         tvCallerStatus = findViewById(R.id.tv_caller_status);
-        tvCallDuration = findViewById(R.id.tv_call_duration);
         tvRingingStatus = findViewById(R.id.tv_ringing_status);
         ivCallerAvatar = findViewById(R.id.iv_caller_avatar);
         // Swipe components
@@ -156,7 +152,6 @@ public class RingingActivity extends AppCompatActivity {
         declineZone = findViewById(R.id.decline_zone);
         swipeTrack = findViewById(R.id.swipe_track);
         outgoingCallInfo = findViewById(R.id.outgoing_call_info);
-        ringingAnimationContainer = findViewById(R.id.ringing_animation_container);
         ripple1 = findViewById(R.id.ripple_1);
         ripple2 = findViewById(R.id.ripple_2);
         ripple3 = findViewById(R.id.ripple_3);
@@ -184,6 +179,7 @@ public class RingingActivity extends AppCompatActivity {
         }
     }
     
+    @SuppressLint("ClickableViewAccessibility")
     private void setupSwipeGesture() {
         if (swipeThumb == null || swipeTrack == null) return;
         
@@ -195,6 +191,7 @@ public class RingingActivity extends AppCompatActivity {
         
         // Set up touch listener for swipe gesture
         swipeThumb.setOnTouchListener(new View.OnTouchListener() {
+            @SuppressLint("ClickableViewAccessibility")
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
@@ -276,6 +273,7 @@ public class RingingActivity extends AppCompatActivity {
         declineZone.setAlpha(0.3f);
     }
     
+    @SuppressLint("SetTextI18n")
     private void setupIncomingCall() {
         tvCallerStatus.setText("is calling you...");
         // Swipe gesture is always visible for incoming calls
@@ -301,6 +299,7 @@ public class RingingActivity extends AppCompatActivity {
         }, 30000);
     }
     
+    @SuppressLint("SetTextI18n")
     private void setupOutgoingCall() {
         tvCallerStatus.setText("Calling...");
         outgoingCallInfo.setVisibility(View.VISIBLE);
@@ -446,6 +445,7 @@ public class RingingActivity extends AppCompatActivity {
         rippleAnimatorSet.start();
     }
     
+    @SuppressLint("SetTextI18n")
     private void simulateCallRinging() {
         // Simulate call ringing for outgoing calls
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -478,7 +478,7 @@ public class RingingActivity extends AppCompatActivity {
             }
             
             @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         try {
@@ -516,7 +516,7 @@ public class RingingActivity extends AppCompatActivity {
             }
             
             @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     Log.d(TAG, "Call declined: " + response.code());
                     com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
@@ -527,32 +527,7 @@ public class RingingActivity extends AppCompatActivity {
         });
     }
     
-    private void endCall() {
-        stopRingtone();
-        String token = sharedPrefsManager.getToken();
-        apiClient.endCall(token, callId, new Callback() {
-            @Override
-            public void onFailure(Call call, java.io.IOException e) {
-                runOnUiThread(() -> {
-                    Log.e(TAG, "Failed to end call", e);
-                    // Ensure reset to avoid duplicates later
-                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
-                    if (sm != null) sm.resetActiveCall();
-                    finish();
-                });
-            }
-            
-            @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
-                runOnUiThread(() -> {
-                    Log.d(TAG, "Call ended: " + response.code());
-                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
-                    if (sm != null) sm.resetActiveCall();
-                    finish();
-                });
-            }
-        });
-    }
+    
     
     private void openVideoCallActivity() throws JSONException {
         Intent intent = new Intent(this, VideoCallActivity.class);
@@ -650,11 +625,5 @@ public class RingingActivity extends AppCompatActivity {
         if (socketManager != null) {
             socketManager.setCallStatusListener(null);
         }
-    }
-    
-    @Override
-    public void onBackPressed() {
-        // Decline call when back button is pressed
-        declineCall();
     }
 }

@@ -1,8 +1,8 @@
 package com.example.chatappjava.ui.call;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,7 +21,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.chatappjava.R;
-import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
@@ -70,10 +69,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     // UI Components
     private TextView tvCallStatus;
-    private TextView tvCallStatusTop;
     private TextView tvCallDuration;
-    private CircleImageView ivRemoteAvatar;
-    private TextView tvRemoteName;
     private LinearLayout remoteVideoPlaceholder;
     private LinearLayout localVideoPlaceholder;
     private ImageButton btnMute;
@@ -83,8 +79,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     private LinearLayout loadingOverlay;
     private ProgressBar progressBar;
 
-    // Call data
-    private Chat currentChat;
     private User caller;
     private String callId;
     private String callType;
@@ -161,7 +155,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         try {
             String chatJson = getIntent().getStringExtra("chat");
             if (chatJson != null) {
-                currentChat = Chat.fromJson(new JSONObject(chatJson));
+                // We don't need full chat object here, just caller info
+                JSONObject chatObj = new JSONObject(chatJson);
+                if (chatObj.has("lastMessage") && chatObj.get("lastMessage") instanceof JSONObject) {
+                    JSONObject lastMessage = chatObj.getJSONObject("lastMessage");
+                    if (lastMessage.has("sender") && lastMessage.get("sender") instanceof JSONObject) {
+                        caller = User.fromJson(lastMessage.getJSONObject("sender"));
+                    }
+                }
             }
 
             String callerJson = getIntent().getStringExtra("caller");
@@ -229,13 +230,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void initializeViews() {
         // Status and info views
         tvCallStatus = findViewById(R.id.tv_call_status);
-        tvCallStatusTop = findViewById(R.id.tv_call_status_top);
+        TextView tvCallStatusTop = findViewById(R.id.tv_call_status_top);
         tvCallDuration = findViewById(R.id.tv_call_duration);
-        ivRemoteAvatar = findViewById(R.id.iv_remote_avatar);
-        tvRemoteName = findViewById(R.id.tv_remote_name);
+        CircleImageView ivRemoteAvatar = findViewById(R.id.iv_remote_avatar);
+        TextView tvRemoteName = findViewById(R.id.tv_remote_name);
 
         // Video views
         localVideoView = findViewById(R.id.sv_local_video);
@@ -288,6 +290,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void initializeWebRTC() {
         Log.d(TAG, "Initializing WebRTC");
 
@@ -309,7 +312,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         );
 
         // Create PeerConnectionFactory
-        PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
         DefaultVideoEncoderFactory encoderFactory = new DefaultVideoEncoderFactory(
                 eglBase.getEglBaseContext(), true, true);
         DefaultVideoDecoderFactory decoderFactory = new DefaultVideoDecoderFactory(eglBase.getEglBaseContext());
@@ -352,33 +354,24 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         if (isIncomingCall) {
             // Callee: wait for offer, but also request offer if missed
             Log.d(TAG, "Waiting for offer from caller");
-            runOnUiThread(() -> {
-                tvCallStatus.setText("Waiting for offer...");
-            });
+            runOnUiThread(() -> tvCallStatus.setText("Waiting for offer..."));
 
             // Request offer from caller in case it was already sent
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                requestOfferFromCaller();
-            }, 2000); // Wait 2 seconds then request offer
+            new Handler(Looper.getMainLooper()).postDelayed(this::requestOfferFromCaller, 2000); // Wait 2 seconds then request offer
         } else {
             // Caller: create offer
             Log.d(TAG, "Creating offer as caller");
-            runOnUiThread(() -> {
-                tvCallStatus.setText("Initiating call...");
-            });
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                createOffer();
-            }, 1000); // Small delay to ensure peer connection is ready
+            runOnUiThread(() -> tvCallStatus.setText("Initiating call..."));
+            new Handler(Looper.getMainLooper()).postDelayed(this::createOffer, 1000); // Small delay to ensure peer connection is ready
         }
 
         Log.d(TAG, "WebRTC initialized successfully");
     }
 
+    @SuppressLint("SetTextI18n")
     private void requestOfferFromCaller() {
         Log.d(TAG, "Requesting offer from caller");
-        runOnUiThread(() -> {
-            tvCallStatus.setText("Requesting offer from caller...");
-        });
+        runOnUiThread(() -> tvCallStatus.setText("Requesting offer from caller..."));
 
         // Send request to caller via Socket.io
         if (socketManager != null) {
@@ -424,7 +417,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
                     @Override
                     public void onCameraFreezed(String errorDescription) {
-                        Log.e(TAG, "Camera freezed: " + errorDescription);
+                        Log.e(TAG, "Camera frozen: " + errorDescription);
                     }
 
                     @Override
@@ -530,13 +523,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                     } else if (signalingState == PeerConnection.SignalingState.HAVE_REMOTE_OFFER) {
                         Log.d(TAG, "Signaling state is HAVE_REMOTE_OFFER - will create answer");
                     } else if (signalingState == PeerConnection.SignalingState.HAVE_LOCAL_PRANSWER) {
-                        Log.d(TAG, "Signaling state is HAVE_LOCAL_PRANSWER - received answer");
+                        Log.d(TAG, "Signaling state is HAVE_LOCAL_ANSWER - received answer");
                     } else if (signalingState == PeerConnection.SignalingState.HAVE_REMOTE_PRANSWER) {
-                        Log.d(TAG, "Signaling state is HAVE_REMOTE_PRANSWER - sent answer");
+                        Log.d(TAG, "Signaling state is HAVE_REMOTE_ANSWER - sent answer");
                     }
                 });
             }
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
                 Log.d(TAG, "ICE connection state changed: " + iceConnectionState);
@@ -584,11 +578,12 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                 Log.d(TAG, "ICE candidates removed");
             }
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onAddStream(MediaStream mediaStream) {
                 Log.d(TAG, "Remote stream added - video tracks: " + mediaStream.videoTracks.size() + ", audio tracks: " + mediaStream.audioTracks.size());
                 runOnUiThread(() -> {
-                    if (mediaStream.videoTracks.size() > 0) {
+                    if (!mediaStream.videoTracks.isEmpty()) {
                         VideoTrack remoteVideoTrack = mediaStream.videoTracks.get(0);
                         remoteVideoTrack.addSink(remoteVideoView);
                         remoteVideoPlaceholder.setVisibility(View.GONE);
@@ -623,6 +618,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
         // Add local stream to peer connection
         if (localStream != null) {
+            assert peerConnection != null;
             peerConnection.addStream(localStream);
         }
 
@@ -642,17 +638,12 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             for (int i = 0; i < iceServersJson.length(); i++) {
                 org.json.JSONObject s = iceServersJson.getJSONObject(i);
                 String urls = s.optString("urls", null);
-                if (urls == null && s.has("url")) urls = s.optString("url", null);
                 String username = s.optString("username", null);
                 String credential = s.optString("credential", null);
-                if (urls != null) {
-                    PeerConnection.IceServer.Builder b = PeerConnection.IceServer.builder(urls);
-                    if (username != null && credential != null) {
-                        b.setUsername(username);
-                        b.setPassword(credential);
-                    }
-                    iceServers.add(b.createIceServer());
-                }
+                PeerConnection.IceServer.Builder b = PeerConnection.IceServer.builder(urls);
+                b.setUsername(username);
+                b.setPassword(credential);
+                iceServers.add(b.createIceServer());
             }
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Error parsing ICE servers JSON", e);
@@ -693,10 +684,11 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             public void onIceCandidatesRemoved(IceCandidate[] iceCandidates) {
             }
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onAddStream(MediaStream mediaStream) {
                 runOnUiThread(() -> {
-                    if (mediaStream.videoTracks.size() > 0) {
+                    if (!mediaStream.videoTracks.isEmpty()) {
                         mediaStream.videoTracks.get(0).addSink(remoteVideoView);
                         remoteVideoPlaceholder.setVisibility(View.GONE);
                         tvCallStatus.setText("Remote video connected!");
@@ -722,6 +714,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         });
 
         if (localStream != null) {
+            assert peerConnection != null;
             peerConnection.addStream(localStream);
         }
 
@@ -744,11 +737,10 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void createOffer() {
         Log.d(TAG, "Creating offer");
-        runOnUiThread(() -> {
-            tvCallStatus.setText("Creating offer...");
-        });
+        runOnUiThread(() -> tvCallStatus.setText("Creating offer..."));
         MediaConstraints constraints = new MediaConstraints();
         constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
         constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
@@ -795,11 +787,10 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }, constraints);
     }
 
+    @SuppressLint("SetTextI18n")
     private void createAnswer() {
         Log.d(TAG, "Creating answer");
-        runOnUiThread(() -> {
-            tvCallStatus.setText("Creating answer...");
-        });
+        runOnUiThread(() -> tvCallStatus.setText("Creating answer..."));
         MediaConstraints constraints = new MediaConstraints();
         constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
         constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
@@ -846,6 +837,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }, constraints);
     }
 
+    @SuppressLint("SetTextI18n")
     private void sendOffer(SessionDescription offer) {
         if (socketManager != null) {
             try {
@@ -855,15 +847,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
                 socketManager.sendWebRTCOffer(callId, offerJson);
                 Log.d(TAG, "Sent offer via Socket.io for callId: " + callId);
-                runOnUiThread(() -> {
-                    tvCallStatus.setText("Offer sent, waiting for answer...");
-                });
+                runOnUiThread(() -> tvCallStatus.setText("Offer sent, waiting for answer..."));
             } catch (JSONException e) {
                 Log.e(TAG, "Error sending offer", e);
             }
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void sendAnswer(SessionDescription answer) {
         if (socketManager != null) {
             try {
@@ -873,9 +864,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
                 socketManager.sendWebRTCAnswer(callId, answerJson);
                 Log.d(TAG, "Sent answer via Socket.io for callId: " + callId);
-                runOnUiThread(() -> {
-                    tvCallStatus.setText("Answer sent, establishing connection...");
-                });
+                runOnUiThread(() -> tvCallStatus.setText("Answer sent, establishing connection..."));
             } catch (JSONException e) {
                 Log.e(TAG, "Error sending answer", e);
             }
@@ -996,6 +985,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     }
 
     // WebRTCListener implementation
+    @SuppressLint("SetTextI18n")
     @Override
     public void onWebRTCOffer(String callId, JSONObject offer) {
         if (this.callId != null && this.callId.equals(callId)) {
@@ -1011,13 +1001,9 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                     String type = offer.optString("type", "");
                     if ("request_offer".equals(type)) {
                         Log.d(TAG, "Received offer request, resending offer");
-                        runOnUiThread(() -> {
-                            tvCallStatus.setText("Resending offer...");
-                        });
+                        runOnUiThread(() -> tvCallStatus.setText("Resending offer..."));
                         // Resend offer
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            createOffer();
-                        }, 500);
+                        new Handler(Looper.getMainLooper()).postDelayed(this::createOffer, 500);
                     } else {
                         runOnUiThread(() -> {
                             tvCallStatus.setText("Received offer, creating answer...");
@@ -1033,6 +1019,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onWebRTCAnswer(String callId, JSONObject answer) {
         if (this.callId != null && this.callId.equals(callId)) {
@@ -1066,9 +1053,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
                 if (!fromUserId.isEmpty() && !fromUserId.equals(currentUserId)) {
                     Log.d(TAG, "Received ICE candidate from user: " + fromUserId);
-                    runOnUiThread(() -> {
-                        handleICECandidate(candidate);
-                    });
+                    runOnUiThread(() -> handleICECandidate(candidate));
                 } else {
                     Log.d(TAG, "Ignoring ICE candidate from self");
                 }
@@ -1085,7 +1070,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         if (this.callId != null && this.callId.equals(callId)) {
             try {
                 boolean muteVideo = settings.optBoolean("muteVideo", false);
-                boolean muteAudio = settings.optBoolean("muteAudio", false);
 
                 runOnUiThread(() -> {
                     // Only update remote video display, don't touch local video
@@ -1097,7 +1081,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                         if (remoteVideoPlaceholder != null) {
                             remoteVideoPlaceholder.setVisibility(View.VISIBLE);
                             // Update placeholder to show black background
-                            remoteVideoPlaceholder.setBackgroundColor(getResources().getColor(android.R.color.black));
+                            remoteVideoPlaceholder.setBackgroundColor(ContextCompat.getColor(this, android.R.color.black));
                         }
                         Log.d(TAG, "Remote camera is off - showing black screen");
                     } else {
@@ -1139,6 +1123,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                         for (RtpReceiver receiver : peerConnection.getReceivers()) {
                             if (receiver.track() instanceof VideoTrack) {
                                 VideoTrack videoTrack = (VideoTrack) receiver.track();
+                                assert videoTrack != null;
                                 if (videoTrack.enabled()) {
                                     hasRemoteVideo = true;
                                     break;
@@ -1152,7 +1137,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                         // No video available - show black screen
                         remoteVideoView.setVisibility(View.GONE);
                         remoteVideoPlaceholder.setVisibility(View.VISIBLE);
-                        remoteVideoPlaceholder.setBackgroundColor(getResources().getColor(android.R.color.black));
+                        remoteVideoPlaceholder.setBackgroundColor(ContextCompat.getColor(VideoCallActivity.this, android.R.color.black));
                     } else {
                         // Video available - show video
                         remoteVideoView.setVisibility(View.VISIBLE);
@@ -1264,6 +1249,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void setupIncomingCall() {
         tvCallStatus.setText("Incoming call...");
         loadingOverlay.setVisibility(View.GONE);
@@ -1276,16 +1262,16 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }, 5000);
     }
 
+    @SuppressLint("SetTextI18n")
     private void setupOutgoingCall() {
         tvCallStatus.setText("Calling...");
         loadingOverlay.setVisibility(View.VISIBLE);
 
         // Simulate call connection
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            connectCall();
-        }, 2000);
+        new Handler(Looper.getMainLooper()).postDelayed(this::connectCall, 2000);
     }
 
+    @SuppressLint("SetTextI18n")
     private void acceptCall() {
         tvCallStatus.setText("Connecting...");
         loadingOverlay.setVisibility(View.VISIBLE);
@@ -1302,7 +1288,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         connectCall();
@@ -1315,6 +1301,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         });
     }
 
+    @SuppressLint("SetTextI18n")
     private void connectCall() {
         isCallActive = true;
         loadingOverlay.setVisibility(View.GONE);
@@ -1338,7 +1325,8 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     private void startCallDurationTimer() {
         callDurationTimer = new Timer();
-        callDurationTimer.scheduleAtFixedRate(new TimerTask() {
+        callDurationTimer.schedule(new TimerTask() {
+            @SuppressLint("DefaultLocale")
             @Override
             public void run() {
                 runOnUiThread(() -> {
@@ -1457,7 +1445,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) {
                 Log.d(TAG, "Call settings updated: " + response.code());
             }
         });
@@ -1493,7 +1481,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     Log.d(TAG, "Call ended: " + response.code());
                     finish();
