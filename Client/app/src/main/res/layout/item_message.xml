@@ -49,7 +49,7 @@
                     android:id="@+id/tv_sent_reply_author"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/chat_text_sent"
                     android:textStyle="bold"
                     android:textSize="12sp"
                     tools:text="Alice"/>

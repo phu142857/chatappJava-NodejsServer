@@ -51,6 +51,7 @@
     
     <!-- Chat Colors -->
     <color name="chat_bubble_sent">#0E394B</color>
+    <color name="chat_bubble_sent_soft">#CC0E394B</color>
     <color name="chat_bubble_received">#F3F4F6</color>
     <color name="chat_text_sent">#FFFFFF</color>
     <color name="chat_text_received">#000000</color>

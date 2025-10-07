@@ -82,12 +82,26 @@
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/tv_create"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Create"
+                android:textAllCaps="true"
+                android:textColor="@color/primary_color"
+                android:textStyle="bold"
+                android:paddingStart="12dp"
+                android:paddingEnd="4dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
         </LinearLayout>
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Scrollable Content -->
-    <androidx.core.widget.NestedScrollView
+    <!-- Fixed Content (no outer scroll) -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="16dp"
@@ -97,12 +111,8 @@
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:orientation="vertical">
 
             <!-- Group Information Section -->
             <androidx.cardview.widget.CardView
@@ -222,15 +232,16 @@
             <!-- Friends Selection Section -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                android:backgroundTint="@android:color/white"
+                android:layout_weight="1">
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:padding="20dp">
 
@@ -251,6 +262,36 @@
                         android:textColor="@android:color/darker_gray"
                         android:layout_marginBottom="16dp" />
 
+                    <!-- Search bar moved inside Select Friends section -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:background="@android:color/transparent"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_search"
+                            app:tint="@android:color/darker_gray"
+                            android:layout_marginEnd="12dp" />
+
+                        <EditText
+                            android:id="@+id/et_search"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Search friends..."
+                            android:textSize="16sp"
+                            android:textColorHint="@android:color/darker_gray"
+                            android:background="@null"
+                            android:inputType="text" />
+
+                    </LinearLayout>
+
                     <!-- Progress Bar -->
                     <ProgressBar
                         android:id="@+id/progress_bar"
@@ -260,11 +301,12 @@
                         android:visibility="gone"
                         android:layout_marginBottom="16dp" />
 
-                    <!-- Friends RecyclerView -->
+                    <!-- Friends RecyclerView fills remaining space inside card -->
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rv_friends"
                         android:layout_width="match_parent"
-                        android:layout_height="300dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
                         android:clipToPadding="false"
                         android:padding="8dp" />
 
@@ -272,17 +314,8 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Create Group Button -->
-            <Button
-                android:id="@+id/btn_create_group"
-                style="@style/AppPrimaryLargeButton"
-                android:text="Create Group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" />
+            
 
-        </LinearLayout>
-
-    </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

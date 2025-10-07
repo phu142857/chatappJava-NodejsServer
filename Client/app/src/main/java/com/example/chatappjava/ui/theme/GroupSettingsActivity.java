@@ -291,9 +291,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
                         Toast.makeText(this, "Error opening members list", Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNeutralButton("Change Avatar", (dialog, which) -> {
-                    showAvatarOptions();
-                })
                 .setNegativeButton("Close", null)
                 .create().show();
     }

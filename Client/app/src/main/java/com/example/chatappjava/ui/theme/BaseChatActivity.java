@@ -550,6 +550,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         message.setType("image");
         message.setChatType(currentChat.isGroupChat() ? "group" : "private");
         message.setTimestamp(System.currentTimeMillis());
+        String clientNonce = java.util.UUID.randomUUID().toString();
+        message.setClientNonce(clientNonce);
+        // Assign a temporary local id to dedupe when server echoes back
+        try { message.setId("local-" + message.getTimestamp()); } catch (Exception ignored) {}
         
         // Store local URI for zoom functionality if available
         if (localUri != null) {
@@ -558,6 +562,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
         
         // Add to local list immediately for better UX
+        message.setLocalSignature(buildLocalSignature(message));
         messages.add(message);
         messageAdapter.notifyItemInserted(messages.size() - 1);
         // Always scroll to bottom when user sends an image
@@ -570,6 +575,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messageJson.put("chatId", currentChat.getId());
             messageJson.put("type", "image");
             messageJson.put("timestamp", System.currentTimeMillis());
+            messageJson.put("clientNonce", clientNonce);
             if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
                 messageJson.put("replyTo", replyingToMessageId);
             }
@@ -978,11 +984,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                     messages.clear();
                                     messages.addAll(pageOne);
                                 } else {
-                                    // Merge: append only new items at the end (newer messages)
+                                    // Merge: upsert by id; if id not found, try replace local placeholder; else append
                                     for (Message m : pageOne) {
-                                        if (indexOfMessageById(m.getId()) < 0) {
-                                            messages.add(m);
-                                            addedNewAtEnd = true;
+                                        int existingIdx = indexOfMessageById(m.getId());
+                                        if (existingIdx >= 0) {
+                                            messages.set(existingIdx, m);
+                                            messageAdapter.notifyItemChanged(existingIdx);
+                                        } else {
+                                            int localIdx = findLocalPlaceholderIndex(m);
+                                            if (localIdx >= 0) {
+                                                messages.set(localIdx, m);
+                                                messageAdapter.notifyItemChanged(localIdx);
+                                            } else {
+                                                messages.add(m);
+                                                addedNewAtEnd = true;
+                                            }
                                         }
                                     }
                                 }
@@ -1118,6 +1134,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         message.setType("text"); // Set message type
         message.setChatType(currentChat.isGroupChat() ? "group" : "private"); // Set chat type
         message.setTimestamp(System.currentTimeMillis());
+        // Generate client nonce for dedupe across socket/poll
+        String clientNonce = java.util.UUID.randomUUID().toString();
+        message.setClientNonce(clientNonce);
+        // Assign a temporary local id to dedupe when server echoes back
+        try { message.setId("local-" + message.getTimestamp()); } catch (Exception ignored) {}
         if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
             message.setReplyToMessageId(replyingToMessageId);
             message.setReplyToSenderName(replyingToAuthor);
@@ -1128,6 +1149,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
 
         // Add to local list immediately for better UX
+        message.setLocalSignature(buildLocalSignature(message));
         messages.add(message);
         messageAdapter.notifyItemInserted(messages.size() - 1);
         // Always scroll to bottom when user sends a message
@@ -1144,13 +1166,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messageJson.put("content", content);
             messageJson.put("type", "text");
             messageJson.put("timestamp", System.currentTimeMillis());
+            messageJson.put("clientNonce", clientNonce);
             if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
                 messageJson.put("replyTo", replyingToMessageId);
             }
             
             android.util.Log.d("BaseChatActivity", "Sending message: " + messageJson);
             
-            apiClient.sendMessage(token, messageJson, new Callback() {
+        apiClient.sendMessage(token, messageJson, new Callback() {
                 @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
@@ -1162,8 +1185,22 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             try {
                                 JSONObject jsonResponse = new JSONObject(responseBody);
                                 if (jsonResponse.optBoolean("success", false)) {
-                                    android.util.Log.d("BaseChatActivity", "Message sent successfully");
-                                    // Message sent successfully, keep it in the list
+                                    // If server returns message with id, update placeholder id for stronger dedupe
+                                    try {
+                                        JSONObject data = jsonResponse.optJSONObject("data");
+                                        if (data != null && data.has("message")) {
+                                            JSONObject m = data.getJSONObject("message");
+                                            String serverId = m.optString("_id", null);
+                                            if (serverId != null) {
+                                                // Replace the last local placeholder that matches signature
+                                                int idx = findLocalPlaceholderIndex(Message.fromJson(m));
+                                                if (idx >= 0) {
+                                                    messages.set(idx, Message.fromJson(m));
+                                                    messageAdapter.notifyItemChanged(idx);
+                                                }
+                                            }
+                                        }
+                                    } catch (Exception ignored) {}
                                     clearReplyState();
                                 } else {
                                     // Remove from local list if failed
@@ -1450,12 +1487,43 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     public void onReactClick(Message message, String emoji) {
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) return;
+        // Optimistic UI update: update local message to show reaction immediately
+        try {
+            message.incrementReaction(emoji);
+            int idx = indexOfMessageById(message.getId());
+            if (idx >= 0) {
+                messageAdapter.notifyItemChanged(idx);
+            } else {
+                messageAdapter.notifyDataSetChanged();
+            }
+        } catch (Exception ignored) {}
+
         apiClient.addReaction(token, message.getId(), emoji, new okhttp3.Callback() {
             @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* ignore */ }
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                // Optionally revert on failure
+            }
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) { /* backend will broadcast reaction_updated */ }
         });
+    }
+
+    private String findUserReactionEmoji(Message message, String userId) {
+        try {
+            String raw = message.getReactionsRaw();
+            if (raw == null || raw.isEmpty() || userId == null || userId.isEmpty()) return null;
+            org.json.JSONArray arr = new org.json.JSONArray(raw);
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject r = arr.getJSONObject(i);
+                String emoji = r.optString("emoji", null);
+                org.json.JSONObject u = r.optJSONObject("user");
+                String uid = u != null ? u.optString("_id", u.optString("id", null)) : null;
+                if (uid != null && uid.equals(userId)) {
+                    return emoji;
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     @Override
@@ -1516,8 +1584,15 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 messages.set(idx, incoming);
                 messageAdapter.notifyItemChanged(idx);
             } else {
-                messages.add(incoming);
-                messageAdapter.notifyItemInserted(messages.size() - 1);
+        // De-duplicate: if there is a local placeholder with same signature, replace it
+        int localIdx = findLocalPlaceholderIndex(incoming);
+                if (localIdx >= 0) {
+                    messages.set(localIdx, incoming);
+                    messageAdapter.notifyItemChanged(localIdx);
+                } else {
+                    messages.add(incoming);
+                    messageAdapter.notifyItemInserted(messages.size() - 1);
+                }
                 // Only scroll to bottom if user is already at the bottom
                 scrollToBottomIfAtBottom();
             }
@@ -1566,6 +1641,40 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (id.equals(m.getId())) return i;
         }
         return -1;
+    }
+
+    private int findLocalPlaceholderIndex(Message incoming) {
+        if (incoming == null) return -1;
+        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        if (currentUserId == null) return -1;
+        // If server includes clientNonce, prefer matching by nonce
+        String incomingNonce = null;
+        try { incomingNonce = (String) Message.class.getMethod("getClientNonce").invoke(incoming); } catch (Exception ignored) {}
+        String expectedSig = buildLocalSignature(incoming);
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (m.getId() != null && m.getId().startsWith("local-") && currentUserId.equals(m.getSenderId())) {
+                String sig = m.getLocalSignature();
+                boolean nonceMatch = false;
+                if (incomingNonce != null) {
+                    try {
+                        String localNonce = (String) Message.class.getMethod("getClientNonce").invoke(m);
+                        nonceMatch = incomingNonce.equals(localNonce);
+                    } catch (Exception ignored) {}
+                }
+                if (nonceMatch || (sig != null && sig.equals(expectedSig))) return i;
+            }
+        }
+        return -1;
+    }
+
+    private String buildLocalSignature(Message m) {
+        try {
+            String uid = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : "";
+            String type = m.isImageMessage() ? "image" : (m.isTextMessage() ? "text" : m.getType());
+            String contentKey = m.isTextMessage() ? (m.getContent() != null ? m.getContent() : "") : "img";
+            return uid + "|" + type + "|" + contentKey;
+        } catch (Exception ignored) { return null; }
     }
 
     protected void showMessageOptions(Message message) {
@@ -1629,17 +1738,67 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void showReactionPicker(Message message) {
-        final String[] emojis = new String[]{
-            "👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤔"
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_react_picker, null);
+
+        TextView title = dialogView.findViewById(R.id.tv_title);
+        TextView btnRemove = dialogView.findViewById(R.id.btn_remove_react);
+        int[] emojiIds = new int[]{
+            R.id.emoji_1,
+            R.id.emoji_2,
+            R.id.emoji_3,
+            R.id.emoji_4,
+            R.id.emoji_5,
+            R.id.emoji_6
         };
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("React");
-        builder.setItems(emojis, (dialog, which) -> {
-            if (which >= 0 && which < emojis.length) {
-                onReactClick(message, emojis[which]);
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        AlertDialog dlg = builder.create();
+
+        if (title != null) title.setText("React");
+        for (int id : emojiIds) {
+            View v = dialogView.findViewById(id);
+            if (v instanceof TextView) {
+                v.setOnClickListener(x -> {
+                    try {
+                        CharSequence emoji = ((TextView) v).getText();
+                        if (emoji != null) onReactClick(message, emoji.toString());
+                    } catch (Exception ignored) {}
+                    dlg.dismiss();
+                });
             }
+        }
+        if (btnRemove != null) btnRemove.setOnClickListener(v -> {
+            try {
+                String token = sharedPrefsManager.getToken();
+                if (token != null && !token.isEmpty()) {
+                    // Determine current user's emoji to remove from message.reactionsRaw
+                    String myUserId = sharedPrefsManager.getUserId();
+                    String emojiToRemove = findUserReactionEmoji(message, myUserId);
+                    if (emojiToRemove == null || emojiToRemove.isEmpty()) {
+                        dlg.dismiss();
+                        return;
+                    }
+
+                    // Optimistic UI update
+                    message.decrementReaction(emojiToRemove);
+                    int idx = indexOfMessageById(message.getId());
+                    if (idx >= 0) messageAdapter.notifyItemChanged(idx); else messageAdapter.notifyDataSetChanged();
+
+                    apiClient.removeReaction(token, message.getId(), emojiToRemove, new okhttp3.Callback() {
+                        @Override public void onFailure(okhttp3.Call call, java.io.IOException e) { }
+                        @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) { }
+                    });
+                }
+            } catch (Exception ignored) { }
+            dlg.dismiss();
         });
-        builder.show();
+        if (dlg.getWindow() != null) {
+            Window w = dlg.getWindow();
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+        dlg.show();
     }
 
     protected void setReplyState(Message message) {

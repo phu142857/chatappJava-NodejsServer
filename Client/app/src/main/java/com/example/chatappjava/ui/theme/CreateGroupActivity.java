@@ -2,11 +2,13 @@ package com.example.chatappjava.ui.theme;
 
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import android.widget.Switch;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -29,7 +31,6 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
 
     private EditText etGroupName, etDescription;
     private RecyclerView rvFriends;
-    private Button btnCreate;
     private Switch switchPublic;
     private ProgressBar progressBar;
     private SelectableUserAdapter adapter;
@@ -37,6 +38,9 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
     private final List<String> selectedUserIds = new ArrayList<>();
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefs;
+    private EditText etSearch;
+    private TextView tvCreate;
+    private final List<User> allFriends = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,9 +50,10 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         etGroupName = findViewById(R.id.et_group_name);
         etDescription = findViewById(R.id.et_group_description);
         rvFriends = findViewById(R.id.rv_friends);
-        btnCreate = findViewById(R.id.btn_create_group);
         switchPublic = findViewById(R.id.switch_public);
         progressBar = findViewById(R.id.progress_bar);
+        etSearch = findViewById(R.id.et_search);
+        tvCreate = findViewById(R.id.tv_create);
 
         apiClient = new ApiClient();
         sharedPrefs = new SharedPreferencesManager(this);
@@ -57,10 +62,26 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         rvFriends.setLayoutManager(new LinearLayoutManager(this));
         rvFriends.setAdapter(adapter);
 
-        btnCreate.setOnClickListener(v -> createGroup());
+        // Top bar "Create" action
+        if (tvCreate != null) tvCreate.setOnClickListener(v -> createGroup());
         
         // Back button
         findViewById(R.id.iv_back).setOnClickListener(v -> finish());
+
+        if (etSearch != null) {
+            etSearch.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    filterFriends(s != null ? s.toString() : "");
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
 
         loadFriends();
     }
@@ -93,9 +114,11 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
                             JSONObject data = json.getJSONObject("data");
                             JSONArray arr = data.getJSONArray("friends");
                             friends.clear();
+                            allFriends.clear();
                             for (int i = 0; i < arr.length(); i++) {
                                 User u = User.fromJson(arr.getJSONObject(i));
                                 friends.add(u);
+                                allFriends.add(u);
                             }
                             adapter.notifyDataSetChanged();
                         }
@@ -105,6 +128,25 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
                 });
             }
         });
+    }
+
+    private void filterFriends(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        friends.clear();
+        if (q.isEmpty()) {
+            friends.addAll(allFriends);
+        } else {
+            for (User u : allFriends) {
+                String displayName = u.getDisplayName() != null ? u.getDisplayName().toLowerCase(java.util.Locale.ROOT) : "";
+                String username = u.getUsername() != null ? u.getUsername().toLowerCase(java.util.Locale.ROOT) : "";
+                String email = u.getEmail() != null ? u.getEmail().toLowerCase(java.util.Locale.ROOT) : "";
+                String phone = u.getPhoneNumber() != null ? u.getPhoneNumber().toLowerCase(java.util.Locale.ROOT) : "";
+                if (displayName.contains(q) || username.contains(q) || email.contains(q) || phone.contains(q)) {
+                    friends.add(u);
+                }
+            }
+        }
+        adapter.notifyDataSetChanged();
     }
 
     private void createGroup() {

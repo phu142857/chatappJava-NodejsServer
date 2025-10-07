@@ -87,6 +87,7 @@ public class Message {
     // Reactions summary (emoji -> count) and raw list (optional)
     private java.util.Map<String, Integer> reactionSummary;
     private String reactionsRaw; // store raw JSON if needed to show user list
+    private String clientNonce; // unique from client to dedupe echo
     
     // Reply and edit info
     private String replyToMessageId;
@@ -98,6 +99,8 @@ public class Message {
     // Sender object from backend
     private Sender sender;
     private SenderInfo senderInfo;
+    // Client-side helpers (not from server)
+    private transient String localSignature;
     
     // Constructors
     public Message() {}
@@ -192,6 +195,7 @@ public class Message {
         if (json.has("reactions") && json.get("reactions") instanceof org.json.JSONArray) {
             message.reactionsRaw = json.getJSONArray("reactions").toString();
         }
+        message.clientNonce = json.optString("clientNonce", null);
         if (json.has("senderInfo") && json.get("senderInfo") instanceof JSONObject) {
             JSONObject senderInfoJson = json.getJSONObject("senderInfo");
             message.senderInfo = SenderInfo.fromJson(senderInfoJson);
@@ -256,7 +260,27 @@ public class Message {
     public void setReplyToImageThumb(String v) { this.replyToImageThumb = v; }
 
     public java.util.Map<String, Integer> getReactionSummary() { return reactionSummary; }
+    public void setReactionSummary(java.util.Map<String, Integer> reactionSummary) { this.reactionSummary = reactionSummary; }
+    public void incrementReaction(String emoji) {
+        if (emoji == null) return;
+        if (reactionSummary == null) reactionSummary = new java.util.HashMap<>();
+        int c = reactionSummary.getOrDefault(emoji, 0);
+        reactionSummary.put(emoji, c + 1);
+    }
+    public void decrementReaction(String emoji) {
+        if (emoji == null || reactionSummary == null) return;
+        Integer c = reactionSummary.get(emoji);
+        if (c == null) return;
+        if (c <= 1) {
+            reactionSummary.remove(emoji);
+        } else {
+            reactionSummary.put(emoji, c - 1);
+        }
+    }
     public String getReactionsRaw() { return reactionsRaw; }
+    public void setReactionsRaw(String reactionsRaw) { this.reactionsRaw = reactionsRaw; }
+    public String getClientNonce() { return clientNonce; }
+    public void setClientNonce(String clientNonce) { this.clientNonce = clientNonce; }
     
     public String getReplyToMessageId() { return replyToMessageId; }
     public void setReplyToMessageId(String replyToMessageId) { this.replyToMessageId = replyToMessageId; }
@@ -316,4 +340,8 @@ public class Message {
                 ", isDeleted=" + isDeleted +
                 '}';
     }
+
+    // Client-side helpers
+    public String getLocalSignature() { return localSignature; }
+    public void setLocalSignature(String sig) { this.localSignature = sig; }
 }

@@ -87,6 +87,50 @@
 
     </androidx.cardview.widget.CardView>
 
+    <!-- Search bar card -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/search_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        android:backgroundTint="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                app:tint="@android:color/darker_gray"
+                android:layout_marginEnd="12dp" />
+
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Search requests..."
+                android:textSize="16sp"
+                android:textColorHint="@android:color/darker_gray"
+                android:background="@null"
+                android:inputType="text" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
     <!-- Requests container card -->
     <androidx.cardview.widget.CardView
         android:id="@+id/requests_card"
@@ -99,7 +143,7 @@
         app:cardCornerRadius="16dp"
         app:cardElevation="4dp"
         android:backgroundTint="@android:color/white"
-        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintTop_toBottomOf="@id/search_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">

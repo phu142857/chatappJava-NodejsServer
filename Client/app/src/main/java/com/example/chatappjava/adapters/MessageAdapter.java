@@ -471,8 +471,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             itemView.setOnLongClickListener(v -> {
                 if (listener != null) {
                     listener.onMessageLongClick(message);
-                    // Quick reaction panel (lightweight)
-                    showQuickReactions(itemView.getContext(), itemView, message);
+                    // Show custom reaction dialog; fall back to quick popup if any error
+                    try {
+                        showReactPicker(itemView.getContext(), message);
+                    } catch (Exception ignored) {
+                        showQuickReactions(itemView.getContext(), itemView, message);
+                    }
                     return true;
                 }
                 return false;
@@ -518,6 +522,47 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 mPopup.getClass().getDeclaredMethod("setForceShowIcon", boolean.class).invoke(mPopup, true);
             } catch (Exception ignored) {}
             menu.show();
+        }
+
+        private void showReactPicker(Context context, Message message) {
+            android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
+            android.view.View dialogView = inflater.inflate(com.example.chatappjava.R.layout.dialog_react_picker, null);
+
+            android.widget.TextView title = dialogView.findViewById(com.example.chatappjava.R.id.tv_title);
+            android.widget.TextView btnRemove = dialogView.findViewById(com.example.chatappjava.R.id.btn_remove_react);
+            int[] emojiIds = new int[]{
+                com.example.chatappjava.R.id.emoji_1,
+                com.example.chatappjava.R.id.emoji_2,
+                com.example.chatappjava.R.id.emoji_3,
+                com.example.chatappjava.R.id.emoji_4,
+                com.example.chatappjava.R.id.emoji_5,
+                com.example.chatappjava.R.id.emoji_6
+            };
+
+            android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(context)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+            if (title != null) title.setText("React");
+            for (int id : emojiIds) {
+                android.view.View v = dialogView.findViewById(id);
+                if (v instanceof android.widget.TextView) {
+                    v.setOnClickListener(x -> {
+                        try {
+                            CharSequence emoji = ((android.widget.TextView) v).getText();
+                            if (emoji != null && listener != null) listener.onReactClick(message, emoji.toString());
+                        } catch (Exception ignored2) {}
+                        dlg.dismiss();
+                    });
+                }
+            }
+            if (btnRemove != null) btnRemove.setOnClickListener(v -> dlg.dismiss());
+            if (dlg.getWindow() != null) {
+                android.view.Window w = dlg.getWindow();
+                w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            }
+            dlg.show();
         }
 
         private void updateReactionIcon(ImageView badgeView, Message message, Context context) {

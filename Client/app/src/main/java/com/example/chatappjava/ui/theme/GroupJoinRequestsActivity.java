@@ -3,6 +3,9 @@ package com.example.chatappjava.ui.theme;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.EditText;
+import android.text.TextWatcher;
+import android.text.Editable;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -26,9 +29,11 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private MessageAdapter.RequestsAdapter adapter;
     private final List<User> requests = new ArrayList<>();
+    private final List<User> allRequests = new ArrayList<>();
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefs;
     private Chat currentChat;
+    private EditText etSearch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +42,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
 
         recyclerView = findViewById(com.example.chatappjava.R.id.rv_requests);
         progressBar = findViewById(com.example.chatappjava.R.id.progress_bar);
+        etSearch = findViewById(com.example.chatappjava.R.id.et_search);
         View ivBack = findViewById(com.example.chatappjava.R.id.iv_back);
         if (ivBack != null) ivBack.setOnClickListener(v -> finish());
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -58,6 +64,16 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
                 currentChat = Chat.fromJson(new JSONObject(chatJson));
             }
         } catch (JSONException ignored) {}
+
+        if (etSearch != null) {
+            etSearch.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    filterRequests(s != null ? s.toString() : "");
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
 
         loadRequests();
     }
@@ -87,11 +103,14 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
                         if (response.code() == 200 && json.optBoolean("success", false)) {
                             JSONArray arr = json.getJSONObject("data").optJSONArray("requests");
                             requests.clear();
+                            allRequests.clear();
                             if (arr != null) {
                                 for (int i = 0; i < arr.length(); i++) {
                                     JSONObject r = arr.getJSONObject(i).optJSONObject("user");
                                     if (r != null) {
-                                        requests.add(User.fromJson(r));
+                                        User u = User.fromJson(r);
+                                        requests.add(u);
+                                        allRequests.add(u);
                                     }
                                 }
                             }
@@ -105,6 +124,25 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private void filterRequests(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        requests.clear();
+        if (q.isEmpty()) {
+            requests.addAll(allRequests);
+        } else {
+            for (User u : allRequests) {
+                String displayName = u.getDisplayName() != null ? u.getDisplayName().toLowerCase(java.util.Locale.ROOT) : "";
+                String username = u.getUsername() != null ? u.getUsername().toLowerCase(java.util.Locale.ROOT) : "";
+                String email = u.getEmail() != null ? u.getEmail().toLowerCase(java.util.Locale.ROOT) : "";
+                String phone = u.getPhoneNumber() != null ? u.getPhoneNumber().toLowerCase(java.util.Locale.ROOT) : "";
+                if (displayName.contains(q) || username.contains(q) || email.contains(q) || phone.contains(q)) {
+                    requests.add(u);
+                }
+            }
+        }
+        adapter.notifyDataSetChanged();
     }
 
     private void respond(User user, boolean approve) {

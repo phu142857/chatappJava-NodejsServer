@@ -69,7 +69,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         tvMemberCount = findViewById(R.id.tv_member_count);
         ivBack = findViewById(R.id.iv_back);
         rvMembers = findViewById(R.id.rv_members);
-        btnAddMember = findViewById(R.id.btn_add_member);
         etSearch = findViewById(R.id.et_search);
         emptyState = findViewById(R.id.empty_state);
     }
@@ -98,7 +97,6 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     
     private void setupClickListeners() {
         ivBack.setOnClickListener(v -> finish());
-        btnAddMember.setOnClickListener(v -> showAddMemberDialog());
 
         if (etSearch != null) {
             etSearch.addTextChangedListener(new android.text.TextWatcher() {
@@ -241,29 +239,14 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         // Update count to reflect current visible items
         tvMemberCount.setText(members.size() + " members");
     }
-    
-    private void showAddMemberDialog() {
-        // Navigate to SearchActivity for adding members
-        Intent intent = new Intent(this, SearchActivity.class);
-        intent.putExtra("mode", "add_members");
-        
-        try {
-            intent.putExtra("chat", currentChat.toJson().toString());
-            startActivity(intent);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error opening contact selection", Toast.LENGTH_SHORT).show();
-        }
-    }
-    
+
     @Override
     public void onMemberClick(User member) {
-        // Show member profile or options
-        new AlertDialog.Builder(this)
+        // Show member profile or options; only owners can see Remove, and not for themselves
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle("Member Options")
                 .setMessage("Member: " + member.getDisplayName())
                 .setPositiveButton("View Profile", (dialog, which) -> {
-                    // Navigate to member profile
                     Intent intent = new Intent(this, ProfileViewActivity.class);
                     try {
                         intent.putExtra("user", member.toJson().toString());
@@ -273,11 +256,19 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                         Toast.makeText(this, "Error opening profile", Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("Remove", (dialog, which) -> {
-                    confirmRemoveMember(member);
-                })
-                .setNeutralButton("Cancel", null)
-                .show();
+                .setNeutralButton("Cancel", null);
+
+        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        String creatorId = currentChat != null ? currentChat.getCreatorId() : null;
+        boolean isOwner = currentUserId != null && currentUserId.equals(creatorId);
+        boolean isSelf = currentUserId != null && currentUserId.equals(member.getId());
+        if (isOwner && !isSelf) {
+            builder.setNegativeButton("Remove", (dialog, which) -> {
+                confirmRemoveMember(member);
+            });
+        }
+
+        builder.show();
     }
     
     private void confirmRemoveMember(User member) {

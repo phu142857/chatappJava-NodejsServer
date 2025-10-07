@@ -6,6 +6,9 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.EditText;
+import android.text.TextWatcher;
+import android.text.Editable;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -36,11 +39,13 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private ProgressBar progressBar;
     private LinearLayout tvNoRequests;
     private TextView tvTitle;
+    private EditText etSearch;
 
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefsManager;
     private FriendRequestAdapter adapter;
     private List<FriendRequest> friendRequests;
+    private List<FriendRequest> allFriendRequests;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,12 +71,14 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         tvNoRequests = findViewById(R.id.tv_no_requests);
         // Set up back button
         findViewById(R.id.iv_back).setOnClickListener(v -> finish());
+        etSearch = findViewById(R.id.et_search);
     }
 
     private void initializeServices() {
         apiClient = new ApiClient();
         sharedPrefsManager = new SharedPreferencesManager(this);
         friendRequests = new ArrayList<>();
+        allFriendRequests = new ArrayList<>();
     }
 
     private void setupRecyclerView() {
@@ -82,6 +89,16 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         adapter = new FriendRequestAdapter(friendRequests, currentUserId, this);
         rvFriendRequests.setLayoutManager(new LinearLayoutManager(this));
         rvFriendRequests.setAdapter(adapter);
+
+        if (etSearch != null) {
+            etSearch.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    filterRequests(s != null ? s.toString() : "");
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
     }
 
     private void loadFriendRequests() {
@@ -127,6 +144,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                 JSONArray requestsArray = data.getJSONArray("requests");
                 
                 friendRequests.clear();
+                allFriendRequests.clear();
                 System.out.println("Found " + requestsArray.length() + " friend requests");
                 
                 for (int i = 0; i < requestsArray.length(); i++) {
@@ -136,6 +154,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                     try {
                         FriendRequest request = FriendRequest.fromJson(requestJson);
                         friendRequests.add(request);
+                        allFriendRequests.add(request);
                         System.out.println("Added request: " + request.getStatus() + " from " + 
                             (request.getSender() != null ? request.getSender().getDisplayName() : "Unknown"));
                     } catch (Exception e) {
@@ -160,6 +179,28 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
             e.printStackTrace();
             Toast.makeText(this, "Error processing friend requests", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void filterRequests(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        friendRequests.clear();
+        if (q.isEmpty()) {
+            friendRequests.addAll(allFriendRequests);
+        } else {
+            for (FriendRequest r : allFriendRequests) {
+                User sender = r.getSender();
+                User receiver = r.getReceiver();
+                String senderName = sender != null && sender.getDisplayName() != null ? sender.getDisplayName().toLowerCase(java.util.Locale.ROOT) : "";
+                String senderUsername = sender != null && sender.getUsername() != null ? sender.getUsername().toLowerCase(java.util.Locale.ROOT) : "";
+                String receiverName = receiver != null && receiver.getDisplayName() != null ? receiver.getDisplayName().toLowerCase(java.util.Locale.ROOT) : "";
+                String receiverUsername = receiver != null && receiver.getUsername() != null ? receiver.getUsername().toLowerCase(java.util.Locale.ROOT) : "";
+                if (senderName.contains(q) || senderUsername.contains(q) || receiverName.contains(q) || receiverUsername.contains(q)) {
+                    friendRequests.add(r);
+                }
+            }
+        }
+        adapter.updateRequests(friendRequests);
+        updateUI();
     }
 
     private void updateUI() {
