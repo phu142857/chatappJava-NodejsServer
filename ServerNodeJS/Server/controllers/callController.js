@@ -79,9 +79,10 @@ const initiateCall = async (req, res) => {
 
         // Build ICE servers (include TURN if configured)
         const iceServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: "turn:103.75.183.125:3478", username: "phu142", credential: "phu142" }
+            // { urls: 'stun:stun.l.google.com:19302' },
+            // { urls: 'stun:stun1.l.google.com:19302' },
+            // { urls: 'stun:stun2.l.google.com:19302' }
         ];
         if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
             iceServers.push({
