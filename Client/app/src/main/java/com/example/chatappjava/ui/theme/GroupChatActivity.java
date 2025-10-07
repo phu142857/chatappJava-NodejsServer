@@ -1,7 +1,5 @@
 package com.example.chatappjava.ui.theme;
 
-import static androidx.core.content.ContextCompat.startActivity;
-
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;

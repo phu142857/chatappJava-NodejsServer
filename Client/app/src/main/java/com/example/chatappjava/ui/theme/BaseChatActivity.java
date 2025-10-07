@@ -1,6 +1,7 @@
 package com.example.chatappjava.ui.theme;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Intent;
@@ -9,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
@@ -31,6 +33,7 @@ import android.widget.ListPopupWindow;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -54,6 +57,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 import okhttp3.Call;
@@ -81,6 +85,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected String replyingToMessageId;
     protected String replyingToAuthor;
     protected String replyingToContent;
+    protected String replyingToImageThumb;
 
     // Common data
     protected Chat currentChat;
@@ -108,6 +113,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected Runnable pollRunnable;
     protected boolean hasNewMessages = false;
     protected boolean isInitialLoad = true;
+    // Pagination state
+    private int currentPage = 1;
+    private final int pageSize = 20;
+    private boolean isLoadingMore = false;
+    private boolean hasMore = true;
     // Block state for private chats
     protected boolean isBlockedByMe = false;
     protected boolean hasBlockedMe = false;
@@ -117,6 +127,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     private static final int REQUEST_CODE_CAMERA = 1002;
     private static final int REQUEST_CODE_CAMERA_PERMISSION = 1003;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1004;
+
+    // Camera capture state
+    private android.net.Uri cameraPhotoUri;
+    private java.io.File cameraPhotoFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -298,13 +312,34 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
         
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
-            startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
-        } else {
+        if (cameraIntent.resolveActivity(getPackageManager()) == null) {
             Toast.makeText(this, "Cannot open camera", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            // Prefer external app-specific pictures dir; fallback to cache
+            java.io.File picturesDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+            if (picturesDir == null) picturesDir = getCacheDir();
+            cameraPhotoFile = new java.io.File(picturesDir, "chat_photo_" + System.currentTimeMillis() + ".jpg");
+            if (!cameraPhotoFile.exists()) {
+                cameraPhotoFile.createNewFile();
+            }
+            cameraPhotoUri = FileProvider.getUriForFile(
+                this,
+                "com.example.chatappjava.fileprovider",
+                cameraPhotoFile
+            );
+            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+            cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Cannot prepare camera file", Toast.LENGTH_SHORT).show();
         }
     }
     
+    @SuppressLint("IntentReset")
     protected void openGallery() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
@@ -328,11 +363,18 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 if (selectedImageUri != null) {
                     handleSelectedImage(selectedImageUri);
                 }
-            } else if (requestCode == REQUEST_CODE_CAMERA && data != null) {
-                // Camera returns a Bitmap in extras, not a Uri
-                android.graphics.Bitmap cameraBitmap = (android.graphics.Bitmap) data.getExtras().get("data");
-                if (cameraBitmap != null) {
-                    handleSelectedBitmap(cameraBitmap);
+            } else if (requestCode == REQUEST_CODE_CAMERA) {
+                // With EXTRA_OUTPUT, most cameras return null data; use saved file/uri
+                if (cameraPhotoFile != null && cameraPhotoFile.exists()) {
+                    uploadImageToServer(cameraPhotoFile, cameraPhotoUri);
+                } else if (data != null && data.getExtras() != null && data.getExtras().get("data") instanceof android.graphics.Bitmap) {
+                    // Fallback for devices returning thumbnail bitmap if EXTRA_OUTPUT ignored
+                    android.graphics.Bitmap cameraBitmap = (android.graphics.Bitmap) data.getExtras().get("data");
+                    if (cameraBitmap != null) {
+                        handleSelectedBitmap(cameraBitmap);
+                    }
+                } else {
+                    Toast.makeText(this, "No photo captured", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -368,7 +410,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         try {
             // Convert URI to File
-            java.io.File imageFile = new java.io.File(imageUri.getPath());
+            java.io.File imageFile = new java.io.File(Objects.requireNonNull(imageUri.getPath()));
             if (!imageFile.exists()) {
                 // Try to get file from content resolver
                 android.content.ContentResolver contentResolver = getContentResolver();
@@ -388,7 +430,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
             
             if (imageFile.exists()) {
-                uploadImageToServer(imageFile);
+                // Pass original gallery Uri so UI can display instantly without flicker
+                uploadImageToServer(imageFile, imageUri);
             } else {
                 Toast.makeText(this, "Cannot read image file", Toast.LENGTH_SHORT).show();
             }
@@ -487,11 +530,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         });
     }
-    
-    protected void sendImageMessage(String imageUrl) {
-        sendImageMessage(imageUrl, null);
-    }
-    
+
     protected void sendImageMessage(String imageUrl, android.net.Uri localUri) {
         if (currentChat == null) return;
         
@@ -542,11 +581,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             attachment.put("originalName", imageUrl.substring(imageUrl.lastIndexOf("/") + 1));
             attachment.put("mimeType", "image/jpeg");
             attachment.put("size", 0); // We don't have size info from URL
-            
+
             // Convert relative path to full URL for server validation
             String fullImageUrl = imageUrl;
             if (!imageUrl.startsWith("http")) {
-                fullImageUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                fullImageUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + imageUrl;
             }
             attachment.put("url", fullImageUrl);
@@ -556,6 +595,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             android.util.Log.d("BaseChatActivity", "Sending image message: " + messageJson.toString());
             
             apiClient.sendMessage(token, messageJson, new okhttp3.Callback() {
+                @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                     String responseBody = response.body().string();
@@ -592,6 +632,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     });
                 }
                 
+                @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public void onFailure(okhttp3.Call call, java.io.IOException e) {
                     android.util.Log.e("BaseChatActivity", "Send image message failed: " + e.getMessage());
@@ -608,7 +649,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             Toast.makeText(this, "Error preparing message", Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     // Emoji picker handling
     protected void showEmojiPicker() {
         // Inflate custom dialog layout (layout defines design completely)
@@ -639,7 +680,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         emojiDialog.show();
     }
 
-    // onClick handler referenced by emoji TextViews in dialog_emoji_picker.xml
     public void onEmojiClicked(View v) {
         if (!(v instanceof TextView)) return;
         CharSequence emoji = ((TextView) v).getText();
@@ -657,6 +697,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
 
+    @SuppressLint("CutPasteId")
     protected void initViews() {
         ivBack = findViewById(R.id.iv_back);
         ivProfile = findViewById(R.id.iv_profile);
@@ -667,11 +708,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         ivSend = findViewById(R.id.iv_send);
         ivAttachment = findViewById(R.id.iv_attach);
         ivEmoji = findViewById(R.id.iv_sticker);
-        ivGallery = findViewById(R.id.iv_attach); // Reuse attach button for gallery
+        ivGallery = findViewById(R.id.iv_attach);
         etMessage = findViewById(R.id.et_message);
         rvMessages = findViewById(R.id.rv_messages);
         progressBar = findViewById(R.id.progress_bar);
-        // Optional reply bar elements (may not exist in all layouts)
         replyBar = findViewById(R.id.reply_bar);
         tvReplyAuthor = findViewById(R.id.tv_reply_author);
         tvReplyContent = findViewById(R.id.tv_reply_content);
@@ -728,9 +768,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
     
     protected void setupSocketManager() {
-        // SocketManager is now managed globally by ChatApplication
-        // No need to setup connection or global listeners here
-        android.util.Log.d("BaseChatActivity", "SocketManager setup - using global instance");
+        // SocketManager is already setup in Application class
         if (socketManager != null) {
             socketManager.setMessageListener(new com.example.chatappjava.network.SocketManager.MessageListener() {
                 @Override
@@ -758,7 +796,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     // Optional: update reactions UI later
                 }
             });
-            // Switch to realtime; stop polling once listener is set
+
+            // If user scroll up, stopPolling to avoid conflicts
             stopPolling();
         }
     }
@@ -767,13 +806,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Back button
         if (ivBack != null) {
             ivBack.setOnClickListener(v -> {
-                android.util.Log.d("BaseChatActivity", "Back button clicked");
                 finish();
             });
-        } else {
-            android.util.Log.w("BaseChatActivity", "Back button not found in layout");
         }
-        
+
         if (ivSend != null) {
             ivSend.setOnClickListener(v -> handleSendMessage());
         }
@@ -864,6 +900,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 if (isAtBottom()) {
                     hasNewMessages = false;
                 }
+                // Infinite scroll upwards: when first visible close to top, load previous page
+                LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                if (lm != null && !isLoadingMore && hasMore) {
+                    int firstVisible = lm.findFirstVisibleItemPosition();
+                    if (firstVisible <= 3) {
+                        loadMoreMessages();
+                    }
+                }
             }
             
             @Override
@@ -896,7 +940,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (currentChat == null) return;
 
         String token = sharedPrefsManager.getToken();
-        apiClient.getMessages(token, currentChat.getId(), new Callback() {
+        boolean isRefresh = !isInitialLoad; // polling refresh vs first load
+        if (!isRefresh) {
+            currentPage = 1;
+            hasMore = true;
+        }
+        apiClient.getMessages(token, currentChat.getId(), 1, pageSize, new Callback() {
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseBody = response.body().string();
@@ -906,14 +956,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             JSONObject jsonResponse = new JSONObject(responseBody);
                             if (jsonResponse.optBoolean("success", false)) {
                                 JSONObject data = jsonResponse.getJSONObject("data");
-                                
-                                // Store previous message count to detect new messages
+                                // Parse messages
                                 int previousMessageCount = messages.size();
-                                
-                                // Clear existing messages
-                                messages.clear();
-                                
-                                // Parse messages array
+                                java.util.List<Message> pageOne = new java.util.ArrayList<>();
                                 if (data.has("messages") && data.get("messages") instanceof org.json.JSONArray) {
                                     org.json.JSONArray messagesArray = data.getJSONArray("messages");
                                     android.util.Log.d("BaseChatActivity", "Found " + messagesArray.length() + " messages");
@@ -922,19 +967,30 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         android.util.Log.d("BaseChatActivity", "Message " + i + ": " + messageJson.toString());
                                         Message message = Message.fromJson(messageJson);
                                         android.util.Log.d("BaseChatActivity", "Parsed message - chatType: " + message.getChatType() + 
-                                            ", senderUsername: " + message.getSenderUsername() + 
-                                            ", senderAvatar: " + message.getSenderAvatar());
-                                        messages.add(message);
+                                                ", senderUsername: " + message.getSenderUsername() + 
+                                                ", senderAvatar: " + message.getSenderAvatar());
+                                        pageOne.add(message);
+                                    }
+                                    hasMore = messagesArray.length() >= pageSize;
+                                }
+                                boolean addedNewAtEnd = false;
+                                if (!isRefresh) {
+                                    messages.clear();
+                                    messages.addAll(pageOne);
+                                } else {
+                                    // Merge: append only new items at the end (newer messages)
+                                    for (Message m : pageOne) {
+                                        if (indexOfMessageById(m.getId()) < 0) {
+                                            messages.add(m);
+                                            addedNewAtEnd = true;
+                                        }
                                     }
                                 }
-                                
-                                // Check if there are new messages (for polling)
-                                boolean hasNewMessagesFromPolling = !isInitialLoad && messages.size() > previousMessageCount;
                                 
                                 // Update chat info if available
                                 if (data.has("chatInfo")) {
                                     JSONObject chatInfo = data.getJSONObject("chatInfo");
-                                    if (chatInfo != null && "private".equalsIgnoreCase(chatInfo.optString("type"))) {
+                                    if ("private".equalsIgnoreCase(chatInfo.optString("type"))) {
                                         isBlockedByMe = chatInfo.optBoolean("isBlockedByMe", false);
                                         hasBlockedMe = chatInfo.optBoolean("hasBlockedMe", false);
                                         applyBlockUiState(isBlockedByMe, hasBlockedMe);
@@ -946,13 +1002,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 }
 
                                 messageAdapter.notifyDataSetChanged();
-                                
+
                                 // Handle scrolling based on context
-                                if (isInitialLoad) {
+                                if (!isRefresh) {
                                     // Always scroll to bottom on initial load
                                     scrollToBottom();
+                             
                                     isInitialLoad = false;
-                                } else if (hasNewMessagesFromPolling) {
+                                } else if (addedNewAtEnd) {
                                     // Only scroll if there are new messages and user is at bottom
                                     scrollToBottomIfAtBottom();
                                 }
@@ -979,6 +1036,52 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         });
     }
 
+    private void loadMoreMessages() {
+        if (currentChat == null || isLoadingMore || !hasMore) return;
+        isLoadingMore = true;
+        String token = sharedPrefsManager.getToken();
+        // Capture current top item and offset to restore after prepend
+        LinearLayoutManager lmBefore = (LinearLayoutManager) rvMessages.getLayoutManager();
+        int firstVisibleBefore = lmBefore != null ? lmBefore.findFirstVisibleItemPosition() : 0;
+        View firstViewBefore = rvMessages.getChildAt(0);
+        int topOffsetBefore = firstViewBefore != null ? (firstViewBefore.getTop() - rvMessages.getPaddingTop()) : 0;
+        apiClient.getMessages(token, currentChat.getId(), currentPage + 1, pageSize, new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    isLoadingMore = false;
+                    if (!response.isSuccessful()) return;
+                    try {
+                        JSONObject json = new JSONObject(body);
+                        if (!json.optBoolean("success", false)) return;
+                        JSONObject data = json.getJSONObject("data");
+                        org.json.JSONArray arr = data.optJSONArray("messages");
+                        if (arr != null && arr.length() > 0) {
+                            java.util.List<Message> older = new java.util.ArrayList<>();
+                            for (int i = 0; i < arr.length(); i++) {
+                                Message m = Message.fromJson(arr.getJSONObject(i));
+                                older.add(m);
+                            }
+                            messages.addAll(0, older);
+                            currentPage += 1;
+                            hasMore = arr.length() >= pageSize;
+                            messageAdapter.notifyItemRangeInserted(0, older.size());
+                            // Restore previous viewport so it doesn't jump to bottom
+                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                            if (lm != null) {
+                                lm.scrollToPositionWithOffset(firstVisibleBefore + older.size(), topOffsetBefore);
+                            }
+                        } else {
+                            hasMore = false;
+                        }
+                    } catch (Exception ignored) {}
+                });
+            }
+            @Override public void onFailure(Call call, IOException e) { runOnUiThread(() -> isLoadingMore = false); }
+        });
+    }
+
     protected void sendMessage(String content) {
         if (TextUtils.isEmpty(content.trim())) return;
 
@@ -996,7 +1099,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
 
         // Prevent sending if blocked in private chat
-        if (currentChat != null && !currentChat.isGroupChat()) {
+        if (!currentChat.isGroupChat()) {
             if (isBlockedByMe) {
                 Toast.makeText(this, "You blocked this user. Unblock to continue.", Toast.LENGTH_SHORT).show();
                 return;
@@ -1019,6 +1122,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             message.setReplyToMessageId(replyingToMessageId);
             message.setReplyToSenderName(replyingToAuthor);
             message.setReplyToContent(replyingToContent);
+            if (replyingToImageThumb != null && !replyingToImageThumb.isEmpty()) {
+                message.setReplyToImageThumb(replyingToImageThumb);
+            }
         }
 
         // Add to local list immediately for better UX
@@ -1042,9 +1148,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 messageJson.put("replyTo", replyingToMessageId);
             }
             
-            android.util.Log.d("BaseChatActivity", "Sending message: " + messageJson.toString());
+            android.util.Log.d("BaseChatActivity", "Sending message: " + messageJson);
             
             apiClient.sendMessage(token, messageJson, new Callback() {
+                @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String responseBody = response.body().string();
@@ -1081,6 +1188,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     });
                 }
 
+                @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public void onFailure(Call call, IOException e) {
                     android.util.Log.e("BaseChatActivity", "Send message failed: " + e.getMessage());
@@ -1099,13 +1207,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void scrollToBottom() {
-        if (messages.size() > 0) {
+        if (!messages.isEmpty()) {
             rvMessages.smoothScrollToPosition(messages.size() - 1);
         }
     }
 
     protected boolean isAtBottom() {
-        if (messages.size() == 0) return true;
+        if (messages.isEmpty()) return true;
         
         LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (layoutManager == null) return true;
@@ -1162,9 +1270,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messageView.startAnimation(highlightAnimation);
             
             // Remove highlight after animation
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                messageView.clearAnimation();
-            }, 1000);
+            new Handler(Looper.getMainLooper()).postDelayed(messageView::clearAnimation, 1000);
         }
     }
 
@@ -1213,7 +1319,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 }
 
                 @Override
-                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                     if (!response.isSuccessful()) return;
                     try {
                         String body = response.body().string();
@@ -1235,8 +1341,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 org.json.JSONObject m = arr.getJSONObject(i);
                                 // member may be object with username or nested user
                                 String username = m.optString("username",
-                                        m.optJSONObject("user") != null ? m.optJSONObject("user").optString("username", "") : "");
-                                if (username != null && !username.isEmpty() && !users.contains(username)) {
+                                        m.optJSONObject("user") != null ? Objects.requireNonNull(m.optJSONObject("user")).optString("username", "") : "");
+                                if (!username.isEmpty() && !users.contains(username)) {
                                     users.add(username);
                                 }
                             }
@@ -1357,10 +1463,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         scrollToMessage(replyToMessageId);
     }
 
-    protected void showImageZoomDialog(String imageUrl) {
-        showImageZoomDialog(imageUrl, null);
-    }
-    
     protected void showImageZoomDialog(String imageUrl, String localImageUri) {
         // Create custom dialog
         Dialog dialog = new Dialog(this);
@@ -1405,7 +1507,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         try {
             // Filter by current chat
             String chatId = messageJson.optString("chat");
-            if (currentChat == null || chatId == null || !chatId.equals(currentChat.getId())) return;
+            if (currentChat == null || !chatId.equals(currentChat.getId())) return;
 
             Message incoming = Message.fromJson(messageJson);
             // Upsert by id
@@ -1427,7 +1529,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void handleEditedMessage(org.json.JSONObject messageJson) {
         try {
             String chatId = messageJson.optString("chat");
-            if (currentChat == null || chatId == null || !chatId.equals(currentChat.getId())) return;
+            if (currentChat == null || !chatId.equals(currentChat.getId())) return;
             Message edited = Message.fromJson(messageJson);
             int idx = indexOfMessageById(edited.getId());
             if (idx >= 0) {
@@ -1444,7 +1546,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             String messageId = metaJson.optString("id", metaJson.optString("_id", ""));
             String chatId = metaJson.optString("chat");
             if (currentChat == null) return;
-            if (chatId != null && !chatId.isEmpty() && !chatId.equals(currentChat.getId())) return;
+            if (!chatId.isEmpty() && !chatId.equals(currentChat.getId())) return;
             int idx = indexOfMessageById(messageId);
             if (idx >= 0) {
                 Message m = messages.get(idx);
@@ -1544,15 +1646,43 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         replyingToMessageId = message.getId();
         replyingToAuthor = message.getSenderUsername();
         replyingToContent = message.getContent();
+        // Capture image thumb if replying to an image
+        if (message.isImageMessage()) {
+            String thumb = null;
+            try {
+                String attachments = message.getAttachments();
+                if (attachments != null && !attachments.isEmpty()) {
+                    org.json.JSONArray arr = new org.json.JSONArray(attachments);
+                    if (arr.length() > 0) {
+                        org.json.JSONObject att = arr.getJSONObject(0);
+                        thumb = att.optString("url", null);
+                    }
+                }
+            } catch (Exception ignored) {}
+            if ((thumb == null || thumb.isEmpty())) {
+                thumb = message.getLocalImageUri() != null && !message.getLocalImageUri().isEmpty()
+                        ? message.getLocalImageUri()
+                        : message.getContent();
+            }
+            replyingToImageThumb = thumb;
+        } else {
+            replyingToImageThumb = null;
+        }
         if (replyBar != null) replyBar.setVisibility(android.view.View.VISIBLE);
         if (tvReplyAuthor != null) tvReplyAuthor.setText(replyingToAuthor != null ? replyingToAuthor : "Reply");
         if (tvReplyContent != null) tvReplyContent.setText(replyingToContent != null ? replyingToContent : "");
+
+        // Cache for adapter rebind stability
+        if (replyingToMessageId != null && replyingToImageThumb != null && !replyingToImageThumb.isEmpty()) {
+            com.example.chatappjava.utils.ReplyPreviewCache.put(replyingToMessageId, replyingToImageThumb);
+        }
     }
 
     protected void clearReplyState() {
         replyingToMessageId = null;
         replyingToAuthor = null;
         replyingToContent = null;
+        replyingToImageThumb = null;
         if (replyBar != null) replyBar.setVisibility(android.view.View.GONE);
     }
 
@@ -1627,8 +1757,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to delete message", Toast.LENGTH_SHORT).show());
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         message.setDeleted(true);
@@ -1642,5 +1773,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         });
     }
+
     protected abstract void resetCallButtonState();
 }

@@ -45,6 +45,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public MessageAdapter(List<Message> messages, String currentUserId) {
         this.messages = messages;
         this.currentUserId = currentUserId;
+        setHasStableIds(true);
     }
 
     public void setOnMessageClickListener(OnMessageClickListener listener) {
@@ -79,11 +80,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return messages.size();
     }
 
+    @Override
+    public long getItemId(int position) {
+        try {
+            Message m = messages.get(position);
+            String id = m.getId();
+            if (id != null) return id.hashCode();
+            String key = m.getTimestamp() + ":" +
+                    (m.getSenderId() != null ? m.getSenderId() : "") + ":" +
+                    (m.getContent() != null ? m.getContent() : "");
+            return key.hashCode();
+        } catch (Exception ignored) {
+            return RecyclerView.NO_ID;
+        }
+    }
+
     public static class MessageViewHolder extends RecyclerView.ViewHolder {
         private final LinearLayout llSentMessage;
         private final LinearLayout llReceivedMessage;
         private final LinearLayout llSentReplyPreview;
+        private final ImageView ivSentReplyThumb;
         private final LinearLayout llReceivedReplyPreview;
+        private final ImageView ivReceivedReplyThumb;
         private final TextView tvSentMessage;
         private final TextView tvSentTime;
         private final TextView tvSentEdited;
@@ -99,14 +117,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         private final TextView tvReceivedReplyContent;
         private final ImageView ivSenderAvatar;
         private final ImageView ivSentImage;
+        private final ImageView ivSentImageReaction;
         private final ImageView ivReceivedImage;
+        private final ImageView ivReceivedImageReaction;
         
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             llSentMessage = itemView.findViewById(R.id.ll_sent_message);
             llReceivedMessage = itemView.findViewById(R.id.ll_received_message);
             llSentReplyPreview = itemView.findViewById(R.id.ll_sent_reply_preview);
+            ivSentReplyThumb = itemView.findViewById(R.id.iv_sent_reply_thumb);
             llReceivedReplyPreview = itemView.findViewById(R.id.ll_received_reply_preview);
+            ivReceivedReplyThumb = itemView.findViewById(R.id.iv_received_reply_thumb);
             tvSentMessage = itemView.findViewById(R.id.tv_sent_message);
             tvSentTime = itemView.findViewById(R.id.tv_sent_time);
             tvSentEdited = itemView.findViewById(R.id.tv_sent_edited);
@@ -122,7 +144,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             tvReceivedReplyContent = itemView.findViewById(R.id.tv_received_reply_content);
             ivSenderAvatar = itemView.findViewById(R.id.iv_sender_avatar);
             ivSentImage = itemView.findViewById(R.id.iv_sent_image);
+            ivSentImageReaction = itemView.findViewById(R.id.iv_sent_image_reaction);
             ivReceivedImage = itemView.findViewById(R.id.iv_received_image);
+            ivReceivedImageReaction = itemView.findViewById(R.id.iv_received_image_reaction);
         }
         
         public void bind(Message message, String currentUserId, boolean isGroupChat, Context context) {
@@ -153,6 +177,25 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                             }
                         });
                     }
+                    // Show image thumb if this is reply to image
+                    if (ivSentReplyThumb != null) {
+                        String thumb = message.getReplyToImageThumb();
+                        if ((thumb == null || thumb.isEmpty()) && message.getReplyToMessageId() != null) {
+                            thumb = com.example.chatappjava.utils.ReplyPreviewCache.get(message.getReplyToMessageId());
+                        }
+                        if (thumb != null && !thumb.isEmpty()) {
+                            ivSentReplyThumb.setVisibility(View.VISIBLE);
+                            // prefer content/local if content is a content:// or file:// uri
+                            String loadUrl = thumb;
+                            if (!(thumb.startsWith("content://") || thumb.startsWith("file://"))) {
+                                loadUrl = thumb.startsWith("http") ? thumb : ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + thumb);
+                            }
+                            Picasso.get().cancelRequest(ivSentReplyThumb);
+                            Picasso.get().load(loadUrl).noFade().fit().centerCrop().into(ivSentReplyThumb);
+                        } else {
+                            ivSentReplyThumb.setVisibility(View.GONE);
+                        }
+                    }
                     if (tvSentReplyAuthor != null) tvSentReplyAuthor.setText(
                         message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
                     );
@@ -161,50 +204,68 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     );
                 } else {
                     if (llSentReplyPreview != null) llSentReplyPreview.setVisibility(View.GONE);
+                    if (ivSentReplyThumb != null) ivSentReplyThumb.setVisibility(View.GONE);
                 }
                 
                 if (message.isImageMessage()) {
                     // Show image message
                     if (tvSentMessage != null) tvSentMessage.setVisibility(View.GONE);
                     if (ivSentImage != null) {
+                        // ensure containers visibility
+                        View container = itemView.findViewById(R.id.fl_sent_image_container);
+                        if (container != null) container.setVisibility(View.VISIBLE);
                         ivSentImage.setVisibility(View.VISIBLE);
                         // Set dynamic image size
                         setImageSize(ivSentImage, context);
                         // Load image using Picasso
-                        String imageUrl = getImageUrlFromMessage(message);
-                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                        String serverUrlCandidate = getImageUrlFromMessage(message);
+                        String localUri = message.getLocalImageUri();
+                        String displayUrl;
+                        // Prefer localUri to avoid flicker while upload completes
+                        if (localUri != null && !localUri.isEmpty()) {
+                            Picasso.get().cancelRequest(ivSentImage);
+                            Picasso.get()
+                                .load(localUri)
+                                .noFade()
+                                .fit()
+                                .centerCrop()
+                                .error(R.drawable.ic_profile_placeholder)
+                                .into(ivSentImage);
+                            displayUrl = (serverUrlCandidate != null && !serverUrlCandidate.isEmpty()) ?
+                                (serverUrlCandidate.startsWith("http") ? serverUrlCandidate :
+                                    ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + serverUrlCandidate))
+                                : localUri;
+                        } else if (serverUrlCandidate != null && !serverUrlCandidate.isEmpty()) {
                             // Convert to full URL for display
-                            String displayUrl;
-                            if (!imageUrl.startsWith("http")) {
-                                displayUrl = "http://" + ServerConfig.getServerIp() + 
-                                           ":" + ServerConfig.getServerPort() + imageUrl;
-                            } else {
-                                displayUrl = imageUrl;
-                            }
+                            displayUrl = serverUrlCandidate.startsWith("http") ? serverUrlCandidate :
+                                ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + serverUrlCandidate);
+                            Picasso.get().cancelRequest(ivSentImage);
+                            Picasso.get()
+                                .load(displayUrl)
+                                .noFade()
+                                .fit()
+                                .centerCrop()
+                                .placeholder(R.drawable.ic_profile_placeholder)
+                                .error(R.drawable.ic_profile_placeholder)
+                                .into(ivSentImage);
+                        } else {
+                            displayUrl = null;
+                        }
 
-                            if (imageUrl.startsWith("content://") || imageUrl.startsWith("file://")) {
-                                // Local URI - load directly
-                                Picasso.get()
-                                    .load(imageUrl)
-                                    .placeholder(R.drawable.ic_profile_placeholder)
-                                    .error(R.drawable.ic_profile_placeholder)
-                                    .into(ivSentImage);
-                            } else {
-                                // Server URL
-                                Picasso.get()
-                                    .load(displayUrl)
-                                    .placeholder(R.drawable.ic_profile_placeholder)
-                                    .error(R.drawable.ic_profile_placeholder)
-                                    .into(ivSentImage);
-                            }
-                            
-                            // Add click listener for image zoom
+                        if (displayUrl != null) {
                             ivSentImage.setOnClickListener(v -> {
                                 if (listener != null) {
                                     listener.onImageClick(displayUrl, message.getLocalImageUri());
                                 }
                             });
                         }
+
+                        // Use image reaction badge instead of text bubble badge
+                        updateReactionIcon(ivSentImageReaction, message, context);
+                        if (ivSentImageReaction != null) {
+                            ivSentImageReaction.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
+                        }
+                        if (ivSentReactionImage != null) ivSentReactionImage.setVisibility(View.GONE);
                     }
                 } else {
                     // Show text message
@@ -213,11 +274,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         applyMentionStyling(tvSentMessage, message.getContent(), true);
                     }
                     if (ivSentImage != null) ivSentImage.setVisibility(View.GONE);
+                    View container = itemView.findViewById(R.id.fl_sent_image_container);
+                    if (container != null) container.setVisibility(View.GONE);
+                    if (ivSentImageReaction != null) ivSentImageReaction.setVisibility(View.GONE);
                 }
                 
                 if (tvSentTime != null) tvSentTime.setText(timeString);
                 if (tvSentEdited != null) tvSentEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
-                updateReactionIcon(ivSentReactionImage, message, context);
+                if (message.isImageMessage()) {
+                    if (ivSentReactionImage != null) ivSentReactionImage.setVisibility(View.GONE);
+                } else {
+                    updateReactionIcon(ivSentReactionImage, message, context);
+                    if (ivSentImageReaction != null) ivSentImageReaction.setVisibility(View.GONE);
+                }
             } else {
                 // Show received message layout
                 llSentMessage.setVisibility(View.GONE);
@@ -233,6 +302,23 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                             }
                         });
                     }
+                    if (ivReceivedReplyThumb != null) {
+                        String thumb = message.getReplyToImageThumb();
+                        if ((thumb == null || thumb.isEmpty()) && message.getReplyToMessageId() != null) {
+                            thumb = com.example.chatappjava.utils.ReplyPreviewCache.get(message.getReplyToMessageId());
+                        }
+                        if (thumb != null && !thumb.isEmpty()) {
+                            ivReceivedReplyThumb.setVisibility(View.VISIBLE);
+                            String loadUrl = thumb;
+                            if (!(thumb.startsWith("content://") || thumb.startsWith("file://"))) {
+                                loadUrl = thumb.startsWith("http") ? thumb : ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + thumb);
+                            }
+                            Picasso.get().cancelRequest(ivReceivedReplyThumb);
+                            Picasso.get().load(loadUrl).noFade().fit().centerCrop().into(ivReceivedReplyThumb);
+                        } else {
+                            ivReceivedReplyThumb.setVisibility(View.GONE);
+                        }
+                    }
                     if (tvReceivedReplyAuthor != null) tvReceivedReplyAuthor.setText(
                         message.getReplyToSenderName() != null && !message.getReplyToSenderName().isEmpty() ? message.getReplyToSenderName() : "Reply"
                     );
@@ -241,50 +327,64 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     );
                 } else {
                     if (llReceivedReplyPreview != null) llReceivedReplyPreview.setVisibility(View.GONE);
+                    if (ivReceivedReplyThumb != null) ivReceivedReplyThumb.setVisibility(View.GONE);
                 }
                 
                 if (message.isImageMessage()) {
                     // Show image message
                     if (tvReceivedMessage != null) tvReceivedMessage.setVisibility(View.GONE);
                     if (ivReceivedImage != null) {
+                        View container = itemView.findViewById(R.id.fl_received_image_container);
+                        if (container != null) container.setVisibility(View.VISIBLE);
                         ivReceivedImage.setVisibility(View.VISIBLE);
                         // Set dynamic image size
                         setImageSize(ivReceivedImage, context);
                         // Load image using Picasso
-                        String imageUrl = getImageUrlFromMessage(message);
-                        if (imageUrl != null && !imageUrl.isEmpty()) {
-                            // Convert to full URL for display
-                            String displayUrl;
-                            if (!imageUrl.startsWith("http")) {
-                                displayUrl = "http://" + ServerConfig.getServerIp() + 
-                                           ":" + ServerConfig.getServerPort() + imageUrl;
-                            } else {
-                                displayUrl = imageUrl;
-                            }
+                        String serverUrlCandidate = getImageUrlFromMessage(message);
+                        String localUri = message.getLocalImageUri();
+                        String displayUrl;
+                        if (localUri != null && !localUri.isEmpty()) {
+                            Picasso.get().cancelRequest(ivReceivedImage);
+                            Picasso.get()
+                                .load(localUri)
+                                .noFade()
+                                .fit()
+                                .centerCrop()
+                                .error(R.drawable.ic_profile_placeholder)
+                                .into(ivReceivedImage);
+                            displayUrl = (serverUrlCandidate != null && !serverUrlCandidate.isEmpty()) ?
+                                (serverUrlCandidate.startsWith("http") ? serverUrlCandidate :
+                                    ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + serverUrlCandidate))
+                                : localUri;
+                        } else if (serverUrlCandidate != null && !serverUrlCandidate.isEmpty()) {
+                            displayUrl = serverUrlCandidate.startsWith("http") ? serverUrlCandidate :
+                                ("http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + serverUrlCandidate);
+                            Picasso.get().cancelRequest(ivReceivedImage);
+                            Picasso.get()
+                                .load(displayUrl)
+                                .noFade()
+                                .fit()
+                                .centerCrop()
+                                .placeholder(R.drawable.ic_profile_placeholder)
+                                .error(R.drawable.ic_profile_placeholder)
+                                .into(ivReceivedImage);
+                        } else {
+                            displayUrl = null;
+                        }
 
-                            if (imageUrl.startsWith("content://") || imageUrl.startsWith("file://")) {
-                                // Local URI - load directly
-                                Picasso.get()
-                                    .load(imageUrl)
-                                    .placeholder(R.drawable.ic_profile_placeholder)
-                                    .error(R.drawable.ic_profile_placeholder)
-                                    .into(ivReceivedImage);
-                            } else {
-                                // Server URL
-                                Picasso.get()
-                                    .load(displayUrl)
-                                    .placeholder(R.drawable.ic_profile_placeholder)
-                                    .error(R.drawable.ic_profile_placeholder)
-                                    .into(ivReceivedImage);
-                            }
-                            
-                            // Add click listener for image zoom
+                        if (displayUrl != null) {
                             ivReceivedImage.setOnClickListener(v -> {
                                 if (listener != null) {
                                     listener.onImageClick(displayUrl, message.getLocalImageUri());
                                 }
                             });
                         }
+
+                        updateReactionIcon(ivReceivedImageReaction, message, context);
+                        if (ivReceivedImageReaction != null) {
+                            ivReceivedImageReaction.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
+                        }
+                        if (ivReceivedReactionImage != null) ivReceivedReactionImage.setVisibility(View.GONE);
                     }
                 } else {
                     // Show text message
@@ -293,11 +393,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         applyMentionStyling(tvReceivedMessage, message.getContent(), false);
                     }
                     if (ivReceivedImage != null) ivReceivedImage.setVisibility(View.GONE);
+                    View container = itemView.findViewById(R.id.fl_received_image_container);
+                    if (container != null) container.setVisibility(View.GONE);
+                    if (ivReceivedImageReaction != null) ivReceivedImageReaction.setVisibility(View.GONE);
                 }
                 
                 if (tvReceivedTime != null) tvReceivedTime.setText(timeString);
                 if (tvReceivedEdited != null) tvReceivedEdited.setVisibility(message.isEdited() ? View.VISIBLE : View.GONE);
-                updateReactionIcon(ivReceivedReactionImage, message, context);
+                if (message.isImageMessage()) {
+                    if (ivReceivedReactionImage != null) ivReceivedReactionImage.setVisibility(View.GONE);
+                } else {
+                    updateReactionIcon(ivReceivedReactionImage, message, context);
+                    if (ivReceivedImageReaction != null) ivReceivedImageReaction.setVisibility(View.GONE);
+                }
 
                 // For group chats, show sender name and avatar
                 boolean shouldShowAvatar = isGroupChat || message.isGroupChat();
@@ -468,32 +576,77 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
 
         private void showReactionsSheet(Context context, Message message) {
-            // Parse raw reactions to show users list
-            java.util.List<String> lines = new java.util.ArrayList<>();
+            android.view.LayoutInflater inflater = android.view.LayoutInflater.from(context);
+            android.view.View dialogView = inflater.inflate(com.example.chatappjava.R.layout.dialog_reactions, null);
+
+            android.widget.TextView tvTitle = dialogView.findViewById(com.example.chatappjava.R.id.tv_title);
+            android.widget.LinearLayout container = dialogView.findViewById(com.example.chatappjava.R.id.container_reactions);
+            android.widget.TextView btnClose = dialogView.findViewById(com.example.chatappjava.R.id.btn_close);
+
+            if (tvTitle != null) tvTitle.setText("Reactions");
+
+            // Build rows from reactions
             try {
                 String raw = message.getReactionsRaw();
-                if (raw != null && !raw.isEmpty()) {
+                if (raw != null && !raw.isEmpty() && container != null) {
                     org.json.JSONArray arr = new org.json.JSONArray(raw);
                     for (int i = 0; i < arr.length(); i++) {
                         org.json.JSONObject r = arr.getJSONObject(i);
                         String emoji = r.optString("emoji", "");
                         org.json.JSONObject userObj = r.optJSONObject("user");
                         String uname = userObj != null ? userObj.optString("username", "Unknown") : "Unknown";
-                        lines.add(emoji + "  " + uname);
-                    }
-                }
-            } catch (Exception ignored) {}
 
-            if (lines.isEmpty()) {
-                android.widget.Toast.makeText(context, "No reactions", android.widget.Toast.LENGTH_SHORT).show();
-                return;
+                        android.widget.LinearLayout row = new android.widget.LinearLayout(context);
+                        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                        row.setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8));
+                        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+                        android.widget.TextView tvEmoji = new android.widget.TextView(context);
+                        tvEmoji.setText(emoji);
+                        tvEmoji.setTextSize(20);
+                        tvEmoji.setPadding(0, 0, dp(context, 12), 0);
+
+                        android.widget.TextView tvName = new android.widget.TextView(context);
+                        tvName.setText(uname);
+                        tvName.setTextSize(16);
+                        tvName.setTextColor(0xFF0E394B);
+
+                        row.addView(tvEmoji);
+                        row.addView(tvName);
+                        container.addView(row);
+                    }
+                } else if (container != null) {
+                    android.widget.TextView empty = new android.widget.TextView(context);
+                    empty.setText("No reactions");
+                    empty.setTextColor(0xFF888888);
+                    empty.setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8));
+                    container.addView(empty);
+                }
+            } catch (Exception e) {
+                if (container != null) {
+                    android.widget.TextView empty = new android.widget.TextView(context);
+                    empty.setText("No reactions");
+                    empty.setTextColor(0xFF888888);
+                    empty.setPadding(dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8));
+                    container.addView(empty);
+                }
             }
-            String[] arr = lines.toArray(new String[0]);
-            new android.app.AlertDialog.Builder(context)
-                .setTitle("Reactions")
-                .setItems(arr, null)
-                .setPositiveButton("Close", null)
-                .show();
+
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(context);
+            builder.setView(dialogView);
+            builder.setCancelable(true);
+            android.app.AlertDialog dlg = builder.create();
+            if (btnClose != null) btnClose.setOnClickListener(v -> dlg.dismiss());
+            if (dlg.getWindow() != null) {
+                android.view.Window w = dlg.getWindow();
+                w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            }
+            dlg.show();
+        }
+
+        private int dp(Context ctx, int value) {
+            float d = ctx.getResources().getDisplayMetrics().density;
+            return (int) (value * d);
         }
     }
     

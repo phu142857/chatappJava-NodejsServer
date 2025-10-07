@@ -83,6 +83,7 @@ public class Message {
     private boolean isDeleted;
     private String attachments; // JSON string of attachments array
     private String localImageUri; // Local URI for zoom functionality
+    private String replyToImageThumb; // local or remote url for reply preview
     // Reactions summary (emoji -> count) and raw list (optional)
     private java.util.Map<String, Integer> reactionSummary;
     private String reactionsRaw; // store raw JSON if needed to show user list
@@ -129,6 +130,32 @@ public class Message {
             JSONObject replyJson = json.getJSONObject("replyTo");
             message.replyToMessageId = replyJson.optString("_id", "");
             message.replyToContent = replyJson.optString("content", "");
+            String replyType = replyJson.optString("type", "");
+            // try extract image thumb from attachments of replyTo
+            if (replyJson.has("attachments") && replyJson.get("attachments") instanceof org.json.JSONArray) {
+                org.json.JSONArray arr = replyJson.getJSONArray("attachments");
+                if (arr.length() > 0) {
+                    org.json.JSONObject att = arr.getJSONObject(0);
+                    String url = att.optString("url", "");
+                    if (url != null && !url.isEmpty()) message.replyToImageThumb = url;
+                }
+            }
+            // Fallbacks
+            String c = replyJson.optString("content", "");
+            if ((message.replyToImageThumb == null || message.replyToImageThumb.isEmpty()) && "image".equals(replyType)) {
+                if (c != null && !c.isEmpty()) message.replyToImageThumb = c;
+            }
+            if (message.replyToImageThumb == null || message.replyToImageThumb.isEmpty()) {
+                // Heuristic: if content looks like an image URL/path, use it
+                if (c != null && !c.isEmpty()) {
+                    String lc = c.toLowerCase();
+                    if (lc.startsWith("http") || lc.startsWith("/") || lc.contains("/uploads")) {
+                        if (lc.endsWith(".jpg") || lc.endsWith(".jpeg") || lc.endsWith(".png") || lc.endsWith(".webp") || lc.endsWith(".gif")) {
+                            message.replyToImageThumb = c;
+                        }
+                    }
+                }
+            }
             if (replyJson.has("sender") && replyJson.get("sender") instanceof JSONObject) {
                 JSONObject replySender = replyJson.getJSONObject("sender");
                 message.replyToSenderName = replySender.optString("username", "");
@@ -225,6 +252,8 @@ public class Message {
     public String getAttachments() { return attachments; }
     public String getLocalImageUri() { return localImageUri; }
     public void setLocalImageUri(String localImageUri) { this.localImageUri = localImageUri; }
+    public String getReplyToImageThumb() { return replyToImageThumb; }
+    public void setReplyToImageThumb(String v) { this.replyToImageThumb = v; }
 
     public java.util.Map<String, Integer> getReactionSummary() { return reactionSummary; }
     public String getReactionsRaw() { return reactionsRaw; }

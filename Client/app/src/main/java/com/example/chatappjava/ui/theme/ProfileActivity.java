@@ -315,11 +315,11 @@ public class ProfileActivity extends AppCompatActivity {
             }
             Picasso.get()
                     .load(avatarUrl)
-                    .placeholder(R.drawable.circle_background)
-                    .error(R.drawable.circle_background)
+                    .placeholder(R.drawable.ic_person_avatar)
+                    .error(R.drawable.ic_person_avatar)
                     .into(civAvatar);
         } else {
-            civAvatar.setImageResource(R.drawable.circle_background);
+            civAvatar.setImageResource(R.drawable.ic_person_avatar);
         }
 
         hasChanges = false;

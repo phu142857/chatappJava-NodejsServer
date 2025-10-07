@@ -333,8 +333,23 @@ public class ApiClient {
      * Get messages from chat
      */
     public void getMessages(String token, String chatId, Callback callback) {
-        // Server route is GET /api/messages/:chatId
+        // Default: latest page with server defaults
         authenticatedGet("/api/messages/" + chatId, token, callback);
+    }
+
+    public void getMessages(String token, String chatId, int page, int limit, Callback callback) {
+        try {
+            String url = getBaseUrl() + "/api/messages/" + chatId + "?page=" + page + "&limit=" + limit;
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .addHeader("Authorization", "Bearer " + token)
+                    .build();
+            client.newCall(request).enqueue(callback);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to get messages: " + e.getMessage()));
+        }
     }
     
     /**

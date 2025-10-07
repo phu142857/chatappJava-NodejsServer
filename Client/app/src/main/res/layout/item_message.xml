@@ -37,6 +37,14 @@
                 android:background="@drawable/bg_message_reply_sent"
                 android:padding="8dp"
                 android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_sent_reply_thumb"
+                    android:layout_width="72dp"
+                    android:layout_height="48dp"
+                    android:scaleType="centerCrop"
+                    android:layout_marginBottom="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_profile_placeholder" />
                 <TextView
                     android:id="@+id/tv_sent_reply_author"
                     android:layout_width="wrap_content"
@@ -110,23 +118,50 @@
                 android:textColor="@color/gray"
                 android:visibility="gone"/>
 
-            <ImageView
-                android:id="@+id/iv_sent_image"
+            <FrameLayout
+                android:id="@+id/fl_sent_image_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:maxWidth="250dp"
-                android:maxHeight="300dp"
-                android:minWidth="120dp"
-                android:minHeight="120dp"
-                android:scaleType="centerCrop"
-                android:visibility="gone"
-                android:background="@drawable/bg_image_message_sent"
-                android:padding="2dp"
-                android:adjustViewBounds="true"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground" />
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_sent_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="250dp"
+                    android:maxHeight="300dp"
+                    android:minWidth="120dp"
+                    android:minHeight="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_image_message_sent"
+                    android:padding="2dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground" />
+
+                <ImageView
+                    android:id="@+id/iv_sent_image_reaction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_sent_time"
@@ -180,6 +215,14 @@
                 android:background="@drawable/bg_message_reply_received"
                 android:padding="8dp"
                 android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_received_reply_thumb"
+                    android:layout_width="72dp"
+                    android:layout_height="48dp"
+                    android:scaleType="centerCrop"
+                    android:layout_marginBottom="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_profile_placeholder" />
                 <TextView
                     android:id="@+id/tv_received_reply_author"
                     android:layout_width="wrap_content"
@@ -262,23 +305,50 @@
                 android:textColor="@color/gray"
                 android:visibility="gone"/>
 
-            <ImageView
-                android:id="@+id/iv_received_image"
+            <FrameLayout
+                android:id="@+id/fl_received_image_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:maxWidth="250dp"
-                android:maxHeight="300dp"
-                android:minWidth="120dp"
-                android:minHeight="120dp"
-                android:scaleType="centerCrop"
-                android:visibility="gone"
-                android:background="@drawable/bg_image_message_received"
-                android:padding="2dp"
-                android:adjustViewBounds="true"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground" />
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_received_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="250dp"
+                    android:maxHeight="300dp"
+                    android:minWidth="120dp"
+                    android:minHeight="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_image_message_received"
+                    android:padding="2dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground" />
+
+                <ImageView
+                    android:id="@+id/iv_received_image_reaction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_received_time"

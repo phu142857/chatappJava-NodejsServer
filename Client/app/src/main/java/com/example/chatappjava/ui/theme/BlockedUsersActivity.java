@@ -1,5 +1,6 @@
 package com.example.chatappjava.ui.theme;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
@@ -30,7 +31,6 @@ import okhttp3.Response;
 public class BlockedUsersActivity extends AppCompatActivity {
 
     private ImageView ivBack;
-    private TextView tvTitle;
     private RecyclerView rvBlocked;
     private ProgressBar progressBar;
     private View emptyState;
@@ -55,9 +55,10 @@ public class BlockedUsersActivity extends AppCompatActivity {
         loadBlockedUsers();
     }
 
+    @SuppressLint("SetTextI18n")
     private void initViews() {
         ivBack = findViewById(R.id.iv_back);
-        tvTitle = findViewById(R.id.tv_title);
+        TextView tvTitle = findViewById(R.id.tv_title);
         rvBlocked = findViewById(R.id.rv_blocked);
         progressBar = findViewById(R.id.progress_bar);
         emptyState = findViewById(R.id.empty_state);
@@ -91,6 +92,7 @@ public class BlockedUsersActivity extends AppCompatActivity {
                 });
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String body = response.body().string();
@@ -129,6 +131,7 @@ public class BlockedUsersActivity extends AppCompatActivity {
                 runOnUiThread(() -> Toast.makeText(BlockedUsersActivity.this, "Network error", Toast.LENGTH_SHORT).show());
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 runOnUiThread(() -> {
