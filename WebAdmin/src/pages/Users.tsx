@@ -13,6 +13,7 @@ type UserItem = {
   lastSeen?: string;
   role?: 'user' | 'admin' | 'moderator';
   isActive?: boolean;
+  reportCount?: number;
   profile?: {
     firstName?: string;
     lastName?: string;
@@ -126,6 +127,16 @@ export default function Users() {
         key: 'lastSeen',
         render: (v?: string) => v ? dayjs(v).format('HH:mm DD/MM/YYYY') : '-',
       },
+      {
+        title: 'Reports',
+        dataIndex: 'reportCount',
+        key: 'reportCount',
+        render: (count?: number) => (
+          <Tag color={count && count > 0 ? 'red' : 'default'}>
+            {count || 0}
+          </Tag>
+        ),
+      },
     ],
     []
   );
@@ -136,7 +147,22 @@ export default function Users() {
       const { data } = await apiClient.get<UsersResponse>('/users', {
         params: { page: p, limit: size, search: s || undefined, includeInactive },
       });
-      setData(data.data.users);
+      
+      // Fetch report counts for each user
+      const usersWithReports = await Promise.all(
+        data.data.users.map(async (user) => {
+          try {
+            const reportsRes = await apiClient.get('/reports');
+            const reports = reportsRes.data?.data?.reports || [];
+            const reportCount = reports.filter((r: any) => r.target?._id === user._id).length;
+            return { ...user, reportCount };
+          } catch {
+            return { ...user, reportCount: 0 };
+          }
+        })
+      );
+      
+      setData(usersWithReports);
       setTotal(data.data.pagination.total);
       setPage(p);
       setPageSize(size);
