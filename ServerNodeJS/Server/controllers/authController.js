@@ -656,6 +656,8 @@ module.exports = {
   register,
   registerRequestOTP,
   verifyRegisterOTP,
+  requestPasswordReset,
+  confirmPasswordReset,
   login,
   logout,
   getMe,
