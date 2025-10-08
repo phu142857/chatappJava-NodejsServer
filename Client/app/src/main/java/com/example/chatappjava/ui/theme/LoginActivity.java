@@ -113,9 +113,20 @@ public class LoginActivity extends AppCompatActivity {
                     runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
                 }
                 @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    final String body = response.body() != null ? response.body().string() : "";
                     runOnUiThread(() -> {
-                        dialog.dismiss();
-                        showResetWithOtpDialog(email);
+                        if (response.isSuccessful()) {
+                            dialog.dismiss();
+                            showResetWithOtpDialog(email);
+                        } else {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                String msg = json.optString("message", "Failed to send reset code");
+                                android.widget.Toast.makeText(LoginActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
+                            } catch (Exception ex) {
+                                android.widget.Toast.makeText(LoginActivity.this, "Failed to send reset code", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
                     });
                 }
             });
@@ -170,10 +181,20 @@ public class LoginActivity extends AppCompatActivity {
                     runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
                 }
                 @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
-                    String body = response.body().string();
+                    String body = response.body() != null ? response.body().string() : "";
                     runOnUiThread(() -> {
-                        dialog.dismiss();
-                        android.widget.Toast.makeText(LoginActivity.this, "Password reset successful. Please log in.", android.widget.Toast.LENGTH_LONG).show();
+                        if (response.isSuccessful()) {
+                            dialog.dismiss();
+                            android.widget.Toast.makeText(LoginActivity.this, "Password reset successful. Please log in.", android.widget.Toast.LENGTH_LONG).show();
+                        } else {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                String msg = json.optString("message", "Invalid code or expired");
+                                android.widget.Toast.makeText(LoginActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
+                            } catch (Exception ex) {
+                                android.widget.Toast.makeText(LoginActivity.this, "Invalid code or expired", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
                     });
                 }
             });

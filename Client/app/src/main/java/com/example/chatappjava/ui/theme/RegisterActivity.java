@@ -276,9 +276,20 @@ public class RegisterActivity extends AppCompatActivity {
                 public void onResponse(Call call, Response response) throws IOException {
                     String responseBody = response.body().string();
                     runOnUiThread(() -> {
-                        if (countDownTimer != null) countDownTimer.cancel();
-                        if (otpDialog != null && otpDialog.isShowing()) otpDialog.dismiss();
-                        handleRegisterResponse(response.code(), responseBody);
+                        int code = response.code();
+                        if (code == 201) {
+                            if (countDownTimer != null) countDownTimer.cancel();
+                            if (otpDialog != null && otpDialog.isShowing()) otpDialog.dismiss();
+                            handleRegisterResponse(code, responseBody);
+                        } else {
+                            try {
+                                JSONObject json = new JSONObject(responseBody);
+                                String message = json.optString("message", "Invalid OTP");
+                                Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_SHORT).show();
+                            } catch (Exception ex) {
+                                Toast.makeText(RegisterActivity.this, "Invalid OTP", Toast.LENGTH_SHORT).show();
+                            }
+                        }
                     });
                 }
             });
