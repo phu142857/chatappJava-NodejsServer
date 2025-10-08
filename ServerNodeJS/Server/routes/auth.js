@@ -9,7 +9,9 @@ const {
   changePassword,
   refreshToken,
   uploadAvatar,
-  deleteAccount
+  deleteAccount,
+  registerRequestOTP,
+  verifyRegisterOTP
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
@@ -94,6 +96,34 @@ const changePasswordValidation = [
 // Public routes
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
+
+// OTP Registration
+router.post('/register/request-otp', [
+  body('username')
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be between 3 and 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number')
+], registerRequestOTP);
+
+router.post('/register/verify-otp', [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('otpCode')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP code must be 6 digits')
+], verifyRegisterOTP);
 
 // Protected routes
 router.use(authMiddleware); // Apply auth middleware to all routes below

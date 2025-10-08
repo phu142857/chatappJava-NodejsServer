@@ -1,5 +1,27 @@
 # Chat Application Backend
 
+## Email OTP Registration
+
+The registration flow is now protected by an email OTP (6 digits) that expires in 1 minute.
+
+Endpoints:
+- POST `/api/auth/register/request-otp` with body `{ username, email, password }`
+- POST `/api/auth/register/verify-otp` with body `{ email, otpCode }`
+
+Environment variables for SMTP:
+```
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_SECURE=false
+SMTP_FROM="Your App <no-reply@yourapp.com>"
+```
+
+Notes:
+- Direct POST `/api/auth/register` is disabled and returns 400.
+- OTP is valid for 60 seconds; after verification, the user is created and logged in.
+
 Node.js backend for chat application with user authentication, 1:1 chat, and group chat features using WebSocket.
 
 ## Technologies Used

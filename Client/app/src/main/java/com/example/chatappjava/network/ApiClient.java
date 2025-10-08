@@ -23,6 +23,8 @@ public class ApiClient {
 
     private static final String LOGIN_ENDPOINT = "/api/auth/login";
     private static final String REGISTER_ENDPOINT = "/api/auth/register";
+    private static final String REGISTER_REQUEST_OTP_ENDPOINT = "/api/auth/register/request-otp";
+    private static final String REGISTER_VERIFY_OTP_ENDPOINT = "/api/auth/register/verify-otp";
     private static final String CREATE_CHAT_ENDPOINT = "/api/chats/private";
     private static final String CREATE_GROUP_CHAT_ENDPOINT = "/api/chats/group";
     private static final String GET_CHATS_ENDPOINT = "/api/chats";
@@ -79,6 +81,32 @@ public class ApiClient {
                 .addHeader("Content-Type", "application/json")
                 .build();
 
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Request OTP for registration (valid for 60 seconds).
+     */
+    public void requestRegisterOTP(JSONObject registerData, Callback callback) {
+        RequestBody body = RequestBody.create(registerData.toString(), JSON);
+        Request request = new Request.Builder()
+                .url(getBaseUrl() + REGISTER_REQUEST_OTP_ENDPOINT)
+                .post(body)
+                .addHeader("Content-Type", "application/json")
+                .build();
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Verify OTP and complete registration.
+     */
+    public void verifyRegisterOTP(JSONObject verifyData, Callback callback) {
+        RequestBody body = RequestBody.create(verifyData.toString(), JSON);
+        Request request = new Request.Builder()
+                .url(getBaseUrl() + REGISTER_VERIFY_OTP_ENDPOINT)
+                .post(body)
+                .addHeader("Content-Type", "application/json")
+                .build();
         client.newCall(request).enqueue(callback);
     }
 

@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const { generateToken } = require('../utils/jwt');
+const RegistrationOTP = require('../models/RegistrationOTP');
+const { sendMail } = require('../utils/mailer');
 const { validationResult } = require('express-validator');
 const multer = require('multer');
 const path = require('path');
@@ -34,26 +36,9 @@ const register = async (req, res) => {
       });
     }
 
-    // Create new user
-    const user = new User({
-      username,
-      email,
-      password,
-      profile: profile || {}
-    });
-
-    await user.save();
-
-    // Generate JWT token
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: user.toJSON(),
-        token
-      }
+    return res.status(400).json({
+      success: false,
+      message: 'Direct registration is disabled. Please request OTP and verify.'
     });
 
   } catch (error) {
@@ -64,6 +49,90 @@ const register = async (req, res) => {
     });
   }
 };
+
+// @desc    Request OTP for registration
+// @route   POST /api/auth/register/request-otp
+// @access  Public
+const registerRequestOTP = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const { username, email, password } = req.body;
+
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email or username' });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 60 * 1000); // 1 minute
+
+    await RegistrationOTP.deleteMany({ email });
+    await RegistrationOTP.create({ email, username, password, otpCode, expiresAt });
+
+    const html = `
+      <p>Your verification code is:</p>
+      <h2 style="letter-spacing:4px;">${otpCode}</h2>
+      <p>This code will expire in 1 minute.</p>
+    `;
+    await sendMail(email, 'Your OTP Code', html);
+
+    return res.status(200).json({ success: true, message: 'OTP sent to email. Valid for 1 minute.' });
+  } catch (error) {
+    console.error('Request OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while requesting OTP' });
+  }
+};
+
+// @desc    Verify OTP and complete registration
+// @route   POST /api/auth/register/verify-otp
+// @access  Public
+const verifyRegisterOTP = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const { email, otpCode } = req.body;
+    const record = await RegistrationOTP.findOne({ email }).sort({ createdAt: -1 });
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'No OTP found or it has been used' });
+    }
+
+    if (new Date() > record.expiresAt) {
+      await RegistrationOTP.deleteMany({ email });
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+
+    if (record.otpCode !== otpCode) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    const existsAgain = await User.findOne({ $or: [{ email }, { username: record.username }] });
+    if (existsAgain) {
+      await RegistrationOTP.deleteMany({ email });
+      return res.status(400).json({ success: false, message: 'User already exists' });
+    }
+
+    const user = new User({ username: record.username, email: record.email, password: record.password, profile: {} });
+    await user.save();
+
+    await RegistrationOTP.deleteMany({ email });
+
+    const token = generateToken(user._id);
+    return res.status(201).json({ success: true, message: 'User registered successfully', data: { user: user.toJSON(), token } });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while verifying OTP' });
+  }
+};
+
+module.exports.registerRequestOTP = registerRequestOTP;
+module.exports.verifyRegisterOTP = verifyRegisterOTP;
 
 // @desc    Login user
 // @route   POST /api/auth/login
