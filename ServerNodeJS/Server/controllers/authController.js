@@ -575,6 +575,8 @@ const logAuditAction = async (userId, action, resource, details, ipAddress) => {
 
 module.exports = {
   register,
+  registerRequestOTP,
+  verifyRegisterOTP,
   login,
   logout,
   getMe,
