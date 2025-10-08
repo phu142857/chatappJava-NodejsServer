@@ -327,6 +327,45 @@ public class ProfileViewActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_profile_options, null);
         
+        // Toggle Add Friend / Unfriend based on friendship status (resolved dynamically)
+        View addFriendOption = dialogView.findViewById(R.id.option_add_friend);
+        View unfriendOption = dialogView.findViewById(R.id.option_unfriend);
+        if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+        if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+        resolveFriendshipAndToggleOptions(addFriendOption, unfriendOption);
+
+        // Add Friend handler
+        if (addFriendOption != null) {
+            addFriendOption.setOnClickListener(v -> {
+                sendFriendRequest();
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+        }
+
+        // Unfriend handler (with confirmation)
+        if (unfriendOption != null) {
+            unfriendOption.setOnClickListener(v -> {
+                if (otherUser == null) return;
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Unfriend")
+                        .setMessage("Are you sure you want to unfriend " + otherUser.getDisplayName() + "?")
+                        .setPositiveButton("Unfriend", (d, w) -> {
+                            performUnfriend();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
+
+        // Report handler -> open input dialog up to 100 words
+        View reportOption = dialogView.findViewById(R.id.option_report);
+        if (reportOption != null) {
+            reportOption.setOnClickListener(v -> {
+                if (currentDialog != null) currentDialog.dismiss();
+                showReportDialog();
+            });
+        }
+
         // Set click listeners for each option
         dialogView.findViewById(R.id.option_send_message).setOnClickListener(v -> {
             navigateToPrivateChat();
@@ -355,6 +394,270 @@ public class ProfileViewActivity extends AppCompatActivity {
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
         currentDialog.show();
+    }
+
+    private void showReportDialog() {
+        if (otherUser == null) {
+            Toast.makeText(this, "No user to report", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Report user");
+
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("Describe the issue (max 100 words)");
+        input.setMinLines(3);
+        input.setMaxLines(6);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        input.setPadding(padding, padding, padding, padding);
+
+        builder.setView(input);
+
+        builder.setPositiveButton("Send", (dialog, which) -> {
+            String content = input.getText().toString().trim();
+            if (content.isEmpty()) {
+                Toast.makeText(this, "Please enter report content", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!isWithinWordLimit(content, 100)) {
+                Toast.makeText(this, "Report must be at most 100 words", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            submitReport(content);
+        });
+
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dlg = builder.create();
+        if (dlg.getWindow() != null) {
+            dlg.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.WHITE));
+        }
+        dlg.show();
+    }
+
+    private boolean isWithinWordLimit(String text, int maxWords) {
+        String[] words = text.trim().split("\\s+");
+        return words.length <= maxWords;
+    }
+
+    private void submitReport(String content) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.reportUser(token, otherUser.getId(), content, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, "Failed to send report", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ProfileViewActivity.this, "Report sent", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(ProfileViewActivity.this, "Report failed", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void resolveFriendshipAndToggleOptions(View addFriendOption, View unfriendOption) {
+        boolean localIsFriend = otherUser != null && otherUser.isFriend();
+        if (localIsFriend) {
+            if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+            if (unfriendOption != null) unfriendOption.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty() || otherUser == null) {
+            if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+            if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+            return;
+        }
+
+        apiClient.authenticatedGet("/api/users/friends", token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+                    if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                boolean found = false;
+                try {
+                    if (response.isSuccessful()) {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        org.json.JSONObject data = json.has("data") ? json.getJSONObject("data") : json;
+                        org.json.JSONArray arr = data.has("friends") ? data.getJSONArray("friends") : new org.json.JSONArray();
+                        for (int i = 0; i < arr.length(); i++) {
+                            org.json.JSONObject u = arr.getJSONObject(i);
+                            String fid = u.optString("id", u.optString("_id", ""));
+                            if (otherUser.getId().equals(fid)) { found = true; break; }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                final boolean isFriendNow = found;
+                runOnUiThread(() -> {
+                    if (isFriendNow) {
+                        if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+                        if (unfriendOption != null) unfriendOption.setVisibility(View.VISIBLE);
+                        if (otherUser != null) otherUser.setFriend(true);
+                    } else {
+                        if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+                        if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+                        // Not friends: check if there is a pending friend request that I sent
+                        checkPendingFriendRequest(addFriendOption);
+                    }
+                });
+            }
+        });
+    }
+
+    private void checkPendingFriendRequest(View addFriendOption) {
+        if (addFriendOption == null) return;
+        String token = sharedPrefsManager.getToken();
+        String currentUserId = sharedPrefsManager.getUserId();
+        if (token == null || token.isEmpty() || currentUserId == null || currentUserId.isEmpty() || otherUser == null) {
+            return;
+        }
+        apiClient.getFriendRequests(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* no-op */ }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                boolean hasPending = false;
+                try {
+                    if (response.isSuccessful()) {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        org.json.JSONObject data = json.has("data") ? json.getJSONObject("data") : json;
+                        // Server may return arrays: sentRequests, receivedRequests, or a unified list
+                        if (data.has("sentRequests")) {
+                            org.json.JSONArray arr = data.getJSONArray("sentRequests");
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject fr = arr.getJSONObject(i);
+                                String receiverId = fr.optString("receiver", fr.optString("receiverId", ""));
+                                String status = fr.optString("status", fr.optString("state", ""));
+                                if (otherUser.getId().equals(receiverId) && "pending".equalsIgnoreCase(status)) { hasPending = true; break; }
+                            }
+                        } else if (data.has("requests")) {
+                            org.json.JSONArray arr = data.getJSONArray("requests");
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject fr = arr.getJSONObject(i);
+                                String senderId = fr.optString("sender", fr.optString("senderId", ""));
+                                String receiverId = fr.optString("receiver", fr.optString("receiverId", ""));
+                                String status = fr.optString("status", fr.optString("state", ""));
+                                if (currentUserId.equals(senderId) && otherUser.getId().equals(receiverId) && "pending".equalsIgnoreCase(status)) { hasPending = true; break; }
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                final boolean pendingNow = hasPending;
+                runOnUiThread(() -> {
+                    if (pendingNow) {
+                        setAddFriendPending(addFriendOption);
+                    }
+                });
+            }
+        });
+    }
+
+    private void setAddFriendPending(View addFriendOption) {
+        try {
+            // Structure: CardView > LinearLayout(option_add_friend) with children [ImageView, TextView]
+            if (addFriendOption instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) addFriendOption;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    View child = group.getChildAt(i);
+                    if (child instanceof android.widget.TextView) {
+                        android.widget.TextView tv = (android.widget.TextView) child;
+                        tv.setText("Pending");
+                        break;
+                    }
+                }
+            }
+            addFriendOption.setEnabled(false);
+            addFriendOption.setAlpha(0.6f);
+        } catch (Exception ignored) {}
+    }
+
+    private void sendFriendRequest() {
+        try {
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (otherUser == null) return;
+
+            org.json.JSONObject requestData = new org.json.JSONObject();
+            requestData.put("receiverId", otherUser.getId());
+
+            apiClient.sendFriendRequest(token, requestData, new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, "Failed to send friend request", Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(ProfileViewActivity.this, "Friend request sent", Toast.LENGTH_SHORT).show();
+                        } else {
+                            String message = "Unable to send request";
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                message = json.optString("message", message);
+                            } catch (Exception ignored) {}
+                            Toast.makeText(ProfileViewActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    private void performUnfriend() {
+        if (otherUser == null) return;
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.unfriendUser(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, "Failed to unfriend", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ProfileViewActivity.this, "Unfriended successfully", Toast.LENGTH_SHORT).show();
+                        // Update UI state locally
+                        if (otherUser != null) otherUser.setFriend(false);
+                    } else {
+                        Toast.makeText(ProfileViewActivity.this, "Failed to unfriend", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
     
     private void navigateToPrivateChat() {

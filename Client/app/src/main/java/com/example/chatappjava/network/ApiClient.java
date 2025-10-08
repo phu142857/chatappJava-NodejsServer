@@ -42,6 +42,7 @@ public class ApiClient {
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String BLOCK_USER_ENDPOINT = "/api/users/%s/block"; // PUT { action: 'block'|'unblock' }
     private static final String BLOCKED_USERS_ENDPOINT = "/api/users/blocked";
+    private static final String REPORTS_ENDPOINT = "/api/reports";
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
@@ -886,5 +887,20 @@ public class ApiClient {
      */
     public void cancelAllRequests() {
         client.dispatcher().cancelAll();
+    }
+
+    /**
+     * Submit a user report
+     */
+    public void reportUser(String token, String targetUserId, String content, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("targetUserId", targetUserId);
+            body.put("content", content);
+            authenticatedPost(REPORTS_ENDPOINT, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare report body"));
+        }
     }
 }

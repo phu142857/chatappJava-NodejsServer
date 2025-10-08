@@ -91,6 +91,8 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         tabFriends = findViewById(R.id.tab_friends);
         containerRequests = findViewById(R.id.container_requests);
         containerFriends = findViewById(R.id.container_friends);
+
+
     }
 
     private void initializeServices() {

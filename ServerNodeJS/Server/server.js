@@ -19,6 +19,7 @@ const callRoutes = require('./routes/call');
 const serverRoutes = require('./routes/server');
 const statisticsRoutes = require('./routes/statistics');
 const securityRoutes = require('./routes/security');
+const reportRoutes = require('./routes/reports');
 
 // Import socket handler
 const SocketHandler = require('./socket/socketHandler');
@@ -178,6 +179,7 @@ app.use('/api/calls', callRoutes);
 app.use('/api/server', serverRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

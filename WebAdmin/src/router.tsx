@@ -8,6 +8,7 @@ import FriendRequests from './pages/FriendRequests';
 import Calls from './pages/Calls';
 import Security from './pages/Security';
 import Statistics from './pages/Statistics';
+import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 import UserChats from './pages/UserChats';
 import Login from './pages/Login';
@@ -93,6 +94,14 @@ const router = createBrowserRouter([
         element: (
           <RequireAdmin>
             <Statistics />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'reports', 
+        element: (
+          <RequireAdmin>
+            <Reports />
           </RequireAdmin>
         ) 
       },
