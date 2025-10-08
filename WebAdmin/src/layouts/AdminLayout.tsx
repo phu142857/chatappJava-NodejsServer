@@ -1,5 +1,5 @@
 import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Typography } from 'antd';
-import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined } from '@ant-design/icons';
+import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS, API_BASE_URL } from '../config';
 import { useState, useEffect } from 'react';
@@ -55,6 +55,7 @@ export default function AdminLayout() {
     { key: '/calls', icon: <PhoneOutlined />, label: <Link to="/calls">Calls</Link> },
     { key: '/security', icon: <SecurityScanOutlined />, label: <Link to="/security">Security</Link> },
     { key: '/statistics', icon: <BarChartOutlined />, label: <Link to="/statistics">Statistics</Link> },
+    { key: '/reports', icon: <ExclamationCircleOutlined />, label: <Link to="/reports">Reports</Link> },
   ];
 
   // User menu items
