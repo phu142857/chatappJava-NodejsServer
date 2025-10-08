@@ -371,17 +371,7 @@ public class ProfileViewActivity extends AppCompatActivity {
             navigateToPrivateChat();
             if (currentDialog != null) currentDialog.dismiss();
         });
-        
-        dialogView.findViewById(R.id.option_call).setOnClickListener(v -> {
-            Toast.makeText(this, "Voice call feature coming soon", Toast.LENGTH_SHORT).show();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_video_call).setOnClickListener(v -> {
-            Toast.makeText(this, "Video call feature coming soon", Toast.LENGTH_SHORT).show();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
+
         dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
             if (currentDialog != null) currentDialog.dismiss();
             performBlockUser();

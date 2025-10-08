@@ -166,7 +166,7 @@
 
         </LinearLayout>
     </androidx.cardview.widget.CardView>
-        
+
     <!-- Block User Option -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
