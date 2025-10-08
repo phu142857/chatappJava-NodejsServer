@@ -2,6 +2,7 @@ const User = require('../models/User');
 const { generateToken } = require('../utils/jwt');
 const RegistrationOTP = require('../models/RegistrationOTP');
 const { sendMail } = require('../utils/mailer');
+const PasswordReset = require('../models/PasswordReset');
 const { validationResult } = require('express-validator');
 const multer = require('multer');
 const path = require('path');
@@ -389,6 +390,84 @@ const changePassword = async (req, res) => {
     });
   }
 };
+
+// @desc    Request password reset OTP
+// @route   POST /api/auth/password/request-reset
+// @access  Public
+const requestPasswordReset = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      // To avoid user enumeration, respond success
+      return res.status(200).json({ success: true, message: 'If the email exists, an OTP has been sent' });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await PasswordReset.deleteMany({ email });
+    await PasswordReset.create({ email, otpCode, expiresAt });
+
+    const html = `
+      <p>Your password reset code is:</p>
+      <h2 style="letter-spacing:4px;">${otpCode}</h2>
+      <p>This code will expire in 10 minutes.</p>
+    `;
+    await sendMail(email, 'Password Reset Code', html);
+
+    return res.status(200).json({ success: true, message: 'If the email exists, an OTP has been sent' });
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while requesting password reset' });
+  }
+};
+
+// @desc    Confirm password reset with OTP
+// @route   POST /api/auth/password/reset
+// @access  Public
+const confirmPasswordReset = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const { email, otpCode, newPassword } = req.body;
+    const record = await PasswordReset.findOne({ email }).sort({ createdAt: -1 });
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'OTP not found or already used' });
+    }
+    if (new Date() > record.expiresAt) {
+      await PasswordReset.deleteMany({ email });
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+    if (record.otpCode !== otpCode) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      await PasswordReset.deleteMany({ email });
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    await PasswordReset.deleteMany({ email });
+
+    return res.status(200).json({ success: true, message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error('Confirm password reset error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while resetting password' });
+  }
+};
+
+module.exports.requestPasswordReset = requestPasswordReset;
+module.exports.confirmPasswordReset = confirmPasswordReset;
 
 // @desc    Refresh token
 // @route   POST /api/auth/refresh

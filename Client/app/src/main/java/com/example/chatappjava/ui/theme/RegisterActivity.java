@@ -142,11 +142,12 @@ public class RegisterActivity extends AppCompatActivity {
             
             if (statusCode == 201) {
                 Toast.makeText(this, "Registration successful! Please log in.", Toast.LENGTH_LONG).show();
-                
-                // Return to LoginActivity and pass the email to pre-fill the field
-                Intent intent = new Intent();
+
+                // Navigate explicitly to LoginActivity (match app pattern)
+                Intent intent = new Intent(this, LoginActivity.class);
                 intent.putExtra("email", etEmail.getText().toString().trim());
-                setResult(RESULT_OK, intent);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
                 finish();
                 
             } else {
@@ -211,28 +212,30 @@ public class RegisterActivity extends AppCompatActivity {
         android.view.View view = inflater.inflate(com.example.chatappjava.R.layout.dialog_otp, null);
         EditText dialogEtOtp = view.findViewById(com.example.chatappjava.R.id.dialog_et_otp);
         TextView dialogTvTimer = view.findViewById(com.example.chatappjava.R.id.dialog_tv_timer);
+        android.widget.Button btnNeg = view.findViewById(com.example.chatappjava.R.id.btn_negative);
+        android.widget.Button btnPos = view.findViewById(com.example.chatappjava.R.id.btn_positive);
 
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this)
                 .setView(view)
-                .setCancelable(false)
-                .setNegativeButton("Cancel", (d, w) -> {
-                    if (countDownTimer != null) countDownTimer.cancel();
-                    d.dismiss();
-                })
-                .setPositiveButton("Verify", null);
+                .setCancelable(false);
 
         otpDialog = builder.create();
-        otpDialog.setOnShowListener(dialog -> {
-            android.widget.Button positive = otpDialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
-            positive.setOnClickListener(v -> {
-                String otp = dialogEtOtp.getText().toString().trim();
-                if (otp.length() != 6) {
-                    dialogEtOtp.setError("Enter 6-digit OTP");
-                    dialogEtOtp.requestFocus();
-                    return;
-                }
-                verifyOtpFromDialog(email, otp);
-            });
+        if (otpDialog.getWindow() != null) {
+            android.view.Window w = otpDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        btnNeg.setOnClickListener(v -> {
+            if (countDownTimer != null) countDownTimer.cancel();
+            if (otpDialog != null) otpDialog.dismiss();
+        });
+        btnPos.setOnClickListener(v -> {
+            String otp = dialogEtOtp.getText().toString().trim();
+            if (otp.length() != 6) {
+                dialogEtOtp.setError("Enter 6-digit OTP");
+                dialogEtOtp.requestFocus();
+                return;
+            }
+            verifyOtpFromDialog(email, otp);
         });
 
         startDialogTimer(dialogTvTimer);

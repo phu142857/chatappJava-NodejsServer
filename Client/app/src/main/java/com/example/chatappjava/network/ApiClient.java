@@ -25,6 +25,8 @@ public class ApiClient {
     private static final String REGISTER_ENDPOINT = "/api/auth/register";
     private static final String REGISTER_REQUEST_OTP_ENDPOINT = "/api/auth/register/request-otp";
     private static final String REGISTER_VERIFY_OTP_ENDPOINT = "/api/auth/register/verify-otp";
+    private static final String PASSWORD_REQUEST_RESET_ENDPOINT = "/api/auth/password/request-reset";
+    private static final String PASSWORD_RESET_ENDPOINT = "/api/auth/password/reset";
     private static final String CREATE_CHAT_ENDPOINT = "/api/chats/private";
     private static final String CREATE_GROUP_CHAT_ENDPOINT = "/api/chats/group";
     private static final String GET_CHATS_ENDPOINT = "/api/chats";
@@ -108,6 +110,46 @@ public class ApiClient {
                 .addHeader("Content-Type", "application/json")
                 .build();
         client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Request password reset OTP.
+     */
+    public void requestPasswordReset(String email, Callback callback) {
+        try {
+            org.json.JSONObject bodyJson = new org.json.JSONObject();
+            bodyJson.put("email", email);
+            RequestBody body = RequestBody.create(bodyJson.toString(), JSON);
+            Request request = new Request.Builder()
+                    .url(getBaseUrl() + PASSWORD_REQUEST_RESET_ENDPOINT)
+                    .post(body)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+            client.newCall(request).enqueue(callback);
+        } catch (org.json.JSONException e) {
+            callback.onFailure(null, new java.io.IOException("Failed to prepare request body"));
+        }
+    }
+
+    /**
+     * Confirm password reset with OTP and new password.
+     */
+    public void confirmPasswordReset(String email, String otpCode, String newPassword, Callback callback) {
+        try {
+            org.json.JSONObject bodyJson = new org.json.JSONObject();
+            bodyJson.put("email", email);
+            bodyJson.put("otpCode", otpCode);
+            bodyJson.put("newPassword", newPassword);
+            RequestBody body = RequestBody.create(bodyJson.toString(), JSON);
+            Request request = new Request.Builder()
+                    .url(getBaseUrl() + PASSWORD_RESET_ENDPOINT)
+                    .post(body)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+            client.newCall(request).enqueue(callback);
+        } catch (org.json.JSONException e) {
+            callback.onFailure(null, new java.io.IOException("Failed to prepare request body"));
+        }
     }
 
 

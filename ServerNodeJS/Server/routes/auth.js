@@ -13,6 +13,10 @@ const {
   registerRequestOTP,
   verifyRegisterOTP
 } = require('../controllers/authController');
+const {
+  requestPasswordReset,
+  confirmPasswordReset
+} = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -124,6 +128,21 @@ router.post('/register/verify-otp', [
     .isLength({ min: 6, max: 6 })
     .withMessage('OTP code must be 6 digits')
 ], verifyRegisterOTP);
+
+// Password Reset
+router.post('/password/request-reset', [
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email')
+], requestPasswordReset);
+
+router.post('/password/reset', [
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('otpCode').isLength({ min: 6, max: 6 }).withMessage('OTP code must be 6 digits'),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number')
+], confirmPasswordReset);
 
 // Protected routes
 router.use(authMiddleware); // Apply auth middleware to all routes below

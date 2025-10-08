@@ -70,10 +70,125 @@ public class LoginActivity extends AppCompatActivity {
         tvForgotPassword.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: Implement forgot password functionality
-                Toast.makeText(LoginActivity.this, "Forgot password functionality will be updated", Toast.LENGTH_SHORT).show();
+                showForgotPasswordDialog();
             }
         });
+    }
+
+    private void showForgotPasswordDialog() {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_confirm, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
+        android.widget.TextView tvMsg = dialogView.findViewById(R.id.tv_message);
+        android.widget.Button btnPos = dialogView.findViewById(R.id.btn_positive);
+        android.widget.Button btnNeg = dialogView.findViewById(R.id.btn_negative);
+
+        tvTitle.setText("Forgot Password");
+        tvMsg.setText("Enter your email to receive a reset code.");
+
+        // Replace message view with an email input field
+        android.widget.LinearLayout container = (android.widget.LinearLayout) dialogView;
+        android.widget.EditText et = new android.widget.EditText(this);
+        et.setHint("Email address");
+        et.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        et.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(et, 2); // after title & message
+
+        androidx.appcompat.app.AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        btnNeg.setOnClickListener(v -> dialog.dismiss());
+        btnPos.setText("Send Code");
+        btnPos.setOnClickListener(v -> {
+            String email = et.getText().toString().trim();
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                et.setError("Invalid email");
+                et.requestFocus();
+                return;
+            }
+            apiClient.requestPasswordReset(email, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    runOnUiThread(() -> {
+                        dialog.dismiss();
+                        showResetWithOtpDialog(email);
+                    });
+                }
+            });
+        });
+        dialog.show();
+    }
+
+    private void showResetWithOtpDialog(String email) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_otp, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
+        android.widget.TextView tvMsg = dialogView.findViewById(R.id.tv_message);
+        android.widget.EditText etOtp = dialogView.findViewById(R.id.dialog_et_otp);
+        android.widget.TextView tvTimer = dialogView.findViewById(R.id.dialog_tv_timer);
+        android.widget.Button btnNeg = dialogView.findViewById(R.id.btn_negative);
+        android.widget.Button btnPos = dialogView.findViewById(R.id.btn_positive);
+
+        tvTitle.setText("Reset Password");
+        tvMsg.setText("Enter the 6-digit code sent to your email, then set a new password.");
+
+        // Add new password field below OTP
+        android.widget.LinearLayout container = (android.widget.LinearLayout) dialogView;
+        android.widget.EditText etNew = new android.widget.EditText(this);
+        etNew.setHint("New password");
+        etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etNew.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(etNew, container.getChildCount() - 1); // before button row
+
+        androidx.appcompat.app.AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        btnNeg.setOnClickListener(v -> dialog.dismiss());
+        btnPos.setText("Reset Password");
+        btnPos.setOnClickListener(v -> {
+            String otp = etOtp.getText().toString().trim();
+            String newPwd = etNew.getText().toString();
+            if (otp.length() != 6) {
+                etOtp.setError("Enter 6-digit OTP");
+                etOtp.requestFocus();
+                return;
+            }
+            if (newPwd.length() < 6 || !newPwd.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$")) {
+                etNew.setError("Password must have upper, lower, number (>=6)");
+                etNew.requestFocus();
+                return;
+            }
+            apiClient.confirmPasswordReset(email, otp, newPwd, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body().string();
+                    runOnUiThread(() -> {
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(LoginActivity.this, "Password reset successful. Please log in.", android.widget.Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
+        });
+
+        // 10-minute timer visual (optional): show 10:00 countdown
+        new android.os.CountDownTimer(10 * 60 * 1000, 1000) {
+            public void onTick(long ms) {
+                long s = ms / 1000; long mm = s / 60; long ss = s % 60;
+                tvTimer.setText(String.format("%02d:%02d", mm, ss));
+            }
+            public void onFinish() { tvTimer.setText("Expired. Request again."); }
+        }.start();
+
+        dialog.show();
     }
     
     private void attemptLogin() {
