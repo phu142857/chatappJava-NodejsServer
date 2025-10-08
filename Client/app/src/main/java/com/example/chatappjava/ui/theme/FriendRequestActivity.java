@@ -40,12 +40,21 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private LinearLayout tvNoRequests;
     private TextView tvTitle;
     private EditText etSearch;
+    private View tabRequests;
+    private View tabFriends;
+    private View containerRequests;
+    private View containerFriends;
 
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefsManager;
     private FriendRequestAdapter adapter;
     private List<FriendRequest> friendRequests;
     private List<FriendRequest> allFriendRequests;
+    private RecyclerView rvMyFriends;
+    private TextView tvRequestsTitle;
+    private TextView tvFriendsTitle;
+    private com.example.chatappjava.adapters.FriendsAdapter friendsAdapter;
+    private final List<User> myFriends = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +65,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         initializeServices();
         setupRecyclerView();
         loadFriendRequests();
+        loadMyFriends();
     }
 
     @Override
@@ -63,6 +73,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         super.onResume();
         // Refresh friend requests when returning to this activity
         loadFriendRequests();
+        loadMyFriends();
     }
 
     private void initializeViews() {
@@ -72,6 +83,14 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         // Set up back button
         findViewById(R.id.iv_back).setOnClickListener(v -> finish());
         etSearch = findViewById(R.id.et_search);
+        // new views
+        rvMyFriends = findViewById(R.id.rv_my_friends);
+        tvRequestsTitle = findViewById(R.id.tv_requests_title);
+        tvFriendsTitle = findViewById(R.id.tv_friends_title);
+        tabRequests = findViewById(R.id.tab_requests);
+        tabFriends = findViewById(R.id.tab_friends);
+        containerRequests = findViewById(R.id.container_requests);
+        containerFriends = findViewById(R.id.container_friends);
     }
 
     private void initializeServices() {
@@ -99,11 +118,41 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                 @Override public void afterTextChanged(Editable s) {}
             });
         }
+
+        if (rvMyFriends != null) {
+            rvMyFriends.setLayoutManager(new LinearLayoutManager(this));
+            friendsAdapter = new com.example.chatappjava.adapters.FriendsAdapter(user -> {
+                try {
+                    android.content.Intent intent = new android.content.Intent(FriendRequestActivity.this, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                    intent.putExtra("user", user.toJson().toString());
+                    startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+            rvMyFriends.setAdapter(friendsAdapter);
+        }
+
+        if (tabRequests != null && tabFriends != null && containerRequests != null && containerFriends != null) {
+            tabRequests.setOnClickListener(v -> showRequestsTab());
+            tabFriends.setOnClickListener(v -> showFriendsTab());
+            // default: show requests first
+            showRequestsTab();
+        }
+    }
+
+    private void showRequestsTab() {
+        containerRequests.setVisibility(View.VISIBLE);
+        containerFriends.setVisibility(View.GONE);
+    }
+
+    private void showFriendsTab() {
+        containerRequests.setVisibility(View.GONE);
+        containerFriends.setVisibility(View.VISIBLE);
     }
 
     private void loadFriendRequests() {
         showLoading(true);
-        
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -131,42 +180,76 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         });
     }
 
+    private void loadMyFriends() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty() || rvMyFriends == null) return;
+        apiClient.authenticatedGet("/api/users/friends", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                // no-op
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                try {
+                    JSONObject json = new JSONObject(responseBody);
+                    if (response.isSuccessful()) {
+                        JSONObject data = json.getJSONObject("data");
+                        JSONArray arr = data.getJSONArray("friends");
+                        List<User> list = new ArrayList<>();
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject u = arr.getJSONObject(i);
+                            list.add(User.fromJson(u));
+                        }
+                        runOnUiThread(() -> {
+                            myFriends.clear();
+                            myFriends.addAll(list);
+                            if (friendsAdapter != null) friendsAdapter.setItems(myFriends);
+                            if (tvFriendsTitle != null) tvFriendsTitle.setText("Friends (" + myFriends.size() + ")");
+                        });
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
     private void handleFriendRequestsResponse(int statusCode, String responseBody) {
         try {
             // Log response for debugging
             System.out.println("Friend Requests Response Code: " + statusCode);
             System.out.println("Friend Requests Response Body: " + responseBody);
-            
+
             JSONObject jsonResponse = new JSONObject(responseBody);
-            
+
             if (statusCode == 200) {
                 JSONObject data = jsonResponse.getJSONObject("data");
                 JSONArray requestsArray = data.getJSONArray("requests");
-                
+
                 friendRequests.clear();
                 allFriendRequests.clear();
                 System.out.println("Found " + requestsArray.length() + " friend requests");
-                
+
                 for (int i = 0; i < requestsArray.length(); i++) {
                     JSONObject requestJson = requestsArray.getJSONObject(i);
                     System.out.println("Processing request JSON: " + requestJson.toString());
-                    
+
                     try {
                         FriendRequest request = FriendRequest.fromJson(requestJson);
                         friendRequests.add(request);
                         allFriendRequests.add(request);
-                        System.out.println("Added request: " + request.getStatus() + " from " + 
+                        System.out.println("Added request: " + request.getStatus() + " from " +
                             (request.getSender() != null ? request.getSender().getDisplayName() : "Unknown"));
                     } catch (Exception e) {
                         System.out.println("Error parsing request at index " + i + ": " + e.getMessage());
                         e.printStackTrace();
                     }
                 }
-                
+
                 System.out.println("Total friend requests in list: " + friendRequests.size());
                 adapter.updateRequests(friendRequests);
                 updateUI();
-                
+
             } else if (statusCode == 401) {
                 Toast.makeText(this, "Session expired. Please login again.", Toast.LENGTH_SHORT).show();
                 sharedPrefsManager.clearLoginInfo();
@@ -204,13 +287,10 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     }
 
     private void updateUI() {
-        if (friendRequests.isEmpty()) {
-            tvNoRequests.setVisibility(View.VISIBLE);
-            rvFriendRequests.setVisibility(View.GONE);
-        } else {
-            tvNoRequests.setVisibility(View.GONE);
-            rvFriendRequests.setVisibility(View.VISIBLE);
-        }
+        boolean hasRequests = !friendRequests.isEmpty();
+        if (tvNoRequests != null) tvNoRequests.setVisibility(hasRequests ? View.GONE : View.VISIBLE);
+        if (rvFriendRequests != null) rvFriendRequests.setVisibility(hasRequests ? View.VISIBLE : View.GONE);
+        // leave tab visibility managed by tab handlers
     }
 
     private void showLoading(boolean show) {

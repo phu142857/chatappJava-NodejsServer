@@ -214,11 +214,10 @@
             android:padding="16dp">
 
             <TextView
-                android:id="@+id/tv_friend_requests_title"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Friend Requests"
+                android:text="Friends"
                 android:textColor="@android:color/black"
                 android:textSize="16sp"
                 android:textStyle="bold" />

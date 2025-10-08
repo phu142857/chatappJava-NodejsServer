@@ -140,7 +140,6 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         rvChatList = findViewById(R.id.rv_chat_list);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
         tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
-        tvFriendRequestsTitle = findViewById(R.id.tv_friend_requests_title);
         
         // User Profile Components
         ivUserAvatar = findViewById(R.id.iv_user_avatar);
