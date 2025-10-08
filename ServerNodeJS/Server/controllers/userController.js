@@ -547,6 +547,34 @@ const getUserFriends = async (req, res) => {
   }
 };
 
+// @desc    Get friends of a specific user by ID
+// @route   GET /api/users/:id/friends
+// @access  Private
+const getFriendsByUserId = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id)
+      .populate('friends', 'username email avatar profile status lastSeen')
+      .select('_id friends isActive');
+
+    if (!user || !user.isActive) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        friends: user.friends || [],
+        friendsCount: (user.friends || []).length
+      }
+    });
+  } catch (error) {
+    console.error('Get friends by user id error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 // @desc    Unfriend a user (remove friendship both ways)
 // @route   DELETE /api/users/:id/friends
 // @access  Private
@@ -773,6 +801,7 @@ module.exports = {
   toggleBlockUser,
   reportUser,
   getUserFriends,
+  getFriendsByUserId,
   removeFriend,
   setActive,
   updateRole,

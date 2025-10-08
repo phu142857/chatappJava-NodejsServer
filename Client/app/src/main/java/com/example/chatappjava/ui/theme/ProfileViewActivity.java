@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -13,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.adapters.FriendsAdapter;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 
@@ -33,6 +36,9 @@ public class ProfileViewActivity extends AppCompatActivity {
     private TextView tvStatus;
     private ImageView ivBack;
     private ImageView ivMore;
+    private RecyclerView rvFriends;
+    private TextView tvNoFriends;
+    private FriendsAdapter friendsAdapter;
     
     private User otherUser;
     private AvatarManager avatarManager;
@@ -62,6 +68,22 @@ public class ProfileViewActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tv_status);
         ivBack = findViewById(R.id.iv_back);
         ivMore = findViewById(R.id.iv_more);
+        rvFriends = findViewById(R.id.rv_friends);
+        tvNoFriends = findViewById(R.id.tv_no_friends);
+
+        if (rvFriends != null) {
+            rvFriends.setLayoutManager(new LinearLayoutManager(this));
+            friendsAdapter = new FriendsAdapter(user -> {
+                try {
+                    Intent intent = new Intent(ProfileViewActivity.this, ProfileViewActivity.class);
+                    intent.putExtra("user", user.toJson().toString());
+                    startActivity(intent);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+            rvFriends.setAdapter(friendsAdapter);
+        }
     }
     
     private void initData() {
@@ -190,6 +212,63 @@ public class ProfileViewActivity extends AppCompatActivity {
         tvPhoneNumber.setText(otherUser.getPhoneNumber() != null ? otherUser.getPhoneNumber() : "N/A");
         tvBio.setText(otherUser.getBio() != null ? otherUser.getBio() : "No bio available");
         tvStatus.setText(otherUser.getStatusText());
+
+        // Load friends for this user
+        loadFriends();
+    }
+
+    private void loadFriends() {
+        if (rvFriends == null || otherUser == null) return;
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+
+        apiClient.getUserFriendsById(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (tvNoFriends != null) {
+                        tvNoFriends.setVisibility(View.VISIBLE);
+                        tvNoFriends.setText("Failed to load friends");
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    if (!response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            if (tvNoFriends != null) {
+                                tvNoFriends.setVisibility(View.VISIBLE);
+                                tvNoFriends.setText("No friends to show");
+                            }
+                        });
+                        return;
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONObject data = json.getJSONObject("data");
+                    org.json.JSONArray arr = data.getJSONArray("friends");
+                    java.util.List<com.example.chatappjava.models.User> list = new java.util.ArrayList<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        com.example.chatappjava.models.User friend = com.example.chatappjava.models.User.fromJson(u);
+                        list.add(friend);
+                    }
+                    runOnUiThread(() -> {
+                        if (friendsAdapter != null) friendsAdapter.setItems(list);
+                        if (tvNoFriends != null) tvNoFriends.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        if (tvNoFriends != null) {
+                            tvNoFriends.setVisibility(View.VISIBLE);
+                            tvNoFriends.setText("Failed to parse friends");
+                        }
+                    });
+                }
+            }
+        });
     }
     
     private void showAvatarZoom() {

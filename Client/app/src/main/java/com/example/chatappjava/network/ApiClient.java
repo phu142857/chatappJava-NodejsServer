@@ -436,6 +436,13 @@ public class ApiClient {
         // If there is a dedicated unfriend endpoint, use it; else fallback to friend requests controller if provided
         authenticatedDelete("/api/users/" + userId + "/friends", token, callback);
     }
+
+    /**
+     * Get friends of a specific user by id
+     */
+    public void getUserFriendsById(String token, String userId, Callback callback) {
+        authenticatedGet("/api/users/" + userId + "/friends", token, callback);
+    }
     
     /**
      * Get current user profile

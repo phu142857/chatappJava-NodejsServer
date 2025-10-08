@@ -11,6 +11,7 @@ const {
   toggleBlockUser,
   reportUser,
   getUserFriends,
+  getFriendsByUserId,
   removeFriend,
   setActive,
   updateRole,
@@ -106,6 +107,7 @@ router.put('/:id/reset-password', userIdValidation, adminOnly, [
 ], resetPassword);
 
 router.get('/:id', userIdValidation, getUserById);
+router.get('/:id/friends', userIdValidation, getFriendsByUserId);
 router.put('/:id/block', blockUserValidation, toggleBlockUser);
 router.post('/:id/report', reportUserValidation, reportUser);
 router.delete('/:id/friends', userIdValidation, removeFriend);
