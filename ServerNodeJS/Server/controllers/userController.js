@@ -473,46 +473,6 @@ const toggleBlockUser = async (req, res) => {
   }
 };
 
-// @desc    Report user
-// @route   POST /api/users/:id/report
-// @access  Private
-const reportUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reason, description } = req.body;
-
-    if (id === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot report yourself'
-      });
-    }
-
-    const targetUser = await User.findById(id);
-    if (!targetUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Note: Implement reporting logic
-    // This could involve creating a UserReports collection
-    // and storing the report details
-
-    res.json({
-      success: true,
-      message: 'User reported successfully'
-    });
-
-  } catch (error) {
-    console.error('Report user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while reporting user'
-    });
-  }
-};
 
 // @desc    Get user friends
 // @route   GET /api/users/friends
@@ -799,7 +759,6 @@ module.exports = {
   searchUsers,
   getOnlineUsers,
   toggleBlockUser,
-  reportUser,
   getUserFriends,
   getFriendsByUserId,
   removeFriend,

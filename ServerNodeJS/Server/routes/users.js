@@ -9,7 +9,6 @@ const {
   searchUsers,
   getOnlineUsers,
   toggleBlockUser,
-  reportUser,
   getUserFriends,
   getFriendsByUserId,
   removeFriend,
@@ -55,20 +54,6 @@ const blockUserValidation = [
     .withMessage('Action must be either block or unblock')
 ];
 
-const reportUserValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Invalid user ID format'),
-  body('reason')
-    .notEmpty()
-    .withMessage('Reason is required')
-    .isIn(['spam', 'harassment', 'inappropriate_content', 'fake_account', 'other'])
-    .withMessage('Invalid report reason'),
-  body('description')
-    .optional()
-    .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters')
-];
 
 // Routes
 router.get('/', getUsers);
@@ -109,7 +94,6 @@ router.put('/:id/reset-password', userIdValidation, adminOnly, [
 router.get('/:id', userIdValidation, getUserById);
 router.get('/:id/friends', userIdValidation, getFriendsByUserId);
 router.put('/:id/block', blockUserValidation, toggleBlockUser);
-router.post('/:id/report', reportUserValidation, reportUser);
 router.delete('/:id/friends', userIdValidation, removeFriend);
 // Admin-only: add/remove friendship by UUIDs
 router.post('/admin/friendship', [
