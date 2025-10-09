@@ -149,7 +149,7 @@ export default function Profile() {
             <br />
             <Space>
               <Text type="secondary">Role: {user.role}</Text>
-              {user.role !== 'admin' && (
+              {user.role === 'moderator' && (
                 <Button 
                   size="small" 
                   onClick={() => {
@@ -158,11 +158,11 @@ export default function Profile() {
                       content: 'Are you sure you want to change your role? You will be logged out and need to log in again.',
                       okText: 'Change Role',
                       cancelText: 'Cancel',
-                      onOk: () => handleChangeRole(user.role === 'user' ? 'moderator' : 'user')
+                      onOk: () => handleChangeRole('user')
                     });
                   }}
                 >
-                  Change to {user.role === 'user' ? 'Moderator' : 'User'}
+                  Change to User
                 </Button>
               )}
             </Space>
