@@ -32,6 +32,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         void onMessageClick(Message message);
         void onMessageLongClick(Message message);
         void onImageClick(String imageUrl, String localImageUri);
+        void onFileClick(String fileUrl, String fileName, String originalName, String mimeType, long fileSize);
         default void onReactClick(Message message, String emoji) {}
         default void onReplyClick(String replyToMessageId) {}
     }
@@ -267,6 +268,32 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         }
                         if (ivSentReactionImage != null) ivSentReactionImage.setVisibility(View.GONE);
                     }
+                } else if (message.isFileMessage()) {
+                    // Show file message
+                    if (tvSentMessage != null) tvSentMessage.setVisibility(View.GONE);
+                    if (ivSentImage != null) {
+                        // Hide image container for file messages
+                        View container = itemView.findViewById(R.id.fl_sent_image_container);
+                        if (container != null) container.setVisibility(View.GONE);
+                        ivSentImage.setVisibility(View.GONE);
+                    }
+                    
+                    // Show file info in text view
+                    if (tvSentMessage != null) {
+                        tvSentMessage.setVisibility(View.VISIBLE);
+                        String fileInfo = getFileInfoFromMessage(message);
+                        tvSentMessage.setText(fileInfo);
+                        tvSentMessage.setOnClickListener(v -> {
+                            if (listener != null) {
+                                String[] fileData = parseFileDataFromMessage(message);
+                                if (fileData != null) {
+                                    listener.onFileClick(fileData[0], fileData[1], fileData[2], fileData[3], Long.parseLong(fileData[4]));
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (ivSentImageReaction != null) ivSentImageReaction.setVisibility(View.GONE);
                 } else {
                     // Show text message
                     if (tvSentMessage != null) {
@@ -386,6 +413,32 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         }
                         if (ivReceivedReactionImage != null) ivReceivedReactionImage.setVisibility(View.GONE);
                     }
+                } else if (message.isFileMessage()) {
+                    // Show file message
+                    if (tvReceivedMessage != null) tvReceivedMessage.setVisibility(View.GONE);
+                    if (ivReceivedImage != null) {
+                        // Hide image container for file messages
+                        View container = itemView.findViewById(R.id.fl_received_image_container);
+                        if (container != null) container.setVisibility(View.GONE);
+                        ivReceivedImage.setVisibility(View.GONE);
+                    }
+                    
+                    // Show file info in text view
+                    if (tvReceivedMessage != null) {
+                        tvReceivedMessage.setVisibility(View.VISIBLE);
+                        String fileInfo = getFileInfoFromMessage(message);
+                        tvReceivedMessage.setText(fileInfo);
+                        tvReceivedMessage.setOnClickListener(v -> {
+                            if (listener != null) {
+                                String[] fileData = parseFileDataFromMessage(message);
+                                if (fileData != null) {
+                                    listener.onFileClick(fileData[0], fileData[1], fileData[2], fileData[3], Long.parseLong(fileData[4]));
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (ivReceivedImageReaction != null) ivReceivedImageReaction.setVisibility(View.GONE);
                 } else {
                     // Show text message
                     if (tvReceivedMessage != null) {
@@ -783,6 +836,74 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 ds.setUnderlineText(false);
             }
         };
+    }
+    
+    // Helper methods for file messages
+    private static String getFileInfoFromMessage(Message message) {
+        try {
+            if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                org.json.JSONArray attachments = new org.json.JSONArray(message.getAttachments());
+                if (attachments.length() > 0) {
+                    org.json.JSONObject attachment = attachments.getJSONObject(0);
+                    String originalName = attachment.optString("originalName", "Unknown File");
+                    long fileSize = attachment.optLong("size", 0);
+                    String mimeType = attachment.optString("mimeType", "");
+                    
+                    String fileType = getFileTypeFromMime(mimeType);
+                    String sizeStr = formatFileSize(fileSize);
+                    
+                    return "📄 " + originalName + "\n" + fileType + " • " + sizeStr;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "📄 File";
+    }
+    
+    private static String[] parseFileDataFromMessage(Message message) {
+        try {
+            if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                org.json.JSONArray attachments = new org.json.JSONArray(message.getAttachments());
+                if (attachments.length() > 0) {
+                    org.json.JSONObject attachment = attachments.getJSONObject(0);
+                    String fileUrl = attachment.optString("url", "");
+                    String fileName = attachment.optString("filename", "");
+                    String originalName = attachment.optString("originalName", "");
+                    String mimeType = attachment.optString("mimeType", "");
+                    long fileSize = attachment.optLong("size", 0);
+                    
+                    // Convert relative URL to full URL
+                    if (!fileUrl.startsWith("http")) {
+                        fileUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + fileUrl;
+                    }
+                    
+                    return new String[]{fileUrl, fileName, originalName, mimeType, String.valueOf(fileSize)};
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
+    private static String getFileTypeFromMime(String mimeType) {
+        if (mimeType == null) return "File";
+        
+        if (mimeType.equals("application/pdf")) return "PDF Document";
+        if (mimeType.equals("text/plain")) return "Text File";
+        if (mimeType.contains("word")) return "Word Document";
+        if (mimeType.contains("excel")) return "Excel Spreadsheet";
+        if (mimeType.contains("powerpoint")) return "PowerPoint Presentation";
+        
+        return "File";
+    }
+    
+    private static String formatFileSize(long size) {
+        if (size < 1024) return size + " B";
+        if (size < 1024 * 1024) return String.format("%.1f KB", size / 1024.0);
+        if (size < 1024 * 1024 * 1024) return String.format("%.1f MB", size / (1024.0 * 1024.0));
+        return String.format("%.1f GB", size / (1024.0 * 1024.0 * 1024.0));
     }
 
     public static class RequestsAdapter extends RecyclerView.Adapter<RequestsAdapter.VH> {

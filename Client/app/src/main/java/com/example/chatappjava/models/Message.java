@@ -302,6 +302,10 @@ public class Message {
     public boolean isImageMessage() {
         return "image".equals(type);
     }
+    
+    public boolean isFileMessage() {
+        return "file".equals(type);
+    }
 
     public boolean isGroupChat() {
         return "group".equals(chatType);

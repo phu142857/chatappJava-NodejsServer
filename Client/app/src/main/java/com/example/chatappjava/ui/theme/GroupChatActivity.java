@@ -281,7 +281,7 @@ public class GroupChatActivity extends BaseChatActivity {
     
     private void showAvatarOptions() {
         // Inflate custom dialog layout
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_attachment_select, null);
         
         // Get views
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);

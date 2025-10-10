@@ -127,6 +127,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     private static final int REQUEST_CODE_CAMERA = 1002;
     private static final int REQUEST_CODE_CAMERA_PERMISSION = 1003;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1004;
+    private static final int REQUEST_CODE_FILE_PICKER = 1005;
 
     // Camera capture state
     private android.net.Uri cameraPhotoUri;
@@ -249,11 +250,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     // Gallery and attachment handling
     protected void showAttachmentOptions() {
         // Inflate custom dialog layout
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_select, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_attachment_select, null);
         
         // Get views
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout fileOption = dialogView.findViewById(R.id.option_file);
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         
         // Set click listeners
@@ -270,6 +272,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         galleryOption.setOnClickListener(v -> {
             openGallery();
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        fileOption.setOnClickListener(v -> {
+            openFilePicker();
             if (imageSelectDialog != null) {
                 imageSelectDialog.dismiss();
             }
@@ -353,6 +362,30 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         startActivityForResult(galleryIntent, REQUEST_CODE_GALLERY);
     }
     
+    protected void openFilePicker() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+            String[] permissions = {Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.READ_MEDIA_IMAGES};
+            ActivityCompat.requestPermissions(this, permissions, REQUEST_CODE_STORAGE_PERMISSION);
+            return;
+        }
+        
+        Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        fileIntent.setType("*/*");
+        fileIntent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+            "application/pdf",
+            "text/plain",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        });
+        fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(fileIntent, REQUEST_CODE_FILE_PICKER);
+    }
+    
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -375,6 +408,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     }
                 } else {
                     Toast.makeText(this, "No photo captured", Toast.LENGTH_SHORT).show();
+                }
+            } else if (requestCode == REQUEST_CODE_FILE_PICKER && data != null) {
+                Uri selectedFileUri = data.getData();
+                if (selectedFileUri != null) {
+                    handleSelectedFile(selectedFileUri);
                 }
             }
         }
@@ -471,6 +509,76 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
     
+    protected void handleSelectedFile(Uri fileUri) {
+        if (fileUri == null) {
+            Toast.makeText(this, "Cannot load file", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Show loading message
+        Toast.makeText(this, "Uploading file to server...", Toast.LENGTH_SHORT).show();
+        
+        try {
+            // Get file info
+            android.content.ContentResolver contentResolver = getContentResolver();
+            android.database.Cursor cursor = contentResolver.query(fileUri, null, null, null, null);
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                String fileName = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME));
+                int sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE);
+                long fileSize = sizeIndex >= 0 ? cursor.getLong(sizeIndex) : 0;
+                cursor.close();
+                
+                // Get MIME type
+                String mimeType = contentResolver.getType(fileUri);
+                
+                // Check file size limit (50MB)
+                if (fileSize > 50 * 1024 * 1024) {
+                    Toast.makeText(this, "File size too large. Maximum 50MB allowed.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Check file type
+                if (!isAllowedFileType(mimeType)) {
+                    Toast.makeText(this, "File type not supported. Only PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX are allowed.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Upload file to server
+                uploadFileToServer(fileUri, fileName, mimeType, fileSize);
+                
+            } else {
+                Toast.makeText(this, "Cannot read file information", Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error processing file", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private boolean isAllowedFileType(String mimeType) {
+        if (mimeType == null) return false;
+        
+        String[] allowedTypes = {
+            "application/pdf",
+            "text/plain",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        };
+        
+        for (String allowedType : allowedTypes) {
+            if (mimeType.equals(allowedType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     protected void uploadImageToServer(java.io.File imageFile) {
         uploadImageToServer(imageFile, null);
     }
@@ -529,6 +637,173 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 });
             }
         });
+    }
+
+    protected void uploadFileToServer(Uri fileUri, String fileName, String mimeType, long fileSize) {
+        if (currentChat == null) {
+            Toast.makeText(this, "Chat not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Upload file to server
+        apiClient.uploadChatFile(token, fileUri, fileName, mimeType, fileSize, currentChat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                android.util.Log.d("BaseChatActivity", "File upload response: " + response.code() + " - " + responseBody);
+                
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        try {
+                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                // Get file URL from server response
+                                String fileUrl = jsonResponse.optString("fileUrl", "");
+                                String serverFileName = jsonResponse.optString("fileName", "");
+                                String originalName = jsonResponse.optString("originalName", fileName);
+                                long serverFileSize = jsonResponse.optLong("fileSize", fileSize);
+                                String serverMimeType = jsonResponse.optString("mimeType", mimeType);
+                                
+                                if (!fileUrl.isEmpty()) {
+                                    // Send file message
+                                    sendFileMessage(fileUrl, serverFileName, originalName, serverMimeType, serverFileSize);
+                                } else {
+                                    Toast.makeText(BaseChatActivity.this, "Failed to receive file URL from server", Toast.LENGTH_SHORT).show();
+                                }
+                            } else {
+                                String errorMsg = jsonResponse.optString("message", "Upload failed");
+                                Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (org.json.JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(BaseChatActivity.this, "Error processing server response", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(BaseChatActivity.this, "Upload failed: " + response.code(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                android.util.Log.e("BaseChatActivity", "File upload failed: " + e.getMessage());
+                runOnUiThread(() -> {
+                    Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    protected void sendFileMessage(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
+        if (currentChat == null) return;
+        
+        String token = sharedPrefsManager.getToken();
+        String senderId = sharedPrefsManager.getUserId();
+        
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create message object
+        Message message = new Message();
+        message.setContent(fileUrl);
+        message.setSenderId(senderId);
+        message.setChatId(currentChat.getId());
+        message.setType("file");
+        message.setChatType(currentChat.isGroupChat() ? "group" : "private");
+        message.setTimestamp(System.currentTimeMillis());
+        String clientNonce = java.util.UUID.randomUUID().toString();
+        message.setClientNonce(clientNonce);
+        // Assign a temporary local id to dedupe when server echoes back
+        try { message.setId("local-" + message.getTimestamp()); } catch (Exception ignored) {}
+        
+        // Add to local list immediately for better UX
+        message.setLocalSignature(buildLocalSignature(message));
+        messages.add(message);
+        messageAdapter.notifyItemInserted(messages.size() - 1);
+        // Always scroll to bottom when user sends a file
+        forceScrollToBottom();
+        
+        // Send to server
+        try {
+            // Create JSON object that matches server expectations
+            org.json.JSONObject messageJson = new org.json.JSONObject();
+            messageJson.put("chatId", currentChat.getId());
+            messageJson.put("type", "file");
+            messageJson.put("timestamp", System.currentTimeMillis());
+            messageJson.put("clientNonce", clientNonce);
+            if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
+                messageJson.put("replyTo", replyingToMessageId);
+            }
+            
+            // Create attachments array for file message
+            org.json.JSONArray attachments = new org.json.JSONArray();
+            org.json.JSONObject attachment = new org.json.JSONObject();
+            attachment.put("filename", fileName);
+            attachment.put("originalName", originalName);
+            attachment.put("mimeType", mimeType);
+            attachment.put("size", fileSize);
+
+            // Convert relative path to full URL for server validation
+            String fullFileUrl = fileUrl;
+            if (!fileUrl.startsWith("http")) {
+                fullFileUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
+                              ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + fileUrl;
+            }
+            attachment.put("url", fullFileUrl);
+            attachments.put(attachment);
+            messageJson.put("attachments", attachments);
+            
+            android.util.Log.d("BaseChatActivity", "Sending file message: " + messageJson.toString());
+            
+            apiClient.sendMessage(token, messageJson, new okhttp3.Callback() {
+                @SuppressLint("NotifyDataSetChanged")
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String responseBody = response.body().string();
+                    android.util.Log.d("BaseChatActivity", "Send file message response: " + response.code() + " - " + responseBody);
+                    
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            try {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    // Clear reply state after successful send
+                                    clearReplyState();
+                                } else {
+                                    String errorMsg = jsonResponse.optString("message", "Failed to send file message");
+                                    Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                e.printStackTrace();
+                                Toast.makeText(BaseChatActivity.this, "Error processing server response", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(BaseChatActivity.this, "Failed to send file message: " + response.code(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    android.util.Log.e("BaseChatActivity", "Send file message failed: " + e.getMessage());
+                    runOnUiThread(() -> {
+                        Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+            
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error creating file message", Toast.LENGTH_SHORT).show();
+        }
     }
 
     protected void sendImageMessage(String imageUrl, android.net.Uri localUri) {
@@ -1931,6 +2206,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 });
             }
         });
+    }
+
+    
+    
+    @Override
+    public void onFileClick(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
+        // Open file preview
+        Intent intent = new Intent(this, com.example.chatappjava.ui.file.FilePreviewActivity.class);
+        intent.putExtra("chatId", currentChat.getId());
+        intent.putExtra("fileName", fileName);
+        intent.putExtra("originalName", originalName);
+        intent.putExtra("fileUrl", fileUrl);
+        intent.putExtra("mimeType", mimeType);
+        intent.putExtra("fileSize", fileSize);
+        startActivity(intent);
     }
 
     protected abstract void resetCallButtonState();

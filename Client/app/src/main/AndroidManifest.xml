@@ -8,9 +8,12 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
         android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
 
     <application
         android:name=".ChatApplication"
@@ -92,6 +95,11 @@
             android:name=".ui.theme.GroupMembersActivity"
             android:exported="false"
             android:label="@string/title_activity_group_members"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.file.FilePreviewActivity"
+            android:exported="false"
+            android:label="File Preview"
             android:theme="@style/Theme.ChatAppJava" />
         <activity
             android:name=".ui.theme.GroupJoinRequestsActivity"

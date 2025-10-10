@@ -40,6 +40,7 @@ public class ApiClient {
     private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
+    private static final String UPLOAD_CHAT_FILE_ENDPOINT = "/api/upload/chat";
     private static final String BLOCK_USER_ENDPOINT = "/api/users/%s/block"; // PUT { action: 'block'|'unblock' }
     private static final String BLOCKED_USERS_ENDPOINT = "/api/users/blocked";
     private static final String REPORTS_ENDPOINT = "/api/reports";
@@ -565,6 +566,47 @@ public class ApiClient {
             e.printStackTrace();
             // Create a failed callback
             callback.onFailure(null, new IOException("Failed to prepare chat image upload: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Upload chat file to server (PDF, TXT, etc.)
+     * @param token Authentication token
+     * @param fileUri File URI to upload
+     * @param fileName Original file name
+     * @param mimeType File MIME type
+     * @param fileSize File size in bytes
+     * @param chatId Chat ID for organizing uploads
+     * @param callback Response callback
+     */
+    public void uploadChatFile(String token, android.net.Uri fileUri, String fileName, String mimeType, long fileSize, String chatId, Callback callback) {
+        try {
+            String url = getBaseUrl() + UPLOAD_CHAT_FILE_ENDPOINT + "/" + chatId + "/file";
+            
+            // Create file body from URI
+            RequestBody fileBody = RequestBody.create(
+                MediaType.parse(mimeType), 
+                new java.io.File(fileUri.getPath())
+            );
+            
+            RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", fileName, fileBody)
+                .addFormDataPart("chatId", chatId)
+                .build();
+            
+            Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + token)
+                .post(requestBody)
+                .build();
+            
+            client.newCall(request).enqueue(callback);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Create a failed callback
+            callback.onFailure(null, new IOException("Failed to prepare chat file upload: " + e.getMessage()));
         }
     }
 
