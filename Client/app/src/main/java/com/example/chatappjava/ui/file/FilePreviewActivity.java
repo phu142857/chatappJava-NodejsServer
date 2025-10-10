@@ -47,6 +47,7 @@ public class FilePreviewActivity extends AppCompatActivity {
     private TextView fileSizeText;
     private TextView fileTypeText;
     private TextView previewText;
+    private ImageView pdfPreviewImage;
     private ImageView fileIconImage;
     private Button downloadButton;
     private Button openButton;
@@ -79,6 +80,7 @@ public class FilePreviewActivity extends AppCompatActivity {
         fileSizeText = findViewById(R.id.fileSizeText);
         fileTypeText = findViewById(R.id.fileTypeText);
         previewText = findViewById(R.id.previewText);
+        pdfPreviewImage = findViewById(R.id.pdfPreviewImage);
         fileIconImage = findViewById(R.id.fileIconImage);
         downloadButton = findViewById(R.id.downloadButton);
         openButton = findViewById(R.id.openButton);
@@ -166,7 +168,10 @@ public class FilePreviewActivity extends AppCompatActivity {
                             fileType = jsonResponse.optString("type", "other");
                             
                             runOnUiThread(() -> {
-                                if (!TextUtils.isEmpty(previewContent)) {
+                                if ("pdf".equalsIgnoreCase(fileType)) {
+                                    // Try to render first page thumbnail
+                                    renderPdfPreview();
+                                } else if (!TextUtils.isEmpty(previewContent)) {
                                     previewText.setText(previewContent);
                                     previewText.setVisibility(View.VISIBLE);
                                 } else {
@@ -195,34 +200,89 @@ public class FilePreviewActivity extends AppCompatActivity {
     }
     
     private void downloadFile() {
-        if (!checkStoragePermission()) {
-            requestStoragePermission();
-            return;
-        }
-        
         if (fileUrl == null || fileUrl.isEmpty()) {
             Toast.makeText(this, "File URL not available", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+
         try {
             DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             Uri uri = Uri.parse(ServerConfig.getBaseUrl() + fileUrl);
-            
+
             DownloadManager.Request request = new DownloadManager.Request(uri);
             request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
             request.setTitle(originalName != null ? originalName : fileName);
             request.setDescription("Downloading file...");
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, originalName != null ? originalName : fileName);
-            
+
+            String targetName = originalName != null ? originalName : fileName;
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                // On Android 10+ use app-scoped Downloads; no storage permission needed
+                request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, targetName);
+            } else {
+                // On Android 9 and below, ensure WRITE_EXTERNAL_STORAGE before writing to public Downloads
+                if (!checkStoragePermission()) {
+                    requestStoragePermission();
+                    return;
+                }
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, targetName);
+            }
+
             downloadManager.enqueue(request);
             Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
-            
+
         } catch (Exception e) {
             Log.e(TAG, "Error starting download", e);
             Toast.makeText(this, "Failed to start download", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void renderPdfPreview() {
+        try {
+            if (fileUrl == null || fileUrl.isEmpty()) return;
+            // Download PDF to cache
+            String pdfUrl = ServerConfig.getBaseUrl() + fileUrl;
+            okhttp3.Request req = new okhttp3.Request.Builder().url(pdfUrl).build();
+            httpClient.newCall(req).enqueue(new okhttp3.Callback() {
+                @Override
+                public void onFailure(@NonNull Call call, @NonNull IOException e) { /* ignore preview failure */ }
+
+                @Override
+                public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                    if (!response.isSuccessful() || response.body() == null) return;
+                    java.io.File cachePdf = new java.io.File(getCacheDir(), "preview_" + System.currentTimeMillis() + ".pdf");
+                    okio.BufferedSink sink = okio.Okio.buffer(okio.Okio.sink(cachePdf));
+                    sink.writeAll(response.body().source());
+                    sink.close();
+
+                    // Render first page using PdfRenderer (requires API 21+)
+                    try {
+                        android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor.open(cachePdf, android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+                        android.graphics.pdf.PdfRenderer renderer = new android.graphics.pdf.PdfRenderer(pfd);
+                        if (renderer.getPageCount() > 0) {
+                            android.graphics.pdf.PdfRenderer.Page page = renderer.openPage(0);
+                            int width = getResources().getDisplayMetrics().densityDpi / 72 * page.getWidth();
+                            int height = getResources().getDisplayMetrics().densityDpi / 72 * page.getHeight();
+                            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888);
+                            page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                            page.close();
+                            renderer.close();
+                            pfd.close();
+
+                            runOnUiThread(() -> {
+                                pdfPreviewImage.setImageBitmap(bitmap);
+                                pdfPreviewImage.setVisibility(View.VISIBLE);
+                                previewText.setVisibility(View.GONE);
+                            });
+                        } else {
+                            renderer.close();
+                            pfd.close();
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        } catch (Exception ignored) {}
     }
     
     private void openFile() {

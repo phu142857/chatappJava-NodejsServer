@@ -336,7 +336,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
             cameraPhotoUri = FileProvider.getUriForFile(
                 this,
-                "com.example.chatappjava.fileprovider",
+                getPackageName() + ".provider",
                 cameraPhotoFile
             );
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
@@ -370,19 +370,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             return;
         }
         
-        Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
-        fileIntent.setType("*/*");
-        fileIntent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-            "application/pdf",
-            "text/plain",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        });
+        // Use SAF and allow all file types
+        Intent fileIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        fileIntent.setType("*/*");
+        // No EXTRA_MIME_TYPES to avoid restricting; let user pick any
+        // Persistable read permission so we can access later if needed
+        fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         startActivityForResult(fileIntent, REQUEST_CODE_FILE_PICKER);
     }
     
@@ -412,6 +406,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             } else if (requestCode == REQUEST_CODE_FILE_PICKER && data != null) {
                 Uri selectedFileUri = data.getData();
                 if (selectedFileUri != null) {
+                    // Take persistable read permission for the selected document
+                    try {
+                        final int takeFlags = data.getFlags() &
+                            (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                        getContentResolver().takePersistableUriPermission(selectedFileUri, takeFlags);
+                    } catch (Exception ignored) { }
                     handleSelectedFile(selectedFileUri);
                 }
             }
@@ -529,8 +529,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 long fileSize = sizeIndex >= 0 ? cursor.getLong(sizeIndex) : 0;
                 cursor.close();
                 
-                // Get MIME type
+                // Get MIME type (fallback to octet-stream)
                 String mimeType = contentResolver.getType(fileUri);
+                if (mimeType == null || mimeType.isEmpty()) {
+                    mimeType = guessMimeFromName(fileName);
+                    if (mimeType == null || mimeType.isEmpty()) mimeType = "application/octet-stream";
+                }
                 
                 // Check file size limit (50MB)
                 if (fileSize > 50 * 1024 * 1024) {
@@ -538,11 +542,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     return;
                 }
                 
-                // Check file type
-                if (!isAllowedFileType(mimeType)) {
-                    Toast.makeText(this, "File type not supported. Only PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX are allowed.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                // Accept all file types
                 
                 // Upload file to server
                 uploadFileToServer(fileUri, fileName, mimeType, fileSize);
@@ -557,27 +557,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
     
-    private boolean isAllowedFileType(String mimeType) {
-        if (mimeType == null) return false;
-        
-        String[] allowedTypes = {
-            "application/pdf",
-            "text/plain",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        };
-        
-        for (String allowedType : allowedTypes) {
-            if (mimeType.equals(allowedType)) {
-                return true;
-            }
-        }
-        return false;
-    }
+    // No MIME white-listing; we accept all files. Keep helper to guess MIME when missing.
     
     protected void uploadImageToServer(java.io.File imageFile) {
         uploadImageToServer(imageFile, null);
@@ -651,8 +631,36 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             return;
         }
         
-        // Upload file to server
-        apiClient.uploadChatFile(token, fileUri, fileName, mimeType, fileSize, currentChat.getId(), new okhttp3.Callback() {
+        // Resolve content URI to a temp file to avoid ENOENT on content:// URIs
+        java.io.File uploadTempFile = null;
+        try {
+            android.content.ContentResolver cr = getContentResolver();
+            java.io.InputStream in = cr.openInputStream(fileUri);
+            if (in != null) {
+                uploadTempFile = new java.io.File(getCacheDir(), "upload_" + System.currentTimeMillis());
+                java.io.FileOutputStream out = new java.io.FileOutputStream(uploadTempFile);
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, len);
+                }
+                in.close();
+                out.flush();
+                out.close();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("BaseChatActivity", "Failed to copy content URI to temp file", e);
+        }
+
+        final java.io.File fileToUpload = (uploadTempFile != null && uploadTempFile.exists()) ? uploadTempFile : null;
+
+        if (fileToUpload == null) {
+            Toast.makeText(this, "Unable to access selected file. Please try again.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Upload file to server (prefer File-based path)
+        okhttp3.Callback callback = new okhttp3.Callback() {
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 String responseBody = response.body().string();
@@ -689,7 +697,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     }
                 });
             }
-            
+
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 android.util.Log.e("BaseChatActivity", "File upload failed: " + e.getMessage());
@@ -697,7 +705,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
-        });
+        };
+
+        apiClient.uploadChatFile(token, fileToUpload, fileName, mimeType, fileSize, currentChat.getId(), callback);
     }
 
     protected void sendFileMessage(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
@@ -1956,11 +1966,16 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_message_options, null);
         
-        boolean canEdit = message.isTextMessage() && message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
+        boolean isOwnMessage = message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
+        boolean canEdit = message.isTextMessage() && isOwnMessage;
         
         // Show/hide edit option based on permissions
         dialogView.findViewById(R.id.option_edit).setVisibility(canEdit ? View.VISIBLE : View.GONE);
         
+        // Hide delete for messages from others
+        View deleteOption = dialogView.findViewById(R.id.option_delete);
+        if (deleteOption != null) deleteOption.setVisibility(isOwnMessage ? View.VISIBLE : View.GONE);
+
         // Set click listeners for each option
         dialogView.findViewById(R.id.option_react).setOnClickListener(v -> {
             showReactionPicker(message);
@@ -1980,8 +1995,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         });
         
         dialogView.findViewById(R.id.option_delete).setOnClickListener(v -> {
-            confirmDeleteMessage(message);
-            if (currentDialog != null) currentDialog.dismiss();
+            if (isOwnMessage) {
+                confirmDeleteForEveryone(message);
+                if (currentDialog != null) currentDialog.dismiss();
+            }
         });
         
         dialogView.findViewById(R.id.option_copy).setOnClickListener(v -> {
@@ -2174,16 +2191,16 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         });
     }
 
-    protected void confirmDeleteMessage(Message message) {
+    protected void confirmDeleteForEveryone(Message message) {
         new AlertDialog.Builder(this)
-            .setTitle("Delete Message")
-            .setMessage("Delete this message for everyone?")
-            .setPositiveButton("Delete", (d, w) -> performDeleteMessage(message))
+            .setTitle("Delete for everyone")
+            .setMessage("This will delete the message and attachments for all participants. Continue?")
+            .setPositiveButton("Delete", (d, w) -> deleteMessageForEveryone(message))
             .setNegativeButton("Cancel", null)
             .show();
     }
 
-    protected void performDeleteMessage(Message message) {
+    protected void deleteMessageForEveryone(Message message) {
         String token = sharedPrefsManager.getToken();
         apiClient.deleteMessage(token, message.getId(), new okhttp3.Callback() {
             @Override
@@ -2196,9 +2213,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        message.setDeleted(true);
-                        message.setContent("This message was deleted");
-                        messageAdapter.notifyDataSetChanged();
+                        // Remove locally to reflect immediate deletion
+                        int idx = indexOfMessageById(message.getId());
+                        if (idx >= 0) {
+                            messages.remove(idx);
+                            messageAdapter.notifyItemRemoved(idx);
+                        } else {
+                            messageAdapter.notifyDataSetChanged();
+                        }
                         Toast.makeText(BaseChatActivity.this, "Message deleted", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(BaseChatActivity.this, "Failed to delete: " + response.code(), Toast.LENGTH_SHORT).show();
@@ -2212,15 +2234,100 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     
     @Override
     public void onFileClick(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
-        // Open file preview
-        Intent intent = new Intent(this, com.example.chatappjava.ui.file.FilePreviewActivity.class);
-        intent.putExtra("chatId", currentChat.getId());
-        intent.putExtra("fileName", fileName);
-        intent.putExtra("originalName", originalName);
-        intent.putExtra("fileUrl", fileUrl);
-        intent.putExtra("mimeType", mimeType);
-        intent.putExtra("fileSize", fileSize);
-        startActivity(intent);
+        try {
+            java.io.File downloaded = getDownloadedFile(originalName);
+            if (downloaded != null && downloaded.exists()) {
+                // Open local file
+                openLocalFile(downloaded, mimeType);
+            } else {
+                // Download file
+                startDownload(fileUrl, originalName != null ? originalName : fileName);
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Cannot handle file", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private java.io.File getDownloadedFile(String originalName) {
+        java.io.File dir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+        if (dir == null) return null;
+        return new java.io.File(dir, originalName);
+    }
+
+    private void startDownload(String relativeOrAbsoluteUrl, String targetName) {
+        String baseUrl;
+        String fullUrl;
+        if (relativeOrAbsoluteUrl != null && relativeOrAbsoluteUrl.startsWith("http")) {
+            fullUrl = relativeOrAbsoluteUrl;
+        } else {
+            baseUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + ":" + com.example.chatappjava.config.ServerConfig.getServerPort();
+            fullUrl = baseUrl + relativeOrAbsoluteUrl;
+        }
+
+        android.app.DownloadManager dm = (android.app.DownloadManager) getSystemService(android.content.Context.DOWNLOAD_SERVICE);
+        android.net.Uri uri = android.net.Uri.parse(fullUrl);
+        android.app.DownloadManager.Request req = new android.app.DownloadManager.Request(uri);
+        req.setAllowedNetworkTypes(android.app.DownloadManager.Request.NETWORK_WIFI | android.app.DownloadManager.Request.NETWORK_MOBILE);
+        req.setTitle(targetName);
+        req.setDescription("Downloading file...");
+        req.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            req.setDestinationInExternalFilesDir(this, android.os.Environment.DIRECTORY_DOWNLOADS, targetName);
+        } else {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_STORAGE_PERMISSION);
+                Toast.makeText(this, "Please grant storage permission and try again", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            req.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, targetName);
+        }
+
+        dm.enqueue(req);
+        Toast.makeText(this, "Downloading...", Toast.LENGTH_SHORT).show();
+    }
+
+    private void openLocalFile(java.io.File file, String mimeType) {
+        try {
+            android.net.Uri contentUri = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            String resolvedMime = (mimeType != null && !mimeType.isEmpty()) ? mimeType : guessMimeFromName(file.getName());
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(contentUri, resolvedMime);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                // Fallback: generic chooser with */*
+                Intent chooser = new Intent(Intent.ACTION_VIEW);
+                chooser.setDataAndType(contentUri, "*/*");
+                chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(chooser, "Open with"));
+            }
+        } catch (Exception e) {
+            // Fallback: open with generic chooser
+            try {
+                String resolvedMime = (mimeType != null && !mimeType.isEmpty()) ? mimeType : guessMimeFromName(file.getName());
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(android.net.Uri.fromFile(file), resolvedMime);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(Intent.createChooser(intent, "Open with"));
+            } catch (Exception ignored) {
+                Toast.makeText(this, "No app found to open this file", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private String guessMimeFromName(String name) {
+        String lower = name != null ? name.toLowerCase() : "";
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".txt")) return "text/plain";
+        if (lower.endsWith(".doc")) return "application/msword";
+        if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+        if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".ppt")) return "application/vnd.ms-powerpoint";
+        if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        return "application/octet-stream";
     }
 
     protected abstract void resetCallButtonState();

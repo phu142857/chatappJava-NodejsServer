@@ -620,6 +620,9 @@ public class ProfileActivity extends AppCompatActivity {
         // Get views
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        // Hide generic file upload for avatar change
+        View fileOption = dialogView.findViewById(R.id.option_file);
+        if (fileOption != null) fileOption.setVisibility(View.GONE);
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         CardView removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
         LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);

@@ -354,6 +354,9 @@ public class GroupSettingsActivity extends AppCompatActivity {
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         
+        View fileOption = dialogView.findViewById(R.id.option_file);
+        if (fileOption != null) fileOption.setVisibility(View.GONE);
+        
         // Set click listeners
         cameraOption.setOnClickListener(v -> {
             try {

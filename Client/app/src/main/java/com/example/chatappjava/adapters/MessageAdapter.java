@@ -278,12 +278,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         ivSentImage.setVisibility(View.GONE);
                     }
                     
-                    // Show file info in text view
+                    // Show file info + download/open icon inside image container
                     if (tvSentMessage != null) {
                         tvSentMessage.setVisibility(View.VISIBLE);
                         String fileInfo = getFileInfoFromMessage(message);
                         tvSentMessage.setText(fileInfo);
-                        tvSentMessage.setOnClickListener(v -> {
+                    }
+                    View container = itemView.findViewById(R.id.fl_sent_image_container);
+                    if (container != null) container.setVisibility(View.VISIBLE);
+                    if (ivSentImage != null) {
+                        ivSentImage.setVisibility(View.VISIBLE);
+                        boolean isDownloaded = isFileDownloaded(itemView.getContext(), message);
+                        ivSentImage.setImageResource(isDownloaded ? R.drawable.ic_open : R.drawable.ic_download);
+                        ivSentImage.setOnClickListener(v -> {
                             if (listener != null) {
                                 String[] fileData = parseFileDataFromMessage(message);
                                 if (fileData != null) {
@@ -423,12 +430,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         ivReceivedImage.setVisibility(View.GONE);
                     }
                     
-                    // Show file info in text view
+                    // Show file info + download/open icon inside image container
                     if (tvReceivedMessage != null) {
                         tvReceivedMessage.setVisibility(View.VISIBLE);
                         String fileInfo = getFileInfoFromMessage(message);
                         tvReceivedMessage.setText(fileInfo);
-                        tvReceivedMessage.setOnClickListener(v -> {
+                    }
+                    View recvContainer = itemView.findViewById(R.id.fl_received_image_container);
+                    if (recvContainer != null) recvContainer.setVisibility(View.VISIBLE);
+                    if (ivReceivedImage != null) {
+                        ivReceivedImage.setVisibility(View.VISIBLE);
+                        boolean isDownloaded = isFileDownloaded(itemView.getContext(), message);
+                        ivReceivedImage.setImageResource(isDownloaded ? R.drawable.ic_open : R.drawable.ic_download);
+                        ivReceivedImage.setOnClickListener(v -> {
                             if (listener != null) {
                                 String[] fileData = parseFileDataFromMessage(message);
                                 if (fileData != null) {
@@ -904,6 +918,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (size < 1024 * 1024) return String.format("%.1f KB", size / 1024.0);
         if (size < 1024 * 1024 * 1024) return String.format("%.1f MB", size / (1024.0 * 1024.0));
         return String.format("%.1f GB", size / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    private static boolean isFileDownloaded(Context context, Message message) {
+        try {
+            String[] fileData = parseFileDataFromMessage(message);
+            if (fileData == null) return false;
+            String originalName = fileData[2];
+            java.io.File dir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+            if (dir == null) return false;
+            java.io.File f = new java.io.File(dir, originalName);
+            return f.exists();
+        } catch (Exception ignored) {}
+        return false;
     }
 
     public static class RequestsAdapter extends RecyclerView.Adapter<RequestsAdapter.VH> {

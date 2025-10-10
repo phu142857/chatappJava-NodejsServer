@@ -541,7 +541,7 @@ public class ApiClient {
      */
     public void uploadChatImage(String token, File imageFile, String chatId, Callback callback) {
         try {
-            String url = getBaseUrl() + UPLOAD_CHAT_IMAGE_ENDPOINT + "/" + chatId;
+            String url = getBaseUrl() + UPLOAD_CHAT_IMAGE_ENDPOINT + "/" + chatId + "/image";
             
             RequestBody fileBody = RequestBody.create(
                 MediaType.parse("image/*"), 
@@ -606,6 +606,37 @@ public class ApiClient {
         } catch (Exception e) {
             e.printStackTrace();
             // Create a failed callback
+            callback.onFailure(null, new IOException("Failed to prepare chat file upload: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Upload chat file to server using a File (recommended for content URIs copied to cache)
+     */
+    public void uploadChatFile(String token, java.io.File file, String originalName, String mimeType, long fileSize, String chatId, Callback callback) {
+        try {
+            String url = getBaseUrl() + UPLOAD_CHAT_FILE_ENDPOINT + "/" + chatId + "/file";
+
+            RequestBody fileBody = RequestBody.create(
+                MediaType.parse(mimeType != null ? mimeType : "application/octet-stream"),
+                file
+            );
+
+            RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", originalName != null ? originalName : file.getName(), fileBody)
+                .addFormDataPart("chatId", chatId)
+                .build();
+
+            Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + token)
+                .post(requestBody)
+                .build();
+
+            client.newCall(request).enqueue(callback);
+        } catch (Exception e) {
+            e.printStackTrace();
             callback.onFailure(null, new IOException("Failed to prepare chat file upload: " + e.getMessage()));
         }
     }
