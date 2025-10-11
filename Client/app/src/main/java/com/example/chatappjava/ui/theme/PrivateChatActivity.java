@@ -589,22 +589,4 @@ public class PrivateChatActivity extends BaseChatActivity {
             socketManager.removeCallStatusListener();
         }
     }
-
-    @Override
-    protected void resetCallButtonState() {
-        // Reset call button from "Cancel Call" back to "Call"
-        if (ivVideoCall != null) {
-            ivVideoCall.setVisibility(View.VISIBLE);
-            ivVideoCall.setImageResource(R.drawable.ic_video_call);
-            ivVideoCall.setBackgroundResource(R.drawable.button_call_action);
-        }
-        
-        if (ivCancelCall != null) {
-            ivCancelCall.setVisibility(View.GONE);
-        }
-        
-        // Clear current call ID
-        currentCallId = null;
-        isJoiningCall = false;
-    }
 }

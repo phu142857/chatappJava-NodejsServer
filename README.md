@@ -116,7 +116,7 @@ npm run dev
 ---
 
 ## API Overview
-| Endpoint                | Method | Description                   |
+| Endpoint                 | Method | Description                   |
 |--------------------------|--------|-------------------------------|
 | `/api/auth/register`     | POST   | Register new user             |
 | `/api/auth/login`        | POST   | User login (JWT issued)       |

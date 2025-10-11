@@ -133,7 +133,7 @@ public class BlockedUsersActivity extends AppCompatActivity {
 
             @SuppressLint("NotifyDataSetChanged")
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         blockedUsers.remove(user);

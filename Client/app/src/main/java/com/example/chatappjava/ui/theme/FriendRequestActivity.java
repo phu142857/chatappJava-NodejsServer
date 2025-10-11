@@ -1,5 +1,6 @@
 package com.example.chatappjava.ui.theme;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -38,7 +39,6 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private RecyclerView rvFriendRequests;
     private ProgressBar progressBar;
     private LinearLayout tvNoRequests;
-    private TextView tvTitle;
     private EditText etSearch;
     private View tabRequests;
     private View tabFriends;
@@ -51,7 +51,6 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private List<FriendRequest> friendRequests;
     private List<FriendRequest> allFriendRequests;
     private RecyclerView rvMyFriends;
-    private TextView tvRequestsTitle;
     private TextView tvFriendsTitle;
     private com.example.chatappjava.adapters.FriendsAdapter friendsAdapter;
     private final List<User> myFriends = new ArrayList<>();
@@ -85,7 +84,6 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         etSearch = findViewById(R.id.et_search);
         // new views
         rvMyFriends = findViewById(R.id.rv_my_friends);
-        tvRequestsTitle = findViewById(R.id.tv_requests_title);
         tvFriendsTitle = findViewById(R.id.tv_friends_title);
         tabRequests = findViewById(R.id.tab_requests);
         tabFriends = findViewById(R.id.tab_friends);
@@ -191,6 +189,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                 // no-op
             }
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseBody = response.body().string();
@@ -407,7 +406,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
             chatData.put("participantId", otherUser.getId());
             
             System.out.println("Creating chat with user: " + otherUser.getDisplayName() + " (ID: " + otherUser.getId() + ")");
-            System.out.println("Chat data: " + chatData.toString());
+            System.out.println("Chat data: " + chatData);
             System.out.println("API endpoint: /api/chats/private");
             
             apiClient.createChat(token, chatData, new Callback() {
@@ -422,9 +421,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String responseBody = response.body().string();
-                    runOnUiThread(() -> {
-                        handleCreateChatResponse(response.code(), responseBody, otherUser);
-                    });
+                    runOnUiThread(() -> handleCreateChatResponse(response.code(), responseBody, otherUser));
                 }
             });
             

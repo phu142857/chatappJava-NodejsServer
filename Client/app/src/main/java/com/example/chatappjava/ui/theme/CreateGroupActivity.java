@@ -1,5 +1,6 @@
 package com.example.chatappjava.ui.theme;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
@@ -9,6 +10,8 @@ import android.widget.Switch;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -31,6 +34,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
 
     private EditText etGroupName, etDescription;
     private RecyclerView rvFriends;
+    @SuppressLint("UseSwitchCompatOrMaterialCode")
     private Switch switchPublic;
     private ProgressBar progressBar;
     private SelectableUserAdapter adapter;
@@ -103,6 +107,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
                 });
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String body = response.body().string();
@@ -130,6 +135,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         });
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void filterFriends(String query) {
         String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
         friends.clear();
@@ -168,17 +174,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         }
 
         try {
-            JSONObject payload = new JSONObject();
-            payload.put("name", name);
-            if (!desc.isEmpty()) payload.put("description", desc);
-            JSONArray ids = new JSONArray();
-            for (String id : selectedUserIds) ids.put(id);
-            payload.put("participantIds", ids);
-
-            // settings.isPublic from toggle
-            JSONObject settings = new JSONObject();
-            settings.put("isPublic", switchPublic != null && switchPublic.isChecked());
-            payload.put("settings", settings);
+            JSONObject payload = getJsonObject(name, desc);
 
             progressBar.setVisibility(View.VISIBLE);
             apiClient.createGroupChat(token, payload, new Callback() {
@@ -211,6 +207,22 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
                 }
             });
         } catch (JSONException ignored) {}
+    }
+
+    @NonNull
+    private JSONObject getJsonObject(String name, String desc) throws JSONException {
+        JSONObject payload = new JSONObject();
+        payload.put("name", name);
+        if (!desc.isEmpty()) payload.put("description", desc);
+        JSONArray ids = new JSONArray();
+        for (String id : selectedUserIds) ids.put(id);
+        payload.put("participantIds", ids);
+
+        // settings.isPublic from toggle
+        JSONObject settings = new JSONObject();
+        settings.put("isPublic", switchPublic != null && switchPublic.isChecked());
+        payload.put("settings", settings);
+        return payload;
     }
 
     @Override

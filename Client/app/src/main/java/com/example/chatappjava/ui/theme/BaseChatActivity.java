@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -31,6 +32,9 @@ import android.text.TextWatcher;
 import android.widget.ArrayAdapter;
 import android.widget.ListPopupWindow;
 
+import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -51,6 +55,7 @@ import com.example.chatappjava.ui.call.RingingActivity;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -66,8 +71,11 @@ import okhttp3.Response;
 
 public abstract class BaseChatActivity extends AppCompatActivity implements MessageAdapter.OnMessageClickListener {
 
-    // Request codes
-    private static final int CALL_REQUEST_CODE = 1001;
+    // ActivityResultLaunchers for modern Activity Result API
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private ActivityResultLauncher<Intent> galleryLauncher;
+    private ActivityResultLauncher<Intent> filePickerLauncher;
+    private ActivityResultLauncher<Intent> callLauncher;
 
     // Common UI elements
     protected ImageView ivBack;
@@ -123,11 +131,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected boolean hasBlockedMe = false;
     
     // Gallery and camera constants
-    private static final int REQUEST_CODE_GALLERY = 1001;
-    private static final int REQUEST_CODE_CAMERA = 1002;
     private static final int REQUEST_CODE_CAMERA_PERMISSION = 1003;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1004;
-    private static final int REQUEST_CODE_FILE_PICKER = 1005;
 
     // Camera capture state
     private android.net.Uri cameraPhotoUri;
@@ -138,6 +143,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         super.onCreate(savedInstanceState);
         setContentView(getLayoutResource());
 
+        // Register ActivityResultLaunchers
+        registerActivityResultLaunchers();
+
         initViews();
         initData();
         setupSocketManager();
@@ -146,6 +154,75 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         loadChatData();
         startPolling();
         setupMentionSupport();
+    }
+
+    // Register ActivityResultLaunchers for modern Activity Result API
+    private void registerActivityResultLaunchers() {
+        // Camera launcher
+        cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    Intent data = result.getData();
+                    if (cameraPhotoFile != null && cameraPhotoFile.exists()) {
+                        uploadImageToServer(cameraPhotoFile, cameraPhotoUri);
+                    } else if (data != null) {
+                        android.graphics.Bitmap cameraBitmap = data.getParcelableExtra("data", android.graphics.Bitmap.class);
+                        if (cameraBitmap != null) {
+                            handleSelectedBitmap(cameraBitmap);
+                        } else {
+                            Toast.makeText(this, "No photo captured", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(this, "No photo captured", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        );
+
+        // Gallery launcher
+        galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    Intent data = result.getData();
+                    if (data == null) return;
+                    Uri selectedImageUri = data.getData();
+                    if (selectedImageUri != null) {
+                        handleSelectedImage(selectedImageUri);
+                    }
+                }
+            }
+        );
+
+        // File picker launcher
+        filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    Intent data = result.getData();
+                    if (data == null) return;
+                    Uri selectedFileUri = data.getData();
+                    if (selectedFileUri != null) {
+                        try {
+                            getContentResolver().takePersistableUriPermission(selectedFileUri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            );
+                        } catch (SecurityException ignored) { }
+                        handleSelectedFile(selectedFileUri);
+                    }
+                }
+            }
+        );
+
+        // Call launcher
+        callLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                // Handle call result if needed
+                // Currently no specific handling required for call results
+            }
+        );
     }
 
     // Abstract methods to be implemented by subclasses
@@ -196,23 +273,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         apiClient.initiateCall(token, currentChat.getId(), callType, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(BaseChatActivity.this, "Failed to initiate call: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to initiate call: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
-            
+
             @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         try {
                             String responseBody = response.body().string();
                             org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
-                            
+
                             if (jsonResponse.optBoolean("success", false)) {
                                 org.json.JSONObject callData = jsonResponse.getJSONObject("data");
                                 String callId = callData.getString("callId");
-                                
+
                                 // Open ringing activity for outgoing call
                                 Intent intent = new Intent(BaseChatActivity.this, RingingActivity.class);
                                 intent.putExtra("chat", currentChat.toJson().toString());
@@ -220,8 +295,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 intent.putExtra("callId", callId);
                                 intent.putExtra("callType", callType);
                                 intent.putExtra("isIncomingCall", false);
-                                
-                                startActivityForResult(intent, CALL_REQUEST_CODE);
+
+                                callLauncher.launch(intent);
                             } else {
                                 String errorMsg = jsonResponse.optString("message", "Failed to initiate call");
                                 Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
@@ -332,7 +407,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (picturesDir == null) picturesDir = getCacheDir();
             cameraPhotoFile = new java.io.File(picturesDir, "chat_photo_" + System.currentTimeMillis() + ".jpg");
             if (!cameraPhotoFile.exists()) {
-                cameraPhotoFile.createNewFile();
+                boolean created = cameraPhotoFile.createNewFile();
+                if (!created) {
+                    Toast.makeText(this, "Failed to create camera file", Toast.LENGTH_SHORT).show();
+                    return;
+                }
             }
             cameraPhotoUri = FileProvider.getUriForFile(
                 this,
@@ -341,7 +420,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             );
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
+            cameraLauncher.launch(cameraIntent);
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Cannot prepare camera file", Toast.LENGTH_SHORT).show();
@@ -359,7 +438,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         galleryIntent.setType("image/*");
-        startActivityForResult(galleryIntent, REQUEST_CODE_GALLERY);
+        galleryLauncher.launch(galleryIntent);
     }
     
     protected void openFilePicker() {
@@ -377,47 +456,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // No EXTRA_MIME_TYPES to avoid restricting; let user pick any
         // Persistable read permission so we can access later if needed
         fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        startActivityForResult(fileIntent, REQUEST_CODE_FILE_PICKER);
+        filePickerLauncher.launch(fileIntent);
     }
-    
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        
-        if (resultCode == RESULT_OK) {
-            if (requestCode == REQUEST_CODE_GALLERY && data != null) {
-                Uri selectedImageUri = data.getData();
-                if (selectedImageUri != null) {
-                    handleSelectedImage(selectedImageUri);
-                }
-            } else if (requestCode == REQUEST_CODE_CAMERA) {
-                // With EXTRA_OUTPUT, most cameras return null data; use saved file/uri
-                if (cameraPhotoFile != null && cameraPhotoFile.exists()) {
-                    uploadImageToServer(cameraPhotoFile, cameraPhotoUri);
-                } else if (data != null && data.getExtras() != null && data.getExtras().get("data") instanceof android.graphics.Bitmap) {
-                    // Fallback for devices returning thumbnail bitmap if EXTRA_OUTPUT ignored
-                    android.graphics.Bitmap cameraBitmap = (android.graphics.Bitmap) data.getExtras().get("data");
-                    if (cameraBitmap != null) {
-                        handleSelectedBitmap(cameraBitmap);
-                    }
-                } else {
-                    Toast.makeText(this, "No photo captured", Toast.LENGTH_SHORT).show();
-                }
-            } else if (requestCode == REQUEST_CODE_FILE_PICKER && data != null) {
-                Uri selectedFileUri = data.getData();
-                if (selectedFileUri != null) {
-                    // Take persistable read permission for the selected document
-                    try {
-                        final int takeFlags = data.getFlags() &
-                            (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                        getContentResolver().takePersistableUriPermission(selectedFileUri, takeFlags);
-                    } catch (Exception ignored) { }
-                    handleSelectedFile(selectedFileUri);
-                }
-            }
-        }
-    }
-    
+
+
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -533,7 +576,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 String mimeType = contentResolver.getType(fileUri);
                 if (mimeType == null || mimeType.isEmpty()) {
                     mimeType = guessMimeFromName(fileName);
-                    if (mimeType == null || mimeType.isEmpty()) mimeType = "application/octet-stream";
+                    if (mimeType.isEmpty()) mimeType = "application/octet-stream";
                 }
                 
                 // Check file size limit (50MB)
@@ -558,11 +601,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
     
     // No MIME white-listing; we accept all files. Keep helper to guess MIME when missing.
-    
-    protected void uploadImageToServer(java.io.File imageFile) {
-        uploadImageToServer(imageFile, null);
-    }
-    
+
     protected void uploadImageToServer(java.io.File imageFile, android.net.Uri localUri) {
         if (currentChat == null) {
             Toast.makeText(this, "Chat not available", Toast.LENGTH_SHORT).show();
@@ -612,9 +651,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 android.util.Log.e("BaseChatActivity", "Upload failed: " + e.getMessage());
-                runOnUiThread(() -> {
-                    Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -701,9 +738,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 android.util.Log.e("BaseChatActivity", "File upload failed: " + e.getMessage());
-                runOnUiThread(() -> {
-                    Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         };
 
@@ -771,7 +806,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             attachments.put(attachment);
             messageJson.put("attachments", attachments);
             
-            android.util.Log.d("BaseChatActivity", "Sending file message: " + messageJson.toString());
+            android.util.Log.d("BaseChatActivity", "Sending file message: " + messageJson);
             
             apiClient.sendMessage(token, messageJson, new okhttp3.Callback() {
                 @SuppressLint("NotifyDataSetChanged")
@@ -804,9 +839,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 @Override
                 public void onFailure(okhttp3.Call call, java.io.IOException e) {
                     android.util.Log.e("BaseChatActivity", "Send file message failed: " + e.getMessage());
-                    runOnUiThread(() -> {
-                        Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
+                    runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                 }
             });
             
@@ -866,24 +899,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
             
             // Create attachments array for image message
-            org.json.JSONArray attachments = new org.json.JSONArray();
-            org.json.JSONObject attachment = new org.json.JSONObject();
-            attachment.put("filename", imageUrl.substring(imageUrl.lastIndexOf("/") + 1));
-            attachment.put("originalName", imageUrl.substring(imageUrl.lastIndexOf("/") + 1));
-            attachment.put("mimeType", "image/jpeg");
-            attachment.put("size", 0); // We don't have size info from URL
-
-            // Convert relative path to full URL for server validation
-            String fullImageUrl = imageUrl;
-            if (!imageUrl.startsWith("http")) {
-                fullImageUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
-                              ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + imageUrl;
-            }
-            attachment.put("url", fullImageUrl);
-            attachments.put(attachment);
+            JSONArray attachments = getJsonArray(imageUrl);
             messageJson.put("attachments", attachments);
             
-            android.util.Log.d("BaseChatActivity", "Sending image message: " + messageJson.toString());
+            android.util.Log.d("BaseChatActivity", "Sending image message: " + messageJson);
             
             apiClient.sendMessage(token, messageJson, new okhttp3.Callback() {
                 @SuppressLint("NotifyDataSetChanged")
@@ -939,6 +958,26 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             e.printStackTrace();
             Toast.makeText(this, "Error preparing message", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @NonNull
+    private static JSONArray getJsonArray(String imageUrl) throws JSONException {
+        JSONArray attachments = new JSONArray();
+        JSONObject attachment = new JSONObject();
+        attachment.put("filename", imageUrl.substring(imageUrl.lastIndexOf("/") + 1));
+        attachment.put("originalName", imageUrl.substring(imageUrl.lastIndexOf("/") + 1));
+        attachment.put("mimeType", "image/jpeg");
+        attachment.put("size", 0); // We don't have size info from URL
+
+        // Convert relative path to full URL for server validation
+        String fullImageUrl = imageUrl;
+        if (!imageUrl.startsWith("http")) {
+            fullImageUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
+                          ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + imageUrl;
+        }
+        attachment.put("url", fullImageUrl);
+        attachments.put(attachment);
+        return attachments;
     }
 
     // Emoji picker handling
@@ -1096,9 +1135,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void setupClickListeners() {
         // Back button
         if (ivBack != null) {
-            ivBack.setOnClickListener(v -> {
-                finish();
-            });
+            ivBack.setOnClickListener(v -> finish());
         }
 
         if (ivSend != null) {
@@ -1156,6 +1193,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
 
+    @SuppressLint("SetTextI18n")
     protected void applyBlockUiState(boolean blockedByMe, boolean blockedMe) {
         // Disable input and show a simple banner in status line
         if (etMessage != null) {
@@ -1248,7 +1286,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             if (jsonResponse.optBoolean("success", false)) {
                                 JSONObject data = jsonResponse.getJSONObject("data");
                                 // Parse messages
-                                int previousMessageCount = messages.size();
                                 java.util.List<Message> pageOne = new java.util.ArrayList<>();
                                 if (data.has("messages") && data.get("messages") instanceof org.json.JSONArray) {
                                     org.json.JSONArray messagesArray = data.getJSONArray("messages");
@@ -1330,9 +1367,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(BaseChatActivity.this, "Failed to load messages: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to load messages: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1475,14 +1510,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         JSONObject data = jsonResponse.optJSONObject("data");
                                         if (data != null && data.has("message")) {
                                             JSONObject m = data.getJSONObject("message");
-                                            String serverId = m.optString("_id", null);
-                                            if (serverId != null) {
-                                                // Replace the last local placeholder that matches signature
-                                                int idx = findLocalPlaceholderIndex(Message.fromJson(m));
-                                                if (idx >= 0) {
-                                                    messages.set(idx, Message.fromJson(m));
-                                                    messageAdapter.notifyItemChanged(idx);
-                                                }
+                                            // Replace the last local placeholder that matches signature
+                                            int idx = findLocalPlaceholderIndex(Message.fromJson(m));
+                                            if (idx >= 0) {
+                                                messages.set(idx, Message.fromJson(m));
+                                                messageAdapter.notifyItemChanged(idx);
                                             }
                                         }
                                     } catch (Exception ignored) {}
@@ -1495,7 +1527,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                     Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                                 }
                             } catch (JSONException e) {
-                                e.printStackTrace();
+                                Log.e("BaseActivity", "Error processing response", e);
                                 // Remove from local list if failed
                                 messages.remove(message);
                                 messageAdapter.notifyDataSetChanged();
@@ -1523,7 +1555,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 }
             });
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e("BaseActivity", "Error preparing message", e);
             Toast.makeText(this, "Error preparing message", Toast.LENGTH_SHORT).show();
         }
     }
@@ -1768,6 +1800,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         showImageZoomDialog(imageUrl, localImageUri);
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     @Override
     public void onReactClick(Message message, String emoji) {
         String token = sharedPrefsManager.getToken();
@@ -2029,6 +2062,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         currentDialog.show();
     }
 
+    @SuppressLint({"NotifyDataSetChanged", "SetTextI18n"})
     protected void showReactionPicker(Message message) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_react_picker, null);
 
@@ -2165,6 +2199,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to edit message", Toast.LENGTH_SHORT).show());
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 String body = response.body().string();
@@ -2272,16 +2307,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         req.setDescription("Downloading file...");
         req.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            req.setDestinationInExternalFilesDir(this, android.os.Environment.DIRECTORY_DOWNLOADS, targetName);
-        } else {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_STORAGE_PERMISSION);
-                Toast.makeText(this, "Please grant storage permission and try again", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            req.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, targetName);
-        }
+        req.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, targetName);
 
         dm.enqueue(req);
         Toast.makeText(this, "Downloading...", Toast.LENGTH_SHORT).show();
@@ -2329,6 +2355,4 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
         return "application/octet-stream";
     }
-
-    protected abstract void resetCallButtonState();
 }

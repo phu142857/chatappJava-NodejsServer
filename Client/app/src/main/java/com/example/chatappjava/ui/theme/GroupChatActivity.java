@@ -788,10 +788,4 @@ public class GroupChatActivity extends BaseChatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
     }
-
-    @Override
-    protected void resetCallButtonState() {
-        // Group chats don't have call functionality, so this is a no-op
-        // But we need to implement it since it's abstract in BaseChatActivity
-    }
 }
