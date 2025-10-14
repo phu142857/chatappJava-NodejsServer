@@ -68,6 +68,13 @@ public class GroupSettingsActivity extends AppCompatActivity {
         loadGroupData();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh latest group state from server to ensure privacy toggle matches backend
+        refreshCurrentChatFromServer();
+    }
+
     private void initPickers() {
         cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == RESULT_OK && result.getData() != null) {
@@ -187,7 +194,11 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         // Set flag to prevent listener from triggering during initial load
         isUpdatingSettings = true;
-        switchPublic.setChecked(currentChat.isPublicGroup());
+        // Prefer server explicit flag; else fallback to cached local value; else keep current UI state
+        Boolean cached = getCachedIsPublic(currentChat.getId());
+        boolean target = currentChat.hasExplicitPublicFlag() ? currentChat.isPublicGroup()
+                : (cached != null ? cached : switchPublic.isChecked());
+        switchPublic.setChecked(target);
         isUpdatingSettings = false;
         
         // Enable/disable switch based on creator status
@@ -201,6 +212,44 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         // Load join requests count
         fetchJoinRequestCount();
+    }
+
+    private void refreshCurrentChatFromServer() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty() || currentChat == null) return;
+        apiClient.getChats(token, new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) return;
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    JSONObject json = new JSONObject(body);
+                    org.json.JSONArray arr = json.optJSONArray("data");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject chatObj = arr.optJSONObject(i);
+                            if (chatObj != null && currentChat.getId().equals(chatObj.optString("_id"))) {
+                                Chat updated = Chat.fromJson(chatObj);
+                                currentChat = updated;
+                                runOnUiThread(() -> {
+                                    // Prevent listener triggering while updating UI
+                                    isUpdatingSettings = true;
+                                    Boolean cached2 = getCachedIsPublic(currentChat.getId());
+                                    boolean target2 = currentChat.hasExplicitPublicFlag() ? currentChat.isPublicGroup()
+                                            : (cached2 != null ? cached2 : switchPublic.isChecked());
+                                    switchPublic.setChecked(target2);
+                                    isUpdatingSettings = false;
+                                });
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) { }
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) { /* no-op */ }
+        });
     }
     
     @SuppressLint("SetTextI18n")
@@ -525,19 +574,16 @@ public class GroupSettingsActivity extends AppCompatActivity {
             JSONObject settings = new JSONObject();
             settings.put("isPublic", isPublic);
             settingsData.put("settings", settings);
-            
-            Toast.makeText(this, "Updating group settings...", Toast.LENGTH_SHORT).show();
-            
+
             apiClient.updateGroupSettings(token, currentChat.getId(), settingsData, new Callback() {
                 @Override
                 public void onResponse(Call call, Response response) {
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
-                            Toast.makeText(GroupSettingsActivity.this, "Group settings updated successfully", Toast.LENGTH_SHORT).show();
                             // Update local chat object
                             currentChat.setIsPublic(isPublic);
+                            cacheIsPublic(currentChat.getId(), isPublic);
                         } else {
-                            Toast.makeText(GroupSettingsActivity.this, "Failed to update group settings", Toast.LENGTH_SHORT).show();
                             // Revert switch state safely
                             switchPublic.setChecked(!isPublic);
                         }
@@ -565,6 +611,23 @@ public class GroupSettingsActivity extends AppCompatActivity {
             // Reset flag after update
             isUpdatingSettings = false;
         }
+    }
+
+    private void cacheIsPublic(String chatId, boolean isPublic) {
+        try {
+            android.content.SharedPreferences sp = getSharedPreferences("ChatPrivacyCache", MODE_PRIVATE);
+            sp.edit().putBoolean("pub_" + chatId, isPublic).apply();
+        } catch (Exception ignored) {}
+    }
+
+    private Boolean getCachedIsPublic(String chatId) {
+        try {
+            android.content.SharedPreferences sp = getSharedPreferences("ChatPrivacyCache", MODE_PRIVATE);
+            if (sp.contains("pub_" + chatId)) {
+                return sp.getBoolean("pub_" + chatId, false);
+            }
+            return null;
+        } catch (Exception e) { return null; }
     }
 
     @Nullable

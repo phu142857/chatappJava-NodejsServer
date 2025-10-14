@@ -127,9 +127,36 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnSave.setOnClickListener(v -> {
-            // TODO: Implement change password API call
-            Toast.makeText(this, "Change password feature coming soon", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
+            String currentPw = etCurrentPassword.getText().toString();
+            String newPw = etNewPassword.getText().toString();
+            String confirmPw = etConfirmPassword.getText().toString();
+
+            if (currentPw.isEmpty()) { etCurrentPassword.setError("Enter current password"); etCurrentPassword.requestFocus(); return; }
+            if (newPw.length() < 6) { etNewPassword.setError("At least 6 characters"); etNewPassword.requestFocus(); return; }
+            if (!newPw.equals(confirmPw)) { etConfirmPassword.setError("Passwords do not match"); etConfirmPassword.requestFocus(); return; }
+
+            String token = sharedPrefsManager.getToken();
+            if (token == null) { Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show(); return; }
+
+            ApiClient api = new ApiClient();
+            android.app.ProgressDialog pd = android.app.ProgressDialog.show(this, null, "Updating password...", true, false);
+            api.changePassword(token, currentPw, newPw, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> { pd.dismiss(); Toast.makeText(SettingsActivity.this, "Network error", Toast.LENGTH_SHORT).show(); });
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String resp = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        pd.dismiss();
+                        if (response.isSuccessful()) {
+                            Toast.makeText(SettingsActivity.this, "Password changed successfully", Toast.LENGTH_LONG).show();
+                            dialog.dismiss();
+                        } else {
+                            Toast.makeText(SettingsActivity.this, parseErrorMessage(resp), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            });
         });
 
         dialog.show();

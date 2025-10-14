@@ -30,6 +30,7 @@ public class Chat {
     private String visibility; // public or private (optional)
     private boolean isPublic;
     private String joinRequestStatus; // none | pending | approved | rejected (client uses pending)
+    private boolean hasPublicFlag;
     
     // Constructors
     public Chat() {
@@ -55,18 +56,25 @@ public class Chat {
         chat.name = json.optString("name", "");
         chat.description = json.optString("description", "");
         chat.avatar = json.optString("avatar", "");
-        chat.visibility = json.optString("visibility", json.optString("privacy", "public"));
-        // Determine isPublic from multiple possible shapes: root.isPublic, root.visibility, settings.isPublic
+        // Visibility can be provided as `visibility` or legacy `privacy`. If missing, leave empty to avoid defaulting to public.
+        chat.visibility = json.optString("visibility", json.optString("privacy", ""));
+        // Determine isPublic from multiple possible shapes: root.isPublic, settings.isPublic, or visibility string
+        boolean hasIsPublicRoot = json.has("isPublic");
         boolean isPublicRoot = json.optBoolean("isPublic", false);
-        boolean isPublicByVisibility = "public".equalsIgnoreCase(chat.visibility);
         boolean isPublicBySettings = false;
+        boolean hasIsPublicInSettings = false;
         try {
             JSONObject settingsObj = json.optJSONObject("settings");
             if (settingsObj != null) {
+                hasIsPublicInSettings = settingsObj.has("isPublic");
                 isPublicBySettings = settingsObj.optBoolean("isPublic", false);
             }
         } catch (Throwable ignored) {}
-        chat.isPublic = isPublicRoot || isPublicByVisibility || isPublicBySettings;
+        boolean hasVisibility = chat.visibility != null && !chat.visibility.isEmpty();
+        boolean isPublicByVisibility = "public".equalsIgnoreCase(chat.visibility);
+        // Prefer explicit flags over inferred string
+        chat.isPublic = isPublicRoot || isPublicBySettings || isPublicByVisibility;
+        chat.hasPublicFlag = hasIsPublicRoot || hasIsPublicInSettings || hasVisibility;
         chat.joinRequestStatus = json.optString("joinRequestStatus", "");
         
         // lastMessage may be an object (populated) or an id/string
@@ -219,6 +227,7 @@ public class Chat {
     public void setAvatar(String avatar) { this.avatar = avatar; }
     public boolean isPublicGroup() { return isGroupChat() && isPublic; }
     public void setIsPublic(boolean isPublic) { this.isPublic = isPublic; }
+    public boolean hasExplicitPublicFlag() { return hasPublicFlag; }
     public String getVisibility() { return visibility; }
     public String getJoinRequestStatus() { return joinRequestStatus; }
     public void setJoinRequestStatus(String status) { this.joinRequestStatus = status; }
