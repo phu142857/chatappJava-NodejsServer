@@ -22,6 +22,7 @@ public class RegisterActivity extends AppCompatActivity {
     private EditText etUsername, etEmail, etPassword, etConfirmPassword;
     private Button btnRegister;
     private TextView tvLogin;
+    private TextView tvRegisterError;
     private ApiClient apiClient;
     private android.os.CountDownTimer countDownTimer;
     private android.app.AlertDialog otpDialog;
@@ -43,6 +44,7 @@ public class RegisterActivity extends AppCompatActivity {
         etConfirmPassword = findViewById(R.id.et_confirm_password);
         btnRegister = findViewById(R.id.btn_register);
         tvLogin = findViewById(R.id.tv_login);
+        tvRegisterError = findViewById(R.id.tv_register_error);
     }
     
     private void initializeServices() {
@@ -179,7 +181,7 @@ public class RegisterActivity extends AppCompatActivity {
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
                         btnRegister.setEnabled(true);
-                        Toast.makeText(RegisterActivity.this, "Failed to send OTP: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        showInlineError("Failed to send OTP. Please try again.");
                     });
                 }
 
@@ -194,26 +196,39 @@ public class RegisterActivity extends AppCompatActivity {
                                 String body = response.body().string();
                                 JSONObject json = new JSONObject(body);
                                 String message = json.optString("message", "Failed to request OTP");
-                                Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_SHORT).show();
+                                showInlineError(message);
                             } catch (Exception ex) {
-                                Toast.makeText(RegisterActivity.this, "Failed to request OTP", Toast.LENGTH_SHORT).show();
+                                showInlineError("Failed to request OTP");
                             }
                         }
                     });
                 }
             });
         } catch (JSONException e) {
-            Toast.makeText(this, "Data Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            showInlineError("Data Error. Please try again.");
         }
+    }
+
+    private void showInlineError(String msg) {
+        if (tvRegisterError == null) return;
+        tvRegisterError.setText(msg);
+        tvRegisterError.setVisibility(View.VISIBLE);
     }
 
     private void showOtpDialog(String email) {
         android.view.LayoutInflater inflater = android.view.LayoutInflater.from(this);
         android.view.View view = inflater.inflate(com.example.chatappjava.R.layout.dialog_otp, null);
-        EditText dialogEtOtp = view.findViewById(com.example.chatappjava.R.id.dialog_et_otp);
+        EditText hiddenOtp = view.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
         TextView dialogTvTimer = view.findViewById(com.example.chatappjava.R.id.dialog_tv_timer);
-        android.widget.Button btnNeg = view.findViewById(com.example.chatappjava.R.id.btn_negative);
-        android.widget.Button btnPos = view.findViewById(com.example.chatappjava.R.id.btn_positive);
+        TextView tvError = view.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+        android.view.View circlesContainer = view.findViewById(com.example.chatappjava.R.id.otp_circles_container);
+        TextView c1 = view.findViewById(com.example.chatappjava.R.id.otp_c1);
+        TextView c2 = view.findViewById(com.example.chatappjava.R.id.otp_c2);
+        TextView c3 = view.findViewById(com.example.chatappjava.R.id.otp_c3);
+        TextView c4 = view.findViewById(com.example.chatappjava.R.id.otp_c4);
+        TextView c5 = view.findViewById(com.example.chatappjava.R.id.otp_c5);
+        TextView c6 = view.findViewById(com.example.chatappjava.R.id.otp_c6);
+        android.widget.Button btnResend = view.findViewById(com.example.chatappjava.R.id.btn_resend_otp);
 
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this)
                 .setView(view)
@@ -224,22 +239,80 @@ public class RegisterActivity extends AppCompatActivity {
             android.view.Window w = otpDialog.getWindow();
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
-        btnNeg.setOnClickListener(v -> {
-            if (countDownTimer != null) countDownTimer.cancel();
-            if (otpDialog != null) otpDialog.dismiss();
-        });
-        btnPos.setOnClickListener(v -> {
-            String otp = dialogEtOtp.getText().toString().trim();
-            if (otp.length() != 6) {
-                dialogEtOtp.setError("Enter 6-digit OTP");
-                dialogEtOtp.requestFocus();
-                return;
+        otpDialog.setOnDismissListener(d -> { if (countDownTimer != null) countDownTimer.cancel(); });
+
+        android.view.View.OnClickListener focusInput = v -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        };
+        circlesContainer.setOnClickListener(focusInput);
+        view.setOnClickListener(focusInput);
+
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                String code = s.toString();
+                updateOtpCircles(code.length(), c1, c2, c3, c4, c5, c6);
+                if (code.length() > 0) {
+                    tvError.setVisibility(android.view.View.GONE);
+                }
+                if (code.length() == 6) {
+                    hiddenOtp.clearFocus();
+                    verifyOtpFromDialog(email, code);
+                }
             }
-            verifyOtpFromDialog(email, otp);
+        };
+        hiddenOtp.addTextChangedListener(watcher);
+
+        btnResend.setOnClickListener(v -> {
+            try {
+                org.json.JSONObject data = new org.json.JSONObject();
+                data.put("username", etUsername.getText().toString().trim());
+                data.put("email", email);
+                data.put("password", etPassword.getText().toString().trim());
+                btnResend.setEnabled(false);
+                apiClient.requestRegisterOTP(data, new Callback() {
+                    @Override public void onFailure(Call call, java.io.IOException e) {
+                        runOnUiThread(() -> {
+                            btnResend.setEnabled(true);
+                            android.widget.Toast.makeText(RegisterActivity.this, "Failed to resend: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                    @Override public void onResponse(Call call, Response response) throws java.io.IOException {
+                        runOnUiThread(() -> {
+                            btnResend.setEnabled(true);
+                            if (response.isSuccessful()) {
+                                hiddenOtp.setText("");
+                                tvError.setVisibility(android.view.View.GONE);
+                                startDialogTimer(dialogTvTimer);
+                                android.widget.Toast.makeText(RegisterActivity.this, "OTP resent", android.widget.Toast.LENGTH_SHORT).show();
+                            } else {
+                                android.widget.Toast.makeText(RegisterActivity.this, "Failed to resend OTP", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
+            } catch (org.json.JSONException ex) {
+                android.widget.Toast.makeText(RegisterActivity.this, "Data Error: " + ex.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+            }
         });
 
         startDialogTimer(dialogTvTimer);
         otpDialog.show();
+
+        hiddenOtp.postDelayed(() -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }, 150);
+    }
+
+    private void updateOtpCircles(int filled, TextView... circles) {
+        for (int i = 0; i < circles.length; i++) {
+            circles[i].setBackgroundResource(i < filled ? com.example.chatappjava.R.drawable.otp_circle_filled : com.example.chatappjava.R.drawable.otp_circle_empty);
+        }
     }
 
     private void startDialogTimer(TextView tv) {
@@ -285,9 +358,23 @@ public class RegisterActivity extends AppCompatActivity {
                             try {
                                 JSONObject json = new JSONObject(responseBody);
                                 String message = json.optString("message", "Invalid OTP");
-                                Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_SHORT).show();
+                                if (otpDialog != null && otpDialog.isShowing()) {
+                                    android.widget.TextView err = otpDialog.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+                                    android.widget.EditText hid = otpDialog.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+                                    if (err != null) { err.setText("Invalid OTP"); err.setVisibility(android.view.View.VISIBLE); }
+                                    if (hid != null) { hid.setText(""); }
+                                } else {
+                                    Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_SHORT).show();
+                                }
                             } catch (Exception ex) {
-                                Toast.makeText(RegisterActivity.this, "Invalid OTP", Toast.LENGTH_SHORT).show();
+                                if (otpDialog != null && otpDialog.isShowing()) {
+                                    android.widget.TextView err = otpDialog.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+                                    android.widget.EditText hid = otpDialog.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+                                    if (err != null) { err.setText("Invalid OTP"); err.setVisibility(android.view.View.VISIBLE); }
+                                    if (hid != null) { hid.setText(""); }
+                                } else {
+                                    Toast.makeText(RegisterActivity.this, "Invalid OTP", Toast.LENGTH_SHORT).show();
+                                }
                             }
                         }
                     });

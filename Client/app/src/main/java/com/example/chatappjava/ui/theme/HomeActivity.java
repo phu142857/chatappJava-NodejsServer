@@ -41,6 +41,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     // UI Components
     // tvMessagesTitle removed - no longer needed
     private ImageView ivSearch, ivMoreVert;
+    private View btnNewGroupAction;
+    private View efabNewGroup;
     private TextView tvChats, tvGroups, tvCalls;
     private RecyclerView rvChatList;
     private LinearLayout llFriendRequests;
@@ -140,6 +142,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         rvChatList = findViewById(R.id.rv_chat_list);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
         tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
+        // Initialize friend requests title (different layout ids possible)
+        tvFriendRequestsTitle = findViewById(R.id.tv_requests_title);
+        // New Group Extended FAB
+        efabNewGroup = findViewById(R.id.efab_new_group);
         
         // User Profile Components
         ivUserAvatar = findViewById(R.id.iv_user_avatar);
@@ -173,11 +179,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         // Title removed - no click listener needed
         
-        // More options menu
+        // More button: go directly to Settings
         ivMoreVert.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showOptionsMenu();
+                Intent settingsIntent = new Intent(HomeActivity.this, SettingsActivity.class);
+                startActivity(settingsIntent);
             }
         });
 
@@ -213,6 +220,15 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 switchTab(2);
             }
         });
+        if (efabNewGroup != null) {
+            efabNewGroup.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent createGroupIntent = new Intent(HomeActivity.this, CreateGroupActivity.class);
+                    startActivity(createGroupIntent);
+                }
+            });
+        }
     }
     
     private void setupRecyclerView() {
@@ -316,12 +332,23 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvChats.setSelected(false);
         tvGroups.setSelected(false);
         tvCalls.setSelected(false);
+        // Show title only on Chats tab
+        if (tvFriendRequestsTitle != null) {
+            tvFriendRequestsTitle.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
+        }
+        // Show entire Friend Requests layout only on Chats tab
+        if (llFriendRequests != null) {
+            llFriendRequests.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
+        }
+        // Toggle New Group Extended FAB visibility: only on Groups tab
+        if (efabNewGroup != null) {
+            efabNewGroup.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
+        }
         
         // Highlight selected tab (color will be handled by tab_text_selector)
         switch (tabIndex) {
             case 0:
                 tvChats.setSelected(true);
-                Toast.makeText(this, "Chats selected", Toast.LENGTH_SHORT).show();
                 // Switch to chat adapter and show only private chats
                 rvChatList.setAdapter(chatAdapter);
                 applyChatsFilter();
@@ -898,7 +925,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
 
     private void updateFriendRequestBadge(int totalCount, int pendingReceivedCount) {
         if (tvFriendRequestsTitle != null) {
-            String baseTitle = "Friend Requests";
+            String baseTitle = "Friends";
             tvFriendRequestsTitle.setText(baseTitle + " (" + totalCount + ")");
         }
         if (pendingReceivedCount > 0) {

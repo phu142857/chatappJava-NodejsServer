@@ -109,6 +109,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected AlertDialog currentDialog;
     // Forwarding support
     protected String pendingForwardContent;
+    protected String pendingForwardMessageRaw; // JSON string with type/content/attachments
     // Mentions
     protected ListPopupWindow mentionPopup;
     protected java.util.List<String> mentionCandidates = new java.util.ArrayList<>();
@@ -1090,6 +1091,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (intent.hasExtra("forward_content")) {
             pendingForwardContent = intent.getStringExtra("forward_content");
         }
+        if (intent.hasExtra("forward_message")) {
+            pendingForwardMessageRaw = intent.getStringExtra("forward_message");
+        }
 
         // Preload group members for mentions
         if (currentChat != null && currentChat.isGroupChat()) {
@@ -1253,13 +1257,56 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         });
 
-        // If there is a pending forward content and chat is known, send it now (post to ensure UI ready)
-        if (pendingForwardContent != null && !pendingForwardContent.isEmpty() && currentChat != null) {
+        // If there is a pending forward payload and chat is known, send it now (post to ensure UI ready)
+        if (currentChat != null && ( (pendingForwardMessageRaw != null && !pendingForwardMessageRaw.isEmpty()) || (pendingForwardContent != null && !pendingForwardContent.isEmpty()) )) {
             rvMessages.postDelayed(() -> {
                 try {
-                    sendMessage(pendingForwardContent);
+                    if (pendingForwardMessageRaw != null && !pendingForwardMessageRaw.isEmpty()) {
+                        try {
+                            org.json.JSONObject fwd = new org.json.JSONObject(pendingForwardMessageRaw);
+                            String type = fwd.optString("type", "text");
+                            if ("image".equals(type)) {
+                                // image via attachments[0].url
+                                org.json.JSONArray atts = fwd.optJSONArray("attachments");
+                                if (atts != null && atts.length() > 0) {
+                                    String url = atts.getJSONObject(0).optString("url", "");
+                                    if (!url.isEmpty()) {
+                                        sendImageMessage(url, null);
+                                        return;
+                                    }
+                                }
+                                // fallback to content
+                                String c = fwd.optString("content", "");
+                                if (!c.isEmpty()) { sendImageMessage(c, null); return; }
+                            } else if ("file".equals(type)) {
+                                org.json.JSONArray atts = fwd.optJSONArray("attachments");
+                                if (atts != null && atts.length() > 0) {
+                                    org.json.JSONObject a = atts.getJSONObject(0);
+                                    String url = a.optString("url", "");
+                                    String filename = a.optString("filename", "");
+                                    String originalName = a.optString("originalName", filename);
+                                    String mime = a.optString("mimeType", "application/octet-stream");
+                                    long size = a.optLong("size", 0);
+                                    if (!url.isEmpty()) { sendFileMessage(url, filename, originalName, mime, size); return; }
+                                }
+                                // fallback to text if no attachment
+                                String c = fwd.optString("content", "");
+                                if (!c.isEmpty()) { sendMessage(c); return; }
+                            } else {
+                                String c = fwd.optString("content", "");
+                                if (!c.isEmpty()) { sendMessage(c); return; }
+                            }
+                        } catch (Exception ignored) {
+                            if (pendingForwardContent != null && !pendingForwardContent.isEmpty()) {
+                                sendMessage(pendingForwardContent);
+                            }
+                        }
+                    } else if (pendingForwardContent != null && !pendingForwardContent.isEmpty()) {
+                        sendMessage(pendingForwardContent);
+                    }
                 } finally {
                     pendingForwardContent = null;
+                    pendingForwardMessageRaw = null;
                 }
             }, 150);
         }
@@ -2046,9 +2093,19 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             // Start SearchActivity in forward mode
             Intent i = new Intent(this, SearchActivity.class);
             i.putExtra("mode", "forward");
-            // Pack content to forward (text only for now)
-            String forwardContent = message.isImageMessage() ? (message.getContent() != null ? message.getContent() : "") : message.getContent();
-            i.putExtra("forward_content", forwardContent != null ? forwardContent : "");
+            try {
+                // Build a minimal forward payload with type/content/attachments
+                org.json.JSONObject fwd = new org.json.JSONObject();
+                fwd.put("type", message.isImageMessage() ? "image" : (message.isFileMessage() ? "file" : "text"));
+                fwd.put("content", message.getContent() != null ? message.getContent() : "");
+                if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                    fwd.put("attachments", new org.json.JSONArray(message.getAttachments()));
+                }
+                i.putExtra("forward_message", fwd.toString());
+            } catch (Exception ignored) {
+                String forwardContent = message.getContent();
+                i.putExtra("forward_content", forwardContent != null ? forwardContent : "");
+            }
             startActivity(i);
             if (currentDialog != null) currentDialog.dismiss();
         });

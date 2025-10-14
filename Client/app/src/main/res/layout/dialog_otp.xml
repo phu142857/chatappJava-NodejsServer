@@ -25,16 +25,54 @@
         android:textColor="#37474F"
         android:paddingBottom="12dp"/>
 
+    <!-- Hidden input to capture numeric OTP -->
     <EditText
-        android:id="@+id/dialog_et_otp"
+        android:id="@+id/dialog_et_hidden_otp"
+        android:layout_width="1px"
+        android:layout_height="1px"
+        android:inputType="number"
+        android:digits="0123456789"
+        android:maxLength="6"
+        android:singleLine="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:cursorVisible="false"
+        android:importantForAutofill="no"
+        android:alpha="0"
+        android:visibility="visible"/>
+
+    <!-- Six circles -->
+    <LinearLayout
+        android:id="@+id/otp_circles_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="6-digit OTP"
-        android:inputType="number"
-        android:maxLength="6"
-        android:minHeight="48dp"
-        android:background="@drawable/input_background"
-        android:padding="12dp" />
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <TextView android:id="@+id/otp_c1" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+        <Space android:layout_width="10dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/otp_c2" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+        <Space android:layout_width="10dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/otp_c3" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+        <Space android:layout_width="10dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/otp_c4" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+        <Space android:layout_width="10dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/otp_c5" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+        <Space android:layout_width="10dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/otp_c6" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/dialog_tv_error"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="#D32F2F"
+        android:visibility="gone"
+        android:paddingTop="4dp"/>
 
     <TextView
         android:id="@+id/dialog_tv_timer"
@@ -48,25 +86,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end"
+        android:gravity="center_vertical"
         android:layout_marginTop="16dp">
 
-        <Button
-            android:id="@+id/btn_negative"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cancel"
-            android:textAllCaps="false"/>
-
         <Space
-            android:layout_width="12dp"
-            android:layout_height="0dp" />
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <Button
-            android:id="@+id/btn_positive"
+            android:id="@+id/btn_resend_otp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Verify"
+            android:text="Resend OTP"
             android:textAllCaps="false"/>
     </LinearLayout>
 

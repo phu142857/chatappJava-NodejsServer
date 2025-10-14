@@ -25,6 +25,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText etEmail, etPassword;
     private Button btnLogin;
     private TextView tvRegister, tvForgotPassword;
+    private TextView tvLoginError;
     private ApiClient apiClient;
     private SharedPreferencesManager sharedPrefsManager;
     
@@ -49,6 +50,7 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btn_login);
         tvRegister = findViewById(R.id.tv_register);
         tvForgotPassword = findViewById(R.id.tv_forgot_password);
+        tvLoginError = findViewById(R.id.tv_login_error);
     }
     
     private void initializeServices() {
@@ -139,21 +141,20 @@ public class LoginActivity extends AppCompatActivity {
         android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_otp, null);
         android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
         android.widget.TextView tvMsg = dialogView.findViewById(R.id.tv_message);
-        android.widget.EditText etOtp = dialogView.findViewById(R.id.dialog_et_otp);
+        android.widget.EditText hiddenOtp = dialogView.findViewById(R.id.dialog_et_hidden_otp);
         android.widget.TextView tvTimer = dialogView.findViewById(R.id.dialog_tv_timer);
-        android.widget.Button btnNeg = dialogView.findViewById(R.id.btn_negative);
-        android.widget.Button btnPos = dialogView.findViewById(R.id.btn_positive);
+        android.widget.TextView tvError = dialogView.findViewById(R.id.dialog_tv_error);
+        android.view.View circlesContainer = dialogView.findViewById(R.id.otp_circles_container);
+        android.widget.TextView c1 = dialogView.findViewById(R.id.otp_c1);
+        android.widget.TextView c2 = dialogView.findViewById(R.id.otp_c2);
+        android.widget.TextView c3 = dialogView.findViewById(R.id.otp_c3);
+        android.widget.TextView c4 = dialogView.findViewById(R.id.otp_c4);
+        android.widget.TextView c5 = dialogView.findViewById(R.id.otp_c5);
+        android.widget.TextView c6 = dialogView.findViewById(R.id.otp_c6);
+        android.widget.Button btnResend = dialogView.findViewById(R.id.btn_resend_otp);
 
         tvTitle.setText("Reset Password");
-        tvMsg.setText("Enter the 6-digit code sent to your email, then set a new password.");
-
-        // Add new password field below OTP
-        android.widget.LinearLayout container = (android.widget.LinearLayout) dialogView;
-        android.widget.EditText etNew = new android.widget.EditText(this);
-        etNew.setHint("New password");
-        etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        etNew.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
-        container.addView(etNew, container.getChildCount() - 1); // before button row
+        tvMsg.setText("Enter the 6-digit code sent to your email.");
 
         androidx.appcompat.app.AlertDialog dialog = builder.setView(dialogView).create();
         if (dialog.getWindow() != null) {
@@ -161,38 +162,73 @@ public class LoginActivity extends AppCompatActivity {
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
 
-        btnNeg.setOnClickListener(v -> dialog.dismiss());
-        btnPos.setText("Verify OTP");
-        btnPos.setOnClickListener(v -> {
-            String otp = etOtp.getText().toString().trim();
-            if (otp.length() != 6) {
-                etOtp.setError("Enter 6-digit OTP");
-                etOtp.requestFocus();
-                return;
-            }
-            apiClient.verifyPasswordResetOTP(email, otp, new okhttp3.Callback() {
+        btnResend.setOnClickListener(v -> {
+            apiClient.requestPasswordReset(email, new okhttp3.Callback() {
                 @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
                     runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
                 }
                 @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
-                    String body = response.body() != null ? response.body().string() : "";
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
-                            dialog.dismiss();
-                            showNewPasswordDialog(email, otp);
+                            hiddenOtp.setText("");
+                            tvError.setVisibility(android.view.View.GONE);
+                            android.widget.Toast.makeText(LoginActivity.this, "OTP resent", android.widget.Toast.LENGTH_SHORT).show();
                         } else {
-                            try {
-                                org.json.JSONObject json = new org.json.JSONObject(body);
-                                String msg = json.optString("message", "Invalid code or expired");
-                                android.widget.Toast.makeText(LoginActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
-                            } catch (Exception ex) {
-                                android.widget.Toast.makeText(LoginActivity.this, "Invalid code or expired", android.widget.Toast.LENGTH_SHORT).show();
-                            }
+                            android.widget.Toast.makeText(LoginActivity.this, "Failed to resend OTP", android.widget.Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
             });
         });
+
+        android.view.View.OnClickListener focusInput = v -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        };
+        circlesContainer.setOnClickListener(focusInput);
+        dialogView.setOnClickListener(focusInput);
+
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                String code = s.toString();
+                updateOtpCircles(code.length(), c1, c2, c3, c4, c5, c6);
+                if (code.length() > 0) {
+                    tvError.setVisibility(android.view.View.GONE);
+                }
+                if (code.length() == 6) {
+                    apiClient.verifyPasswordResetOTP(email, code, new okhttp3.Callback() {
+                        @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                        }
+                        @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            String body = response.body() != null ? response.body().string() : "";
+                            runOnUiThread(() -> {
+                                if (response.isSuccessful()) {
+                                    dialog.dismiss();
+                                    showNewPasswordDialog(email, code);
+                                } else {
+                                    try {
+                                        org.json.JSONObject json = new org.json.JSONObject(body);
+                                        String msg = json.optString("message", "Invalid OTP");
+                                        tvError.setText("Invalid OTP");
+                                        tvError.setVisibility(android.view.View.VISIBLE);
+                                        hiddenOtp.setText("");
+                                    } catch (Exception ex) {
+                                        tvError.setText("Invalid OTP");
+                                        tvError.setVisibility(android.view.View.VISIBLE);
+                                        hiddenOtp.setText("");
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        };
+        hiddenOtp.addTextChangedListener(watcher);
 
         // 10-minute timer visual (optional): show 10:00 countdown
         new android.os.CountDownTimer(10 * 60 * 1000, 1000) {
@@ -204,7 +240,19 @@ public class LoginActivity extends AppCompatActivity {
         }.start();
 
         dialog.show();
+
+        hiddenOtp.postDelayed(() -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }, 150);
     }
+    private void updateOtpCircles(int filled, android.widget.TextView... circles) {
+        for (int i = 0; i < circles.length; i++) {
+            circles[i].setBackgroundResource(i < filled ? R.drawable.otp_circle_filled : R.drawable.otp_circle_empty);
+        }
+    }
+
 
     private void showNewPasswordDialog(String email, String verifiedOtp) {
         androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
@@ -298,7 +346,7 @@ public class LoginActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             showLoading(false);
-                            Toast.makeText(LoginActivity.this, "Connection Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            showInlineError("Connection error. Please try again.");
                         }
                     });
                 }
@@ -323,7 +371,7 @@ public class LoginActivity extends AppCompatActivity {
             
         } catch (JSONException e) {
             showLoading(false);
-            Toast.makeText(this, "Data Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            showInlineError("Data error. Please try again.");
         }
     }
     
@@ -381,7 +429,7 @@ public class LoginActivity extends AppCompatActivity {
             
         } catch (JSONException e) {
             e.printStackTrace(); // Log the actual error for debugging
-            Toast.makeText(this, "Data processing error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            showInlineError("Data processing error.");
         }
     }
     
@@ -395,49 +443,37 @@ public class LoginActivity extends AppCompatActivity {
             if (statusCode == 403) {
                 // Handle account locked
                 if ("locked".equals(accountStatus)) {
-                    showAccountStatusDialog(
-                        "🔒 Account Locked",
-                        message,
-                        details.isEmpty() ? 
-                            "Your account has been locked by an administrator.\nPlease contact support for assistance." : details,
-                        false
-                    );
+                    showInlineError(message.isEmpty() ? "Account locked by administrator." : message);
                 } else {
-                    showAccountStatusDialog("🚫 Access Denied", message, details, false);
+                    showInlineError(message.isEmpty() ? "Access denied." : message);
                 }
                 
             } else if (statusCode == 401) {
                 // Handle authentication errors
                 if ("not_found".equals(accountStatus)) {
-                    showAccountStatusDialog(
-                        "❓ Account Not Found",
-                        message,
-                        details.isEmpty() ? 
-                            "No account found with this email address.\nPlease check your email or register for a new account." : details,
-                        false
-                    );
+                    showInlineError(details.isEmpty() ? "Account not found." : details);
                     
                 } else if ("active".equals(accountStatus)) {
-                    showAccountStatusDialog(
-                        "🔑 Incorrect Password",
-                        message,
-                        details.isEmpty() ? 
-                            "The password you entered is incorrect.\nPlease try again or use the forgot password feature." : details,
-                        false
-                    );
+                    showInlineError(details.isEmpty() ? "Incorrect password." : details);
                 } else {
-                    showAccountStatusDialog("🔒 Authentication Failed", message, details, false);
+                    showInlineError(message.isEmpty() ? "Authentication failed." : message);
                 }
                 
             } else {
                 // Other errors
-                showAccountStatusDialog("⚠️ Login Error", message, details, false);
+                showInlineError(message.isEmpty() ? "Login error." : message);
             }
             
         } catch (JSONException e) {
             e.printStackTrace();
-            Toast.makeText(this, "Error processing response: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            showInlineError("Error processing response.");
         }
+    }
+
+    private void showInlineError(String msg) {
+        if (tvLoginError == null) return;
+        tvLoginError.setText(msg);
+        tvLoginError.setVisibility(View.VISIBLE);
     }
     
     private void showAccountStatusDialog(String title, String message, String details, boolean isSuccess) {

@@ -50,7 +50,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private List<Chat> groupResults;
     
     private String mode; // "add_members", "forward" or null for normal search
-    private String forwardContent; // for forward mode
+    private String forwardContent; // for forward mode (text fallback)
+    private String forwardMessageRaw; // JSON: type/content/attachments
     private Chat currentChat; // For add_members mode
     private List<String> currentGroupMemberIds; // Track current group members
     private boolean isSearchingGroups = false; // Track current search mode
@@ -100,6 +101,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         mode = intent.getStringExtra("mode");
         if ("forward".equals(mode)) {
             forwardContent = intent.getStringExtra("forward_content");
+            forwardMessageRaw = intent.getStringExtra("forward_message");
         }
         if ("add_members".equals(mode) && intent.hasExtra("chat")) {
             try {
@@ -751,7 +753,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                 if (data.has("chat")) {
                     intent.putExtra("chat", data.getJSONObject("chat").toString());
                 }
-                if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
+                if (forwardMessageRaw != null) intent.putExtra("forward_message", forwardMessageRaw);
+                else if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
                 startActivity(intent);
                 finish();
             } else {
@@ -1180,8 +1183,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         Intent intent = new Intent(this, GroupChatActivity.class);
         try {
             intent.putExtra("chat", group.toJson().toString());
-            if ("forward".equals(mode) && forwardContent != null) {
-                intent.putExtra("forward_content", forwardContent);
+            if ("forward".equals(mode)) {
+                if (forwardMessageRaw != null) intent.putExtra("forward_message", forwardMessageRaw);
+                else if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
                 finish();
             }
             startActivity(intent);

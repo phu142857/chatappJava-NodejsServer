@@ -49,7 +49,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        android:backgroundTint="@android:color/white"
+        android:backgroundTint="@color/background_card"
         app:cardCornerRadius="20dp"
         app:cardElevation="8dp"
         app:layout_constraintStart_toStartOf="parent"
@@ -87,7 +87,7 @@
                     android:ellipsize="end"
                     android:maxWidth="150dp"
                     android:text="User Name"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -114,10 +114,10 @@
         android:layout_marginEnd="16dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:padding="6dp"
-        android:src="@drawable/ic_more_feedback"
+        android:src="@drawable/ic_setting"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@android:color/black" />
+        app:tint="@color/text_primary" />
 
     <ImageView
         android:id="@+id/iv_search"
@@ -130,7 +130,9 @@
         app:layout_constraintBottom_toBottomOf="@+id/iv_more_vert"
         app:layout_constraintEnd_toStartOf="@+id/iv_more_vert"
         app:layout_constraintTop_toTopOf="@+id/iv_more_vert"
-        app:tint="@android:color/black" />
+        app:tint="@color/text_primary" />
+
+    
 
     <!-- Tab selector -->
     <LinearLayout
@@ -219,7 +221,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Friends"
-                android:textColor="@android:color/black"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -247,6 +249,23 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    
+
+    <!-- New Group - Material ExtendedFloatingActionButton -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/efab_new_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text=""
+        android:visibility="gone"
+        app:icon="@android:drawable/ic_input_add"
+        app:iconTint="@android:color/white"
+        app:backgroundTint="@color/primary_color"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:textColor="@android:color/white" />
+
     <!-- Chat List -->
     <androidx.cardview.widget.CardView
         android:id="@+id/chat_list_card"
@@ -261,7 +280,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:backgroundTint="@color/background_light">
+        android:backgroundTint="@color/background_secondary">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_chat_list"

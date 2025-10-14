@@ -28,7 +28,6 @@ public class ApiClient {
     private static final String PASSWORD_REQUEST_RESET_ENDPOINT = "/api/auth/password/request-reset";
     private static final String PASSWORD_RESET_ENDPOINT = "/api/auth/password/reset";
     private static final String PASSWORD_VERIFY_OTP_ENDPOINT = "/api/auth/password/verify-otp";
-    private static final String PASSWORD_VERIFY_OTP_ENDPOINT = "/api/auth/password/verify-otp";
     private static final String CREATE_CHAT_ENDPOINT = "/api/chats/private";
     private static final String CREATE_GROUP_CHAT_ENDPOINT = "/api/chats/group";
     private static final String GET_CHATS_ENDPOINT = "/api/chats";
@@ -158,26 +157,6 @@ public class ApiClient {
 
     /**
      * Verify password reset OTP (no password change).
-     */
-    public void verifyPasswordResetOTP(String email, String otpCode, Callback callback) {
-        try {
-            org.json.JSONObject bodyJson = new org.json.JSONObject();
-            bodyJson.put("email", email);
-            bodyJson.put("otpCode", otpCode);
-            RequestBody body = RequestBody.create(bodyJson.toString(), JSON);
-            Request request = new Request.Builder()
-                    .url(getBaseUrl() + PASSWORD_VERIFY_OTP_ENDPOINT)
-                    .post(body)
-                    .addHeader("Content-Type", "application/json")
-                    .build();
-            client.newCall(request).enqueue(callback);
-        } catch (org.json.JSONException e) {
-            callback.onFailure(null, new java.io.IOException("Failed to prepare request body"));
-        }
-    }
-
-    /**
-     * Verify password reset OTP only (no password change).
      */
     public void verifyPasswordResetOTP(String email, String otpCode, Callback callback) {
         try {
