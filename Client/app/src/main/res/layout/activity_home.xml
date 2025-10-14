@@ -7,40 +7,16 @@
     android:fitsSystemWindows="true"
     android:background="@color/background_primary">
 
-    <!-- Background geometric shapes -->
-    <View
-        android:layout_width="465dp"
-        android:layout_height="402dp"
-        android:rotation="52"
-        android:alpha="0.71"
-        android:background="@color/background_tertiary"
-        android:layout_marginStart="-120dp"
-        android:layout_marginTop="200dp"
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <View
-        android:layout_width="465dp"
-        android:layout_height="402dp"
-        android:rotation="52"
-        android:alpha="0.29"
-        android:background="@color/primary_light"
-        android:layout_marginStart="-60dp"
-        android:layout_marginTop="220dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <View
-        android:id="@+id/view"
-        android:layout_width="715dp"
-        android:layout_height="441dp"
-        android:layout_marginTop="-100dp"
-        android:layout_marginEnd="-200dp"
-        android:alpha="0.71"
-        android:background="@color/primary_light"
-        android:rotation="52"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- User Profile Section (Top Left) -->
     <androidx.cardview.widget.CardView

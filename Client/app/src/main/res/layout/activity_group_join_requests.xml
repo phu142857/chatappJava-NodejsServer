@@ -7,39 +7,16 @@
     android:fitsSystemWindows="true"
     android:background="#E0E0E0">
 
-    <!-- Background geometric shapes (same style as activity_group_members) -->
-    <View
-        android:layout_width="465dp"
-        android:layout_height="402dp"
-        android:rotation="52"
-        android:alpha="0.71"
-        android:background="#D9D9D9"
-        android:layout_marginStart="-120dp"
-        android:layout_marginTop="200dp"
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <View
-        android:layout_width="465dp"
-        android:layout_height="402dp"
-        android:rotation="52"
-        android:alpha="0.29"
-        android:background="#7BCCFF"
-        android:layout_marginStart="-60dp"
-        android:layout_marginTop="220dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <View
-        android:layout_width="715dp"
-        android:layout_height="441dp"
-        android:rotation="52"
-        android:alpha="0.71"
-        android:background="#7BCCFF"
-        android:layout_marginEnd="-200dp"
-        android:layout_marginTop="-100dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Header Card -->
     <androidx.cardview.widget.CardView

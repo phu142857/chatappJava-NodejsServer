@@ -118,32 +118,7 @@
             app:cardElevation="4dp"
             android:backgroundTint="@android:color/white">
 
-            <LinearLayout
-                android:id="@+id/btn_cancel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp"
-                android:gravity="center_vertical"
-                android:background="?android:attr/selectableItemBackground">
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    android:layout_marginEnd="12dp"
-                    app:tint="#0E394B" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Cancel"
-                    android:textSize="16sp"
-                    android:textColor="#0E394B"
-                    android:textStyle="bold" />
-
-            </LinearLayout>
 
         </androidx.cardview.widget.CardView>
 

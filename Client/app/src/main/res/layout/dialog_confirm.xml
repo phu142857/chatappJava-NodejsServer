@@ -35,6 +35,9 @@
             android:id="@+id/btn_negative"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textColor="@android:color/holo_red_dark"
+            android:textStyle="bold"
+            android:background="@android:color/transparent"
             android:text="Cancel"
             android:textAllCaps="false"/>
 

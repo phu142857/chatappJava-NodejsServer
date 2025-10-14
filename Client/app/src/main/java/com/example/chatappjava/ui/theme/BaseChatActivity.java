@@ -332,8 +332,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
         LinearLayout fileOption = dialogView.findViewById(R.id.option_file);
-        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
-        
+
         // Set click listeners
         cameraOption.setOnClickListener(v -> {
             if (checkCameraPermission()) {
@@ -359,18 +358,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 imageSelectDialog.dismiss();
             }
         });
-        
-        cancelButton.setOnClickListener(v -> {
-            if (imageSelectDialog != null) {
-                imageSelectDialog.dismiss();
-            }
-        });
+
         
         // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
         builder.setCancelable(true);
-        
+
         imageSelectDialog = builder.create();
         
         // Set transparent background to avoid white area issues
@@ -993,15 +987,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
         builder.setCancelable(true);
-
-        // Cancel button
-        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
-        cancelButton.setOnClickListener(v -> {
-            if (emojiDialog != null) {
-                emojiDialog.dismiss();
-            }
-        });
-
 
         emojiDialog = builder.create();
         if (emojiDialog.getWindow() != null) {

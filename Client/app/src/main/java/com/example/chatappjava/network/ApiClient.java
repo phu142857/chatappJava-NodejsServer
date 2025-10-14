@@ -522,6 +522,21 @@ public class ApiClient {
     }
 
     /**
+     * Delete user account with OTP + optional password
+     */
+    public void deleteAccount(String token, String password, String otpCode, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            if (password != null) body.put("password", password);
+            body.put("otpCode", otpCode);
+            authenticatedDelete(DELETE_ACCOUNT_ENDPOINT, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare delete account with otp: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Uploads user avatar image.
      */
     public void uploadAvatar(String token, File imageFile, Callback callback) {

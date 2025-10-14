@@ -8,40 +8,16 @@
     tools:context="ui.theme.LoginActivity"
     android:background="@color/background_primary">
 
-    <View
-        android:layout_width="465dp"
-        android:layout_height="402dp"
-        android:rotation="52"
-        android:alpha="0.71"
-        android:background="@color/primary_light"
-        android:layout_marginStart="-260dp"
-        android:layout_marginTop="340dp"
-
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <View
-        android:layout_width="400dp"
-        android:layout_height="402dp"
-        android:layout_marginStart="-250dp"
-        android:layout_marginTop="365dp"
-        android:alpha="0.29"
-        android:background="@color/background_tertiary"
-        android:rotation="52"
-        app:layout_constraintStart_toStartOf="parent"
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg"
         app:layout_constraintTop_toTopOf="parent"
-        />
-
-    <View
-        android:layout_width="715dp"
-        android:layout_height="441dp"
-        android:layout_marginTop="80dp"
-        android:layout_marginEnd="-430dp"
-        android:alpha="0.71"
-        android:background="@color/primary_light"
-        android:rotation="52"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <ImageView
         android:id="@+id/login_title_top"
@@ -152,11 +128,18 @@
 
     <Button
         android:id="@+id/btn_login"
-        style="@style/AppPrimaryLargeButton"
-        android:text="Login"
+        android:layout_width="320dp"
+        android:layout_height="60dp"
+        android:text="LOGIN"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:background="@drawable/button_gradient_rounded"
+        android:backgroundTint="@null"
+        app:backgroundTint="@null"
         app:layout_constraintTop_toBottomOf="@id/login_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="40dp" />
-
+        android:layout_marginTop="40dp"
+        android:stateListAnimator="@null" />
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -619,33 +619,48 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
-// @desc    Delete current user account
+// @desc    Delete current user account (requires valid 6-digit OTP)
 // @route   DELETE /api/auth/me
 // @access  Private
 const deleteAccount = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { password } = req.body;
-    
-    // Find user to verify password and get username for audit log
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+    const { password, otpCode } = req.body || {};
+
+    // Validate OTP format
+    if (!otpCode || typeof otpCode !== 'string' || !/^\d{6}$/.test(otpCode)) {
+      return res.status(400).json({ success: false, message: 'Valid 6-digit OTP code is required' });
     }
 
-    // Verify password if provided
+    // Find user to verify password/otp and for audit log
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Optional: verify password if provided
     if (password) {
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid password'
-        });
+        return res.status(400).json({ success: false, message: 'Invalid password' });
       }
     }
+
+    // Verify OTP against latest record for this user's email
+    const record = await PasswordReset.findOne({ email: user.email }).sort({ createdAt: -1 });
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'OTP not found or already used' });
+    }
+    if (new Date() > record.expiresAt) {
+      await PasswordReset.deleteMany({ email: user.email });
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+    if (record.otpCode !== otpCode) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // OTP is valid; consume it
+    await PasswordReset.deleteMany({ email: user.email });
 
     // Delete user account
     await User.findByIdAndDelete(userId);
@@ -653,17 +668,11 @@ const deleteAccount = async (req, res) => {
     // Log the action
     await logAuditAction(userId, 'DELETE_ACCOUNT', 'User', `User ${user.username} deleted their own account`, req.ip);
 
-    res.json({
-      success: true,
-      message: 'Account deleted successfully'
-    });
+    res.json({ success: true, message: 'Account deleted successfully' });
 
   } catch (error) {
     console.error('Delete account error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during account deletion'
-    });
+    res.status(500).json({ success: false, message: 'Server error during account deletion' });
   }
 };
 
@@ -700,3 +709,4 @@ module.exports = {
   uploadAvatar,
   deleteAccount
 };
+

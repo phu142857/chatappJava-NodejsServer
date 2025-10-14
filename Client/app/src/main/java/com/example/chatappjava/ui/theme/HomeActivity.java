@@ -482,56 +482,6 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             System.out.println("HomeActivity: Error parsing call history response: " + e.getMessage());
         }
     }
-    
-    
-    private void showOptionsMenu() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_options_menu, null);
-        
-        // Set click listeners for each option
-        dialogView.findViewById(R.id.option_profile).setOnClickListener(v -> {
-            Intent profileIntent = new Intent(this, ProfileActivity.class);
-            startActivity(profileIntent);
-            // Dismiss dialog
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_settings).setOnClickListener(v -> {
-            Intent settingsIntent = new Intent(this, SettingsActivity.class);
-            startActivity(settingsIntent);
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_new_chat).setOnClickListener(v -> {
-            Intent intent = new Intent(this, SearchActivity.class);
-            startActivity(intent);
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_new_group).setOnClickListener(v -> {
-            Intent createGroupIntent = new Intent(this, CreateGroupActivity.class);
-            startActivity(createGroupIntent);
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_reload).setOnClickListener(v -> {
-            reloadHome();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        dialogView.findViewById(R.id.option_refresh_avatars).setOnClickListener(v -> {
-            refreshAvatars();
-            if (currentDialog != null) currentDialog.dismiss();
-        });
-        
-        builder.setView(dialogView);
-        currentDialog = builder.create();
-        if (currentDialog.getWindow() != null) {
-            android.view.Window w = currentDialog.getWindow();
-            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-        }
-        currentDialog.show();
-    }
 
     private void reloadHome() {
         // Refresh both chats and friend requests
@@ -543,103 +493,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         Toast.makeText(this, "Reloading...", Toast.LENGTH_SHORT).show();
     }
-    
-    public void refreshChatList() {
-        // Public method to refresh chat list from other activities
-        runOnUiThread(() -> {
-            loadChats();
-            avatarManager.forceRefreshAvatars();
-        });
-    }
-    
-    private void refreshAvatars() {
-        // Force refresh all avatars
-        avatarManager.forceRefreshAvatars();
-        
-        // Refresh the chat list to reload avatars
-        if (chatAdapter != null) {
-            chatAdapter.notifyDataSetChanged();
-        }
-        
-        Toast.makeText(this, "Avatars refreshed!", Toast.LENGTH_SHORT).show();
-    }
-    
-    private void logout() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Yes", (dialog, which) -> {
-                    sharedPrefsManager.clearLoginInfo();
-                    redirectToLogin();
-                })
-                .setNegativeButton("No", null)
-                .show();
-    }
-    
+
     private void redirectToLogin() {
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
     }
-    
-    private void openChatDetail(Chat chat) {
-        Intent intent;
-        
-        // Choose appropriate activity based on chat type
-        if (chat.isGroupChat()) {
-            intent = new Intent(this, GroupChatActivity.class);
-        } else {
-            intent = new Intent(this, PrivateChatActivity.class);
-        }
-        
-        try {
-            intent.putExtra("chat", chat.toJson().toString());
-            if (chat.isPrivateChat() && chat.getOtherParticipant() != null) {
-                intent.putExtra("user", chat.getOtherParticipant().toJson().toString());
-            }
-            startActivity(intent);
-        } catch (org.json.JSONException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show();
-        }
-    }
-    
-    
-    private void handleGroupChatOption(Chat chat, int which) {
-        switch (which) {
-            case 0:
-                showGroupInfo(chat);
-                break;
-            case 1:
-                addMembers(chat);
-                break;
-            case 2:
-                removeMembers(chat);
-                break;
-            case 3:
-                confirmLeaveGroup(chat);
-                break;
-            case 4:
-                confirmDeleteGroup(chat);
-                break;
-        }
-    }
-    
-    private void handlePrivateChatOption(Chat chat, int which) {
-        switch (which) {
-            case 0:
-                showChatInfo(chat);
-                break;
-            case 1:
-                confirmDeleteChat(chat);
-                break;
-            case 2:
-                confirmUnfriend(chat);
-                break;
-        }
-    }
-    
+
     private void confirmDeleteChat(Chat chat) {
         com.example.chatappjava.utils.DialogUtils.showConfirm(
                 this,

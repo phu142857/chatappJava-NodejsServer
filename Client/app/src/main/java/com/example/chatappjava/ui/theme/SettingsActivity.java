@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
+import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -145,9 +146,38 @@ public class SettingsActivity extends AppCompatActivity {
                 return;
             }
 
-            // TODO: Implement change password API call
-            Toast.makeText(this, "Change password feature coming soon", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, "You are not logged in", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            new ApiClient().changePassword(token, currentPassword, newPassword, new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> Toast.makeText(SettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    final boolean success = response.isSuccessful();
+                    final String resp = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (success) {
+                            Toast.makeText(SettingsActivity.this, "Password changed successfully", Toast.LENGTH_SHORT).show();
+                            dialog.dismiss();
+                        } else {
+                            String message = "Failed to change password";
+                            try {
+                                org.json.JSONObject obj = new org.json.JSONObject(resp);
+                                if (obj.has("message")) message = obj.optString("message");
+                                else if (obj.has("error")) message = obj.optString("error");
+                            } catch (Exception ignored) { }
+                            Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
         });
 
         dialog.show();
@@ -194,8 +224,76 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void deleteAccount() {
-        Toast.makeText(this, "Delete account feature coming soon", Toast.LENGTH_SHORT).show();
-        // TODO: Implement delete account API call
+        // Dialog nhập password + OTP tương tự flow OTP ở LoginActivity
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        container.setPadding(pad, pad, pad, pad);
+
+        final EditText inputPassword = new EditText(this);
+        inputPassword.setHint("Current password (optional)");
+        inputPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        inputPassword.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(128) });
+        container.addView(inputPassword);
+
+        final EditText inputOtp = new EditText(this);
+        inputOtp.setHint("6-digit OTP");
+        inputOtp.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputOtp.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(6) });
+        container.addView(inputOtp);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm Account Deletion")
+                .setMessage("Enter OTP sent to your email to confirm deletion.")
+                .setView(container)
+                .setPositiveButton("Delete", (d, which) -> {
+                    String password = inputPassword.getText().toString().trim();
+                    String otp = inputOtp.getText().toString().trim();
+
+                    if (otp.length() != 6) {
+                        Toast.makeText(SettingsActivity.this, "Please enter 6-digit OTP", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    String token = sharedPrefsManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(SettingsActivity.this, "You are not logged in", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    new com.example.chatappjava.network.ApiClient().deleteAccount(token, password.isEmpty() ? null : password, otp, new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(SettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            boolean success = response.isSuccessful();
+                            String resp = response.body() != null ? response.body().string() : "";
+                            runOnUiThread(() -> {
+                                if (success) {
+                                    Toast.makeText(SettingsActivity.this, "Account deleted", Toast.LENGTH_LONG).show();
+                                    sharedPrefsManager.clearLoginInfo();
+                                    Intent intent = new Intent(SettingsActivity.this, LoginActivity.class);
+                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                    startActivity(intent);
+                                    finish();
+                                } else {
+                                    String message = "Failed to delete account";
+                                    try {
+                                        org.json.JSONObject obj = new org.json.JSONObject(resp);
+                                        if (obj.has("message")) message = obj.optString("message");
+                                        else if (obj.has("error")) message = obj.optString("error");
+                                    } catch (Exception ignored) { }
+                                    Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void showServerConfigDialog() {
