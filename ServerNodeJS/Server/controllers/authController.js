@@ -469,6 +469,38 @@ const confirmPasswordReset = async (req, res) => {
 module.exports.requestPasswordReset = requestPasswordReset;
 module.exports.confirmPasswordReset = confirmPasswordReset;
 
+// @desc    Verify password reset OTP (no password change)
+// @route   POST /api/auth/password/verify-otp
+// @access  Public
+const verifyPasswordResetOtp = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const { email, otpCode } = req.body;
+    const record = await PasswordReset.findOne({ email }).sort({ createdAt: -1 });
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'OTP not found or already used' });
+    }
+    if (new Date() > record.expiresAt) {
+      await PasswordReset.deleteMany({ email });
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+    if (record.otpCode !== otpCode) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    return res.status(200).json({ success: true, message: 'OTP is valid' });
+  } catch (error) {
+    console.error('Verify password reset OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while verifying OTP' });
+  }
+};
+
+module.exports.verifyPasswordResetOtp = verifyPasswordResetOtp;
+
 // @desc    Refresh token
 // @route   POST /api/auth/refresh
 // @access  Private

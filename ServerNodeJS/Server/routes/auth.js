@@ -15,7 +15,8 @@ const {
 } = require('../controllers/authController');
 const {
   requestPasswordReset,
-  confirmPasswordReset
+  confirmPasswordReset,
+  verifyPasswordResetOtp
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
@@ -143,6 +144,12 @@ router.post('/password/reset', [
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number')
 ], confirmPasswordReset);
+
+// Verify password reset OTP only
+router.post('/password/verify-otp', [
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('otpCode').isLength({ min: 6, max: 6 }).withMessage('OTP code must be 6 digits')
+], verifyPasswordResetOtp);
 
 // Protected routes
 router.use(authMiddleware); // Apply auth middleware to all routes below

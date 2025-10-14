@@ -162,21 +162,15 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         btnNeg.setOnClickListener(v -> dialog.dismiss());
-        btnPos.setText("Reset Password");
+        btnPos.setText("Verify OTP");
         btnPos.setOnClickListener(v -> {
             String otp = etOtp.getText().toString().trim();
-            String newPwd = etNew.getText().toString();
             if (otp.length() != 6) {
                 etOtp.setError("Enter 6-digit OTP");
                 etOtp.requestFocus();
                 return;
             }
-            if (newPwd.length() < 6 || !newPwd.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$")) {
-                etNew.setError("Password must have upper, lower, number (>=6)");
-                etNew.requestFocus();
-                return;
-            }
-            apiClient.confirmPasswordReset(email, otp, newPwd, new okhttp3.Callback() {
+            apiClient.verifyPasswordResetOTP(email, otp, new okhttp3.Callback() {
                 @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
                     runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
                 }
@@ -185,7 +179,7 @@ public class LoginActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
                             dialog.dismiss();
-                            android.widget.Toast.makeText(LoginActivity.this, "Password reset successful. Please log in.", android.widget.Toast.LENGTH_LONG).show();
+                            showNewPasswordDialog(email, otp);
                         } else {
                             try {
                                 org.json.JSONObject json = new org.json.JSONObject(body);
@@ -209,6 +203,76 @@ public class LoginActivity extends AppCompatActivity {
             public void onFinish() { tvTimer.setText("Expired. Request again."); }
         }.start();
 
+        dialog.show();
+    }
+
+    private void showNewPasswordDialog(String email, String verifiedOtp) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_confirm, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
+        android.widget.TextView tvMsg = dialogView.findViewById(R.id.tv_message);
+        android.widget.Button btnPos = dialogView.findViewById(R.id.btn_positive);
+        android.widget.Button btnNeg = dialogView.findViewById(R.id.btn_negative);
+
+        tvTitle.setText("Set New Password");
+        tvMsg.setText("");
+
+        android.widget.LinearLayout container = (android.widget.LinearLayout) dialogView;
+        android.widget.EditText etNew = new android.widget.EditText(this);
+        etNew.setHint("New password");
+        etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etNew.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(etNew, 2);
+
+        android.widget.EditText etConfirm = new android.widget.EditText(this);
+        etConfirm.setHint("Confirm password");
+        etConfirm.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etConfirm.setLayoutParams(new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(etConfirm, 3);
+
+        androidx.appcompat.app.AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        btnNeg.setOnClickListener(v -> dialog.dismiss());
+        btnPos.setText("Reset Password");
+        btnPos.setOnClickListener(v -> {
+            String newPwd = etNew.getText().toString();
+            String confirmPwd = etConfirm.getText().toString();
+            if (newPwd.length() < 6 || !newPwd.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$")) {
+                etNew.setError("Password must have upper, lower, number (>=6)");
+                etNew.requestFocus();
+                return;
+            }
+            if (!newPwd.equals(confirmPwd)) {
+                etConfirm.setError("Passwords do not match");
+                etConfirm.requestFocus();
+                return;
+            }
+            apiClient.confirmPasswordReset(email, verifiedOtp, newPwd, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(LoginActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            dialog.dismiss();
+                            android.widget.Toast.makeText(LoginActivity.this, "Password reset successful. Please log in.", android.widget.Toast.LENGTH_LONG).show();
+                        } else {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                String msg = json.optString("message", "Invalid code or expired");
+                                android.widget.Toast.makeText(LoginActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
+                            } catch (Exception ex) {
+                                android.widget.Toast.makeText(LoginActivity.this, "Invalid code or expired", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                }
+            });
+        });
         dialog.show();
     }
     
