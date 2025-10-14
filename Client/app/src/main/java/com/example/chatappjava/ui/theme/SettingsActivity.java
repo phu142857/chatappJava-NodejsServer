@@ -163,12 +163,16 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void startDeleteAccountOtpFlow() {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Account")
-                .setMessage("This will permanently delete your account. You'll receive an OTP via email to confirm.")
-                .setPositiveButton("Continue", (d, w) -> requestDeleteOtp())
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Account",
+                "This will permanently delete your account. You'll receive an OTP via email to confirm.",
+                "Continue",
+                "Cancel",
+                this::requestDeleteOtp,
+                null,
+                false
+        );
     }
 
     private void requestDeleteOtp() {
@@ -189,7 +193,7 @@ public class SettingsActivity extends AppCompatActivity {
                     pd.dismiss();
                     if (response.isSuccessful()) {
                         Toast.makeText(SettingsActivity.this, "OTP sent. Check your email.", Toast.LENGTH_SHORT).show();
-                        showOtpInputDialog();
+                        showDeleteOtpDialog();
                     } else {
                         Toast.makeText(SettingsActivity.this, parseErrorMessage(resp), Toast.LENGTH_LONG).show();
                     }
@@ -198,26 +202,61 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-    private void showOtpInputDialog() {
+    private android.app.AlertDialog deleteOtpDialog;
+
+    private void showDeleteOtpDialog() {
+        android.view.LayoutInflater inflater = getLayoutInflater();
+        android.view.View view = inflater.inflate(com.example.chatappjava.R.layout.dialog_otp, null);
+
+        EditText hiddenOtp = view.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+        android.view.View circlesContainer = view.findViewById(com.example.chatappjava.R.id.otp_circles_container);
+        TextView c1 = view.findViewById(com.example.chatappjava.R.id.otp_c1);
+        TextView c2 = view.findViewById(com.example.chatappjava.R.id.otp_c2);
+        TextView c3 = view.findViewById(com.example.chatappjava.R.id.otp_c3);
+        TextView c4 = view.findViewById(com.example.chatappjava.R.id.otp_c4);
+        TextView c5 = view.findViewById(com.example.chatappjava.R.id.otp_c5);
+        TextView c6 = view.findViewById(com.example.chatappjava.R.id.otp_c6);
+        android.widget.TextView tvError = view.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+        android.widget.Button btnResend = view.findViewById(com.example.chatappjava.R.id.btn_resend_otp);
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = getLayoutInflater().inflate(R.layout.dialog_input_otp, null);
-        final EditText etOtp = view.findViewById(R.id.et_otp);
-        etOtp.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(6) });
-        Button btnConfirm = view.findViewById(R.id.btn_confirm);
-        Button btnCancel = view.findViewById(R.id.btn_cancel);
-        AlertDialog dialog = builder.setView(view).create();
-        if (dialog.getWindow() != null) {
-            android.view.Window w = dialog.getWindow();
+        builder.setView(view);
+        deleteOtpDialog = builder.create();
+        if (deleteOtpDialog.getWindow() != null) {
+            android.view.Window w = deleteOtpDialog.getWindow();
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-        btnConfirm.setOnClickListener(v -> {
-            String code = etOtp.getText().toString().trim();
-            if (code.length() != 6) { etOtp.setError("Enter 6-digit OTP"); return; }
-            dialog.dismiss();
-            confirmDeleteWithOtp(code);
+
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String code = s.toString().trim();
+                updateOtpCircles(code.length(), c1, c2, c3, c4, c5, c6);
+                if (code.length() == 6) {
+                    hiddenOtp.clearFocus();
+                    confirmDeleteWithOtp(code);
+                    if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) deleteOtpDialog.dismiss();
+                } else if (tvError != null) {
+                    tvError.setVisibility(View.GONE);
+                }
+            }
+            @Override public void afterTextChanged(android.text.Editable s) {}
+        };
+        hiddenOtp.addTextChangedListener(watcher);
+
+        btnResend.setOnClickListener(v -> {
+            // request a new OTP
+            requestDeleteOtp();
+            hiddenOtp.setText("");
+            if (tvError != null) tvError.setVisibility(View.GONE);
         });
-        dialog.show();
+
+        deleteOtpDialog.show();
+        hiddenOtp.postDelayed(() -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }, 150);
     }
 
     private void confirmDeleteWithOtp(String otp) {
