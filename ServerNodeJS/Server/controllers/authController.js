@@ -738,6 +738,7 @@ module.exports = {
   changePassword,
   refreshToken,
   uploadAvatar,
-  deleteAccount
+  deleteAccount,
+  requestDeleteAccountOtp
 };
 
