@@ -690,6 +690,7 @@ module.exports = {
   verifyRegisterOTP,
   requestPasswordReset,
   confirmPasswordReset,
+  verifyPasswordResetOtp,
   login,
   logout,
   getMe,
