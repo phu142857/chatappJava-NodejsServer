@@ -39,7 +39,6 @@ public class ApiClient {
     private static final String CHANGE_PASSWORD_ENDPOINT = "/api/auth/change-password";
     private static final String LOGOUT_ENDPOINT = "/api/auth/logout";
     private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
-    private static final String DELETE_ACCOUNT_REQUEST_OTP_ENDPOINT = "/api/auth/delete/request-otp";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String UPLOAD_CHAT_FILE_ENDPOINT = "/api/upload/chat";
@@ -135,16 +134,7 @@ public class ApiClient {
         }
     }
 
-    /**
-     * Request OTP for account deletion (reuse password reset endpoint by email)
-     */
-    public void requestDeleteAccountOTP(String token, Callback callback) {
-        Request request = createAuthenticatedRequest(token)
-                .url(getBaseUrl() + DELETE_ACCOUNT_REQUEST_OTP_ENDPOINT)
-                .post(RequestBody.create("", JSON))
-                .build();
-        client.newCall(request).enqueue(callback);
-    }
+    
 
     /**
      * Confirm password reset with OTP and new password.
@@ -533,20 +523,7 @@ public class ApiClient {
         }
     }
 
-    /**
-     * Delete user account with OTP + optional password
-     */
-    public void deleteAccount(String token, String password, String otpCode, Callback callback) {
-        try {
-            JSONObject body = new JSONObject();
-            if (password != null) body.put("password", password);
-            body.put("otpCode", otpCode);
-            authenticatedDelete(DELETE_ACCOUNT_ENDPOINT, token, body, callback);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            callback.onFailure(null, new IOException("Failed to prepare delete account with otp: " + e.getMessage()));
-        }
-    }
+    
 
     /**
      * Uploads user avatar image.

@@ -2,7 +2,6 @@ const User = require('../models/User');
 const { generateToken } = require('../utils/jwt');
 const RegistrationOTP = require('../models/RegistrationOTP');
 const { sendMail } = require('../utils/mailer');
-const DeleteAccountOTP = require('../models/DeleteAccountOTP');
 const PasswordReset = require('../models/PasswordReset');
 const { validationResult } = require('express-validator');
 const multer = require('multer');
@@ -620,48 +619,33 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
-// @desc    Delete current user account (requires valid 6-digit OTP)
+// @desc    Delete current user account
 // @route   DELETE /api/auth/me
 // @access  Private
 const deleteAccount = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { password, otpCode } = req.body || {};
+    const { password } = req.body;
 
-    // Validate OTP format
-    if (!otpCode || typeof otpCode !== 'string' || !/^\d{6}$/.test(otpCode)) {
-      return res.status(400).json({ success: false, message: 'Valid 6-digit OTP code is required' });
-    }
-
-    // Find user to verify password/otp and for audit log
+    // Find user to verify password and get username for audit log
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
 
-    // Optional: verify password if provided
+    // Verify password if provided
     if (password) {
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
-        return res.status(400).json({ success: false, message: 'Invalid password' });
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid password'
+        });
       }
     }
-
-    // Verify OTP against latest delete-account OTP record for this user's email
-    const record = await DeleteAccountOTP.findOne({ email: user.email }).sort({ createdAt: -1 });
-    if (!record) {
-      return res.status(400).json({ success: false, message: 'OTP not found or already used' });
-    }
-    if (new Date() > record.expiresAt) {
-      await DeleteAccountOTP.deleteMany({ email: user.email });
-      return res.status(400).json({ success: false, message: 'OTP expired' });
-    }
-    if (record.otpCode !== otpCode) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
-    }
-
-    // OTP is valid; consume it
-    await DeleteAccountOTP.deleteMany({ email: user.email });
 
     // Delete user account
     await User.findByIdAndDelete(userId);
@@ -669,41 +653,17 @@ const deleteAccount = async (req, res) => {
     // Log the action
     await logAuditAction(userId, 'DELETE_ACCOUNT', 'User', `User ${user.username} deleted their own account`, req.ip);
 
-    res.json({ success: true, message: 'Account deleted successfully' });
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
 
   } catch (error) {
     console.error('Delete account error:', error);
-    res.status(500).json({ success: false, message: 'Server error during account deletion' });
-  }
-};
-
-// @desc    Request OTP for account deletion
-// @route   POST /api/auth/delete/request-otp
-// @access  Private
-const requestDeleteAccountOtp = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await DeleteAccountOTP.deleteMany({ email: user.email });
-    await DeleteAccountOTP.create({ email: user.email, otpCode, expiresAt });
-
-    const html = `
-      <p>Your account deletion confirmation code is:</p>
-      <h2 style="letter-spacing:4px;">${otpCode}</h2>
-      <p>This code will expire in 10 minutes.</p>
-    `;
-    await sendMail(user.email, 'Account Deletion OTP Code', html);
-
-    return res.status(200).json({ success: true, message: 'OTP sent to email. Valid for 10 minutes.' });
-  } catch (error) {
-    console.error('Request delete-account OTP error:', error);
-    return res.status(500).json({ success: false, message: 'Server error while requesting OTP' });
+    res.status(500).json({
+      success: false,
+      message: 'Server error during account deletion'
+    });
   }
 };
 
@@ -738,7 +698,5 @@ module.exports = {
   changePassword,
   refreshToken,
   uploadAvatar,
-  deleteAccount,
-  requestDeleteAccountOtp
+  deleteAccount
 };
-
