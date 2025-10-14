@@ -165,7 +165,7 @@ public class SettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if (success) {
                             Toast.makeText(SettingsActivity.this, "Password changed successfully", Toast.LENGTH_SHORT).show();
-                            dialog.dismiss();
+            dialog.dismiss();
                         } else {
                             String message = "Failed to change password";
                             try {
@@ -224,76 +224,171 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void deleteAccount() {
-        // Dialog nhập password + OTP tương tự flow OTP ở LoginActivity
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (16 * getResources().getDisplayMetrics().density);
-        container.setPadding(pad, pad, pad, pad);
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "You are not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        final EditText inputPassword = new EditText(this);
-        inputPassword.setHint("Current password (optional)");
-        inputPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        inputPassword.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(128) });
-        container.addView(inputPassword);
+        // Gửi OTP xoá tài khoản (endpoint riêng, cần token), sau đó mở dialog OTP
+        new ApiClient().requestDeleteAccountOTP(token, new okhttp3.Callback() {
+            @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(SettingsActivity.this, "Failed to send OTP: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+            @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String email = sharedPrefsManager.getUserEmail();
+                runOnUiThread(() -> showDeleteWithOtpDialog(email));
+            }
+        });
+    }
 
-        final EditText inputOtp = new EditText(this);
-        inputOtp.setHint("6-digit OTP");
-        inputOtp.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        inputOtp.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(6) });
-        container.addView(inputOtp);
+    private void showDeleteWithOtpDialog(String email) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_otp, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
+        android.widget.TextView tvMsg = dialogView.findViewById(R.id.tv_message);
+        android.widget.EditText hiddenOtp = dialogView.findViewById(R.id.dialog_et_hidden_otp);
+        android.widget.TextView tvTimer = dialogView.findViewById(R.id.dialog_tv_timer);
+        android.widget.TextView tvError = dialogView.findViewById(R.id.dialog_tv_error);
+        android.view.View circlesContainer = dialogView.findViewById(R.id.otp_circles_container);
+        android.widget.TextView c1 = dialogView.findViewById(R.id.otp_c1);
+        android.widget.TextView c2 = dialogView.findViewById(R.id.otp_c2);
+        android.widget.TextView c3 = dialogView.findViewById(R.id.otp_c3);
+        android.widget.TextView c4 = dialogView.findViewById(R.id.otp_c4);
+        android.widget.TextView c5 = dialogView.findViewById(R.id.otp_c5);
+        android.widget.TextView c6 = dialogView.findViewById(R.id.otp_c6);
+        android.widget.Button btnResend = dialogView.findViewById(R.id.btn_resend_otp);
 
-        new AlertDialog.Builder(this)
-                .setTitle("Confirm Account Deletion")
-                .setMessage("Enter OTP sent to your email to confirm deletion.")
-                .setView(container)
-                .setPositiveButton("Delete", (d, which) -> {
-                    String password = inputPassword.getText().toString().trim();
-                    String otp = inputOtp.getText().toString().trim();
+        tvTitle.setText("Confirm Account Deletion");
+        tvMsg.setText("Enter the 6-digit code sent to your email.");
 
-                    if (otp.length() != 6) {
-                        Toast.makeText(SettingsActivity.this, "Please enter 6-digit OTP", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+        androidx.appcompat.app.AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
 
-                    String token = sharedPrefsManager.getToken();
-                    if (token == null || token.isEmpty()) {
-                        Toast.makeText(SettingsActivity.this, "You are not logged in", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    new com.example.chatappjava.network.ApiClient().deleteAccount(token, password.isEmpty() ? null : password, otp, new okhttp3.Callback() {
-                        @Override
-                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                            runOnUiThread(() -> Toast.makeText(SettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        btnResend.setOnClickListener(v -> {
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                android.widget.Toast.makeText(SettingsActivity.this, "You are not logged in", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            new ApiClient().requestDeleteAccountOTP(token, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(SettingsActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            hiddenOtp.setText("");
+                            tvError.setVisibility(android.view.View.GONE);
+                            android.widget.Toast.makeText(SettingsActivity.this, "OTP resent", android.widget.Toast.LENGTH_SHORT).show();
+                        } else {
+                            android.widget.Toast.makeText(SettingsActivity.this, "Failed to resend OTP", android.widget.Toast.LENGTH_SHORT).show();
                         }
+                    });
+                }
+            });
+        });
 
-                        @Override
-                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
-                            boolean success = response.isSuccessful();
-                            String resp = response.body() != null ? response.body().string() : "";
+        android.view.View.OnClickListener focusInput = v -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        };
+        circlesContainer.setOnClickListener(focusInput);
+        dialogView.setOnClickListener(focusInput);
+
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                String code = s.toString();
+                updateOtpCircles(code.length(), c1, c2, c3, c4, c5, c6);
+                if (code.length() > 0) {
+                    tvError.setVisibility(android.view.View.GONE);
+                }
+                if (code.length() == 6) {
+                    // Verify OTP then delete account
+                    new ApiClient().verifyPasswordResetOTP(email, code, new okhttp3.Callback() {
+                        @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> android.widget.Toast.makeText(SettingsActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                        }
+                        @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            String body = response.body() != null ? response.body().string() : "";
                             runOnUiThread(() -> {
-                                if (success) {
-                                    Toast.makeText(SettingsActivity.this, "Account deleted", Toast.LENGTH_LONG).show();
-                                    sharedPrefsManager.clearLoginInfo();
-                                    Intent intent = new Intent(SettingsActivity.this, LoginActivity.class);
-                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                    startActivity(intent);
-                                    finish();
+                                if (response.isSuccessful()) {
+                                    String token = sharedPrefsManager.getToken();
+                                    if (token == null || token.isEmpty()) {
+                                        android.widget.Toast.makeText(SettingsActivity.this, "You are not logged in", android.widget.Toast.LENGTH_SHORT).show();
+                                        return;
+                                    }
+                                    new ApiClient().deleteAccount(token, null, code, new okhttp3.Callback() {
+                                        @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                                            runOnUiThread(() -> android.widget.Toast.makeText(SettingsActivity.this, "Failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show());
+                                        }
+                                        @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                                            String resp = response.body() != null ? response.body().string() : "";
+                                            runOnUiThread(() -> {
+                                                if (response.isSuccessful()) {
+                                                    dialog.dismiss();
+                                                    android.widget.Toast.makeText(SettingsActivity.this, "Account deleted", android.widget.Toast.LENGTH_LONG).show();
+                                                    sharedPrefsManager.clearLoginInfo();
+                                                    Intent intent = new Intent(SettingsActivity.this, LoginActivity.class);
+                                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                                    startActivity(intent);
+                                                    finish();
+                                                } else {
+                                                    try {
+                                                        org.json.JSONObject json = new org.json.JSONObject(resp);
+                                                        String msg = json.optString("message", "Failed to delete account");
+                                                        tvError.setText(msg);
+                                                        tvError.setVisibility(android.view.View.VISIBLE);
+                                                        hiddenOtp.setText("");
+                                                    } catch (Exception ex) {
+                                                        tvError.setText("Failed to delete account");
+                                                        tvError.setVisibility(android.view.View.VISIBLE);
+                                                        hiddenOtp.setText("");
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
                                 } else {
-                                    String message = "Failed to delete account";
-                                    try {
-                                        org.json.JSONObject obj = new org.json.JSONObject(resp);
-                                        if (obj.has("message")) message = obj.optString("message");
-                                        else if (obj.has("error")) message = obj.optString("error");
-                                    } catch (Exception ignored) { }
-                                    Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                                    tvError.setText("Invalid OTP");
+                                    tvError.setVisibility(android.view.View.VISIBLE);
+                                    hiddenOtp.setText("");
                                 }
                             });
                         }
                     });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                }
+            }
+        };
+        hiddenOtp.addTextChangedListener(watcher);
+
+        new android.os.CountDownTimer(10 * 60 * 1000, 1000) {
+            public void onTick(long ms) {
+                long s = ms / 1000; long mm = s / 60; long ss = s % 60;
+                tvTimer.setText(String.format("%02d:%02d", mm, ss));
+            }
+            public void onFinish() { tvTimer.setText("Expired. Request again."); }
+        }.start();
+
+        dialog.show();
+
+        hiddenOtp.postDelayed(() -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }, 150);
+    }
+
+    private void updateOtpCircles(int filled, android.widget.TextView... circles) {
+        for (int i = 0; i < circles.length; i++) {
+            circles[i].setBackgroundResource(i < filled ? R.drawable.otp_circle_filled : R.drawable.otp_circle_empty);
+        }
     }
 
     private void showServerConfigDialog() {

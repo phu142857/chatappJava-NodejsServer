@@ -39,6 +39,7 @@ public class ApiClient {
     private static final String CHANGE_PASSWORD_ENDPOINT = "/api/auth/change-password";
     private static final String LOGOUT_ENDPOINT = "/api/auth/logout";
     private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
+    private static final String DELETE_ACCOUNT_REQUEST_OTP_ENDPOINT = "/api/auth/delete/request-otp";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String UPLOAD_CHAT_FILE_ENDPOINT = "/api/upload/chat";
@@ -132,6 +133,17 @@ public class ApiClient {
         } catch (org.json.JSONException e) {
             callback.onFailure(null, new java.io.IOException("Failed to prepare request body"));
         }
+    }
+
+    /**
+     * Request OTP for account deletion (reuse password reset endpoint by email)
+     */
+    public void requestDeleteAccountOTP(String token, Callback callback) {
+        Request request = createAuthenticatedRequest(token)
+                .url(getBaseUrl() + DELETE_ACCOUNT_REQUEST_OTP_ENDPOINT)
+                .post(RequestBody.create("", JSON))
+                .build();
+        client.newCall(request).enqueue(callback);
     }
 
     /**

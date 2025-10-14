@@ -10,6 +10,7 @@ const {
   refreshToken,
   uploadAvatar,
   deleteAccount,
+  requestDeleteAccountOtp,
   registerRequestOTP,
   verifyRegisterOTP
 } = require('../controllers/authController');
@@ -161,5 +162,6 @@ router.put('/change-password', changePasswordValidation, changePassword);
 router.post('/refresh', refreshToken);
 router.post('/upload-avatar', uploadAvatar);
 router.delete('/me', deleteAccount);
+router.post('/delete/request-otp', requestDeleteAccountOtp);
 
 module.exports = router;

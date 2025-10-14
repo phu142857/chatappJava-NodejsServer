@@ -78,6 +78,13 @@ public class SharedPreferencesManager {
     }
 
     /**
+     * Get user email
+     */
+    public String getUserEmail() {
+        return sharedPreferences.getString(KEY_USER_EMAIL, "");
+    }
+
+    /**
      * Get user avatar
      */
     public String getUserAvatar() {
