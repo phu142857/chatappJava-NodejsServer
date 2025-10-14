@@ -3,6 +3,7 @@ const { generateToken } = require('../utils/jwt');
 const RegistrationOTP = require('../models/RegistrationOTP');
 const { sendMail } = require('../utils/mailer');
 const PasswordReset = require('../models/PasswordReset');
+const DeleteAccountOTP = require('../models/DeleteAccountOTP');
 const { validationResult } = require('express-validator');
 const multer = require('multer');
 const path = require('path');
@@ -619,6 +620,79 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+// @desc    Request OTP to delete account
+// @route   POST /api/auth/delete/request-otp
+// @access  Private
+const requestDeleteAccountOtp = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await DeleteAccountOTP.deleteMany({ userId });
+    await DeleteAccountOTP.create({ userId, email: user.email, otpCode, expiresAt });
+
+    const html = `
+      <p>Your delete account verification code is:</p>
+      <h2 style="letter-spacing:4px;">${otpCode}</h2>
+      <p>This code will expire in 10 minutes.</p>
+    `;
+    await sendMail(user.email, 'Delete Account Verification Code', html);
+
+    return res.status(200).json({ success: true, message: 'OTP sent to your email.' });
+  } catch (error) {
+    console.error('Request delete account OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while requesting delete OTP' });
+  }
+};
+
+// @desc    Confirm account deletion with OTP
+// @route   DELETE /api/auth/me/confirm
+// @access  Private
+const confirmDeleteAccountWithOtp = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { otpCode } = req.body;
+
+    if (!otpCode || typeof otpCode !== 'string') {
+      return res.status(400).json({ success: false, message: 'OTP code is required' });
+    }
+
+    const record = await DeleteAccountOTP.findOne({ userId }).sort({ createdAt: -1 });
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'OTP not found or already used' });
+    }
+    if (new Date() > record.expiresAt) {
+      await DeleteAccountOTP.deleteMany({ userId });
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+    if (record.otpCode !== otpCode) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      await DeleteAccountOTP.deleteMany({ userId });
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    await User.findByIdAndDelete(userId);
+    await DeleteAccountOTP.deleteMany({ userId });
+
+    await logAuditAction(userId, 'DELETE_ACCOUNT', 'User', `User ${user.username} deleted their own account via OTP`, req.ip);
+
+    return res.status(200).json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Confirm delete account with OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while deleting account' });
+  }
+};
+
 // @desc    Delete current user account
 // @route   DELETE /api/auth/me
 // @access  Private
@@ -698,5 +772,7 @@ module.exports = {
   changePassword,
   refreshToken,
   uploadAvatar,
-  deleteAccount
+  deleteAccount,
+  requestDeleteAccountOtp,
+  confirmDeleteAccountWithOtp
 };

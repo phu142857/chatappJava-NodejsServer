@@ -39,6 +39,8 @@ public class ApiClient {
     private static final String CHANGE_PASSWORD_ENDPOINT = "/api/auth/change-password";
     private static final String LOGOUT_ENDPOINT = "/api/auth/logout";
     private static final String DELETE_ACCOUNT_ENDPOINT = "/api/auth/me";
+    private static final String DELETE_REQUEST_OTP_ENDPOINT = "/api/auth/delete/request-otp";
+    private static final String DELETE_CONFIRM_ENDPOINT = "/api/auth/me/confirm";
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String UPLOAD_CHAT_FILE_ENDPOINT = "/api/upload/chat";
@@ -520,6 +522,35 @@ public class ApiClient {
         } catch (JSONException e) {
             e.printStackTrace();
             callback.onFailure(null, new IOException("Failed to prepare delete account: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Request OTP to delete account
+     */
+    public void requestDeleteAccountOTP(String token, Callback callback) {
+        Request request = createAuthenticatedRequest(token)
+                .url(getBaseUrl() + DELETE_REQUEST_OTP_ENDPOINT)
+                .post(RequestBody.create("", JSON))
+                .build();
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Confirm delete account with OTP
+     */
+    public void confirmDeleteAccountWithOTP(String token, String otpCode, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("otpCode", otpCode);
+            Request request = createAuthenticatedRequest(token)
+                    .url(getBaseUrl() + DELETE_CONFIRM_ENDPOINT)
+                    .delete(RequestBody.create(body.toString(), JSON))
+                    .build();
+            client.newCall(request).enqueue(callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare confirm delete: " + e.getMessage()));
         }
     }
 

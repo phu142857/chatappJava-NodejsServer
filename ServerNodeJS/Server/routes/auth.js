@@ -10,6 +10,8 @@ const {
   refreshToken,
   uploadAvatar,
   deleteAccount,
+  requestDeleteAccountOtp,
+  confirmDeleteAccountWithOtp,
   registerRequestOTP,
   verifyRegisterOTP
 } = require('../controllers/authController');
@@ -161,5 +163,12 @@ router.put('/change-password', changePasswordValidation, changePassword);
 router.post('/refresh', refreshToken);
 router.post('/upload-avatar', uploadAvatar);
 router.delete('/me', deleteAccount);
+// Delete account via OTP
+router.post('/delete/request-otp', requestDeleteAccountOtp);
+router.delete('/me/confirm', [
+  body('otpCode')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP code must be 6 digits')
+], confirmDeleteAccountWithOtp);
 
 module.exports = router;
