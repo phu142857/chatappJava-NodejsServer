@@ -637,13 +637,26 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         try {
             for (int i = 0; i < iceServersJson.length(); i++) {
                 org.json.JSONObject s = iceServersJson.getJSONObject(i);
+
+                // Read and validate fields
                 String urls = s.optString("urls", null);
                 String username = s.optString("username", null);
                 String credential = s.optString("credential", null);
-                PeerConnection.IceServer.Builder b = PeerConnection.IceServer.builder(urls);
-                b.setUsername(username);
-                b.setPassword(credential);
-                iceServers.add(b.createIceServer());
+
+                if (urls == null || urls.isEmpty()) {
+                    Log.w(TAG, "Skipping ICE server with empty urls at index " + i);
+                    continue;
+                }
+
+                PeerConnection.IceServer.Builder builder = PeerConnection.IceServer.builder(urls);
+
+                // Only set auth when both username and credential are present (WebRTC throws on null)
+                if (username != null && !username.isEmpty() && credential != null && !credential.isEmpty()) {
+                    builder.setUsername(username);
+                    builder.setPassword(credential);
+                }
+
+                iceServers.add(builder.createIceServer());
             }
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Error parsing ICE servers JSON", e);
