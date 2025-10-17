@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E0E0E0"
+    android:background="@color/background_primary"
     android:fitsSystemWindows="true">
 
     <ImageView
@@ -26,42 +26,43 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical">
+            android:background="@drawable/rounded_container"
+            android:padding="16dp">
 
             <ImageView
                 android:id="@+id/iv_back"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@drawable/ic_back"
+                android:layout_marginEnd="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="12dp"
-                app:tint="@color/primary_color"
                 android:contentDescription="Back"
-                android:layout_marginEnd="16dp" />
+                android:padding="12dp"
+                android:src="@drawable/ic_back"
+                app:tint="@color/white" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Settings"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -69,9 +70,9 @@
                     android:id="@+id/tv_user_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="14sp"
                     android:layout_marginTop="4dp"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="14sp"
                     tools:text="John Doe" />
 
             </LinearLayout>
@@ -104,13 +105,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -119,7 +121,7 @@
                         android:text="Account Settings"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Profile -->
@@ -130,7 +132,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -138,7 +140,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_myplaces"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -146,13 +148,13 @@
                             android:layout_weight="1"
                             android:text="Profile"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -164,7 +166,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -172,7 +174,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_manage"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -180,13 +182,13 @@
                             android:layout_weight="1"
                             android:text="Change Password"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -198,7 +200,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
@@ -213,7 +215,7 @@
                             android:layout_weight="1"
                             android:text="Logout"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
@@ -233,13 +235,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -248,7 +251,7 @@
                         android:text="Privacy &amp; Security"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Blocked Users -->
@@ -259,7 +262,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -267,7 +270,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_close_clear_cancel"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -275,13 +278,13 @@
                             android:layout_weight="1"
                             android:text="Blocked Users"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -293,7 +296,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
@@ -308,7 +311,7 @@
                             android:layout_weight="1"
                             android:text="Delete Account"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
@@ -328,13 +331,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -343,7 +347,7 @@
                         android:text="Notifications"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Push Notifications -->
@@ -358,6 +362,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:padding="10dp"
+                            android:background="@drawable/rounded_container"
                             android:orientation="vertical">
 
                             <TextView
@@ -365,7 +371,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Push Notifications"
                                 android:textSize="16sp"
-                                android:textColor="@android:color/black"
+                                android:textColor="@color/white"
                                 android:textStyle="bold" />
 
                             <TextView
@@ -373,7 +379,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Receive notifications for new messages"
                                 android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
+                                android:textColor="#B3FFFFFF"
                                 android:layout_marginTop="4dp" />
 
                         </LinearLayout>
@@ -398,6 +404,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:padding="10dp"
+                            android:background="@drawable/rounded_container"
                             android:orientation="vertical">
 
                             <TextView
@@ -405,7 +413,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Sound"
                                 android:textSize="16sp"
-                                android:textColor="@android:color/black"
+                                android:textColor="@color/white"
                                 android:textStyle="bold" />
 
                             <TextView
@@ -413,7 +421,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Play sound for notifications"
                                 android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
+                                android:textColor="#B3FFFFFF"
                                 android:layout_marginTop="4dp" />
 
                         </LinearLayout>
@@ -437,6 +445,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:padding="10dp"
+                            android:background="@drawable/rounded_container"
                             android:orientation="vertical">
 
                             <TextView
@@ -444,7 +454,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Vibrate"
                                 android:textSize="16sp"
-                                android:textColor="@android:color/black"
+                                android:textColor="@color/white"
                                 android:textStyle="bold" />
 
                             <TextView
@@ -452,7 +462,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Vibrate for notifications"
                                 android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
+                                android:textColor="#B3FFFFFF"
                                 android:layout_marginTop="4dp" />
 
                         </LinearLayout>
@@ -475,13 +485,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -490,7 +501,7 @@
                         android:text="Server Settings"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Server Configuration -->
@@ -501,7 +512,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -509,7 +520,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_preferences"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -517,13 +528,13 @@
                             android:layout_weight="1"
                             android:text="Server Configuration"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -535,14 +546,14 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_revert"
                             android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -550,7 +561,7 @@
                             android:layout_weight="1"
                             android:text="Reset Settings"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
@@ -570,13 +581,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -585,7 +597,7 @@
                         android:text="About"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- App Version -->
@@ -595,6 +607,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -602,7 +615,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_info_details"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -610,7 +623,7 @@
                             android:layout_weight="1"
                             android:text="App Version"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <TextView
                             android:id="@+id/tv_app_version"
@@ -618,7 +631,7 @@
                             android:layout_height="wrap_content"
                             android:text="1.0.0"
                             android:textSize="16sp"
-                            android:textColor="@android:color/darker_gray" />
+                            android:textColor="#B3FFFFFF" />
 
                     </LinearLayout>
 
@@ -626,32 +639,32 @@
                     <LinearLayout
                         android:id="@+id/option_help_support"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
+                        android:layout_height="41dp"
+                        android:background="@drawable/rounded_container"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:orientation="horizontal"
+                        android:padding="12dp">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_help"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            android:src="@android:drawable/ic_menu_help"
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Help &amp; Support"
-                            android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white"
+                            android:textSize="16sp" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 

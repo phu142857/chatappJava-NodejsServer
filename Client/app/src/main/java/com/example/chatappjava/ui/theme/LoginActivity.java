@@ -51,6 +51,33 @@ public class LoginActivity extends AppCompatActivity {
         tvRegister = findViewById(R.id.tv_register);
         tvForgotPassword = findViewById(R.id.tv_forgot_password);
         tvLoginError = findViewById(R.id.tv_login_error);
+
+        // Toggle password visibility when tapping drawableEnd using transformation method
+        etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+        etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+        etPassword.setOnTouchListener((v, event) -> {
+            final int DRAWABLE_END = 2; // right drawable
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                android.graphics.drawable.Drawable endDrawable = etPassword.getCompoundDrawables()[DRAWABLE_END];
+                if (endDrawable != null) {
+                    int drawableWidth = endDrawable.getBounds().width();
+                    int touchAreaStart = etPassword.getWidth() - etPassword.getPaddingRight() - drawableWidth;
+                    if (event.getX() >= touchAreaStart) {
+                        boolean isHidden = etPassword.getTransformationMethod() instanceof android.text.method.PasswordTransformationMethod;
+                        if (isHidden) {
+                            etPassword.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
+                            etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye, 0);
+                        } else {
+                            etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                            etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+                        }
+                        etPassword.setSelection(etPassword.getText().length());
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
     
     private void initializeServices() {

@@ -54,6 +54,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private TextView tvFriendsTitle;
     private com.example.chatappjava.adapters.FriendsAdapter friendsAdapter;
     private final List<User> myFriends = new ArrayList<>();
+    private final List<User> allMyFriends = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +114,9 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
             etSearch.addTextChangedListener(new TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
                 @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    filterRequests(s != null ? s.toString() : "");
+                    String q = s != null ? s.toString() : "";
+                    filterRequests(q);
+                    filterFriendsList(q);
                 }
                 @Override public void afterTextChanged(Editable s) {}
             });
@@ -144,11 +147,15 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private void showRequestsTab() {
         containerRequests.setVisibility(View.VISIBLE);
         containerFriends.setVisibility(View.GONE);
+        if (tabRequests != null) tabRequests.setSelected(true);
+        if (tabFriends != null) tabFriends.setSelected(false);
     }
 
     private void showFriendsTab() {
         containerRequests.setVisibility(View.GONE);
         containerFriends.setVisibility(View.VISIBLE);
+        if (tabRequests != null) tabRequests.setSelected(false);
+        if (tabFriends != null) tabFriends.setSelected(true);
     }
 
     private void loadFriendRequests() {
@@ -206,6 +213,8 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
                         runOnUiThread(() -> {
                             myFriends.clear();
                             myFriends.addAll(list);
+                            allMyFriends.clear();
+                            allMyFriends.addAll(list);
                             if (friendsAdapter != null) friendsAdapter.setItems(myFriends);
                             if (tvFriendsTitle != null) tvFriendsTitle.setText("Friends (" + myFriends.size() + ")");
                         });
@@ -292,6 +301,27 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
         if (tvNoRequests != null) tvNoRequests.setVisibility(hasRequests ? View.GONE : View.VISIBLE);
         if (rvFriendRequests != null) rvFriendRequests.setVisibility(hasRequests ? View.VISIBLE : View.GONE);
         // leave tab visibility managed by tab handlers
+    }
+
+    private void filterFriendsList(String query) {
+        if (friendsAdapter == null) return;
+        String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        List<User> filtered = new ArrayList<>();
+        if (q.isEmpty()) {
+            filtered.addAll(allMyFriends);
+        } else {
+            for (User u : allMyFriends) {
+                String displayName = u.getDisplayName() != null ? u.getDisplayName().toLowerCase(java.util.Locale.ROOT) : "";
+                String username = u.getUsername() != null ? u.getUsername().toLowerCase(java.util.Locale.ROOT) : "";
+                String email = u.getEmail() != null ? u.getEmail().toLowerCase(java.util.Locale.ROOT) : "";
+                String phone = u.getPhoneNumber() != null ? u.getPhoneNumber().toLowerCase(java.util.Locale.ROOT) : "";
+                if (displayName.contains(q) || username.contains(q) || email.contains(q) || phone.contains(q)) {
+                    filtered.add(u);
+                }
+            }
+        }
+        friendsAdapter.setItems(filtered);
+        if (tvFriendsTitle != null) tvFriendsTitle.setText("Friends (" + filtered.size() + ")");
     }
 
     private void showLoading(boolean show) {

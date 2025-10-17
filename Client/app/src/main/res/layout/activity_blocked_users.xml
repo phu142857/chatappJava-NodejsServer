@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E0E0E0"
+    android:background="@color/background_primary"
     android:fitsSystemWindows="true">
 
     <ImageView
@@ -26,8 +26,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -37,6 +37,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
+            android:background="@drawable/rounded_container"
             android:gravity="center_vertical">
 
             <ImageView
@@ -46,7 +47,7 @@
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
-                app:tint="@color/primary_color"
+                app:tint="@color/white"
                 android:contentDescription="Back"
                 android:layout_marginEnd="16dp" />
 
@@ -56,7 +57,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Blocked Users"
-                android:textColor="@android:color/black"
+                android:textColor="@color/white"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -74,8 +75,8 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         app:cardCornerRadius="20dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -83,7 +84,9 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:background="@drawable/rounded_container"
+            android:padding="8dp">
 
             <!-- Progress Bar -->
             <ProgressBar
@@ -115,7 +118,7 @@
                     android:layout_height="wrap_content"
                     android:text="No Blocked Users"
                     android:textSize="20sp"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
@@ -124,7 +127,7 @@
                     android:layout_height="wrap_content"
                     android:text="You haven't blocked anyone yet"
                     android:textSize="14sp"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#B3FFFFFF"
                     android:textAlignment="center"
                     android:gravity="center" />
 

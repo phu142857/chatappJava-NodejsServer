@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="#E0E0E0"
+    android:background="@color/background_primary"
     tools:context=".ui.theme.ProfileActivity">
 
     <ImageView
@@ -27,8 +27,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -38,6 +38,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
+            android:background="@drawable/rounded_container"
             android:gravity="center_vertical">
 
             <!-- Back Button -->
@@ -48,7 +49,7 @@
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
-                app:tint="@color/primary_color"
+                app:tint="@color/white"
                 android:contentDescription="@string/back"
                 android:layout_marginEnd="16dp" />
 
@@ -59,7 +60,7 @@
                 android:text="@string/profile"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:textColor="#333333"
+                android:textColor="@color/white"
                 android:gravity="center"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="32dp" />
@@ -71,7 +72,7 @@
                 android:text="@string/save"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="#0E394B"
+                android:textColor="@color/white"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="8dp" />
 
@@ -88,7 +89,8 @@
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header_card">
@@ -102,6 +104,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
+                android:background="@drawable/rounded_container"
                 android:padding="20dp">
 
                 <!-- Avatar Section -->
@@ -120,13 +123,13 @@
                         app:civ_border_width="3dp"
                         app:civ_border_color="#7BCCFF" />
 
-                    <TextView
+                <TextView
                         android:id="@+id/tv_change_avatar"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/change_avatar"
                         android:textSize="14sp"
-                        android:textColor="#7BCCFF"
+                    android:textColor="@color/white"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:padding="8dp"
                         android:layout_marginTop="8dp" />
@@ -135,10 +138,11 @@
 
                 <!-- Username Field -->
                 <TextView
+                    android:layout_marginLeft="10dp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/username"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -148,39 +152,43 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:hint="Enter username"
                     android:inputType="text"
                     android:minHeight="48dp"
-                    android:background="@drawable/input_background"
-                    android:padding="12dp" />
+                    android:background="@drawable/input_pill"
+                    android:padding="12dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="#80FFFFFF" />
 
                 <!-- First Name Field -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/first_name"
-                    android:textColor="@android:color/black"
+                    android:layout_marginLeft="10dp"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/et_first_name"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:hint="Enter first name"
                     android:inputType="textPersonName"
                     android:minHeight="48dp"
-                    android:background="@drawable/input_background"
-                    android:padding="12dp" />
+                    android:background="@drawable/input_pill"
+                    android:padding="12dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="#80FFFFFF" />
 
                 <!-- Last Name Field -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/last_name"
-                    android:textColor="@android:color/black"
+                    android:layout_marginLeft="10dp"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -190,39 +198,43 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:hint="Enter last name"
                     android:inputType="textPersonName"
                     android:minHeight="48dp"
-                    android:background="@drawable/input_background"
-                    android:padding="12dp" />
+                    android:background="@drawable/input_pill"
+                    android:padding="12dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="#80FFFFFF" />
 
                 <!-- Phone Number Field -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/phone_number"
-                    android:textColor="@android:color/black"
+                    android:layout_marginLeft="10dp"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/et_phone_number"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:hint="Enter phone number"
                     android:inputType="phone"
                     android:minHeight="48dp"
-                    android:background="@drawable/input_background"
-                    android:padding="12dp" />
+                    android:background="@drawable/input_pill"
+                    android:padding="12dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="#80FFFFFF" />
 
                 <!-- Bio Field -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
                     android:text="@string/bio"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -232,12 +244,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="24dp"
-                    android:hint="Enter bio"
                     android:inputType="textMultiLine"
                     android:minHeight="80dp"
                     android:gravity="top"
-                    android:background="@drawable/input_background"
-                    android:padding="12dp" />
+                    android:background="@drawable/input_pill"
+                    android:padding="12dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="#80FFFFFF" />
 
 
             </LinearLayout>

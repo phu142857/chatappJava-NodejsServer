@@ -4,17 +4,19 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="6dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="3dp"
-    android:foreground="?android:attr/selectableItemBackground">
+    android:layout_marginHorizontal="2dp"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="200dp"
+    app:cardBackgroundColor="@android:color/transparent"
+    android:clickable="true"
+    android:focusable="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
+        android:background="@drawable/rounded_container"
         android:gravity="center_vertical">
 
         <de.hdodenhof.circleimageview.CircleImageView
@@ -22,7 +24,7 @@
             android:layout_width="52dp" android:layout_height="52dp"
             android:src="@drawable/ic_profile_placeholder"
             app:civ_border_width="2dp"
-            app:civ_border_color="#E0E0E0" />
+            app:civ_border_color="#B3FFFFFF" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -34,7 +36,7 @@
                 android:id="@+id/tv_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
+                android:textColor="@color/white"
                 android:textSize="17sp" android:textStyle="bold"
                 android:singleLine="true"
                 android:ellipsize="end"
@@ -44,7 +46,7 @@
                 android:id="@+id/tv_sub"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/darker_gray"
+                android:textColor="#B3FFFFFF"
                 android:textSize="13sp" android:layout_marginTop="2dp"
                 android:singleLine="true"
                 android:ellipsize="end"
@@ -60,26 +62,28 @@
             android:layout_marginStart="8dp">
 
             <Button
-                android:id="@+id/btn_approve"
-                style="@style/Widget.AppCompat.Button.Colored"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp" android:text="Approve"
-                android:textSize="13sp" android:textColor="@android:color/white"
-                android:backgroundTint="#0E394B"
-                app:cornerRadius="16dp"
-                android:paddingHorizontal="12dp"
-                android:layout_marginEnd="8dp"
-                tools:ignore="TouchTargetSizeCheck" />
-
-            <Button
                 android:id="@+id/btn_reject"
                 style="@style/Widget.AppCompat.Button.Borderless.Colored"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:text="Reject"
                 android:textSize="13sp"
-                android:textColor="#E53935" android:paddingHorizontal="12dp"
+                android:textColor="#FF6B6B" android:paddingHorizontal="12dp"
                 tools:ignore="TouchTargetSizeCheck" />
+
+            <Button
+                android:id="@+id/btn_approve"
+                style="@style/Widget.AppCompat.Button.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp" android:text="Approve"
+                android:textSize="13sp" android:textColor="@android:color/white"
+                android:backgroundTint="@color/primary_color"
+                app:cornerRadius="16dp"
+                android:paddingHorizontal="12dp"
+                android:layout_marginEnd="8dp"
+                tools:ignore="TouchTargetSizeCheck" />
+
+
         </LinearLayout>
 
     </LinearLayout>

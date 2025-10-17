@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
     tools:context=".ui.call.VideoCallActivity"
-    android:background="@android:color/black">
+    android:background="@color/background_primary">
     
     <!-- Remote video (full screen background) -->
     <RelativeLayout
@@ -70,7 +70,8 @@
         android:layout_width="120dp"
         android:layout_height="160dp"
         app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         android:layout_marginTop="60dp"
         android:layout_marginEnd="20dp"
         app:layout_constraintTop_toTopOf="parent"
@@ -79,7 +80,7 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/black">
+            android:background="@android:color/transparent">
 
             <org.webrtc.SurfaceViewRenderer
                 android:id="@+id/sv_local_video"
@@ -120,10 +121,13 @@
         android:id="@+id/top_status_bar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#80000000"
+        android:background="@drawable/rounded_container"
         android:gravity="center"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="12dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -156,11 +160,13 @@
         android:id="@+id/call_controls_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#80000000"
+        android:background="@drawable/rounded_container"
         android:gravity="center"
         android:orientation="horizontal"
-        android:padding="24dp"
-        android:layout_marginBottom="40dp"
+        android:padding="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">

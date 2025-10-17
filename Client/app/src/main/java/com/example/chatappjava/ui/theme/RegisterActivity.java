@@ -45,6 +45,60 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister = findViewById(R.id.btn_register);
         tvLogin = findViewById(R.id.tv_login);
         tvRegisterError = findViewById(R.id.tv_register_error);
+
+        // Toggle password visibility (password field) using transformation method
+        etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+        etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+        etPassword.setOnTouchListener((v, event) -> {
+            final int DRAWABLE_END = 2;
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                android.graphics.drawable.Drawable endDrawable = etPassword.getCompoundDrawables()[DRAWABLE_END];
+                if (endDrawable != null) {
+                    int drawableWidth = endDrawable.getBounds().width();
+                    int touchAreaStart = etPassword.getWidth() - etPassword.getPaddingRight() - drawableWidth;
+                    if (event.getX() >= touchAreaStart) {
+                        boolean isHidden = etPassword.getTransformationMethod() instanceof android.text.method.PasswordTransformationMethod;
+                        if (isHidden) {
+                            etPassword.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
+                            etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye, 0);
+                        } else {
+                            etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                            etPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+                        }
+                        etPassword.setSelection(etPassword.getText().length());
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+
+        // Toggle password visibility (confirm field) using transformation method
+        etConfirmPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+        etConfirmPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+        etConfirmPassword.setOnTouchListener((v, event) -> {
+            final int DRAWABLE_END = 2;
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                android.graphics.drawable.Drawable endDrawable = etConfirmPassword.getCompoundDrawables()[DRAWABLE_END];
+                if (endDrawable != null) {
+                    int drawableWidth = endDrawable.getBounds().width();
+                    int touchAreaStart = etConfirmPassword.getWidth() - etConfirmPassword.getPaddingRight() - drawableWidth;
+                    if (event.getX() >= touchAreaStart) {
+                        boolean isHidden = etConfirmPassword.getTransformationMethod() instanceof android.text.method.PasswordTransformationMethod;
+                        if (isHidden) {
+                            etConfirmPassword.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
+                            etConfirmPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye, 0);
+                        } else {
+                            etConfirmPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                            etConfirmPassword.setCompoundDrawablesWithIntrinsicBounds(0, 0, com.example.chatappjava.R.drawable.ic_eye_off, 0);
+                        }
+                        etConfirmPassword.setSelection(etConfirmPassword.getText().length());
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
     
     private void initializeServices() {

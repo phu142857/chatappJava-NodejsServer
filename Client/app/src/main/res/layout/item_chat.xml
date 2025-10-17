@@ -4,11 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
+    android:layout_marginHorizontal="2dp"
     android:layout_marginVertical="4dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="4dp"
-    android:foreground="?android:attr/selectableItemBackground"
+    app:cardCornerRadius="200dp"
+    app:cardBackgroundColor="@android:color/transparent"
     android:clickable="true"
     android:focusable="true">
 
@@ -18,6 +17,7 @@
         android:orientation="horizontal"
         android:fitsSystemWindows="true"
         android:padding="12dp"
+        android:background="@drawable/rounded_container"
         android:gravity="center_vertical">
 
         <!-- Chat Avatar -->
@@ -70,7 +70,7 @@
                     android:layout_toStartOf="@+id/tv_last_message_time"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="@android:color/black"
+                android:textColor="@color/white"
                     android:singleLine="true"
                     android:ellipsize="end"
                     android:layout_marginEnd="8dp"
@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:textSize="12sp"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#B3FFFFFF"
                     tools:text="2m" />
 
             </RelativeLayout>
@@ -100,7 +100,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_toStartOf="@+id/tv_unread_count"
                     android:textSize="16sp"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#CCFFFFFF"
                     android:singleLine="true"
                     android:ellipsize="end"
                     android:layout_marginEnd="8dp"

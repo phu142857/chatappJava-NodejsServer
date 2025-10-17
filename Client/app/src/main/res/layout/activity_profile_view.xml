@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="#E0E0E0">
+    android:background="@color/background_primary">
 
     <ImageView
         android:id="@+id/bg"
@@ -26,8 +26,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -37,6 +37,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
+            android:background="@drawable/rounded_container"
             android:gravity="center_vertical">
 
             <!-- Back Button -->
@@ -47,7 +48,7 @@
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
-                app:tint="@color/primary_color"
+                app:tint="@color/white"
                 android:contentDescription="Back"
                 android:layout_marginEnd="16dp" />
 
@@ -58,7 +59,7 @@
                 android:text="Profile"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:textColor="#333333"
+                android:textColor="@color/white"
                 android:gravity="center"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="32dp" />
@@ -70,7 +71,7 @@
                 android:src="@android:drawable/ic_menu_more"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="4dp"
-                app:tint="#000000" />
+                app:tint="#80FFFFFF" />
 
         </LinearLayout>
 
@@ -85,8 +86,9 @@
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -101,7 +103,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="16dp">
 
                 <!-- Avatar Section -->
                 <LinearLayout
@@ -109,6 +111,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:gravity="center"
+                    android:background="@drawable/rounded_container"
                     android:layout_marginBottom="24dp">
 
                     <de.hdodenhof.circleimageview.CircleImageView
@@ -117,6 +120,7 @@
                         android:layout_height="100dp"
                         android:src="@drawable/ic_profile_placeholder"
                         app:civ_border_width="3dp"
+                        android:layout_marginTop="10dp"
                         app:civ_border_color="#7BCCFF" />
 
                     <TextView
@@ -145,13 +149,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
+                        android:background="@drawable/rounded_container"
                         android:padding="20dp">
 
                         <TextView
@@ -160,7 +166,7 @@
                             android:text="Personal Information"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="#111827"
+                            android:textColor="@color/white"
                             android:layout_marginBottom="16dp" />
 
                         <!-- First Name -->
@@ -175,7 +181,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="First Name:"
                                 android:textSize="14sp"
-                                android:textColor="#6B7280" />
+                                android:textColor="#B3FFFFFF" />
 
                             <TextView
                                 android:id="@+id/tv_first_name"
@@ -183,7 +189,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textSize="14sp"
-                                android:textColor="#111827"
+                                android:textColor="@color/white"
                                 tools:text="John" />
                         </LinearLayout>
 
@@ -199,7 +205,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Last Name:"
                                 android:textSize="14sp"
-                                android:textColor="#6B7280" />
+                                android:textColor="#B3FFFFFF" />
 
                             <TextView
                                 android:id="@+id/tv_last_name"
@@ -207,7 +213,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textSize="14sp"
-                                android:textColor="#111827"
+                                android:textColor="@color/white"
                                 tools:text="Doe" />
                         </LinearLayout>
 
@@ -223,7 +229,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Email:"
                                 android:textSize="14sp"
-                                android:textColor="#6B7280" />
+                                android:textColor="#B3FFFFFF" />
 
                             <TextView
                                 android:id="@+id/tv_email"
@@ -231,7 +237,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textSize="14sp"
-                                android:textColor="#111827"
+                                android:textColor="@color/white"
                                 tools:text="john.doe@example.com" />
                         </LinearLayout>
 
@@ -247,7 +253,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Phone:"
                                 android:textSize="14sp"
-                                android:textColor="#6B7280" />
+                                android:textColor="#B3FFFFFF" />
 
                             <TextView
                                 android:id="@+id/tv_phone_number"
@@ -255,7 +261,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textSize="14sp"
-                                android:textColor="#111827"
+                                android:textColor="@color/white"
                                 tools:text="+123456789" />
                         </LinearLayout>
 
@@ -266,13 +272,15 @@
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
+                        android:background="@drawable/rounded_container"
                         android:padding="20dp">
 
                         <TextView
@@ -281,7 +289,7 @@
                             android:text="About"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="#111827"
+                            android:textColor="@color/white"
                             android:layout_marginBottom="12dp" />
 
                         <TextView
@@ -289,7 +297,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="14sp"
-                            android:textColor="#111827"
+                            android:textColor="@color/white"
                             android:lineSpacingExtra="4dp"
                             tools:text="This is a sample bio text that describes the user." />
 
@@ -301,13 +309,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
+                        android:background="@drawable/rounded_container"
                         android:padding="20dp">
 
                         <TextView
@@ -317,7 +327,7 @@
                             android:text="Friends"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:textColor="#111827"
+                            android:textColor="@color/white"
                             android:layout_marginBottom="12dp" />
 
                         <androidx.recyclerview.widget.RecyclerView
@@ -333,7 +343,7 @@
                             android:layout_height="wrap_content"
                             android:text="No friends to show"
                             android:textSize="14sp"
-                            android:textColor="#6B7280"
+                            android:textColor="#B3FFFFFF"
                             android:visibility="gone"
                             android:layout_marginTop="8dp" />
 

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E0E0E0"
+    android:background="@color/background_primary"
     android:fitsSystemWindows="true">
 
     <ImageView
@@ -26,8 +26,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -37,6 +37,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
+            android:background="@drawable/rounded_container"
             android:gravity="center_vertical">
 
             <ImageView
@@ -46,7 +47,7 @@
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
-                app:tint="@color/primary_color"
+                app:tint="@color/white"
                 android:contentDescription="Back"
                 android:layout_marginEnd="16dp" />
 
@@ -61,7 +62,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Group Settings"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
@@ -69,7 +70,7 @@
                     android:id="@+id/tv_group_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#B3FFFFFF"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
                     tools:text="My Awesome Group" />
@@ -104,13 +105,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -119,7 +121,7 @@
                         android:text="Group Information"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- View Group Info -->
@@ -130,7 +132,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -138,7 +140,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_info_details"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -146,13 +148,13 @@
                             android:layout_weight="1"
                             android:text="View Group Info"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -164,14 +166,14 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_gallery"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -179,13 +181,13 @@
                             android:layout_weight="1"
                             android:text="Change Avatar"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -199,13 +201,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -214,7 +217,7 @@
                         android:text="Privacy Settings"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Public/Private Toggle -->
@@ -236,7 +239,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Public Group"
                                 android:textSize="16sp"
-                                android:textColor="@android:color/black"
+                                android:textColor="@color/white"
                                 android:textStyle="bold" />
 
                             <TextView
@@ -244,7 +247,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Anyone can join this group"
                                 android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray"
+                                android:textColor="#B3FFFFFF"
                                 android:layout_marginTop="4dp" />
 
                         </LinearLayout>
@@ -264,7 +267,7 @@
                         android:layout_height="wrap_content"
                         android:text="When enabled, anyone can find and join this group. When disabled, only invited members can join."
                         android:textSize="12sp"
-                        android:textColor="@android:color/darker_gray" />
+                        android:textColor="#B3FFFFFF" />
 
                 </LinearLayout>
 
@@ -276,13 +279,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -291,7 +295,7 @@
                         android:text="Member Management"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/black"
+                        android:textColor="@color/white"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Add Members -->
@@ -302,7 +306,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -310,7 +314,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_add"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -318,13 +322,13 @@
                             android:layout_weight="1"
                             android:text="Add Members"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -336,7 +340,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -344,7 +348,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_close_clear_cancel"
                             android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -352,13 +356,13 @@
                             android:layout_weight="1"
                             android:text="Remove Members"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                     </LinearLayout>
 
@@ -370,14 +374,14 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_agenda"
                             android:layout_marginEnd="12dp"
-                            app:tint="#0E394B" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -385,7 +389,7 @@
                             android:layout_weight="1"
                             android:text="Join Requests"
                             android:textSize="16sp"
-                            android:textColor="#0E394B" />
+                            android:textColor="@color/white" />
 
                         <TextView
                             android:id="@+id/tv_request_count"
@@ -406,7 +410,7 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#0E394B" />
+                            app:tint="#80FFFFFF" />
 
                     </LinearLayout>
 
@@ -420,13 +424,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@android:color/white">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/transparent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@drawable/rounded_container"
                     android:padding="20dp">
 
                     <TextView
@@ -435,7 +440,7 @@
                         android:text="Danger Zone"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#E53935"
+                        android:textColor="#FF6B6B"
                         android:layout_marginBottom="16dp" />
 
                     <!-- Leave Group -->
@@ -446,7 +451,7 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background"
+                        android:background="@drawable/rounded_container"
                         android:layout_marginBottom="8dp">
 
                         <ImageView
@@ -454,7 +459,7 @@
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_close_clear_cancel"
                             android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -462,13 +467,13 @@
                             android:layout_weight="1"
                             android:text="Leave Group"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                     </LinearLayout>
 
@@ -480,14 +485,14 @@
                         android:orientation="horizontal"
                         android:padding="12dp"
                         android:gravity="center_vertical"
-                        android:background="@drawable/settings_item_background">
+                        android:background="@drawable/rounded_container">
 
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@android:drawable/ic_menu_delete"
                             android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -495,13 +500,13 @@
                             android:layout_weight="1"
                             android:text="Delete Group"
                             android:textSize="16sp"
-                            android:textColor="#E53935" />
+                            android:textColor="#FF6B6B" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#E53935" />
+                            app:tint="#FF6B6B" />
 
                     </LinearLayout>
 

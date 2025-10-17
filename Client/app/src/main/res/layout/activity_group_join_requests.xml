@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="#E0E0E0">
+    android:background="@color/background_primary">
 
     <ImageView
         android:id="@+id/bg"
@@ -26,8 +26,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -37,6 +37,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
+            android:background="@drawable/rounded_container"
             android:gravity="center_vertical">
 
             <ImageView
@@ -46,14 +47,14 @@
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="12dp"
-                app:tint="@color/primary_color"
+                app:tint="@color/white"
                 android:contentDescription="Back"
                 android:layout_marginEnd="16dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
+                android:textColor="@color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:maxLines="1"
@@ -72,9 +73,8 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white"
+        app:cardCornerRadius="200dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -84,13 +84,14 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:background="@drawable/rounded_container"
             android:padding="12dp">
 
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search"
-                app:tint="@android:color/darker_gray"
+                app:tint="#80FFFFFF"
                 android:layout_marginEnd="12dp" />
 
             <EditText
@@ -100,8 +101,9 @@
                 android:layout_weight="1"
                 android:hint="Search requests..."
                 android:textSize="16sp"
-                android:textColorHint="@android:color/darker_gray"
-                android:background="@null"
+                android:textColor="@color/white"
+                android:textColorHint="#80FFFFFF"
+                android:background="@drawable/input_pill"
                 android:inputType="text" />
 
         </LinearLayout>
@@ -117,9 +119,9 @@
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        android:backgroundTint="@android:color/white"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/search_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -132,6 +134,7 @@
             android:clipToPadding="false"
             android:padding="8dp"
             android:scrollbars="vertical"
+            android:background="@drawable/rounded_container"
             tools:listitem="@layout/item_join_request" />
 
     </androidx.cardview.widget.CardView>

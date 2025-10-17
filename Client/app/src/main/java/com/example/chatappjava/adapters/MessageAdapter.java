@@ -654,7 +654,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 android.graphics.Bitmap bmp = createEmojiBitmap(topEmoji, context);
                 badgeView.setImageBitmap(bmp);
                 // Optional background to mimic floating chip
-                badgeView.setBackgroundResource(R.drawable.ripple_reaction_floating);
                 badgeView.setVisibility(View.VISIBLE);
             } catch (Exception ignored) {
                 badgeView.setVisibility(View.GONE);

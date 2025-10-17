@@ -76,7 +76,6 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
         private final ImageView civProfilePicture;
         private final TextView tvUsername;
         private final TextView tvEmail;
-        private final TextView tvRequestType;
         private final LinearLayout llActionButtons;
         private final Button btnAccept;
         private final Button btnReject;
@@ -89,7 +88,6 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
             civProfilePicture = itemView.findViewById(R.id.civ_profile_picture);
             tvUsername = itemView.findViewById(R.id.tv_username);
             tvEmail = itemView.findViewById(R.id.tv_email);
-            tvRequestType = itemView.findViewById(R.id.tv_request_type);
             llActionButtons = itemView.findViewById(R.id.ll_action_buttons);
             btnAccept = itemView.findViewById(R.id.btn_accept);
             btnReject = itemView.findViewById(R.id.btn_reject);
@@ -122,12 +120,10 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
             
             if (isReceivedRequest) {
                 userToShow = request.getSender();
-                tvRequestType.setText("Sent you a friend request");
                 llActionButtons.setVisibility(View.VISIBLE);
                 llSentRequestActions.setVisibility(View.GONE);
             } else {
                 userToShow = request.getReceiver();
-                tvRequestType.setText("Friend request sent");
                 llActionButtons.setVisibility(View.GONE);
                 llSentRequestActions.setVisibility(View.VISIBLE);
                 tvStatus.setText(request.getStatus().toUpperCase());

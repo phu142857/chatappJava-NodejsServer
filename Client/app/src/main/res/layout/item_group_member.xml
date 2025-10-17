@@ -4,17 +4,19 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
+    android:layout_marginHorizontal="2dp"
     android:layout_marginVertical="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    android:foreground="?android:attr/selectableItemBackground">
+    app:cardCornerRadius="200dp"
+    app:cardBackgroundColor="@android:color/transparent"
+    android:clickable="true"
+    android:focusable="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
+        android:background="@drawable/rounded_container"
         android:gravity="center_vertical">
 
         <de.hdodenhof.circleimageview.CircleImageView
@@ -23,7 +25,7 @@
             android:layout_height="48dp"
             android:src="@drawable/ic_profile_placeholder"
             app:civ_border_width="2dp"
-            app:civ_border_color="#E0E0E0" />
+            app:civ_border_color="#B3FFFFFF" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -36,7 +38,7 @@
                 android:id="@+id/tv_member_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
+                android:textColor="@color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 tools:text="John Doe" />
@@ -45,7 +47,7 @@
                 android:id="@+id/tv_member_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/darker_gray"
+                android:textColor="#B3FFFFFF"
                 android:textSize="14sp"
                 tools:text="Online" />
 
@@ -55,7 +57,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@android:drawable/ic_menu_more"
-            app:tint="@android:color/darker_gray"
+            app:tint="@color/white"
             android:contentDescription="More options" />
 
     </LinearLayout>

@@ -3,17 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
+    android:layout_marginHorizontal="2dp"
     android:layout_marginVertical="4dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="4dp"
-    android:background="@android:color/white">
+    app:cardCornerRadius="200dp"
+    app:cardBackgroundColor="@android:color/transparent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
+        android:background="@drawable/rounded_container"
         android:gravity="center_vertical">
 
         <!-- Group Avatar -->
@@ -40,7 +40,7 @@
                 android:text="Group Name"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#0E394B"
+                android:textColor="@color/white"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
@@ -50,7 +50,7 @@
                 android:layout_height="wrap_content"
                 android:text="0 members"
                 android:textSize="14sp"
-                android:textColor="#666666"
+                android:textColor="#B3FFFFFF"
                 android:layout_marginTop="2dp"
                 android:maxLines="1"
                 android:ellipsize="end" />
@@ -61,7 +61,7 @@
                 android:layout_height="wrap_content"
                 android:text="No messages yet"
                 android:textSize="12sp"
-                android:textColor="@android:color/darker_gray"
+                android:textColor="#80FFFFFF"
                 android:layout_marginTop="2dp"
                 android:maxLines="1"
                 android:ellipsize="end" />

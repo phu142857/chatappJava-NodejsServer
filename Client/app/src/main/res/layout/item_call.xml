@@ -3,11 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
+    android:layout_marginHorizontal="2dp"
     android:layout_marginVertical="4dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="4dp"
     android:foreground="?android:attr/selectableItemBackground"
+    app:cardCornerRadius="200dp"
+    app:cardBackgroundColor="@android:color/transparent"
     android:clickable="true"
     android:focusable="true">
 
@@ -16,6 +16,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
+        android:background="@drawable/rounded_container"
         android:gravity="center_vertical">
 
         <!-- Avatar -->
@@ -50,7 +51,7 @@
                     android:text="John Doe"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@android:color/black"
+                    android:textColor="@color/white"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
@@ -78,7 +79,7 @@
                     android:layout_weight="1"
                     android:text="Completed"
                     android:textSize="14sp"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#CCFFFFFF"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
@@ -88,7 +89,7 @@
                     android:layout_height="wrap_content"
                     android:text="2:30"
                     android:textSize="14sp"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#B3FFFFFF"
                     android:layout_marginStart="8dp" />
 
             </LinearLayout>
@@ -109,7 +110,7 @@
                 android:layout_height="wrap_content"
                 android:text="14:30"
                 android:textSize="12sp"
-                android:textColor="@android:color/darker_gray"
+                android:textColor="#B3FFFFFF"
                 android:layout_marginBottom="8dp" />
 
             <ImageButton
