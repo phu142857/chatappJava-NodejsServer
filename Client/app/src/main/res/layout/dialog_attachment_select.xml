@@ -6,7 +6,7 @@
     android:layout_margin="0dp"
     android:soundEffectsEnabled="true"
     app:cardCornerRadius="20dp"
-    app:cardElevation="10dp"
+    app:cardElevation="0dp"
     android:backgroundTint="@android:color/transparent"
     android:clipToPadding="false"
     android:clipChildren="false">
@@ -15,8 +15,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="8dp"
-        android:background="@drawable/bg_dialog_bar">
+        android:padding="12dp"
+        android:background="@drawable/dialog_background_less_transparent"
+        >
 
         <!-- Title -->
         <TextView
@@ -25,20 +26,18 @@
             android:layout_height="wrap_content"
             android:text="Select Attachment"
             android:textSize="18sp"
-            android:textColor="#0E394B"
+            android:textColor="@color/white"
             android:textStyle="bold"
             android:gravity="center"
-            android:padding="16dp"
-            android:layout_marginBottom="8dp" />
+            android:padding="16dp"/>
 
         <!-- Camera Option -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:backgroundTint="@android:color/white">
+            app:cardCornerRadius="200dp"
+            android:backgroundTint="@android:color/transparent">
 
             <LinearLayout
                 android:id="@+id/option_camera"
@@ -47,14 +46,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
-                android:background="?android:attr/selectableItemBackground">
+                android:background="@drawable/rounded_container">
 
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_camera"
                     android:layout_marginEnd="12dp"
-                    app:tint="#0E394B" />
+                    app:tint="@color/white" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -62,7 +61,7 @@
                     android:layout_weight="1"
                     android:text="Take Photo"
                     android:textSize="16sp"
-                    android:textColor="#0E394B"
+                    android:textColor="@color/white"
                     android:textStyle="bold" />
 
             </LinearLayout>
@@ -74,9 +73,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:backgroundTint="@android:color/white">
+            app:cardCornerRadius="200dp"
+            android:backgroundTint="@android:color/transparent">
 
             <LinearLayout
                 android:id="@+id/option_gallery"
@@ -85,14 +83,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
-                android:background="?android:attr/selectableItemBackground">
+                android:background="@drawable/rounded_container">
 
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_gallery"
                     android:layout_marginEnd="12dp"
-                    app:tint="#0E394B" />
+                    app:tint="@color/white" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -100,7 +98,7 @@
                     android:layout_weight="1"
                     android:text="Choose from Gallery"
                     android:textSize="16sp"
-                    android:textColor="#0E394B"
+                    android:textColor="@color/white"
                     android:textStyle="bold" />
 
             </LinearLayout>
@@ -112,9 +110,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:backgroundTint="@android:color/white">
+            app:cardCornerRadius="200dp"
+            android:backgroundTint="@android:color/transparent">
 
             <LinearLayout
                 android:id="@+id/option_file"
@@ -123,14 +120,14 @@
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
-                android:background="?android:attr/selectableItemBackground">
+                android:background="@drawable/rounded_container">
 
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_file"
                     android:layout_marginEnd="12dp"
-                    app:tint="#0E394B" />
+                    app:tint="@color/white" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -138,7 +135,7 @@
                     android:layout_weight="1"
                     android:text="Upload File (PDF, TXT)"
                     android:textSize="16sp"
-                    android:textColor="#0E394B"
+                    android:textColor="@color/white"
                     android:textStyle="bold" />
 
             </LinearLayout>
@@ -170,7 +167,7 @@
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_delete"
                     android:layout_marginEnd="12dp"
-                    app:tint="#0E394B" />
+                    app:tint="@color/white" />
 
                 <TextView
                     android:layout_width="0dp"

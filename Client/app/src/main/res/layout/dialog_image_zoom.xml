@@ -17,20 +17,28 @@
         android:contentDescription="Zoomed image" />
 
     <!-- Close button on top -->
-    <ImageView
-        android:id="@+id/iv_close"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+    <androidx.cardview.widget.CardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
         android:layout_margin="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:padding="12dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:elevation="8dp"
-        android:src="@drawable/ic_close"
-        android:contentDescription="Close"
-        app:tint="@android:color/white" />
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        android:backgroundTint="@android:color/transparent">
+
+        <ImageView
+            android:id="@+id/iv_close"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/rounded_container"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:src="@drawable/ic_close"
+            android:contentDescription="Close"
+            app:tint="@color/white" />
+
+    </androidx.cardview.widget.CardView>
 
 </RelativeLayout>

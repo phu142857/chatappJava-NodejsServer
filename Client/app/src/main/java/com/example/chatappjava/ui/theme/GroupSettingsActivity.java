@@ -401,7 +401,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
         // Get views
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
-        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         
         View fileOption = dialogView.findViewById(R.id.option_file);
         if (fileOption != null) fileOption.setVisibility(View.GONE);
@@ -425,12 +424,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Toast.makeText(this, "Gallery not available", Toast.LENGTH_SHORT).show();
             }
-            if (imageSelectDialog != null) {
-                imageSelectDialog.dismiss();
-            }
-        });
-        
-        cancelButton.setOnClickListener(v -> {
             if (imageSelectDialog != null) {
                 imageSelectDialog.dismiss();
             }

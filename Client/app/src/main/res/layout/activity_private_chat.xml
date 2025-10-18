@@ -96,7 +96,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/online_status"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/grey_f6f6f6"
                     android:textSize="14sp" />
 
             </LinearLayout>
