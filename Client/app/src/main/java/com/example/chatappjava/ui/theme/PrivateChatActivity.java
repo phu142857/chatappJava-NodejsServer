@@ -401,18 +401,24 @@ public class PrivateChatActivity extends BaseChatActivity {
             return;
         }
         
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Chat")
-                .setMessage("Are you sure you want to delete this chat? All messages will be lost.")
-                .setPositiveButton("Delete", (dialog, which) -> deleteChat())
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Chat",
+                "Are you sure you want to delete this chat? All messages will be lost.",
+                "Delete",
+                "Cancel",
+                this::deleteChat,
+                null,
+                false
+        );
     }
     
     private void deleteChat() {
-        Toast.makeText(this, "Deleting chat...", Toast.LENGTH_SHORT).show();
-        
         String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
         apiClient.deleteChat(token, currentChat.getId(), new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -441,12 +447,16 @@ public class PrivateChatActivity extends BaseChatActivity {
             return;
         }
         
-        new AlertDialog.Builder(this)
-                .setTitle("Unfriend")
-                .setMessage("Are you sure you want to unfriend " + otherUser.getDisplayName() + "?")
-                .setPositiveButton("Unfriend", (dialog, which) -> unfriendUser())
-                .setNegativeButton("Cancel", null)
-                .show();
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Unfriend",
+                "Are you sure you want to unfriend " + otherUser.getDisplayName() + "?",
+                "Unfriend",
+                "Cancel",
+                this::unfriendUser,
+                null,
+                false
+        );
     }
     
     private void unfriendUser() {

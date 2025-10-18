@@ -139,7 +139,7 @@
                     android:id="@+id/cb_use_https"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:buttonTint="@color/primary_color" />
+                    android:buttonTint="@color/white" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
@@ -173,7 +173,7 @@
                     android:id="@+id/cb_use_wss"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:buttonTint="@color/primary_color" />
+                    android:buttonTint="@color/white" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>

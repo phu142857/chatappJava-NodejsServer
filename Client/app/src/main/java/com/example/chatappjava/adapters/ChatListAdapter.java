@@ -57,7 +57,6 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
         private final TextView tvLastMessage;
         private final TextView tvLastMessageTime;
         private final TextView tvUnreadCount;
-        private final ImageView ivChatType;
         private final View itemView;
         
         public ChatViewHolder(@NonNull View itemView) {
@@ -67,8 +66,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
             tvChatName = itemView.findViewById(R.id.tv_chat_name);
             tvLastMessage = itemView.findViewById(R.id.tv_last_message);
             tvLastMessageTime = itemView.findViewById(R.id.tv_last_message_time);
-            tvUnreadCount = itemView.findViewById(R.id.tv_unread_count);
-            ivChatType = itemView.findViewById(R.id.iv_chat_type);
+            tvUnreadCount = itemView.findViewById(R.id.tv_unread_count);;
         }
         
         @SuppressLint("SetTextI18n")
@@ -101,15 +99,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
             } else {
                 tvUnreadCount.setVisibility(View.GONE);
             }
-            
-            // Set chat type icon
-            if (chat.isGroupChat()) {
-                ivChatType.setImageResource(R.drawable.ic_group_chat);
-                ivChatType.setVisibility(View.VISIBLE);
-            } else {
-                ivChatType.setVisibility(View.GONE);
-            }
-            
+
             // Load chat avatar
             if (chat.isGroupChat()) {
                 // For group chats, load group avatar if available

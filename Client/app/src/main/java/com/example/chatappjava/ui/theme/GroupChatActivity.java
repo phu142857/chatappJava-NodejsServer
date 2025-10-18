@@ -757,11 +757,13 @@ public class GroupChatActivity extends BaseChatActivity {
     }
     
     private void confirmDeleteChat() {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Chat")
-                .setMessage("Are you sure you want to delete this chat? This will remove it from your chat list.")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    // Use the existing deleteChat method from HomeActivity
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Chat",
+                "Are you sure you want to delete this chat? This will remove it from your chat list.",
+                "Delete",
+                "Cancel",
+                () -> {
                     String token = sharedPrefsManager.getToken();
                     if (token == null || token.isEmpty()) {
                         Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -784,8 +786,9 @@ public class GroupChatActivity extends BaseChatActivity {
                             }
                         }
                     });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                },
+                null,
+                false
+        );
     }
 }
