@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Selected state -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#0E394B"
+                android:endColor="#1A5E7A"
+                android:angle="0" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+
+    <!-- Default (not selected) state -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+
+</selector>

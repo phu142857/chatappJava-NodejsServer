@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:padding="4dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Sent Message -->
+    <LinearLayout
+        android:id="@+id/ll_sent_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="50dp"
+            android:orientation="vertical"
+            android:gravity="end"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Reply preview for sent message -->
+            <LinearLayout
+                android:id="@+id/ll_sent_reply_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_message_reply_sent"
+                android:padding="8dp"
+                android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_sent_reply_thumb"
+                    android:layout_width="72dp"
+                    android:layout_height="48dp"
+                    android:scaleType="centerCrop"
+                    android:layout_marginBottom="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_profile_placeholder" />
+                <TextView
+                    android:id="@+id/tv_sent_reply_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    tools:text="Alice"/>
+                <TextView
+                    android:id="@+id/tv_sent_reply_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@android:color/black"
+                    android:textSize="12sp"
+                    tools:text="Previous message content preview"/>
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/fl_sent_bubble"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <TextView
+                    android:id="@+id/tv_sent_message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_message_sent"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="12dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="22dp"
+                    android:text="This is a sent message"
+                    android:textColor="@color/chat_text_sent"
+                    android:textSize="14sp"
+                    tools:text="This is a sent message" />
+
+                <!-- Overlay reactions badge at bottom-end of bubble -->
+                <ImageView
+                    android:id="@+id/iv_sent_reaction_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_launcher_round" />
+            </FrameLayout>
+
+            <!-- Edited label for sent message -->
+            <TextView
+                android:id="@+id/tv_sent_edited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="(edited)"
+                android:textSize="10sp"
+                android:textColor="@color/gray"
+                android:visibility="gone"/>
+
+            <FrameLayout
+                android:id="@+id/fl_sent_image_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_sent_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="250dp"
+                    android:maxHeight="300dp"
+                    android:minWidth="120dp"
+                    android:minHeight="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_image_message_sent"
+                    android:padding="2dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground" />
+
+                <ImageView
+                    android:id="@+id/iv_sent_image_reaction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_sent_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="10:30 AM"
+                android:textSize="10sp"
+                android:textColor="@color/text_hint"
+                tools:text="10:30 AM" />
+
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Received Message -->
+    <LinearLayout
+        android:id="@+id/ll_received_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="start"
+        android:visibility="gone">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_sender_avatar"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_width="1dp"
+            app:civ_border_color="@color/border_light" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="50dp"
+            android:orientation="vertical"
+            android:gravity="start"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Reply preview for received message -->
+            <LinearLayout
+                android:id="@+id/ll_received_reply_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_message_reply_received"
+                android:padding="8dp"
+                android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_received_reply_thumb"
+                    android:layout_width="72dp"
+                    android:layout_height="48dp"
+                    android:scaleType="centerCrop"
+                    android:layout_marginBottom="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_profile_placeholder" />
+                <TextView
+                    android:id="@+id/tv_received_reply_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/black"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    tools:text="Bob"/>
+                <TextView
+                    android:id="@+id/tv_received_reply_content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@android:color/black"
+                    android:textSize="12sp"
+                    tools:text="Previous message content preview"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_sender_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/gray"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:text="Alice" />
+
+            <FrameLayout
+                android:id="@+id/fl_received_bubble"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <TextView
+                    android:id="@+id/tv_received_message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_message_received"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="12dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="22dp"
+                    android:text="This is a received message"
+                    android:textColor="@color/chat_text_received"
+                    android:textSize="14sp"
+                    tools:text="This is a received message" />
+
+                <!-- Overlay reactions badge at bottom-end of bubble -->
+                <ImageView
+                    android:id="@+id/iv_received_reaction_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone"
+                    tools:src="@drawable/ic_launcher_round" />
+            </FrameLayout>
+
+            <!-- Edited label for received message -->
+            <TextView
+                android:id="@+id/tv_received_edited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="(edited)"
+                android:textSize="10sp"
+                android:textColor="@color/gray"
+                android:visibility="gone"/>
+
+            <FrameLayout
+                android:id="@+id/fl_received_image_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_received_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="250dp"
+                    android:maxHeight="300dp"
+                    android:minWidth="120dp"
+                    android:minHeight="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_image_message_received"
+                    android:padding="2dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground" />
+
+                <ImageView
+                    android:id="@+id/iv_received_image_reaction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:translationX="2dp"
+                    android:translationY="6dp"
+                    android:maxWidth="24dp"
+                    android:maxHeight="24dp"
+                    android:adjustViewBounds="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:elevation="6dp"
+                    android:translationZ="6dp"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tv_received_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="10:30 AM"
+                android:textSize="10sp"
+                android:textColor="@color/text_hint"
+                tools:text="10:30 AM" />
+
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="0dp"
+    android:soundEffectsEnabled="true"
+    app:cardElevation="200dp"
+    android:backgroundTint="@android:color/transparent"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="@drawable/dialog_background_less_transparent">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Email Verification"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:gravity="center"
+            android:padding="16dp"/>
+
+        <!-- Message -->
+        <TextView
+            android:id="@+id/tv_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enter the 6-digit OTP sent to your email."
+            android:textSize="15sp"
+            android:textColor="#B3FFFFFF"
+            android:gravity="center"
+            android:paddingBottom="20dp"/>
+
+        <!-- Hidden input to capture numeric OTP -->
+        <EditText
+            android:id="@+id/dialog_et_hidden_otp"
+            android:layout_width="1px"
+            android:layout_height="1px"
+            android:inputType="number"
+            android:digits="0123456789"
+            android:maxLength="6"
+            android:singleLine="true"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:cursorVisible="false"
+            android:importantForAutofill="no"
+            android:alpha="0"
+            android:visibility="visible"/>
+
+        <!-- OTP Circles Container -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="8dp"
+            app:cardElevation="200dp"
+            android:backgroundTint="@android:color/transparent">
+
+            <LinearLayout
+                android:id="@+id/otp_circles_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:padding="16dp"
+                android:background="@drawable/rounded_container">
+
+                <TextView android:id="@+id/otp_c1" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+                <Space android:layout_width="10dp" android:layout_height="0dp"/>
+                <TextView android:id="@+id/otp_c2" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+                <Space android:layout_width="10dp" android:layout_height="0dp"/>
+                <TextView android:id="@+id/otp_c3" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+                <Space android:layout_width="10dp" android:layout_height="0dp"/>
+                <TextView android:id="@+id/otp_c4" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+                <Space android:layout_width="10dp" android:layout_height="0dp"/>
+                <TextView android:id="@+id/otp_c5" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+                <Space android:layout_width="10dp" android:layout_height="0dp"/>
+                <TextView android:id="@+id/otp_c6" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/otp_circle_empty" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Error Message -->
+        <TextView
+            android:id="@+id/dialog_tv_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#FF6B6B"
+            android:visibility="gone"
+            android:gravity="center"
+            android:paddingTop="8dp"/>
+
+        <!-- Timer -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp"
+            app:cardElevation="200dp"
+            android:backgroundTint="@android:color/transparent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:background="@drawable/rounded_container">
+
+                <TextView
+                    android:id="@+id/dialog_tv_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="14sp"
+                    android:text="01:00" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Resend Button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="16dp">
+
+            <Button
+                android:id="@+id/btn_resend_otp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Resend OTP"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_container"
+                android:textAllCaps="false"
+                android:minWidth="120dp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="12dp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

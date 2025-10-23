@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Android Emulator localhost -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Your specific IP -->
+        <domain includeSubdomains="true">10.72.206.224</domain>
+        <!-- Common localhost addresses -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <!-- Common local network ranges -->
+        <domain includeSubdomains="true">192.168.1.1</domain>
+        <domain includeSubdomains="true">192.168.0.1</domain>
+        <domain includeSubdomains="true">192.168.2.108</domain>
+        <domain includeSubdomains="true">192.168.100.168</domain>
+        <domain includeSubdomains="true"> 10.150.160.224</domain>
+        <domain includeSubdomains="true"> 10.197.192.224</domain>
+        <domain includeSubdomains="true"> 103.75.183.125</domain>>
+
+    </domain-config>
+    <!-- For development: allow cleartext traffic globally (remove in production) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

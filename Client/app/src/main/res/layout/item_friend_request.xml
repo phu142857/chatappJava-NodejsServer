@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="2dp"
+    android:layout_marginVertical="4dp"
+    app:cardElevation="200dp"
+    app:cardBackgroundColor="@android:color/transparent">
+
+    <!-- Nền bo tròn mờ nhẹ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_container"
+        android:orientation="vertical"
+        android:padding="4dp">
+
+        <!-- Hàng trên: Avatar + Thông tin người dùng + Thời gian -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/civ_profile_picture"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginLeft="10dp"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_color="#B3FFFFFF"
+                app:civ_border_width="1.5dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="Fong Nguyen" />
+
+                <TextView
+                    android:id="@+id/tv_email"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="12sp"
+                    tools:text="fong.nguyen@example.com" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Hàng cuối: nút thao tác -->
+        <LinearLayout
+            android:id="@+id/ll_action_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_reject"
+                style="@style/AppDangerButtonOutlined"
+                android:layout_height="36dp"
+                android:layout_marginRight="10dp"
+                android:text="Reject"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_accept"
+                style="@style/AppPrimaryButton"
+                android:text="Accept"
+                android:layout_marginLeft="4dp"
+                android:layout_marginRight="30dp"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <!-- Trạng thái khi đã gửi yêu cầu -->
+        <LinearLayout
+            android:id="@+id/ll_sent_request_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="gone">
+
+            <Button
+                android:id="@+id/btn_cancel"
+                style="@style/AppDangerButtonOutlined"
+                android:layout_height="36dp"
+                android:layout_marginRight="35dp"
+                android:text="Cancel"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="4dp"
+                android:layout_marginRight="55dp"
+                android:textColor="#4CAF50"
+                android:textSize="12sp"
+                tools:text="Pending" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

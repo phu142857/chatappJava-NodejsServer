@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="0dp"
+    android:soundEffectsEnabled="true"
+    app:cardElevation="200dp"
+    android:backgroundTint="@android:color/transparent"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:background="@drawable/dialog_background_less_transparent">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose Emoji"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="16dp"/>
+
+        <!-- Emoji Grid Container -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="2dp"
+            android:backgroundTint="@android:color/transparent">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="320dp"
+                android:fillViewport="true"
+                android:scrollbars="vertical">
+
+                <android.widget.GridLayout
+                    android:id="@+id/emoji_grid"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="20dp"
+
+                    android:columnCount="6">
+                    <!-- Static emoji items -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😀" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😃" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😄" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😁" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😆" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😅" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😂" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤣" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😊" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😇" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙂" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙃" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😉" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😍" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🥰" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😘" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😗" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😙" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😚" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😋" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😛" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😝" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😜" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤪" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😒" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😞" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😔" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😟" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😕" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🙁" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😣" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😖" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😫" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😩" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🥺" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😢" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😭" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😤" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😠" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="😡" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤬" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🤯" android:textSize="24sp" android:textColor="@color/white" android:padding="12dp" android:gravity="center" android:onClick="onEmojiClicked" android:clickable="true" android:background="?android:attr/selectableItemBackground" />
+                </android.widget.GridLayout>
+
+            </ScrollView>
+
+        </androidx.cardview.widget.CardView>
+
+
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

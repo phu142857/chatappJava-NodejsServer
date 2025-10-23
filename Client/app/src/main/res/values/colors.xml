@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Legacy Colors (keep for compatibility) -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Design System Colors -->
+    <!-- Primary Brand Colors -->
+    <color name="primary_color">#0E394B</color>
+    <color name="primary_light">#7BCCFF</color>
+    <color name="primary_dark">#0A2A35</color>
+    
+    <!-- Background Colors -->
+    <color name="background_primary">#E0E0E0</color>
+    <color name="background_secondary">#FFFFFF</color>
+    <color name="background_tertiary">#D9D9D9</color>
+    <color name="background_card">#FFFFFF</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_tertiary">#999999</color>
+    <color name="text_hint">#CCCCCC</color>
+    <color name="text_inverse">#FFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="success_color">#4CAF50</color>
+    <color name="warning_color">#FF9800</color>
+    <color name="error_color">#E53935</color>
+    <color name="info_color">#2196F3</color>
+    
+    <!-- Action Colors -->
+    <color name="call_accept">#4CAF50</color>
+    <color name="call_decline">#E53935</color>
+    <color name="call_end">#B71C1C</color>
+    
+    <!-- Border Colors -->
+    <color name="border_light">#E0E0E0</color>
+    <color name="border_medium">#CCCCCC</color>
+    <color name="border_dark">#999999</color>
+    
+    <!-- Surface Colors -->
+    <color name="surface_primary">#FFFFFF</color>
+    <color name="surface_secondary">#F5F5F5</color>
+    <color name="surface_overlay">#80000000</color>
+    
+    <!-- Chat Colors -->
+    <color name="chat_bubble_sent">#0E394B</color>
+    <color name="chat_bubble_sent_soft">#CC0E394B</color>
+    <color name="chat_bubble_received">#F3F4F6</color>
+    <color name="chat_text_sent">#FFFFFF</color>
+    <color name="chat_text_received">#000000</color>
+    
+    
+    <!-- Legacy Colors (for compatibility) -->
+    <color name="green">#4CAF50</color>
+    <color name="red">#E53935</color>
+    <color name="light_gray">#CCCCCC</color>
+    <color name="control_button_background">#80000000</color>
+    <color name="semi_transparent_black">#80000000</color>
+    <color name="gray">#666666</color>
+    <color name="blue">#2196F3</color>
+    <color name="schemes_surface_container_lowest">#FFFFFF</color>
+    <color name="schemes_on_surface">#000000</color>
+    <color name="grey_f6f6f6">#F6F6F6</color>
+    <color name="background_light">#F5F5F5</color>
+    <color name="text_primary_legacy">#111827</color>
+    <color name="text_secondary_legacy">#6B7280</color>
+    <color name="primary_dark_legacy">#4F46E5</color>
+    <color name="primary_light_legacy">#A5B4FC</color>
+    <color name="secondary_color">#EC4899</color>
+    <color name="secondary_dark">#DB2777</color>
+    <color name="secondary_light">#F9A8D4</color>
+    <color name="background_primary_legacy">#FAFAFA</color>
+    <color name="background_secondary_legacy">#FFFFFF</color>
+    <color name="background_tertiary_legacy">#F3F4F6</color>
+    <color name="text_tertiary_legacy">#9CA3AF</color>
+    <color name="text_inverse_legacy">#FFFFFF</color>
+    <color name="success_color_legacy">#10B981</color>
+    <color name="warning_color_legacy">#F59E0B</color>
+    <color name="error_color_legacy">#EF4444</color>
+    <color name="info_color_legacy">#3B82F6</color>
+    <color name="surface_primary_legacy">#FFFFFF</color>
+    <color name="surface_secondary_legacy">#F9FAFB</color>
+    <color name="surface_tertiary_legacy">#F3F4F6</color>
+    <color name="border_primary">#E5E7EB</color>
+    <color name="border_secondary">#D1D5DB</color>
+    <color name="border_focus">#0E394B</color>
+    <color name="gradient_start">#0E394B</color>
+    <color name="gradient_end">#7BCCFF</color>
+    <color name="chat_bubble_sent_legacy">#0E394B</color>
+    <color name="chat_bubble_received_legacy">#F3F4F6</color>
+    <color name="chat_text_sent_legacy">#FFFFFF</color>
+    <color name="chat_text_received_legacy">#111827</color>
+</resources>
