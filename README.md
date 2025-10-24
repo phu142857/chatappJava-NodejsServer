@@ -190,14 +190,7 @@ npm run seed:admin
 - **Unit tests** (Jest for server, JUnit for Android)
 - **Integration tests** (API endpoints, DB)
 - **End-to-end**: WebSocket & video call flows
-
----
-
-## Monitoring & Analytics (Optional)
-- Prometheus + Grafana for server metrics
-- Firebase Analytics for Android
-- Google Analytics for Admin Panel
-
+  
 ---
 
 ## Version History
@@ -239,3 +232,4 @@ For any questions or support, feel free to contact: **nguyentaiphu980@gmail.com*
 - Push notifications via FCM
 - File preview and CDN integration
 - Full HTTPS/WSS support for secure communication
+
