@@ -2,6 +2,7 @@ package com.example.chatappjava.ui.call;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -69,15 +70,12 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     // UI Components
     private TextView tvCallStatus;
-    private TextView tvCallDuration;
     private LinearLayout remoteVideoPlaceholder;
     private LinearLayout localVideoPlaceholder;
     private ImageButton btnMute;
     private ImageButton btnEndCall;
     private ImageButton btnCameraToggle;
     private ImageButton btnSwitchCamera;
-    private LinearLayout loadingOverlay;
-    private ProgressBar progressBar;
 
     private User caller;
     private String callId;
@@ -107,6 +105,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     private final java.util.List<IceCandidate> pendingRemoteCandidates = new java.util.ArrayList<>();
     // Server-provided ICE servers waiting for factory init
     private org.json.JSONArray pendingIceServersJson;
+    
+    // Synchronization state management
+    private boolean isWebRTCInitialized = false;
+    private boolean isPeerConnectionReady = false;
+    private boolean isOfferSent = false;
+    private boolean isAnswerSent = false;
+    private boolean isEndingCall = false;
+    private final Object syncLock = new Object();
 
     // Call duration
     private Timer callDurationTimer;
@@ -178,7 +184,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         } catch (JSONException e) {
             Log.e(TAG, "Error parsing call data", e);
             Toast.makeText(this, "Error loading call data", Toast.LENGTH_SHORT).show();
-            finish();
+            navigateToHome();
         }
     }
 
@@ -189,16 +195,19 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
             // Set up WebRTC listener
             socketManager.setWebRTCListener(this);
-            // Receive ICE servers from server
+            
+            // Receive ICE servers from server with synchronization
             socketManager.setCallRoomListener((joinedCallId, iceServersJson) -> {
                 if (callId != null && callId.equals(joinedCallId)) {
                     Log.d(TAG, "Received ICE servers for call: " + joinedCallId);
                     if (iceServersJson != null) {
-                        if (peerConnectionFactory == null) {
-                            pendingIceServersJson = iceServersJson;
-                            Log.d(TAG, "Deferred ICE servers usage until factory init");
-                        } else if (peerConnection == null) {
-                            createPeerConnectionWithIceServers(iceServersJson);
+                        synchronized (syncLock) {
+                            if (peerConnectionFactory == null) {
+                                pendingIceServersJson = iceServersJson;
+                                Log.d(TAG, "Deferred ICE servers usage until factory init");
+                            } else if (peerConnection == null) {
+                                createPeerConnectionWithIceServers(iceServersJson);
+                            }
                         }
                     }
                 }
@@ -222,7 +231,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                         if (VideoCallActivity.this.callId != null && VideoCallActivity.this.callId.equals(callId)) {
                             Log.d(TAG, "Call ended by other participant");
                             Toast.makeText(VideoCallActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
-                            finish();
+                            navigateToHome();
                         }
                     });
                 }
@@ -234,8 +243,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     private void initializeViews() {
         // Status and info views
         tvCallStatus = findViewById(R.id.tv_call_status);
-        TextView tvCallStatusTop = findViewById(R.id.tv_call_status_top);
-        tvCallDuration = findViewById(R.id.tv_call_duration);
         CircleImageView ivRemoteAvatar = findViewById(R.id.iv_remote_avatar);
         TextView tvRemoteName = findViewById(R.id.tv_remote_name);
 
@@ -251,9 +258,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         btnCameraToggle = findViewById(R.id.btn_camera_toggle);
         btnSwitchCamera = findViewById(R.id.btn_switch_camera);
 
-        // Loading overlay
-        loadingOverlay = findViewById(R.id.loading_overlay);
-        progressBar = findViewById(R.id.progressBar);
 
         // Initialize WebRTC
         initializeWebRTC();
@@ -262,7 +266,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         if (caller != null) {
             tvRemoteName.setText(caller.getUsername());
             tvCallStatus.setText("Connecting...");
-            tvCallStatusTop.setText("Connecting...");
 
             // Load avatar
             String avatarUrl = caller.getFullAvatarUrl();
@@ -292,12 +295,14 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     @SuppressLint("SetTextI18n")
     private void initializeWebRTC() {
-        Log.d(TAG, "Initializing WebRTC");
+        synchronized (syncLock) {
+            Log.d(TAG, "Initializing WebRTC");
 
-        // Check if already initialized
-        if (peerConnectionFactory != null) {
-            Log.d(TAG, "WebRTC already initialized, skipping");
-            return;
+            // Check if already initialized
+            if (isWebRTCInitialized) {
+                Log.d(TAG, "WebRTC already initialized, skipping");
+                return;
+            }
         }
 
         // Initialize EGL base
@@ -366,6 +371,10 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
 
         Log.d(TAG, "WebRTC initialized successfully");
+        
+        synchronized (syncLock) {
+            isWebRTCInitialized = true;
+        }
     }
 
     @SuppressLint("SetTextI18n")
@@ -537,7 +546,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                 runOnUiThread(() -> {
                     if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
                         tvCallStatus.setText("Connected - waiting for remote stream...");
-                        progressBar.setVisibility(View.GONE);
                         Log.d(TAG, "ICE connection established - should receive remote stream soon");
                     } else if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         tvCallStatus.setText("Disconnected");
@@ -626,6 +634,13 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     }
 
     private void createPeerConnectionWithIceServers(org.json.JSONArray iceServersJson) {
+        synchronized (syncLock) {
+            if (isPeerConnectionReady) {
+                Log.d(TAG, "Peer connection already ready, skipping");
+                return;
+            }
+        }
+        
         Log.d(TAG, "Creating peer connection with server ICE servers");
         if (peerConnection != null) return;
         if (peerConnectionFactory == null) {
@@ -732,6 +747,10 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
 
         Log.d(TAG, "Peer connection created with server ICE servers");
+        
+        synchronized (syncLock) {
+            isPeerConnectionReady = true;
+        }
     }
 
     private void sendIceCandidate(IceCandidate iceCandidate) {
@@ -752,6 +771,22 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     @SuppressLint("SetTextI18n")
     private void createOffer() {
+        synchronized (syncLock) {
+            if (isOfferSent) {
+                Log.d(TAG, "Offer already sent, skipping");
+                return;
+            }
+            
+            if (!isPeerConnectionReady || peerConnection == null) {
+                Log.w(TAG, "Peer connection not ready for offer creation");
+                // Retry after a short delay
+                new Handler(Looper.getMainLooper()).postDelayed(this::createOffer, 500);
+                return;
+            }
+            
+            isOfferSent = true;
+        }
+        
         Log.d(TAG, "Creating offer");
         runOnUiThread(() -> tvCallStatus.setText("Creating offer..."));
         MediaConstraints constraints = new MediaConstraints();
@@ -886,6 +921,13 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     // WebRTC signaling handlers
     public void handleWebRTCOffer(JSONObject offer) {
+        synchronized (syncLock) {
+            if (!isPeerConnectionReady || peerConnection == null) {
+                Log.w(TAG, "Peer connection not ready for offer processing");
+                return;
+            }
+        }
+        
         try {
             String type = offer.getString("type");
             String sdp = offer.getString("sdp");
@@ -932,6 +974,20 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     }
 
     public void handleWebRTCAnswer(JSONObject answer) {
+        synchronized (syncLock) {
+            if (isAnswerSent) {
+                Log.d(TAG, "Answer already processed, skipping");
+                return;
+            }
+            
+            if (!isPeerConnectionReady || peerConnection == null) {
+                Log.w(TAG, "Peer connection not ready for answer processing");
+                return;
+            }
+            
+            isAnswerSent = true;
+        }
+        
         try {
             String type = answer.getString("type");
             String sdp = answer.getString("sdp");
@@ -1265,7 +1321,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     @SuppressLint("SetTextI18n")
     private void setupIncomingCall() {
         tvCallStatus.setText("Incoming call...");
-        loadingOverlay.setVisibility(View.GONE);
 
         // Auto-accept after 5 seconds for demo
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -1278,7 +1333,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     @SuppressLint("SetTextI18n")
     private void setupOutgoingCall() {
         tvCallStatus.setText("Calling...");
-        loadingOverlay.setVisibility(View.VISIBLE);
 
         // Simulate call connection
         new Handler(Looper.getMainLooper()).postDelayed(this::connectCall, 2000);
@@ -1287,7 +1341,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     @SuppressLint("SetTextI18n")
     private void acceptCall() {
         tvCallStatus.setText("Connecting...");
-        loadingOverlay.setVisibility(View.VISIBLE);
 
         // Call API to accept call
         String token = sharedPrefsManager.getToken();
@@ -1296,7 +1349,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             public void onFailure(Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Toast.makeText(VideoCallActivity.this, "Failed to accept call", Toast.LENGTH_SHORT).show();
-                    finish();
+                    navigateToHome();
                 });
             }
 
@@ -1307,7 +1360,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                         connectCall();
                     } else {
                         Toast.makeText(VideoCallActivity.this, "Failed to accept call", Toast.LENGTH_SHORT).show();
-                        finish();
+                        navigateToHome();
                     }
                 });
             }
@@ -1317,9 +1370,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     @SuppressLint("SetTextI18n")
     private void connectCall() {
         isCallActive = true;
-        loadingOverlay.setVisibility(View.GONE);
         tvCallStatus.setText("Connected");
-        tvCallDuration.setVisibility(View.VISIBLE);
 
         // Start call duration timer
         startCallDurationTimer();
@@ -1344,9 +1395,6 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             public void run() {
                 runOnUiThread(() -> {
                     callDurationSeconds++;
-                    int minutes = callDurationSeconds / 60;
-                    int seconds = callDurationSeconds % 60;
-                    tvCallDuration.setText(String.format("%02d:%02d", minutes, seconds));
                 });
             }
         }, 1000, 1000);
@@ -1478,6 +1526,16 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     }
 
     private void endCall() {
+        synchronized (syncLock) {
+            if (isEndingCall) {
+                Log.d(TAG, "Call ending already in progress, ignoring");
+                return;
+            }
+            isEndingCall = true;
+        }
+        
+        Log.d(TAG, "Ending call: " + callId);
+        
         if (callDurationTimer != null) {
             callDurationTimer.cancel();
         }
@@ -1489,7 +1547,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             public void onFailure(Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Log.e(TAG, "Failed to end call", e);
-                    finish();
+                    navigateToHome();
                 });
             }
 
@@ -1497,10 +1555,37 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
                     Log.d(TAG, "Call ended: " + response.code());
-                    finish();
+                    navigateToHome();
                 });
             }
         });
+    }
+    
+    private void resetSynchronizationState() {
+        synchronized (syncLock) {
+            isWebRTCInitialized = false;
+            isPeerConnectionReady = false;
+            isOfferSent = false;
+            isAnswerSent = false;
+            isEndingCall = false;
+            remoteDescriptionSet = false;
+            pendingRemoteCandidates.clear();
+            pendingIceServersJson = null;
+        }
+        Log.d(TAG, "Synchronization state reset");
+    }
+
+    private void navigateToHome() {
+        Log.d(TAG, "Navigating back to HomeActivity");
+        
+        // Create intent to go back to HomeActivity
+        Intent intent = new Intent(this, com.example.chatappjava.ui.theme.HomeActivity.class);
+        
+        // Clear the activity stack and start fresh from HomeActivity
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        
+        startActivity(intent);
+        finish();
     }
 
     @Override
@@ -1513,7 +1598,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             } else {
                 Toast.makeText(this, "Camera permission required for video calls", Toast.LENGTH_SHORT).show();
                 if ("video".equals(callType)) {
-                    finish();
+                    navigateToHome();
                 }
             }
         } else if (requestCode == REQUEST_MICROPHONE_PERMISSION) {
@@ -1521,7 +1606,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                 Log.d(TAG, "Microphone permission granted");
             } else {
                 Toast.makeText(this, "Microphone permission required for calls", Toast.LENGTH_SHORT).show();
-                finish();
+                navigateToHome();
             }
         }
     }
@@ -1544,6 +1629,9 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
         // Clean up WebRTC resources
         cleanupWebRTC();
+        
+        // Reset synchronization state
+        resetSynchronizationState();
     }
 
     private void cleanupWebRTC() {

@@ -63,6 +63,11 @@ public class RingingActivity extends AppCompatActivity {
     private boolean isIncomingCall;
     private boolean isCallActive = false;
     
+    // Synchronization state management
+    private boolean isAcceptingCall = false;
+    private boolean isDecliningCall = false;
+    private final Object callActionLock = new Object();
+    
     // Animation
     private AnimatorSet rippleAnimatorSet;
     private Animation avatarPulseAnimation;
@@ -134,7 +139,7 @@ public class RingingActivity extends AppCompatActivity {
             
         } catch (JSONException e) {
             Log.e(TAG, "Error parsing call data", e);
-            finish();
+            navigateToHome();
         }
     }
     
@@ -335,7 +340,7 @@ public class RingingActivity extends AppCompatActivity {
                                 openVideoCallActivity();
                             } catch (JSONException e) {
                                 Log.e(TAG, "Error opening video call activity", e);
-                                finish();
+                                navigateToHome();
                             }
                         }
                     });
@@ -372,7 +377,7 @@ public class RingingActivity extends AppCompatActivity {
                             resultIntent.putExtra("callId", callId);
                             setResult(RESULT_OK, resultIntent);
                             
-                            finish();
+                            navigateToHome();
                         }
                     });
                 }
@@ -462,6 +467,21 @@ public class RingingActivity extends AppCompatActivity {
     }
     
     private void acceptCall() {
+        synchronized (callActionLock) {
+            if (isAcceptingCall || isDecliningCall) {
+                Log.d(TAG, "Call action already in progress, ignoring");
+                return;
+            }
+            
+            if (isCallActive) {
+                Log.d(TAG, "Call already active, ignoring");
+                return;
+            }
+            
+            isAcceptingCall = true;
+        }
+        
+        Log.d(TAG, "Accepting call: " + callId);
         isCallActive = true;
         stopRingingAnimations();
         stopRingtone();
@@ -473,23 +493,31 @@ public class RingingActivity extends AppCompatActivity {
             public void onFailure(Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Log.e(TAG, "Failed to accept call", e);
-                    finish();
+                    synchronized (callActionLock) {
+                        isAcceptingCall = false;
+                    }
+                    navigateToHome();
                 });
             }
             
             @Override
             public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
+                    synchronized (callActionLock) {
+                        isAcceptingCall = false;
+                    }
+                    
                     if (response.isSuccessful()) {
                         try {
+                            Log.d(TAG, "Call accepted successfully, opening video call");
                             openVideoCallActivity();
                         } catch (JSONException e) {
                             Log.e(TAG, "Error opening video call activity", e);
-                            finish();
+                            navigateToHome();
                         }
                     } else {
                         Log.e(TAG, "Failed to accept call: " + response.code());
-                        finish();
+                        navigateToHome();
                     }
                 });
             }
@@ -497,6 +525,21 @@ public class RingingActivity extends AppCompatActivity {
     }
     
     private void declineCall() {
+        synchronized (callActionLock) {
+            if (isAcceptingCall || isDecliningCall) {
+                Log.d(TAG, "Call action already in progress, ignoring");
+                return;
+            }
+            
+            if (isCallActive) {
+                Log.d(TAG, "Call already active, ignoring");
+                return;
+            }
+            
+            isDecliningCall = true;
+        }
+        
+        Log.d(TAG, "Declining call: " + callId);
         isCallActive = true;
         stopRingingAnimations();
         stopRingtone();
@@ -511,7 +554,10 @@ public class RingingActivity extends AppCompatActivity {
                     // Reset active call on failure as well to avoid stuck state
                     com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
                     if (sm != null) sm.resetActiveCall();
-                    finish();
+                    synchronized (callActionLock) {
+                        isDecliningCall = false;
+                    }
+                    navigateToHome();
                 });
             }
             
@@ -521,7 +567,10 @@ public class RingingActivity extends AppCompatActivity {
                     Log.d(TAG, "Call declined: " + response.code());
                     com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
                     if (sm != null) sm.resetActiveCall();
-                    finish();
+                    synchronized (callActionLock) {
+                        isDecliningCall = false;
+                    }
+                    navigateToHome();
                 });
             }
         });
@@ -613,11 +662,36 @@ public class RingingActivity extends AppCompatActivity {
         }
     }
     
+    private void resetCallActionState() {
+        synchronized (callActionLock) {
+            isAcceptingCall = false;
+            isDecliningCall = false;
+            isCallActive = false;
+        }
+        Log.d(TAG, "Call action state reset");
+    }
+    
+    private void navigateToHome() {
+        Log.d(TAG, "Navigating back to HomeActivity");
+        
+        // Create intent to go back to HomeActivity
+        Intent intent = new Intent(this, com.example.chatappjava.ui.theme.HomeActivity.class);
+        
+        // Clear the activity stack and start fresh from HomeActivity
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        
+        startActivity(intent);
+        finish();
+    }
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopRingingAnimations();
         stopRingtone();
+        
+        // Reset call action state
+        resetCallActionState();
         
         // Clear socket listener to prevent memory leaks
         com.example.chatappjava.network.SocketManager socketManager = 

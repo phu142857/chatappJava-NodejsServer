@@ -119,7 +119,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             }
         }
     }
-    
+
     private void loadCurrentGroupMembers() {
         if (currentChat == null) return;
         String token = sharedPrefsManager.getToken();
@@ -132,6 +132,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
 
         // Use same logic as GroupMembersActivity - fetch members from server
         apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
@@ -156,6 +157,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         });
     }
     
+    @SuppressLint("NotifyDataSetChanged")
     private void handleLoadMembersResponse(int statusCode, String responseBody) {
         try {
             if (statusCode == 200) {
@@ -946,30 +948,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             Toast.makeText(this, "Error processing add member response", Toast.LENGTH_SHORT).show();
         }
     }
-    
-    private void searchGroups(String token, String query) {
-        // When query empty, show all loaded groups
-        if (query == null || query.isEmpty()) {
-            groupAdapter.updateGroups(groupResults);
-            showLoading(false);
-            updateResultsVisibility();
-            return;
-        }
-        // Filter groups by query (local)
-        List<Chat> filteredGroups = new ArrayList<>();
-        for (Chat group : groupResults) {
-            if (group != null && group.getName() != null && group.getName().toLowerCase().contains(query.toLowerCase())) {
-                filteredGroups.add(group);
-            }
-        }
-        
-        runOnUiThread(() -> {
-            groupAdapter.updateGroups(filteredGroups);
-            showLoading(false);
-            updateResultsVisibility();
-        });
-    }
-    
+
     private void loadUserGroups() {
         String token = sharedPrefsManager.getToken();
         if (token == null) {
