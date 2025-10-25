@@ -20,11 +20,13 @@
 
     <ImageView
         android:id="@+id/register_title_top"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="60dp"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="20dp"
         android:src="@mipmap/ic_launcher_round"
+        android:background="@drawable/round_container1"
         android:contentDescription="App Icon"
+        android:padding="10dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
