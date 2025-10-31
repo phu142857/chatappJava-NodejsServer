@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:text="Email"
                 android:layout_marginLeft="10dp"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -59,7 +59,7 @@
                 android:id="@+id/et_email"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:layout_marginBottom="16dp"
                 android:background="@drawable/input_pill"
                 android:inputType="textEmailAddress"
@@ -70,7 +70,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 android:layout_marginLeft="10dp"
                 android:text="Password"
@@ -80,7 +80,7 @@
                 android:id="@+id/et_password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:layout_marginBottom="16dp"
                 android:background="@drawable/input_pill"
                 android:inputType="textPassword"
@@ -115,7 +115,7 @@
                     android:layout_weight="1"
                     android:layout_marginLeft="20dp"
                     android:text="Forgot password?"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textSize="14sp" />
 
                 <TextView
@@ -125,7 +125,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="Register"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:layout_marginRight="20dp"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -138,7 +138,7 @@
         android:text="LOGIN"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@android:color/white"
+        android:textColor="@android:color/black"
         android:background="@drawable/button_gradient_rounded"
         android:backgroundTint="@null"
         app:backgroundTint="@null"

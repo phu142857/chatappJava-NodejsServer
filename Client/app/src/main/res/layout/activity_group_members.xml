@@ -19,15 +19,12 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Header Card -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/header_card"
-        android:layout_width="0dp"
+    <LinearLayout android:id="@+id/header_card"
+        android:orientation="vertical" android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardElevation="200dp"
-        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -49,7 +46,7 @@
                 android:contentDescription="Back"
                 android:padding="12dp"
                 android:src="@drawable/ic_back"
-                app:tint="@color/white" />
+                app:tint="@color/black" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -64,7 +61,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textSize="20sp"
                     android:textStyle="bold"
                     tools:text="My Awesome Group" />
@@ -74,7 +71,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:textColor="#B3FFFFFF"
+                    android:textColor="@color/black"
                     android:textSize="14sp"
                     tools:text="5 members" />
 
@@ -82,21 +79,18 @@
 
         </LinearLayout>
 
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- Search Bar -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/search_card"
+    <LinearLayout android:id="@+id/search_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
-        app:cardElevation="200dp"
-        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent" android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -110,7 +104,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search"
-                app:tint="#80FFFFFF"
+                app:tint="@color/black"
                 android:layout_marginEnd="12dp" />
 
             <EditText
@@ -120,30 +114,27 @@
                 android:layout_weight="1"
                 android:hint="Search members..."
                 android:textSize="16sp"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:textColorHint="#80FFFFFF"
                 android:background="@drawable/input_pill"
                 android:inputType="text" />
 
         </LinearLayout>
 
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- Members container bar (wrap all items) -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/members_card"
+    <LinearLayout android:id="@+id/members_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        app:cardElevation="200dp"
-        app:cardBackgroundColor="@android:color/transparent"
         app:layout_constraintTop_toBottomOf="@id/search_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent" android:orientation="vertical">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_members"
@@ -155,7 +146,7 @@
             android:background="@drawable/rounded_container"
             tools:listitem="@layout/item_group_member" />
 
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- Empty State -->
     <LinearLayout

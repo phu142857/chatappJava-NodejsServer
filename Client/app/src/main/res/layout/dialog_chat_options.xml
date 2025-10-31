@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
+    android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="0dp"
     android:soundEffectsEnabled="true"
-    app:cardElevation="200dp"
     android:backgroundTint="@android:color/transparent"
     android:clipToPadding="false"
     android:clipChildren="false">
@@ -24,18 +23,16 @@
             android:layout_height="wrap_content"
             android:text="Chat Options"
             android:textSize="18sp"
-            android:textColor="@color/white"
+            android:textColor="@color/black"
             android:textStyle="bold"
             android:gravity="center"
             android:padding="16dp"/>
 
         <!-- View Profile/Group Info Option -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
+        <LinearLayout android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
-            android:backgroundTint="@android:color/transparent">
+            android:backgroundTint="@android:color/transparent" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_view_info"
@@ -51,7 +48,7 @@
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_info_details"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/white" />
+                    app:tint="@color/black" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -59,21 +56,19 @@
                     android:layout_weight="1"
                     android:text="View Info"
                     android:textSize="16sp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Add Members Option (Group only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_add_members"
+        <LinearLayout android:id="@+id/card_add_members"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_add_members"
@@ -89,7 +84,7 @@
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_add"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/white" />
+                    app:tint="@color/black" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -97,21 +92,19 @@
                     android:layout_weight="1"
                     android:text="Add Members"
                     android:textSize="16sp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Remove Members Option (Group only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_remove_members"
+        <LinearLayout android:id="@+id/card_remove_members"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_remove_members"
@@ -139,17 +132,15 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Leave Group Option (Group only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_leave_group"
+        <LinearLayout android:id="@+id/card_leave_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_leave_group"
@@ -177,15 +168,13 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Delete Chat Option -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
+        <LinearLayout android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
-            android:backgroundTint="@android:color/transparent">
+            android:backgroundTint="@android:color/transparent" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_delete_chat"
@@ -213,17 +202,15 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Unfriend Option (Private only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_unfriend"
+        <LinearLayout android:id="@+id/card_unfriend"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_unfriend"
@@ -251,17 +238,15 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Block User Option (Private only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_block_user"
+        <LinearLayout android:id="@+id/card_block_user"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_block_user"
@@ -289,17 +274,15 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Delete Group Option (Group only) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_delete_group"
+        <LinearLayout android:id="@+id/card_delete_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="2dp"
-            app:cardElevation="200dp"
             android:backgroundTint="@android:color/transparent"
-            android:visibility="gone">
+            android:visibility="gone" android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/option_delete_group"
@@ -327,7 +310,7 @@
                     android:textStyle="bold" />
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</LinearLayout>

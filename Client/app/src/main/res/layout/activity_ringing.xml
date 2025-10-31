@@ -26,20 +26,18 @@
         android:text="Incoming Video Call"
         android:textSize="32sp"
         android:textStyle="bold"
-        android:textColor="@color/white"
+                    android:textColor="@color/black"
         android:layout_marginTop="80dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Caller info card -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/caller_info_card"
+    <LinearLayout android:id="@+id/caller_info_card"
         android:layout_width="361dp"
         android:layout_height="wrap_content"
-        app:cardElevation="200dp"
-        app:cardBackgroundColor="@android:color/transparent"
         android:layout_marginTop="40dp"
+        android:orientation="vertical"
         app:layout_constraintTop_toBottomOf="@id/tv_call_type"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -67,7 +65,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="John Doe"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:textSize="28sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
@@ -77,7 +75,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="is calling you..."
-                android:textColor="#B3FFFFFF"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 android:layout_marginBottom="16dp" />
 
@@ -87,27 +85,24 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00"
-                android:textColor="#007BFF"
+                android:textColor="@color/black"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- Swipe Action Card -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/swipe_action_card"
+    <LinearLayout android:id="@+id/swipe_action_card"
         android:layout_width="361dp"
         android:layout_height="wrap_content"
-        app:cardElevation="200dp"
         android:layout_marginTop="40dp"
         android:layout_marginBottom="50dp"
         app:layout_constraintTop_toBottomOf="@id/caller_info_card"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent" android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -122,7 +117,7 @@
                 android:layout_height="wrap_content"
                 android:text="Swipe to answer or decline"
                 android:textSize="16sp"
-                android:textColor="@color/white"
+                android:textColor="@color/black"
                 android:layout_marginBottom="20dp"
                 android:gravity="center" />
 
@@ -177,7 +172,7 @@
                     android:layout_gravity="center_vertical|end"
                     android:layout_marginEnd="20dp"
                     android:text="Accept"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -188,14 +183,14 @@
                     android:layout_gravity="center_vertical|start"
                     android:layout_marginStart="20dp"
                     android:text="Decline"
-                    android:textColor="@color/white"
+                    android:textColor="@color/black"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
             </FrameLayout>
 
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- Ringing animation overlay -->
     <FrameLayout
@@ -250,7 +245,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Calling..."
-            android:textColor="@android:color/white"
+            android:textColor="@android:color/black"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -259,7 +254,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Ringing"
-            android:textColor="@android:color/white"
+            android:textColor="@android:color/black"
             android:textSize="14sp"
             android:layout_marginTop="4dp" />
 
