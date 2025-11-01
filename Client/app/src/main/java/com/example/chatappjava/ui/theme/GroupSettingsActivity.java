@@ -388,7 +388,13 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         // We keep items visible, but disable and show a small lock message if not creator/admin/moderator
         lockOption(R.id.option_add_members, !hasManagementPermissions, "Only group creator, admins, and moderators can add members", v -> addMembers());
-        lockOption(R.id.option_remove_members, !hasManagementPermissions, "Only group creator, admins, and moderators can remove members", v -> removeMembers());
+        // Members can always view the members list (no lock), but management actions are restricted
+        View membersOption = findViewById(R.id.option_remove_members);
+        if (membersOption != null) {
+            membersOption.setEnabled(true);
+            membersOption.setAlpha(1.0f);
+            membersOption.setOnClickListener(v -> removeMembers());
+        }
         lockOption(R.id.option_join_requests, !hasManagementPermissions, "Only group creator, admins, and moderators can view join requests", v -> showJoinRequests());
         lockOption(R.id.option_delete_group, !hasDeletePermission, "Only group creator and admins can delete group", v -> confirmDeleteGroup());
 
