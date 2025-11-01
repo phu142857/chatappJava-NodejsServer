@@ -154,20 +154,15 @@
 
     <Button
         android:id="@+id/btn_register"
+        style="@style/AppPrimaryLargeButton"
         android:layout_width="320dp"
         android:layout_height="60dp"
         android:text="register"
         android:textSize="20sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:background="@drawable/button_gradient_rounded"
-        android:backgroundTint="@null"
-        app:backgroundTint="@null"
         app:layout_constraintTop_toBottomOf="@id/register_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="40dp"
-        android:stateListAnimator="@null"  />
+        android:layout_marginTop="40dp" />
 
     <!-- OTP UI moved to dialog -->
 

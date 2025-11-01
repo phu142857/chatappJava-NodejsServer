@@ -137,25 +137,5 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Actions -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="end"
-            android:layout_marginTop="8dp">
-
-            <TextView
-                android:id="@+id/btn_view_members"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="View Members"
-                android:textColor="@color/black"
-                android:textStyle="bold"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="10dp"
-                android:background="@drawable/rounded_container" />
-        </LinearLayout>
-
     </LinearLayout>
 </LinearLayout>

@@ -52,6 +52,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private ApiClient apiClient;
     private AvatarManager avatarManager;
     private AlertDialog memberOptionsDialog;
+    private java.util.Map<String, String> memberRoles; // userId -> role display text
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +81,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         avatarManager = AvatarManager.getInstance(this);
         members = new ArrayList<>();
         allMembers = new ArrayList<>();
+        memberRoles = new java.util.HashMap<>();
         
         Intent intent = getIntent();
         if (intent.hasExtra("chat")) {
@@ -186,6 +188,10 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                     
                     members.clear();
                     allMembers.clear();
+                    memberRoles.clear();
+                    String creatorId = currentChat != null ? currentChat.getCreatorId() : null;
+                    String newOwnerId = null; // Track new owner from server response
+                    
                     for (int i = 0; i < membersArray.length(); i++) {
                         JSONObject memberJson = membersArray.getJSONObject(i);
                         android.util.Log.d("GroupMembersActivity", "Parsing member " + i + ": " + memberJson.toString());
@@ -194,6 +200,42 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                                           ", ID: " + member.getId());
                         members.add(member);
                         allMembers.add(member);
+                        
+                        // Parse role information
+                        boolean isOwner = memberJson.optBoolean("isOwner", false) || 
+                                        (creatorId != null && creatorId.equals(member.getId()));
+                        String role = memberJson.optString("role", "member");
+                        
+                        // Track the owner ID from server response
+                        if (isOwner) {
+                            newOwnerId = member.getId();
+                        }
+                        
+                        // Determine display text for role
+                        String roleDisplayText;
+                        if (isOwner) {
+                            roleDisplayText = "Owner";
+                        } else if ("admin".equalsIgnoreCase(role)) {
+                            roleDisplayText = "Admin";
+                        } else if ("moderator".equalsIgnoreCase(role)) {
+                            roleDisplayText = "Moderator";
+                        } else {
+                            roleDisplayText = "Member";
+                        }
+                        
+                        memberRoles.put(member.getId(), roleDisplayText);
+                    }
+                    
+                    // Update chat's creator ID if it changed (from server response)
+                    if (newOwnerId != null && currentChat != null && 
+                        (creatorId == null || !creatorId.equals(newOwnerId))) {
+                        currentChat.setCreatorId(newOwnerId);
+                        android.util.Log.d("GroupMembersActivity", "Updated chat creator ID to: " + newOwnerId);
+                    }
+                    
+                    // Update adapter with role information
+                    if (membersAdapter != null) {
+                        membersAdapter.setMemberRoles(memberRoles);
                     }
                     
                     // Apply current filter text if any
@@ -256,6 +298,9 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         TextView tvMemberUsername = dialogView.findViewById(R.id.tv_member_username);
         View btnClose = dialogView.findViewById(R.id.btn_close);
         View optionViewProfile = dialogView.findViewById(R.id.option_view_profile);
+        View optionTransferOwnership = dialogView.findViewById(R.id.option_transfer_ownership);
+        View optionPromoteToModerator = dialogView.findViewById(R.id.option_promote_to_moderator);
+        View optionDemoteToMember = dialogView.findViewById(R.id.option_demote_to_member);
         View optionRemoveMember = dialogView.findViewById(R.id.option_remove_member);
 
         // Set member info
@@ -282,12 +327,56 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         String creatorId = currentChat != null ? currentChat.getCreatorId() : null;
         
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
-        boolean isAdmin = currentChat != null && currentChat.isGroupChat() && currentChat.hasManagementPermissions(currentUserId);
-        boolean hasManagementPermissions = isOwner || isAdmin;
         boolean isSelf = currentUserId != null && currentUserId.equals(member.getId());
+        boolean isMemberOwner = creatorId != null && creatorId.equals(member.getId());
+
+        // Get current user's role from memberRoles map (more accurate than Chat model)
+        String currentUserRoleDisplay = memberRoles != null ? memberRoles.get(currentUserId) : null;
+        boolean currentUserIsModerator = "Moderator".equals(currentUserRoleDisplay);
+        boolean currentUserIsAdmin = "Admin".equals(currentUserRoleDisplay) || isOwner;
+        
+        // Calculate hasManagementPermissions based on actual role
+        boolean hasManagementPermissions = isOwner || currentUserIsAdmin || currentUserIsModerator;
+        
+        // Get member's current role
+        String memberRoleDisplay = memberRoles != null ? memberRoles.get(member.getId()) : null;
+        boolean isModerator = "Moderator".equals(memberRoleDisplay);
+        boolean isMember = "Member".equals(memberRoleDisplay) || memberRoleDisplay == null;
+        boolean isAdmin = "Admin".equals(memberRoleDisplay);
+
+        // Show/hide transfer ownership option (ONLY for owner, cannot transfer to self)
+        if (isOwner && !isSelf && !isMemberOwner) {
+            optionTransferOwnership.setVisibility(View.VISIBLE);
+        } else {
+            optionTransferOwnership.setVisibility(View.GONE);
+        }
+
+        // Show/hide role change options (ONLY for owner, moderators cannot promote)
+        // Owners can promote/demote, but moderators cannot
+        if (isOwner && !isSelf && !isMemberOwner) {
+            if (isMember) {
+                // Show promote to moderator option
+                optionPromoteToModerator.setVisibility(View.VISIBLE);
+                optionDemoteToMember.setVisibility(View.GONE);
+            } else if (isModerator) {
+                // Show demote to member option
+                optionPromoteToModerator.setVisibility(View.GONE);
+                optionDemoteToMember.setVisibility(View.VISIBLE);
+            } else {
+                // Admin or other roles - hide both options
+                optionPromoteToModerator.setVisibility(View.GONE);
+                optionDemoteToMember.setVisibility(View.GONE);
+            }
+        } else {
+            // Moderators and others cannot promote/demote
+            optionPromoteToModerator.setVisibility(View.GONE);
+            optionDemoteToMember.setVisibility(View.GONE);
+        }
 
         // Show/hide remove option based on permissions
-        if (hasManagementPermissions && !isSelf) {
+        // Moderators can remove members, but NOT the owner
+        // Owners and admins can also remove members (except owner)
+        if (hasManagementPermissions && !isSelf && !isMemberOwner) {
             optionRemoveMember.setVisibility(View.VISIBLE);
         } else {
             optionRemoveMember.setVisibility(View.GONE);
@@ -310,6 +399,21 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
             if (memberOptionsDialog != null) memberOptionsDialog.dismiss();
         });
 
+        optionTransferOwnership.setOnClickListener(v -> {
+            if (memberOptionsDialog != null) memberOptionsDialog.dismiss();
+            confirmTransferOwnership(member);
+        });
+
+        optionPromoteToModerator.setOnClickListener(v -> {
+            if (memberOptionsDialog != null) memberOptionsDialog.dismiss();
+            changeMemberRole(member, "moderator");
+        });
+
+        optionDemoteToMember.setOnClickListener(v -> {
+            if (memberOptionsDialog != null) memberOptionsDialog.dismiss();
+            changeMemberRole(member, "member");
+        });
+
         optionRemoveMember.setOnClickListener(v -> {
             if (memberOptionsDialog != null) memberOptionsDialog.dismiss();
             confirmRemoveMember(member);
@@ -324,6 +428,154 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         memberOptionsDialog.show();
     }
     
+    private void changeMemberRole(User member, String newRole) {
+        Toast.makeText(this, "Changing role...", Toast.LENGTH_SHORT).show();
+        
+        String token = sharedPrefsManager.getToken();
+        try {
+            JSONObject roleData = new JSONObject();
+            roleData.put("userId", member.getId());
+            roleData.put("role", newRole);
+            
+            apiClient.updateMemberRole(token, currentChat.getId(), roleData, new Callback() {
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            try {
+                                JSONObject json = new JSONObject(responseBody);
+                                if (json.optBoolean("success", false)) {
+                                    String roleDisplayText = "moderator".equals(newRole) ? "Moderator" : "Member";
+                                    memberRoles.put(member.getId(), roleDisplayText);
+                                    
+                                    // Update adapter
+                                    if (membersAdapter != null) {
+                                        membersAdapter.setMemberRoles(memberRoles);
+                                    }
+                                    
+                                    Toast.makeText(GroupMembersActivity.this, 
+                                        "Role changed to " + roleDisplayText, Toast.LENGTH_SHORT).show();
+                                } else {
+                                    String errorMessage = json.optString("message", "Failed to change role");
+                                    Toast.makeText(GroupMembersActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                                Toast.makeText(GroupMembersActivity.this, "Parse error", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            try {
+                                JSONObject json = new JSONObject(responseBody);
+                                String errorMessage = json.optString("message", "Failed to change role");
+                                Toast.makeText(GroupMembersActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                            } catch (JSONException e) {
+                                Toast.makeText(GroupMembersActivity.this, "Failed to change role: " + response.code(), Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupMembersActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error preparing request", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void confirmTransferOwnership(User member) {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+            this,
+            "Transfer Ownership",
+            "Are you sure you want to transfer group ownership to " + member.getDisplayName() + "? You will become a moderator.",
+            "Transfer",
+            "Cancel",
+            () -> transferOwnership(member),
+            null,
+            false
+        );
+    }
+
+    private void transferOwnership(User member) {
+        Toast.makeText(this, "Transferring ownership...", Toast.LENGTH_SHORT).show();
+        
+        String token = sharedPrefsManager.getToken();
+        try {
+            JSONObject ownershipData = new JSONObject();
+            ownershipData.put("newOwnerId", member.getId());
+            
+            // Use chat ID (the endpoint accepts chat ID and finds the associated group)
+            String chatId = currentChat.getId();
+            
+            apiClient.transferGroupOwnership(token, chatId, ownershipData, new Callback() {
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            try {
+                                JSONObject json = new JSONObject(responseBody);
+                                if (json.optBoolean("success", false)) {
+                                    Toast.makeText(GroupMembersActivity.this, 
+                                        "Ownership transferred successfully", Toast.LENGTH_SHORT).show();
+                                    
+                                    // Update local data - old owner becomes moderator, new owner becomes owner
+                                    String currentUserId = sharedPrefsManager.getUserId();
+                                    memberRoles.put(currentUserId, "Moderator");
+                                    memberRoles.put(member.getId(), "Owner");
+                                    
+                                    // Update current chat's creator ID immediately so UI reflects change right away
+                                    if (currentChat != null) {
+                                        currentChat.setCreatorId(member.getId());
+                                    }
+                                    
+                                    // Update adapter immediately to reflect role changes
+                                    if (membersAdapter != null) {
+                                        membersAdapter.setMemberRoles(memberRoles);
+                                        membersAdapter.notifyDataSetChanged();
+                                    }
+                                    
+                                    // Reload members to get fresh data from server and ensure consistency
+                                    fetchGroupMembers();
+                                } else {
+                                    String errorMessage = json.optString("message", "Failed to transfer ownership");
+                                    Toast.makeText(GroupMembersActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                                Toast.makeText(GroupMembersActivity.this, "Parse error", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            try {
+                                JSONObject json = new JSONObject(responseBody);
+                                String errorMessage = json.optString("message", "Failed to transfer ownership");
+                                Toast.makeText(GroupMembersActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                            } catch (JSONException e) {
+                                Toast.makeText(GroupMembersActivity.this, "Failed to transfer ownership: " + response.code(), Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupMembersActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error preparing request", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void confirmRemoveMember(User member) {
         com.example.chatappjava.utils.DialogUtils.showConfirm(
             this,

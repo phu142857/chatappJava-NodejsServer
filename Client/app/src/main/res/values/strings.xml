@@ -34,6 +34,7 @@
     <string name="send_sticker_description">Send sticker</string>
     <string name="record_audio_description">Record audio</string>
     <string name="send_message_description">Send message</string>
+    <string name="create_group_description">Create group</string>
     
     <!-- Login Activity -->
     <string name="hint_email">Email</string>

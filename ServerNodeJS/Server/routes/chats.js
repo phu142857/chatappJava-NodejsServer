@@ -15,8 +15,10 @@ const {
   addMember,
   getGroupMembers,
   removeMember,
+  updateMemberRole,
   uploadGroupAvatar,
-  deleteChatAdmin
+  deleteChatAdmin,
+  transferOwnership
 } = require('../controllers/chatController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
@@ -144,7 +146,9 @@ router.post('/:id/leave', chatIdValidation, leaveChat);
 // Member management
 router.get('/:id/members', chatIdValidation, getGroupMembers);
 router.post('/:id/members', chatIdValidation, addMember);
+router.put('/:id/members/role', chatIdValidation, updateMemberRole);
 router.delete('/:id/members', chatIdValidation, removeMember);
+router.put('/:id/owner', chatIdValidation, transferOwnership);
 
 // Group avatar upload
 const multer = require('multer');

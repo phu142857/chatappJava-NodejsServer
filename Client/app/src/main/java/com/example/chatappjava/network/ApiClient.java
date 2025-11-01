@@ -773,6 +773,21 @@ public class ApiClient {
     }
 
     /**
+     * Update member role in a group chat
+     */
+    public void updateMemberRole(String token, String groupId, JSONObject roleData, Callback callback) {
+        String url = getBaseUrl() + "/api/chats/" + groupId + "/members/role";
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .put(RequestBody.create(roleData.toString(), MediaType.parse("application/json")))
+                .addHeader("Authorization", "Bearer " + token)
+                .build();
+        
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
      * Upload group avatar
      */
     public void uploadGroupAvatar(String token, String groupId, File imageFile, Callback callback) {
@@ -1024,6 +1039,28 @@ public class ApiClient {
                 .build();
         
         client.newCall(request).enqueue(callback);
+    }
+
+    /**
+     * Transfer group ownership to another member (via chat ID)
+     */
+    public void transferGroupOwnership(String token, String chatId, JSONObject ownershipData, Callback callback) {
+        try {
+            String url = getBaseUrl() + "/api/chats/" + chatId + "/owner";
+            
+            RequestBody body = RequestBody.create(ownershipData.toString(), MediaType.parse("application/json"));
+            Request request = new Request.Builder()
+                    .url(url)
+                    .put(body)
+                    .addHeader("Authorization", "Bearer " + token)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+            
+            client.newCall(request).enqueue(callback);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to transfer ownership: " + e.getMessage()));
+        }
     }
 
     /**

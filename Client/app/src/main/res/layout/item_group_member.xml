@@ -43,6 +43,16 @@
                 android:textStyle="bold"
                 tools:text="John Doe" />
 
+            <TextView
+                android:id="@+id/tv_member_role"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/black"
+                android:textSize="12sp"
+                android:textStyle="normal"
+                tools:text="Member" />
+
         </LinearLayout>
 
         <ImageView

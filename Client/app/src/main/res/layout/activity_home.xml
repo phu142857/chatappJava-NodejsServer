@@ -238,18 +238,19 @@
 
     </LinearLayout>
 
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+    <ImageButton
         android:id="@+id/efab_new_group"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_margin="24dp"
-        android:text=""
         android:visibility="gone"
-        app:icon="@android:drawable/ic_input_add"
-        app:iconTint="@android:color/black"
-        app:backgroundTint="@color/primary_color"
+        android:background="@drawable/bg_create_group_gradient"
+        android:contentDescription="@string/create_group_description"
+        android:src="@android:drawable/ic_input_add"
+        android:padding="12dp"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:textColor="@android:color/black" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

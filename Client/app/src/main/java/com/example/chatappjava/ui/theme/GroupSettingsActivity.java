@@ -26,6 +26,7 @@ import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -54,6 +55,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private ActivityResultLauncher<String> galleryLauncher;
     private AlertDialog imageSelectDialog;
     private AlertDialog groupInfoDialog;
+    private java.util.Map<String, String> memberRoles; // userId -> role display text
     
     
     @Override
@@ -115,6 +117,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private void initData() {
         sharedPrefsManager = new SharedPreferencesManager(this);
         apiClient = new ApiClient();
+        memberRoles = new java.util.HashMap<>();
         
         Intent intent = getIntent();
         if (intent.hasExtra("chat")) {
@@ -136,10 +139,8 @@ public class GroupSettingsActivity extends AppCompatActivity {
         // Group Information
         findViewById(R.id.option_view_group_info).setOnClickListener(v -> showGroupInfo());
         
-        // Member Management
-        findViewById(R.id.option_add_members).setOnClickListener(v -> addMembers());
-        findViewById(R.id.option_remove_members).setOnClickListener(v -> removeMembers());
-        findViewById(R.id.option_join_requests).setOnClickListener(v -> showJoinRequests());
+        // Member Management - listeners will be set after permissions are loaded
+        // They are set in lockCreatorOnlyOptions() method
         
         // Danger Zone
         findViewById(R.id.option_leave_group).setOnClickListener(v -> confirmLeaveGroup());
@@ -155,7 +156,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         // Add click listener for disabled switch to show permission message
         switchPublic.setOnClickListener(v -> {
             if (!switchPublic.isEnabled()) {
-                Toast.makeText(this, "Only the group creator can change privacy settings", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Only group creator and admins can change privacy settings", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -165,27 +166,130 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         tvGroupName.setText(currentChat.getName());
         
-        // Check if current user is the creator/owner or admin
+        // Fetch member roles first to determine permissions accurately
+        fetchMemberRoles();
+    }
+    
+    private void fetchMemberRoles() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            updatePermissionsWithFallback();
+            return;
+        }
+        
+        apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                runOnUiThread(() -> {
+                    // Fallback to Chat model check if API fails
+                    updatePermissionsWithFallback();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                runOnUiThread(() -> {
+                    handleLoadMembersResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleLoadMembersResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray membersArray = data.getJSONArray("members");
+                    
+                    memberRoles.clear();
+                    String creatorId = currentChat.getCreatorId();
+                    
+                    for (int i = 0; i < membersArray.length(); i++) {
+                        JSONObject memberJson = membersArray.getJSONObject(i);
+                        String memberId = memberJson.optString("id", memberJson.optString("_id", ""));
+                        
+                        // Parse role information
+                        boolean isOwner = memberJson.optBoolean("isOwner", false) || 
+                                        (creatorId != null && creatorId.equals(memberId));
+                        String role = memberJson.optString("role", "member");
+                        
+                        // Determine display text for role
+                        String roleDisplayText;
+                        if (isOwner) {
+                            roleDisplayText = "Owner";
+                        } else if ("admin".equalsIgnoreCase(role)) {
+                            roleDisplayText = "Admin";
+                        } else if ("moderator".equalsIgnoreCase(role)) {
+                            roleDisplayText = "Moderator";
+                        } else {
+                            roleDisplayText = "Member";
+                        }
+                        
+                        memberRoles.put(memberId, roleDisplayText);
+                    }
+                    
+                    // Now update permissions based on actual roles
+                    updatePermissions();
+                } else {
+                    updatePermissionsWithFallback();
+                }
+            } else {
+                updatePermissionsWithFallback();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            updatePermissionsWithFallback();
+        }
+    }
+    
+    private void updatePermissionsWithFallback() {
+        // Fallback to Chat model check if API fails
         String currentUserId = sharedPrefsManager.getUserId();
         String creatorId = currentChat.getCreatorId();
-        
-        // Debug logging
-        android.util.Log.d("GroupSettings", "Current User ID: " + currentUserId);
-        android.util.Log.d("GroupSettings", "Creator ID: " + creatorId);
-        android.util.Log.d("GroupSettings", "Chat ID: " + currentChat.getId());
-        
-        // Check if user is owner/creator
+        boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
+        boolean hasManagementPermissions = isOwner || (currentChat.isGroupChat() && currentChat.hasManagementPermissions(currentUserId));
+        updatePermissions(hasManagementPermissions);
+    }
+    
+    private void updatePermissions() {
+        String currentUserId = sharedPrefsManager.getUserId();
+        String creatorId = currentChat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
         
-        // Check if user is admin (for group management permissions)
-        boolean isAdmin = currentChat.isGroupChat() && currentChat.hasManagementPermissions(currentUserId);
+        boolean hasManagementPermissions = isOwner;
+        boolean hasPrivacySettingsPermission = isOwner; // Only owner and admins can change privacy
         
-        // User has management permissions if they are either owner or admin
-        boolean hasManagementPermissions = isOwner || isAdmin;
+        // If we have member roles, check the actual role
+        if (memberRoles != null && !memberRoles.isEmpty() && currentUserId != null) {
+            String currentUserRole = memberRoles.get(currentUserId);
+            boolean isModerator = "Moderator".equals(currentUserRole);
+            boolean isAdmin = "Admin".equals(currentUserRole);
+            
+            // Management permissions: owner, admin, or moderator
+            hasManagementPermissions = isOwner || isAdmin || isModerator;
+            // Privacy settings: only owner or admin (moderators excluded)
+            hasPrivacySettingsPermission = isOwner || isAdmin;
+            
+            android.util.Log.d("GroupSettings", "Current User Role: " + currentUserRole);
+            android.util.Log.d("GroupSettings", "Is Owner: " + isOwner);
+            android.util.Log.d("GroupSettings", "Is Admin: " + isAdmin);
+            android.util.Log.d("GroupSettings", "Is Moderator: " + isModerator);
+        } else {
+            // Fallback: check Chat model
+            hasManagementPermissions = isOwner || (currentChat.isGroupChat() && currentChat.hasManagementPermissions(currentUserId));
+            // For privacy, only check if owner or admin (not moderator)
+            hasPrivacySettingsPermission = isOwner || (currentChat.isGroupChat() && currentChat.isUserAdmin(currentUserId));
+        }
         
-        android.util.Log.d("GroupSettings", "Is Owner: " + isOwner);
-        android.util.Log.d("GroupSettings", "Is Admin: " + isAdmin);
+        updatePermissions(hasManagementPermissions, hasPrivacySettingsPermission);
+    }
+    
+    private void updatePermissions(boolean hasManagementPermissions, boolean hasPrivacySettingsPermission) {
         android.util.Log.d("GroupSettings", "Has Management Permissions: " + hasManagementPermissions);
+        android.util.Log.d("GroupSettings", "Has Privacy Settings Permission: " + hasPrivacySettingsPermission);
         
         // Set flag to prevent listener from triggering during initial load
         isUpdatingSettings = true;
@@ -196,17 +300,22 @@ public class GroupSettingsActivity extends AppCompatActivity {
         switchPublic.setChecked(target);
         isUpdatingSettings = false;
         
-        // Enable/disable switch based on creator status
-        switchPublic.setEnabled(hasManagementPermissions);
+        // Enable/disable switch based on privacy settings permission (owner/admin only, not moderators)
+        switchPublic.setEnabled(hasPrivacySettingsPermission);
         
         // Show/hide permission message
-        updatePermissionMessage(hasManagementPermissions);
+        updatePermissionMessage(hasPrivacySettingsPermission);
         
         // Lock other creator-only options instead of hiding
         lockCreatorOnlyOptions(hasManagementPermissions);
         
         // Load join requests count
         fetchJoinRequestCount();
+    }
+    
+    private void updatePermissions(boolean hasManagementPermissions) {
+        // Overload for backward compatibility - assume privacy permission same as management
+        updatePermissions(hasManagementPermissions, hasManagementPermissions);
     }
 
     private void refreshCurrentChatFromServer() {
@@ -262,26 +371,40 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void lockCreatorOnlyOptions(boolean hasManagementPermissions) {
-        // We keep items visible, but disable and show a small lock message if not creator/admin
-        lockOption(R.id.option_add_members, !hasManagementPermissions, "Only group creator and admins can add members");
-        lockOption(R.id.option_remove_members, !hasManagementPermissions, "Only group creator and admins can remove members");
-        lockOption(R.id.option_join_requests, !hasManagementPermissions, "Only group creator and admins can view join requests");
-        lockOption(R.id.option_delete_group, !hasManagementPermissions, "Only group creator and admins can delete group");
-
-        // Leave group is allowed for members; if creator, disable/guide
+        // Check delete permission separately (only owner/admin, not moderators)
         String currentUserId = sharedPrefsManager.getUserId();
         String creatorId = currentChat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
-        lockOption(R.id.option_leave_group, isOwner, "Creator cannot leave. Delete group instead");
+        boolean hasDeletePermission = isOwner;
+        
+        if (memberRoles != null && !memberRoles.isEmpty() && currentUserId != null) {
+            String currentUserRole = memberRoles.get(currentUserId);
+            boolean isAdmin = "Admin".equals(currentUserRole);
+            hasDeletePermission = isOwner || isAdmin;
+        } else {
+            // Fallback: check Chat model
+            hasDeletePermission = isOwner || (currentChat.isGroupChat() && currentChat.isUserAdmin(currentUserId));
+        }
+        
+        // We keep items visible, but disable and show a small lock message if not creator/admin/moderator
+        lockOption(R.id.option_add_members, !hasManagementPermissions, "Only group creator, admins, and moderators can add members", v -> addMembers());
+        lockOption(R.id.option_remove_members, !hasManagementPermissions, "Only group creator, admins, and moderators can remove members", v -> removeMembers());
+        lockOption(R.id.option_join_requests, !hasManagementPermissions, "Only group creator, admins, and moderators can view join requests", v -> showJoinRequests());
+        lockOption(R.id.option_delete_group, !hasDeletePermission, "Only group creator and admins can delete group", v -> confirmDeleteGroup());
+
+        // Leave group is allowed for members; if creator, disable/guide
+        lockOption(R.id.option_leave_group, isOwner, "Creator cannot leave. Delete group instead", v -> confirmLeaveGroup());
     }
 
-    private void lockOption(int optionId, boolean lock, String message) {
+    private void lockOption(int optionId, boolean lock, String message, View.OnClickListener actionListener) {
         View v = findViewById(optionId);
         if (v == null) return;
         v.setEnabled(!lock);
         v.setAlpha(lock ? 0.5f : 1.0f);
         if (lock) {
             v.setOnClickListener(x -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
+        } else {
+            v.setOnClickListener(actionListener);
         }
     }
     
@@ -332,7 +455,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
         TextView tvCreated = dialogView.findViewById(R.id.tv_group_created);
         TextView tvGroupId = dialogView.findViewById(R.id.tv_group_id);
         View btnCopyId = dialogView.findViewById(R.id.btn_copy_id);
-        View btnViewMembers = dialogView.findViewById(R.id.btn_view_members);
         View btnClose = dialogView.findViewById(R.id.btn_close);
 
         tvName.setText(currentChat.getName());
@@ -358,18 +480,6 @@ public class GroupSettingsActivity extends AppCompatActivity {
             android.content.ClipData clip = android.content.ClipData.newPlainText("Group ID", currentChat.getId());
             cm.setPrimaryClip(clip);
             Toast.makeText(this, "Copied group ID", Toast.LENGTH_SHORT).show();
-        });
-
-        btnViewMembers.setOnClickListener(v -> {
-            Intent intent = new Intent(this, GroupMembersActivity.class);
-            try {
-                intent.putExtra("chat", currentChat.toJson().toString());
-                startActivity(intent);
-            } catch (JSONException e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Error opening members list", Toast.LENGTH_SHORT).show();
-            }
-            if (groupInfoDialog != null) groupInfoDialog.dismiss();
         });
 
         btnClose.setOnClickListener(v -> {

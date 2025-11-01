@@ -213,6 +213,7 @@ public class Chat {
     public List<String> getParticipantIds() { return participantIds; }
     
     public String getCreatorId() { return creatorId; }
+    public void setCreatorId(String creatorId) { this.creatorId = creatorId; }
     
     public boolean isUserAdmin(String userId) {
         if (userId == null || userId.isEmpty() || participantIds == null) return false;

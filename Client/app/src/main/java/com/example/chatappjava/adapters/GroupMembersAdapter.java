@@ -12,7 +12,9 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.utils.AvatarManager;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -24,10 +26,20 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
     
     private final List<User> members;
     private final OnMemberClickListener listener;
+    private final Map<String, String> memberRoles; // userId -> role display text
     
     public GroupMembersAdapter(List<User> members, OnMemberClickListener listener) {
         this.members = members;
         this.listener = listener;
+        this.memberRoles = new HashMap<>();
+    }
+    
+    public void setMemberRoles(Map<String, String> roles) {
+        this.memberRoles.clear();
+        if (roles != null) {
+            this.memberRoles.putAll(roles);
+        }
+        notifyDataSetChanged();
     }
     
     @NonNull
@@ -51,11 +63,13 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
     class MemberViewHolder extends RecyclerView.ViewHolder {
         private final CircleImageView ivAvatar;
         private final TextView tvName;
+        private final TextView tvRole;
         
         public MemberViewHolder(@NonNull View itemView) {
             super(itemView);
             ivAvatar = itemView.findViewById(R.id.iv_member_avatar);
             tvName = itemView.findViewById(R.id.tv_member_name);
+            tvRole = itemView.findViewById(R.id.tv_member_role);
             
             itemView.setOnClickListener(v -> {
                 int position = getBindingAdapterPosition();
@@ -67,6 +81,15 @@ public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapte
         
         public void bind(User member) {
             tvName.setText(member.getDisplayName());
+            
+            // Display role
+            String roleText = memberRoles.get(member.getId());
+            if (roleText != null && !roleText.isEmpty()) {
+                tvRole.setText(roleText);
+                tvRole.setVisibility(View.VISIBLE);
+            } else {
+                tvRole.setVisibility(View.GONE);
+            }
             
             // Load avatar with full URL construction
             if (member.getAvatar() != null && !member.getAvatar().isEmpty()) {

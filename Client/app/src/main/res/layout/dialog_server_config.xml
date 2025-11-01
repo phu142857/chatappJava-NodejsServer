@@ -178,25 +178,18 @@
 
             <Button
                 android:id="@+id/btn_cancel_server_config"
+                style="@style/AppDangerButtonOutlined"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancel"
-                android:textColor="#FF6B6B"
-                android:textStyle="bold"
-                android:background="@android:color/transparent"
-                android:layout_marginEnd="16dp"
-                android:minWidth="100dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp" />
+                android:layout_marginEnd="16dp" />
 
             <Button
                 android:id="@+id/btn_save_server_config"
+                style="@style/AppPrimaryButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Save"
-                android:textColor="@android:color/black"
-                android:background="@drawable/rounded_container"
-                android:minWidth="100dp" />
+                android:text="Save" />
 
         </LinearLayout>
 

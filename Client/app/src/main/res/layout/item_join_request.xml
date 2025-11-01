@@ -63,24 +63,24 @@
 
             <Button
                 android:id="@+id/btn_reject"
-                style="@style/Widget.AppCompat.Button.Borderless.Colored"
+                style="@style/AppDangerButtonOutlined"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:text="Reject"
-                android:textSize="13sp"
-                android:textColor="#FF6B6B" android:paddingHorizontal="12dp"
+                android:textSize="12sp"
+                android:layout_marginRight="10dp"
                 tools:ignore="TouchTargetSizeCheck" />
 
             <Button
                 android:id="@+id/btn_approve"
-                style="@style/Widget.AppCompat.Button.Colored"
+                style="@style/AppPrimaryButton"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp" android:text="Approve"
-                android:textSize="13sp" android:textColor="@android:color/black"
-                android:backgroundTint="@color/primary_color"
-                app:cornerRadius="16dp"
-                android:paddingHorizontal="12dp"
-                android:layout_marginEnd="8dp"
+                android:layout_height="36dp"
+                android:text="Approve"
+                android:textSize="12sp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginRight="30dp"
+                android:textAllCaps="true"
                 tools:ignore="TouchTargetSizeCheck" />
 
 

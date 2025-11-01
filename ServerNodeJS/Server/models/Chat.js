@@ -166,6 +166,11 @@ chatSchema.methods.addParticipant = function(userId, role = 'member') {
       existingParticipant.isActive = true;
       existingParticipant.joinedAt = new Date();
       existingParticipant.leftAt = undefined;
+      // When reactivating, set role to 'member' if explicitly provided (for new additions)
+      // This ensures users added as members always get 'member' role, even if they had a different role before
+      if (role !== undefined) {
+        existingParticipant.role = role;
+      }
     }
   } else {
     this.participants.push({

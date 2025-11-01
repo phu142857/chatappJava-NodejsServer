@@ -156,17 +156,20 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 if (joinStatus != null && joinStatus.equals("pending")) {
                     btnAction.setText("Cancel");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(ContextCompat.getColor(context, android.R.color.holo_red_light));
+                    btnAction.setBackground(ContextCompat.getDrawable(context, R.drawable.button_danger_outlined));
+                    btnAction.setTextColor(0xFFE53935); // Match AppDangerButtonOutlined text color
                     android.util.Log.d("GroupSearchAdapter", "Set button to Cancel Request (red)");
                 } else if (group.isPublicGroup()) {
                     btnAction.setText("Join");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
+                    btnAction.setBackground(ContextCompat.getDrawable(context, R.drawable.button_gradient_background_selector));
+                    btnAction.setTextColor(ContextCompat.getColor(context, android.R.color.white));
                     android.util.Log.d("GroupSearchAdapter", "Set button to Join (blue)");
                 } else {
                     btnAction.setText("Request");
                     btnAction.setEnabled(true);
-                    btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
+                    btnAction.setBackground(ContextCompat.getDrawable(context, R.drawable.button_gradient_background_selector));
+                    btnAction.setTextColor(ContextCompat.getColor(context, android.R.color.white));
                     android.util.Log.d("GroupSearchAdapter", "Set button to Request (blue)");
                 }
 
@@ -180,7 +183,8 @@ public class GroupSearchAdapter extends RecyclerView.Adapter<GroupSearchAdapter.
                 btnAction.setVisibility(View.VISIBLE);
                 btnAction.setText("FORWARD");
                 btnAction.setEnabled(true);
-                btnAction.setBackgroundColor(ContextCompat.getColor(context, R.color.primary_color));
+                btnAction.setBackground(ContextCompat.getDrawable(context, R.drawable.button_gradient_background_selector));
+                btnAction.setTextColor(ContextCompat.getColor(context, android.R.color.white));
                 btnAction.setOnClickListener(v -> {
                     if (listener != null) listener.onGroupClick(group);
                 });

@@ -284,7 +284,7 @@
 
                     </LinearLayout>
 
-                    <!-- Remove Members -->
+                    <!-- Members -->
                     <LinearLayout
                         android:id="@+id/option_remove_members"
                         android:layout_width="match_parent"
@@ -298,23 +298,23 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:src="@android:drawable/ic_menu_view"
                             android:layout_marginEnd="12dp"
-                            app:tint="#FF6B6B" />
+                            app:tint="@color/black" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Remove Members"
+                            android:text="Members"
                             android:textSize="16sp"
-                            android:textColor="#FF6B6B" />
+                            android:textColor="@color/black" />
 
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_menu_more"
-                            app:tint="#FF6B6B" />
+                            app:tint="@color/black" />
 
                     </LinearLayout>
 
@@ -352,7 +352,7 @@
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp"
                             android:background="@drawable/badge_background"
-                            android:textColor="@android:color/black"
+                            android:textColor="@android:color/white"
                             android:textStyle="bold"
                             android:text="0"
                             android:visibility="gone"

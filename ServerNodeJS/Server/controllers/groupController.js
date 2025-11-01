@@ -450,26 +450,54 @@ const transferOwnership = async (req, res) => {
       return res.status(404).json({ success: false, message: 'New owner not found or inactive' });
     }
 
+    // Store old owner ID before changing
+    const oldOwnerId = group.createdBy ? group.createdBy.toString() : null;
+
     // Ensure new owner is a member and set role to admin
     await group.addMember(newOwnerId, 'admin');
+
+    // Set old owner as moderator if they exist and are different from new owner
+    if (oldOwnerId && oldOwnerId !== newOwnerId) {
+      const oldOwnerMember = group.members.find(m => m.user && m.user.toString() === oldOwnerId);
+      if (oldOwnerMember) {
+        oldOwnerMember.role = 'moderator';
+      } else {
+        // If old owner is not in members list, add them as moderator
+        await group.addMember(oldOwnerId, 'moderator');
+      }
+    }
 
     // Update creator
     group.createdBy = newOwnerId;
     await group.save();
 
     // Update related chats' createdBy and ensure new owner is admin participant
+    // Also set old owner as moderator in chat participants
     try {
       const chats = await Chat.find({ type: 'group', groupId: group._id });
       for (const chat of chats) {
         chat.createdBy = newOwnerId;
+        
         // Ensure participant record exists for new owner and set role to admin
-        const p = chat.participants.find(x => x.user && x.user.toString() === newOwnerId.toString());
-        if (p) {
-          p.role = 'admin';
-          p.isActive = true;
+        const newOwnerParticipant = chat.participants.find(x => x.user && x.user.toString() === newOwnerId.toString());
+        if (newOwnerParticipant) {
+          newOwnerParticipant.role = 'admin';
+          newOwnerParticipant.isActive = true;
         } else {
           chat.participants.push({ user: newOwnerId, role: 'admin', isActive: true });
         }
+        
+        // Set old owner as moderator in chat participants
+        if (oldOwnerId && oldOwnerId !== newOwnerId) {
+          const oldOwnerParticipant = chat.participants.find(x => x.user && x.user.toString() === oldOwnerId.toString());
+          if (oldOwnerParticipant) {
+            oldOwnerParticipant.role = 'moderator';
+            oldOwnerParticipant.isActive = true;
+          } else {
+            chat.participants.push({ user: oldOwnerId, role: 'moderator', isActive: true });
+          }
+        }
+        
         await chat.save();
       }
     } catch (e) {}
@@ -507,8 +535,11 @@ const updateGroup = async (req, res) => {
       });
     }
 
-    // Allow global admin or group admin/moderator or creator
+    // Check permissions: owner and admins can update everything, moderators can update name/description/avatar but NOT settings
     const isCreator = group.createdBy.toString() === req.user.id;
+    const isAdmin = group.isAdmin(req.user.id);
+    const isModerator = group.hasPermission(req.user.id) && !isAdmin; // Has permission but not admin = moderator
+    
     if (req.user.role !== 'admin' && !isCreator && !group.hasPermission(req.user.id)) {
       return res.status(403).json({
         success: false,
@@ -520,7 +551,18 @@ const updateGroup = async (req, res) => {
     if (name) group.name = name;
     if (description !== undefined) group.description = description;
     if (avatar !== undefined) group.avatar = avatar;
-    if (settings) group.settings = { ...group.settings, ...settings };
+    
+    // Only owner and admins can update settings (privacy settings)
+    if (settings) {
+      if (isCreator || isAdmin) {
+        group.settings = { ...group.settings, ...settings };
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Only group creator and admins can change privacy settings'
+        });
+      }
+    }
 
     await group.updateLastActivity();
 
@@ -879,11 +921,15 @@ const deleteGroup = async (req, res) => {
       });
     }
 
-    // Only group creator can delete, allow global admin bypass
-    if (req.user.role !== 'admin' && group.createdBy.toString() !== req.user.id) {
+    // Only group creator, group admin, or global admin can delete (moderators excluded)
+    const userMember = group.members.find(m => m.user.toString() === req.user.id && m.isActive);
+    const isGroupAdmin = userMember && userMember.role === 'admin';
+    const isCreator = group.createdBy.toString() === req.user.id;
+    
+    if (req.user.role !== 'admin' && !isCreator && !isGroupAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied'
+        message: 'Only group creator and admins can delete group'
       });
     }
 

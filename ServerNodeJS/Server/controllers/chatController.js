@@ -387,15 +387,15 @@ const updateGroupChat = async (req, res) => {
       });
     }
 
-    // Check if user is admin
+    // Check if user has permission (admin or moderator)
     const userParticipant = chat.participants.find(
       p => p.user && p.user.toString() === req.user.id && p.isActive
     );
 
-    if (!userParticipant || userParticipant.role !== 'admin') {
+    if (!userParticipant || !['admin', 'moderator'].includes(userParticipant.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Only admins can update group chat'
+        message: 'Only admins and moderators can update group chat'
       });
     }
 
@@ -408,11 +408,11 @@ const updateGroupChat = async (req, res) => {
       });
     }
 
-    // Check if user is admin in group
-    if (!group.isAdmin(req.user.id)) {
+    // Check if user has permission in group (admin or moderator)
+    if (!group.hasPermission(req.user.id) && group.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only group admins can update group chat'
+        message: 'Only group admins, moderators, or owner can update group chat'
       });
     }
 
@@ -505,8 +505,8 @@ const addParticipant = async (req, res) => {
       });
     }
 
-    // Add participant to both chat and group
-    await chat.addParticipant(participantId);
+    // Add participant to both chat and group with 'member' role
+    await chat.addParticipant(participantId, 'member');
     await group.addMember(participantId, 'member');
 
     res.json({
@@ -688,14 +688,14 @@ const deleteChat = async (req, res) => {
     if (chat.type === 'group') {
       const group = await Group.findOne({ name: chat.name, isActive: true });
       if (group) {
-        // Check if user is group creator or admin
+        // Check if user is group creator or admin (moderators cannot delete groups)
         const isGroupCreator = group.createdBy.toString() === req.user.id;
         const isGroupAdmin = group.isAdmin(req.user.id);
 
         if (!isGroupCreator && !isGroupAdmin) {
           return res.status(403).json({
             success: false,
-            message: 'Permission denied in group'
+            message: 'Only group creator and admins can delete group'
           });
         }
 
@@ -751,11 +751,69 @@ const addMember = async (req, res) => {
       });
     }
 
-    // Check if user is admin or creator
-    if (chat.createdBy.toString() !== req.user.id) {
+    // Check permissions: allow if chat owner OR chat admin/mod OR group owner/admin/mod
+    // First, try to find user in chat participants
+    // Note: p.user is an ObjectId, so we compare as strings
+    const userParticipant = chat.participants.find(p => {
+      if (!p.isActive) return false;
+      if (!p.user) return false;
+      const userId = p.user.toString();
+      return userId === req.user.id;
+    });
+    
+    const isChatOwner = chat.createdBy && chat.createdBy.toString() === req.user.id;
+    const userRole = userParticipant ? (userParticipant.role || 'member') : null;
+    let hasPermission = isChatOwner || !!(userParticipant && userRole && ['admin', 'moderator'].includes(userRole));
+    
+    console.log('Add member permission check (chat level):', {
+      requesterId: req.user.id,
+      chatId: id,
+      isChatOwner,
+      userParticipantFound: !!userParticipant,
+      userRole,
+      hasPermissionFromChat: hasPermission,
+      allParticipants: chat.participants.map(p => ({
+        userId: p.user ? p.user.toString() : null,
+        role: p.role || 'member',
+        isActive: p.isActive
+      }))
+    });
+
+    // If not permitted by chat roles, check group permissions
+    if (!hasPermission) {
+      let group = null;
+      try {
+        if (chat.groupId) {
+          group = await Group.findById(chat.groupId);
+        }
+        if (!group) {
+          group = await Group.findOne({ name: chat.name, isActive: true });
+        }
+      } catch (e) {
+        console.error('Error finding group:', e);
+      }
+
+      if (group) {
+        const isGroupOwner = group.createdBy && group.createdBy.toString() === req.user.id;
+        const hasGroupPermission = group.hasPermission(req.user.id) || isGroupOwner;
+        hasPermission = hasPermission || hasGroupPermission;
+        
+        console.log('Add member permission check (group level):', {
+          requesterId: req.user.id,
+          groupId: group._id,
+          isGroupOwner,
+          hasGroupPermission,
+          hasPermission: hasPermission
+        });
+      } else {
+        console.log('Group not found for chat:', { chatId: id, chatName: chat.name, groupId: chat.groupId });
+      }
+    }
+
+    if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        message: 'Only group creator can add members'
+        message: 'Only group creator, admins, and moderators can add members'
       });
     }
 
@@ -1042,6 +1100,144 @@ const removeMember = async (req, res) => {
   }
 };
 
+const updateMemberRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, role } = req.body;
+
+    console.log('Update member role request:', { chatId: id, userId, role, requesterId: req.user.id });
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    if (!role || !['admin', 'moderator', 'member'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid role is required (admin, moderator, or member)'
+      });
+    }
+
+    const chat = await Chat.findById(id);
+    if (!chat || !chat.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+
+    if (chat.type === 'private') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change roles in private chat'
+      });
+    }
+
+    // Check permissions: only chat owner can change roles
+    const isChatOwner = chat.createdBy && chat.createdBy.toString() === req.user.id;
+    
+    // Also check group owner
+    let isGroupOwner = false;
+    let group = null;
+    try {
+      if (chat.groupId) {
+        group = await Group.findById(chat.groupId);
+      }
+      if (!group) {
+        group = await Group.findOne({ name: chat.name, isActive: true });
+      }
+      if (group) {
+        isGroupOwner = group.createdBy && group.createdBy.toString() === req.user.id;
+      }
+    } catch (e) {
+      console.error('Error finding group:', e);
+    }
+
+    if (!isChatOwner && !isGroupOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only group owner can change member roles'
+      });
+    }
+
+    // Cannot change owner's role
+    if (userId === chat.createdBy.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change owner role'
+      });
+    }
+
+    // Find participant and update role
+    const participant = chat.participants.find(p => p.user && p.user.toString() === userId && p.isActive);
+    
+    if (!participant) {
+      return res.status(404).json({
+        success: false,
+        message: 'User is not a member of this group'
+      });
+    }
+
+    const oldRole = participant.role;
+    participant.role = role;
+    await chat.save();
+
+    // Also update role in associated Group
+    if (group) {
+      const groupMember = group.members.find(m => m.user && m.user.toString() === userId && m.isActive);
+      if (groupMember) {
+        groupMember.role = role;
+        await group.save();
+      }
+    }
+
+    // Get io instance and emit events
+    const io = req.app.get('io');
+    if (io) {
+      // Notify the user whose role was changed
+      io.to(`user_${userId}`).emit('member_role_changed', {
+        chatId: chat._id,
+        chatName: chat.name,
+        newRole: role,
+        oldRole: oldRole
+      });
+
+      // Notify all members about the role change
+      const activeParticipants = chat.participants.filter(p => p.isActive);
+      activeParticipants.forEach(p => {
+        if (p.user && p.user._id) {
+          io.to(`user_${p.user._id}`).emit('member_role_updated', {
+            chatId: chat._id,
+            userId: userId,
+            newRole: role,
+            oldRole: oldRole
+          });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Member role updated successfully',
+      data: {
+        userId: userId,
+        oldRole: oldRole,
+        newRole: role
+      }
+    });
+
+  } catch (error) {
+    console.error('Update member role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 const uploadGroupAvatar = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1240,6 +1436,96 @@ const updateGroupChatSettings = async (req, res) => {
   }
 };
 
+// @desc    Transfer group ownership to another user (via chat ID)
+// @route   PUT /api/chats/:id/owner
+// @access  Private (Admin or current owner)
+const transferOwnership = async (req, res) => {
+  try {
+    const { id } = req.params; // chat ID
+    const { newOwnerId } = req.body;
+
+    if (!newOwnerId) {
+      return res.status(400).json({ success: false, message: 'newOwnerId is required' });
+    }
+
+    // Find chat
+    const chat = await Chat.findById(id);
+    if (!chat || !chat.isActive || chat.type !== 'group') {
+      return res.status(404).json({ success: false, message: 'Group chat not found' });
+    }
+
+    // Find associated group
+    const group = await Group.findOne({ name: chat.name, isActive: true });
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Associated group not found' });
+    }
+
+    // Only global admin or current owner can transfer ownership
+    const isCreator = group.createdBy && group.createdBy.toString() === req.user.id;
+    if (req.user.role !== 'admin' && !isCreator) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
+    }
+
+    // Validate new owner
+    const newOwner = await User.findById(newOwnerId);
+    if (!newOwner || !newOwner.isActive) {
+      return res.status(404).json({ success: false, message: 'New owner not found or inactive' });
+    }
+
+    // Store old owner ID before changing
+    const oldOwnerId = group.createdBy ? group.createdBy.toString() : null;
+
+    // Ensure new owner is a member and set role to admin
+    await group.addMember(newOwnerId, 'admin');
+
+    // Set old owner as moderator if they exist and are different from new owner
+    if (oldOwnerId && oldOwnerId !== newOwnerId) {
+      const oldOwnerMember = group.members.find(m => m.user && m.user.toString() === oldOwnerId);
+      if (oldOwnerMember) {
+        oldOwnerMember.role = 'moderator';
+      } else {
+        // If old owner is not in members list, add them as moderator
+        await group.addMember(oldOwnerId, 'moderator');
+      }
+    }
+
+    // Update creator
+    group.createdBy = newOwnerId;
+    await group.save();
+
+    // Update chat's createdBy and ensure new owner is admin participant
+    // Also set old owner as moderator in chat participants
+    chat.createdBy = newOwnerId;
+    
+    // Ensure participant record exists for new owner and set role to admin
+    const newOwnerParticipant = chat.participants.find(x => x.user && x.user.toString() === newOwnerId.toString());
+    if (newOwnerParticipant) {
+      newOwnerParticipant.role = 'admin';
+      newOwnerParticipant.isActive = true;
+    } else {
+      chat.participants.push({ user: newOwnerId, role: 'admin', isActive: true });
+    }
+    
+    // Set old owner as moderator in chat participants
+    if (oldOwnerId && oldOwnerId !== newOwnerId) {
+      const oldOwnerParticipant = chat.participants.find(x => x.user && x.user.toString() === oldOwnerId.toString());
+      if (oldOwnerParticipant) {
+        oldOwnerParticipant.role = 'moderator';
+        oldOwnerParticipant.isActive = true;
+      } else {
+        chat.participants.push({ user: oldOwnerId, role: 'moderator', isActive: true });
+      }
+    }
+    
+    await chat.save();
+
+    return res.json({ success: true, message: 'Ownership transferred successfully', data: { group, chat } });
+  } catch (error) {
+    console.error('Transfer ownership error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while transferring ownership' });
+  }
+};
+
 module.exports = {
   getChats,
   getAllChats,
@@ -1255,6 +1541,8 @@ module.exports = {
   addMember,
   getGroupMembers,
   removeMember,
+  updateMemberRole,
   uploadGroupAvatar,
-  deleteChatAdmin
+  deleteChatAdmin,
+  transferOwnership
 };
