@@ -149,6 +149,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     private Handler recordingHandler;
     private TextView recordingTimerView;
     private Dialog recordingDialog;
+    private ImageView ivRecordingIndicator;
+    private View vPulseRing1;
+    private View vPulseRing2;
+    private android.view.animation.Animation pulseRing1Animation;
+    private android.view.animation.Animation pulseRing2Animation;
     
     // Voice playback state
     private android.media.MediaPlayer currentVoicePlayer;
@@ -1147,8 +1152,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_voice_recording, null);
         recordingTimerView = dialogView.findViewById(R.id.tv_recording_timer);
-        TextView tvCancel = dialogView.findViewById(R.id.tv_cancel);
-        TextView tvSend = dialogView.findViewById(R.id.tv_send);
+        
+        // Get animation views
+        ivRecordingIndicator = dialogView.findViewById(R.id.iv_recording_indicator);
+        vPulseRing1 = dialogView.findViewById(R.id.v_pulse_ring_1);
+        vPulseRing2 = dialogView.findViewById(R.id.v_pulse_ring_2);
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
@@ -1159,35 +1167,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             Window w = recordingDialog.getWindow();
             w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
-        
-        // Cancel button - discard recording
-        if (tvCancel != null) {
-            tvCancel.setOnClickListener(v -> {
-                hideRecordingDialog();
-                if (isRecording) {
-                    stopRecording();
-                }
-                // Clean up file if exists
-                if (audioFile != null && audioFile.exists()) {
-                    audioFile.delete();
-                    audioFile = null;
-                }
-                isRecording = false;
-                recordingStarted = false;
-            });
-        }
-        
-        // Send button - send recording
-        if (tvSend != null) {
-            tvSend.setOnClickListener(v -> {
-                hideRecordingDialog();
-                if (isRecording) {
-                    stopRecording();
-                }
-            });
-        }
-        
+
         recordingDialog.show();
+        
+        // Start animations
+        startRecordingAnimations();
         
         // Start timer
         startRecordingTimer();
@@ -1197,7 +1181,55 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (recordingDialog != null && recordingDialog.isShowing()) {
             recordingDialog.dismiss();
         }
+        stopRecordingAnimations();
         stopRecordingTimer();
+    }
+    
+    private void startRecordingAnimations() {
+        // Animate recording indicator
+        if (ivRecordingIndicator != null) {
+            android.view.animation.Animation indicatorAnimation = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.recording_pulse);
+            if (indicatorAnimation != null) {
+                ivRecordingIndicator.startAnimation(indicatorAnimation);
+            }
+        }
+        
+        // Animate pulse rings
+        if (vPulseRing1 != null) {
+            pulseRing1Animation = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.recording_pulse);
+            if (pulseRing1Animation != null) {
+                // Delay ring 1 slightly
+                pulseRing1Animation.setStartOffset(200);
+                vPulseRing1.startAnimation(pulseRing1Animation);
+            }
+        }
+        
+        if (vPulseRing2 != null) {
+            pulseRing2Animation = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.recording_pulse);
+            if (pulseRing2Animation != null) {
+                // Delay ring 2 more
+                pulseRing2Animation.setStartOffset(400);
+                vPulseRing2.startAnimation(pulseRing2Animation);
+            }
+        }
+    }
+    
+    private void stopRecordingAnimations() {
+        // Stop indicator animation
+        if (ivRecordingIndicator != null) {
+            ivRecordingIndicator.clearAnimation();
+        }
+        
+        // Stop pulse ring animations
+        if (vPulseRing1 != null && pulseRing1Animation != null) {
+            vPulseRing1.clearAnimation();
+            pulseRing1Animation = null;
+        }
+        
+        if (vPulseRing2 != null && pulseRing2Animation != null) {
+            vPulseRing2.clearAnimation();
+            pulseRing2Animation = null;
+        }
     }
     
     private Runnable timerRunnable;
