@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_message_received"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:minWidth="120dp"
+    android:minHeight="48dp">
+
+    <!-- Play/Pause Button -->
+    <ImageButton
+        android:id="@+id/btn_voice_play"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_play"
+        android:scaleType="fitCenter"
+        android:contentDescription="Play voice message"
+        android:tint="@color/primary_color"
+        android:layout_marginEnd="12dp" />
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progress_voice"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="4dp"
+        android:layout_weight="1"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="@color/primary_color"
+        android:progressBackgroundTint="#30000000"
+        android:layout_marginEnd="12dp" />
+
+    <!-- Duration/Time -->
+    <TextView
+        android:id="@+id/tv_voice_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0:00"
+        android:textSize="13sp"
+        android:textColor="@color/chat_text_received"
+        android:textStyle="bold" />
+
+</LinearLayout>
+

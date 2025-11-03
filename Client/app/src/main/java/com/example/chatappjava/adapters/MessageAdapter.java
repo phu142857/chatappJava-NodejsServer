@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -37,11 +38,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         default void onReplyClick(String replyToMessageId) {}
     }
     
+    public interface OnVoiceMessageClickListener extends OnMessageClickListener {
+        void onVoiceMessageClick(String voiceUrl);
+    }
+    
     private final List<Message> messages;
     private final String currentUserId;
     private boolean isGroupChat;
     private static OnMessageClickListener listener;
     private static AvatarManager avatarManager;
+    private static String currentlyPlayingMessageId; // Track which message is currently playing
+    private static java.util.Map<String, Integer> messageProgressMap = new java.util.HashMap<>(); // Track progress per message
+    private static java.util.Map<String, Integer> messagePositionMap = new java.util.HashMap<>(); // Track position (ms) per message for resume
     
     public MessageAdapter(List<Message> messages, String currentUserId) {
         this.messages = messages;
@@ -60,6 +68,64 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void setAvatarManager(AvatarManager avatarManager) {
         MessageAdapter.avatarManager = avatarManager;
         android.util.Log.d("MessageAdapter", "Static AvatarManager set: " + (avatarManager != null));
+    }
+    
+    public void setCurrentlyPlayingMessageId(String messageId) {
+        String oldId = this.currentlyPlayingMessageId;
+        this.currentlyPlayingMessageId = messageId;
+        
+        // Only clear progress when switching to a NEW message (not when just stopping)
+        // Keep progress when pausing so users can see where they stopped
+        if (oldId != null && messageId != null && !oldId.equals(messageId)) {
+            // Switching to different message - clear old progress (optional, or keep both)
+            // We'll keep both progress values so user can see both
+        }
+        
+        // Notify changed for both old and new messages to update play/pause icons
+        if (oldId != null || messageId != null) {
+            for (int i = 0; i < messages.size(); i++) {
+                Message msg = messages.get(i);
+                if (msg != null && msg.getId() != null) {
+                    if ((oldId != null && msg.getId().equals(oldId)) || 
+                        (messageId != null && msg.getId().equals(messageId))) {
+                        notifyItemChanged(i);
+                    }
+                }
+            }
+        }
+    }
+    
+    public static void clearMessageProgress(String messageId) {
+        if (messageId != null) {
+            messageProgressMap.remove(messageId);
+            messagePositionMap.remove(messageId);
+        }
+    }
+    
+    public static void updateMessageProgress(String messageId, int progressPercent) {
+        if (messageId != null) {
+            messageProgressMap.put(messageId, progressPercent);
+        }
+    }
+    
+    public static int getMessageProgress(String messageId) {
+        if (messageId != null && messageProgressMap.containsKey(messageId)) {
+            return messageProgressMap.get(messageId);
+        }
+        return 0;
+    }
+    
+    public static void saveMessagePosition(String messageId, int positionMs) {
+        if (messageId != null && positionMs >= 0) {
+            messagePositionMap.put(messageId, positionMs);
+        }
+    }
+    
+    public static int getMessagePosition(String messageId) {
+        if (messageId != null && messagePositionMap.containsKey(messageId)) {
+            return messagePositionMap.get(messageId);
+        }
+        return 0;
     }
     
     @NonNull
@@ -121,6 +187,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         private final ImageView ivSentImageReaction;
         private final ImageView ivReceivedImage;
         private final ImageView ivReceivedImageReaction;
+        // Voice message views
+        private final LinearLayout llSentVoiceMessage;
+        private final LinearLayout llReceivedVoiceMessage;
+        private final ImageButton btnSentVoicePlay;
+        private final ImageButton btnReceivedVoicePlay;
+        private final TextView tvSentVoiceDuration;
+        private final TextView tvReceivedVoiceDuration;
+        private final android.widget.ProgressBar progressSentVoice;
+        private final android.widget.ProgressBar progressReceivedVoice;
         
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -148,6 +223,27 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             ivSentImageReaction = itemView.findViewById(R.id.iv_sent_image_reaction);
             ivReceivedImage = itemView.findViewById(R.id.iv_received_image);
             ivReceivedImageReaction = itemView.findViewById(R.id.iv_received_image_reaction);
+            // Voice message views
+            llSentVoiceMessage = itemView.findViewById(R.id.ll_sent_voice_message);
+            llReceivedVoiceMessage = itemView.findViewById(R.id.ll_received_voice_message);
+            if (llSentVoiceMessage != null) {
+                btnSentVoicePlay = llSentVoiceMessage.findViewById(R.id.btn_voice_play);
+                tvSentVoiceDuration = llSentVoiceMessage.findViewById(R.id.tv_voice_duration);
+                progressSentVoice = llSentVoiceMessage.findViewById(R.id.progress_voice);
+            } else {
+                btnSentVoicePlay = null;
+                progressSentVoice = null;
+                tvSentVoiceDuration = null;
+            }
+            if (llReceivedVoiceMessage != null) {
+                btnReceivedVoicePlay = llReceivedVoiceMessage.findViewById(R.id.btn_voice_play);
+                tvReceivedVoiceDuration = llReceivedVoiceMessage.findViewById(R.id.tv_voice_duration);
+                progressReceivedVoice = llReceivedVoiceMessage.findViewById(R.id.progress_voice);
+            } else {
+                btnReceivedVoicePlay = null;
+                tvReceivedVoiceDuration = null;
+                progressReceivedVoice = null;
+            }
         }
         
         public void bind(Message message, String currentUserId, boolean isGroupChat, Context context) {
@@ -207,6 +303,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     if (llSentReplyPreview != null) llSentReplyPreview.setVisibility(View.GONE);
                     if (ivSentReplyThumb != null) ivSentReplyThumb.setVisibility(View.GONE);
                 }
+                
+                // Hide voice message views for non-voice messages
+                if (llSentVoiceMessage != null) llSentVoiceMessage.setVisibility(View.GONE);
                 
                 if (message.isImageMessage()) {
                     // Show image message
@@ -268,6 +367,46 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                         }
                         if (ivSentReactionImage != null) ivSentReactionImage.setVisibility(View.GONE);
                     }
+                } else if (message.isVoiceMessage()) {
+                    // Hide text and image views
+                    if (tvSentMessage != null) tvSentMessage.setVisibility(View.GONE);
+                    View container = itemView.findViewById(R.id.fl_sent_image_container);
+                    if (container != null) container.setVisibility(View.GONE);
+                    if (ivSentImageReaction != null) ivSentImageReaction.setVisibility(View.GONE);
+                    
+                    // Show voice message UI (Messenger-style)
+                    if (llSentVoiceMessage != null) {
+                        llSentVoiceMessage.setVisibility(View.VISIBLE);
+                        
+                        // Set duration (estimate from file size or use default)
+                        if (tvSentVoiceDuration != null) {
+                            String duration = estimateVoiceDuration(message);
+                            tvSentVoiceDuration.setText(duration);
+                        }
+                        
+                        // Set progress bar
+                        if (progressSentVoice != null) {
+                            String msgId = message.getId();
+                            int progress = getMessageProgress(msgId);
+                            progressSentVoice.setProgress(progress);
+                        }
+                        
+                        // Set play button click listener
+                        if (btnSentVoicePlay != null) {
+                            // Show pause icon if this message is currently playing
+                            boolean isPlaying = message.getId() != null && message.getId().equals(currentlyPlayingMessageId);
+                            btnSentVoicePlay.setImageResource(isPlaying ? 
+                                android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
+                            btnSentVoicePlay.setOnClickListener(v -> {
+                                if (listener != null && listener instanceof OnVoiceMessageClickListener) {
+                                    String[] voiceData = parseVoiceDataFromMessage(message);
+                                    if (voiceData != null) {
+                                        ((OnVoiceMessageClickListener) listener).onVoiceMessageClick(voiceData[0]);
+                                    }
+                                }
+                            });
+                        }
+                    }
                 } else if (message.isFileMessage()) {
                     // Show file message
                     if (tvSentMessage != null) tvSentMessage.setVisibility(View.GONE);
@@ -327,6 +466,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     View container = itemView.findViewById(R.id.fl_sent_image_container);
                     if (container != null) container.setVisibility(View.GONE);
                     if (ivSentImageReaction != null) ivSentImageReaction.setVisibility(View.GONE);
+                    // Hide voice message views
+                    if (llSentVoiceMessage != null) llSentVoiceMessage.setVisibility(View.GONE);
                 }
                 
                 if (tvSentTime != null) tvSentTime.setText(timeString);
@@ -379,6 +520,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     if (llReceivedReplyPreview != null) llReceivedReplyPreview.setVisibility(View.GONE);
                     if (ivReceivedReplyThumb != null) ivReceivedReplyThumb.setVisibility(View.GONE);
                 }
+                
+                // Hide voice message views for non-voice messages
+                if (llReceivedVoiceMessage != null) llReceivedVoiceMessage.setVisibility(View.GONE);
                 
                 if (message.isImageMessage()) {
                     // Show image message
@@ -435,6 +579,46 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                             ivReceivedImageReaction.setOnClickListener(v -> showReactionsSheet(v.getContext(), message));
                         }
                         if (ivReceivedReactionImage != null) ivReceivedReactionImage.setVisibility(View.GONE);
+                    }
+                } else if (message.isVoiceMessage()) {
+                    // Hide text and image views
+                    if (tvReceivedMessage != null) tvReceivedMessage.setVisibility(View.GONE);
+                    View container = itemView.findViewById(R.id.fl_received_image_container);
+                    if (container != null) container.setVisibility(View.GONE);
+                    if (ivReceivedImageReaction != null) ivReceivedImageReaction.setVisibility(View.GONE);
+                    
+                    // Show voice message UI (Messenger-style)
+                    if (llReceivedVoiceMessage != null) {
+                        llReceivedVoiceMessage.setVisibility(View.VISIBLE);
+                        
+                        // Set duration (estimate from file size or use default)
+                        if (tvReceivedVoiceDuration != null) {
+                            String duration = estimateVoiceDuration(message);
+                            tvReceivedVoiceDuration.setText(duration);
+                        }
+                        
+                        // Set progress bar
+                        if (progressReceivedVoice != null) {
+                            String msgId = message.getId();
+                            int progress = getMessageProgress(msgId);
+                            progressReceivedVoice.setProgress(progress);
+                        }
+                        
+                        // Set play button click listener
+                        if (btnReceivedVoicePlay != null) {
+                            // Show pause icon if this message is currently playing
+                            boolean isPlaying = message.getId() != null && message.getId().equals(currentlyPlayingMessageId);
+                            btnReceivedVoicePlay.setImageResource(isPlaying ? 
+                                android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
+                            btnReceivedVoicePlay.setOnClickListener(v -> {
+                                if (listener != null && listener instanceof OnVoiceMessageClickListener) {
+                                    String[] voiceData = parseVoiceDataFromMessage(message);
+                                    if (voiceData != null) {
+                                        ((OnVoiceMessageClickListener) listener).onVoiceMessageClick(voiceData[0]);
+                                    }
+                                }
+                            });
+                        }
                     }
                 } else if (message.isFileMessage()) {
                     // Show file message
@@ -495,6 +679,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     View container = itemView.findViewById(R.id.fl_received_image_container);
                     if (container != null) container.setVisibility(View.GONE);
                     if (ivReceivedImageReaction != null) ivReceivedImageReaction.setVisibility(View.GONE);
+                    // Hide voice message views
+                    if (llReceivedVoiceMessage != null) llReceivedVoiceMessage.setVisibility(View.GONE);
                 }
                 
                 if (tvReceivedTime != null) tvReceivedTime.setText(timeString);
@@ -935,6 +1121,36 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return null;
     }
     
+    private static String[] parseVoiceDataFromMessage(Message message) {
+        try {
+            if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                org.json.JSONArray attachments = new org.json.JSONArray(message.getAttachments());
+                if (attachments.length() > 0) {
+                    org.json.JSONObject attachment = attachments.getJSONObject(0);
+                    String voiceUrl = attachment.optString("url", "");
+                    
+                    // Convert relative URL to full URL
+                    if (!voiceUrl.startsWith("http")) {
+                        voiceUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + voiceUrl;
+                    }
+                    
+                    return new String[]{voiceUrl};
+                }
+            }
+            // Fallback to content field
+            String content = message.getContent();
+            if (content != null && !content.isEmpty()) {
+                if (!content.startsWith("http")) {
+                    content = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + content;
+                }
+                return new String[]{content};
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
     private static boolean looksLikeMojibake(String s) {
         // Heuristic: common UTF-8 -> ISO-8859-1 artifacts for Vietnamese
         if (s == null) return false;
@@ -957,6 +1173,30 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         } catch (Exception ignored) {
             return s;
         }
+    }
+    
+    private static String estimateVoiceDuration(Message message) {
+        try {
+            // Try to get duration from attachments
+            if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                org.json.JSONArray attachments = new org.json.JSONArray(message.getAttachments());
+                if (attachments.length() > 0) {
+                    org.json.JSONObject attachment = attachments.getJSONObject(0);
+                    long fileSize = attachment.optLong("size", 0);
+                    // Rough estimate: ~16KB per second for AAC/MP4 audio at 96kbps
+                    if (fileSize > 0) {
+                        int seconds = (int) (fileSize / 16000); // Approximate
+                        int minutes = seconds / 60;
+                        int secs = seconds % 60;
+                        return String.format(Locale.getDefault(), "%d:%02d", minutes, secs);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        // Default fallback
+        return "0:00";
     }
     
     private static String getFileTypeFromMime(String mimeType) {

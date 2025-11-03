@@ -62,6 +62,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import de.hdodenhof.circleimageview.CircleImageView;
@@ -69,7 +70,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
-public abstract class BaseChatActivity extends AppCompatActivity implements MessageAdapter.OnMessageClickListener {
+public abstract class BaseChatActivity extends AppCompatActivity implements MessageAdapter.OnVoiceMessageClickListener {
 
     // ActivityResultLaunchers for modern Activity Result API
     private ActivityResultLauncher<Intent> cameraLauncher;
@@ -81,7 +82,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected ImageView ivBack;
     protected CircleImageView ivProfile;
     protected TextView tvChatName;
-    protected ImageView ivMore, ivSend, ivAttachment, ivEmoji, ivGallery, ivVideoCall;
+    protected ImageView ivMore, ivSend, ivAttachment, ivEmoji, ivGallery, ivVideoCall, ivRecordAudio;
     protected EditText etMessage;
     protected RecyclerView rvMessages;
     protected ProgressBar progressBar;
@@ -134,10 +135,26 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     // Gallery and camera constants
     private static final int REQUEST_CODE_CAMERA_PERMISSION = 1003;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1004;
+    private static final int REQUEST_CODE_RECORD_AUDIO_PERMISSION = 1005;
 
     // Camera capture state
     private android.net.Uri cameraPhotoUri;
     private java.io.File cameraPhotoFile;
+    
+    // Voice recording state
+    private android.media.MediaRecorder mediaRecorder;
+    private boolean isRecording = false;
+    private boolean recordingStarted = false; // Track if recording actually started
+    private java.io.File audioFile;
+    private Handler recordingHandler;
+    private TextView recordingTimerView;
+    private Dialog recordingDialog;
+    
+    // Voice playback state
+    private android.media.MediaPlayer currentVoicePlayer;
+    private String currentlyPlayingMessageId;
+    private Handler playbackHandler;
+    private Runnable playbackUpdateRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -471,6 +488,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 openGallery();
             } else {
                 Toast.makeText(this, "Storage permission required to select images", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_CODE_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startRecording();
+            } else {
+                Toast.makeText(this, "Microphone permission required to record voice messages", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -975,6 +998,403 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         return attachments;
     }
 
+    // Voice recording methods
+    private void startRecording() {
+        if (isRecording) {
+            return;
+        }
+        
+        // Check permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.RECORD_AUDIO}, 
+                REQUEST_CODE_RECORD_AUDIO_PERMISSION);
+            return;
+        }
+        
+        try {
+            // Initialize handler for timer
+            if (recordingHandler == null) {
+                recordingHandler = new Handler(Looper.getMainLooper());
+            }
+            
+            // Create audio file
+            audioFile = new java.io.File(getCacheDir(), "voice_" + System.currentTimeMillis() + ".m4a");
+            
+            // Initialize MediaRecorder
+            mediaRecorder = new android.media.MediaRecorder();
+            mediaRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.MIC);
+            mediaRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+            mediaRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+            mediaRecorder.setOutputFile(audioFile.getAbsolutePath());
+            mediaRecorder.setAudioSamplingRate(44100);
+            mediaRecorder.setAudioEncodingBitRate(96000);
+            
+            mediaRecorder.prepare();
+            mediaRecorder.start();
+            
+            isRecording = true;
+            recordingStarted = true;
+            
+            // Show recording dialog
+            showRecordingDialog();
+            
+        } catch (Exception e) {
+            Log.e("BaseChatActivity", "Failed to start recording", e);
+            Toast.makeText(this, "Failed to start recording: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            isRecording = false;
+            recordingStarted = false;
+            releaseRecorder();
+        }
+    }
+    
+    private void stopRecording() {
+        if (!isRecording || mediaRecorder == null) {
+            // If recording never started, just clean up
+            if (!recordingStarted) {
+                hideRecordingDialog();
+                if (audioFile != null && audioFile.exists()) {
+                    audioFile.delete();
+                    audioFile = null;
+                }
+            }
+            return;
+        }
+        
+        try {
+            // Only try to stop if recording actually started
+            if (recordingStarted) {
+                mediaRecorder.stop();
+            }
+            releaseRecorder();
+            
+            // Hide recording dialog
+            hideRecordingDialog();
+            
+            isRecording = false;
+            recordingStarted = false;
+            
+            // Check if recording is long enough (at least 0.5 seconds)
+            if (audioFile != null && audioFile.exists() && audioFile.length() > 0) {
+                long duration = audioFile.length() / 1000; // Rough estimate
+                if (audioFile.length() < 1000) { // Less than ~1KB is too short
+                    Toast.makeText(this, "Recording too short", Toast.LENGTH_SHORT).show();
+                    if (audioFile.delete()) {
+                        audioFile = null;
+                    }
+                    return;
+                }
+                
+                // Upload and send voice message
+                uploadAndSendVoiceMessage(audioFile);
+            } else {
+                if (recordingStarted) {
+                    Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show();
+                }
+                // Clean up file if it exists but is invalid
+                if (audioFile != null && audioFile.exists()) {
+                    audioFile.delete();
+                    audioFile = null;
+                }
+            }
+            
+        } catch (IllegalStateException e) {
+            // MediaRecorder is in wrong state (likely never started or already stopped)
+            Log.w("BaseChatActivity", "MediaRecorder in wrong state, cleaning up", e);
+            releaseRecorder();
+            isRecording = false;
+            recordingStarted = false;
+            hideRecordingDialog();
+            
+            // Clean up file
+            if (audioFile != null && audioFile.exists()) {
+                audioFile.delete();
+                audioFile = null;
+            }
+        } catch (Exception e) {
+            Log.e("BaseChatActivity", "Failed to stop recording", e);
+            Toast.makeText(this, "Failed to stop recording", Toast.LENGTH_SHORT).show();
+            releaseRecorder();
+            isRecording = false;
+            recordingStarted = false;
+            hideRecordingDialog();
+            
+            // Clean up file
+            if (audioFile != null && audioFile.exists()) {
+                audioFile.delete();
+                audioFile = null;
+            }
+        }
+    }
+    
+    private void releaseRecorder() {
+        if (mediaRecorder != null) {
+            try {
+                mediaRecorder.reset();
+                mediaRecorder.release();
+            } catch (Exception e) {
+                Log.e("BaseChatActivity", "Error releasing recorder", e);
+            }
+            mediaRecorder = null;
+        }
+    }
+    
+    private void showRecordingDialog() {
+        if (recordingDialog != null && recordingDialog.isShowing()) {
+            return;
+        }
+        
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_voice_recording, null);
+        recordingTimerView = dialogView.findViewById(R.id.tv_recording_timer);
+        TextView tvCancel = dialogView.findViewById(R.id.tv_cancel);
+        TextView tvSend = dialogView.findViewById(R.id.tv_send);
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        builder.setCancelable(false);
+        recordingDialog = builder.create();
+        
+        if (recordingDialog.getWindow() != null) {
+            Window w = recordingDialog.getWindow();
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+        
+        // Cancel button - discard recording
+        if (tvCancel != null) {
+            tvCancel.setOnClickListener(v -> {
+                hideRecordingDialog();
+                if (isRecording) {
+                    stopRecording();
+                }
+                // Clean up file if exists
+                if (audioFile != null && audioFile.exists()) {
+                    audioFile.delete();
+                    audioFile = null;
+                }
+                isRecording = false;
+                recordingStarted = false;
+            });
+        }
+        
+        // Send button - send recording
+        if (tvSend != null) {
+            tvSend.setOnClickListener(v -> {
+                hideRecordingDialog();
+                if (isRecording) {
+                    stopRecording();
+                }
+            });
+        }
+        
+        recordingDialog.show();
+        
+        // Start timer
+        startRecordingTimer();
+    }
+    
+    private void hideRecordingDialog() {
+        if (recordingDialog != null && recordingDialog.isShowing()) {
+            recordingDialog.dismiss();
+        }
+        stopRecordingTimer();
+    }
+    
+    private Runnable timerRunnable;
+    private int recordingSeconds = 0;
+    
+    private void startRecordingTimer() {
+        recordingSeconds = 0;
+        if (timerRunnable != null && recordingHandler != null) {
+            recordingHandler.removeCallbacks(timerRunnable);
+        }
+        
+        timerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isRecording && recordingTimerView != null) {
+                    int minutes = recordingSeconds / 60;
+                    int seconds = recordingSeconds % 60;
+                    recordingTimerView.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds));
+                    recordingSeconds++;
+                    if (recordingHandler != null) {
+                        recordingHandler.postDelayed(this, 1000);
+                    }
+                }
+            }
+        };
+        
+        if (recordingHandler != null) {
+            recordingHandler.post(timerRunnable);
+        }
+    }
+    
+    private void stopRecordingTimer() {
+        if (timerRunnable != null && recordingHandler != null) {
+            recordingHandler.removeCallbacks(timerRunnable);
+        }
+        recordingSeconds = 0;
+    }
+    
+    private void uploadAndSendVoiceMessage(java.io.File audioFile) {
+        if (currentChat == null || audioFile == null || !audioFile.exists()) {
+            return;
+        }
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Toast.makeText(this, "Uploading voice message...", Toast.LENGTH_SHORT).show();
+        
+        String fileName = "voice_" + System.currentTimeMillis() + ".m4a";
+        String mimeType = "audio/mp4";
+        long fileSize = audioFile.length();
+        String originalName = audioFile.getName();
+        
+        // Upload file to server using File-based method (recommended)
+        apiClient.uploadChatFile(token, audioFile, originalName, mimeType, fileSize, currentChat.getId(), 
+            new okhttp3.Callback() {
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            if (response.isSuccessful()) {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    String fileUrl = jsonResponse.optString("fileUrl", "");
+                                    String serverFileName = jsonResponse.optString("fileName", fileName);
+                                    
+                                    // Send voice message
+                                    sendVoiceMessage(fileUrl, serverFileName, fileName, mimeType, fileSize);
+                                } else {
+                                    String errorMsg = jsonResponse.optString("message", "Failed to upload voice message");
+                                    Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                                }
+                            } else {
+                                Toast.makeText(BaseChatActivity.this, "Failed to upload voice message: " + response.code(), 
+                                    Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (org.json.JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(BaseChatActivity.this, "Error processing upload response", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+    }
+    
+    protected void sendVoiceMessage(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
+        if (currentChat == null) return;
+        
+        String token = sharedPrefsManager.getToken();
+        String senderId = sharedPrefsManager.getUserId();
+        
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create message object
+        Message message = new Message();
+        message.setContent(fileUrl);
+        message.setSenderId(senderId);
+        message.setChatId(currentChat.getId());
+        message.setType("audio"); // Use "audio" to match server expectations
+        message.setChatType(currentChat.isGroupChat() ? "group" : "private");
+        message.setTimestamp(System.currentTimeMillis());
+        String clientNonce = java.util.UUID.randomUUID().toString();
+        message.setClientNonce(clientNonce);
+        try { message.setId("local-" + message.getTimestamp()); } catch (Exception ignored) {}
+        
+        // Add to local list immediately for better UX
+        message.setLocalSignature(buildLocalSignature(message));
+        messages.add(message);
+        messageAdapter.notifyItemInserted(messages.size() - 1);
+        forceScrollToBottom();
+        
+        // Send to server
+        try {
+            org.json.JSONObject messageJson = new org.json.JSONObject();
+            messageJson.put("chatId", currentChat.getId());
+            messageJson.put("type", "audio"); // Server expects "audio" not "voice"
+            messageJson.put("content", ""); // Empty content for voice messages
+            messageJson.put("timestamp", System.currentTimeMillis());
+            messageJson.put("clientNonce", clientNonce);
+            if (replyingToMessageId != null && !replyingToMessageId.isEmpty()) {
+                messageJson.put("replyTo", replyingToMessageId);
+            }
+            
+            // Create attachments array for voice message
+            org.json.JSONArray attachments = new org.json.JSONArray();
+            org.json.JSONObject attachment = new org.json.JSONObject();
+            attachment.put("filename", fileName);
+            attachment.put("originalName", originalName);
+            attachment.put("mimeType", mimeType);
+            attachment.put("size", fileSize);
+            
+            // Convert relative path to full URL
+            String fullFileUrl = fileUrl;
+            if (!fileUrl.startsWith("http")) {
+                fullFileUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() +
+                              ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + fileUrl;
+            }
+            attachment.put("url", fullFileUrl);
+            attachments.put(attachment);
+            messageJson.put("attachments", attachments);
+            
+            android.util.Log.d("BaseChatActivity", "Sending voice message: " + messageJson);
+            
+            apiClient.sendMessage(token, messageJson, new okhttp3.Callback() {
+                @SuppressLint("NotifyDataSetChanged")
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            try {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    clearReplyState();
+                                } else {
+                                    String errorMsg = jsonResponse.optString("message", "Failed to send voice message");
+                                    Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                e.printStackTrace();
+                                Toast.makeText(BaseChatActivity.this, "Error processing server response", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(BaseChatActivity.this, "Failed to send voice message: " + response.code(), 
+                                Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    android.util.Log.e("BaseChatActivity", "Send voice message failed: " + e.getMessage());
+                    runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), 
+                        Toast.LENGTH_SHORT).show());
+                }
+            });
+            
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error creating voice message", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     // Emoji picker handling
     protected void showEmojiPicker() {
         // Inflate custom dialog layout (layout defines design completely)
@@ -1024,6 +1444,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         ivAttachment = findViewById(R.id.iv_attach);
         ivEmoji = findViewById(R.id.iv_sticker);
         ivGallery = findViewById(R.id.iv_attach);
+        ivRecordAudio = findViewById(R.id.record_audio_button);
         etMessage = findViewById(R.id.et_message);
         rvMessages = findViewById(R.id.rv_messages);
         progressBar = findViewById(R.id.progress_bar);
@@ -1162,6 +1583,24 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
         if (ivReplyClose != null && replyBar != null) {
             ivReplyClose.setOnClickListener(v -> clearReplyState());
+        }
+
+        // Voice recording button - use touch listener for press/release
+        if (ivRecordAudio != null) {
+            ivRecordAudio.setOnTouchListener((v, event) -> {
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        startRecording();
+                        v.setPressed(true);
+                        return true;
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        stopRecording();
+                        v.setPressed(false);
+                        return true;
+                }
+                return false;
+            });
         }
 
         // Text watcher for mentions
@@ -1795,6 +2234,29 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     @Override
     protected void onDestroy() {
+        // Clean up recording resources
+        if (isRecording) {
+            try {
+                stopRecording();
+            } catch (Exception e) {
+                Log.e("BaseChatActivity", "Error stopping recording in onDestroy", e);
+            }
+        }
+        releaseRecorder();
+        hideRecordingDialog();
+        if (audioFile != null && audioFile.exists()) {
+            audioFile.delete();
+            audioFile = null;
+        }
+        if (timerRunnable != null && recordingHandler != null) {
+            recordingHandler.removeCallbacks(timerRunnable);
+        }
+        isRecording = false;
+        recordingStarted = false;
+        
+        // Stop voice playback
+        stopVoicePlayback();
+        
         super.onDestroy();
         stopPolling();
         
@@ -2302,6 +2764,406 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     
     
+    @Override
+    public void onVoiceMessageClick(String voiceUrl) {
+        // Find the message that contains this voice URL
+        Message voiceMessage = null;
+        for (Message msg : messages) {
+            if (msg.isVoiceMessage()) {
+                String[] voiceData = parseVoiceDataFromMessage(msg);
+                if (voiceData != null && voiceData.length > 0 && voiceData[0].equals(voiceUrl)) {
+                    voiceMessage = msg;
+                    break;
+                }
+            }
+        }
+        
+        String messageId = voiceMessage != null ? voiceMessage.getId() : null;
+        
+        // If already playing this message, pause it (keep progress)
+        if (currentVoicePlayer != null && messageId != null && messageId.equals(currentlyPlayingMessageId)) {
+            boolean isCurrentlyPlaying = false;
+            try {
+                isCurrentlyPlaying = currentVoicePlayer.isPlaying();
+            } catch (IllegalStateException e) {
+                // MediaPlayer might be in invalid state, assume it's playing if player exists
+                android.util.Log.w("BaseChatActivity", "MediaPlayer in invalid state, assuming playing", e);
+                isCurrentlyPlaying = true;
+            } catch (Exception e) {
+                android.util.Log.e("BaseChatActivity", "Error checking playback state", e);
+            }
+            
+            if (isCurrentlyPlaying) {
+                // Currently playing - pause it
+                android.util.Log.d("BaseChatActivity", "Pausing playback for message: " + messageId);
+                stopVoicePlayback(false); // Pause - don't clear progress
+            } else {
+                // Already paused - resume it
+                android.util.Log.d("BaseChatActivity", "Resuming playback for message: " + messageId);
+                playVoiceMessage(voiceUrl, messageId);
+            }
+            return;
+        }
+        
+        // Stop any currently playing message (keep its progress for resume)
+        if (currentVoicePlayer != null) {
+            stopVoicePlayback(false); // Pause old message - keep progress
+        }
+        
+        // Play the new voice message (will reset progress for new message)
+        playVoiceMessage(voiceUrl, messageId);
+    }
+    
+    private String[] parseVoiceDataFromMessage(Message message) {
+        try {
+            if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                org.json.JSONArray attachments = new org.json.JSONArray(message.getAttachments());
+                if (attachments.length() > 0) {
+                    org.json.JSONObject attachment = attachments.getJSONObject(0);
+                    String voiceUrl = attachment.optString("url", "");
+                    
+                    // Convert relative URL to full URL
+                    if (!voiceUrl.startsWith("http")) {
+                        voiceUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + ":" + 
+                                  com.example.chatappjava.config.ServerConfig.getServerPort() + voiceUrl;
+                    }
+                    
+                    return new String[]{voiceUrl};
+                }
+            }
+            // Fallback to content field
+            String content = message.getContent();
+            if (content != null && !content.isEmpty()) {
+                if (!content.startsWith("http")) {
+                    content = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + ":" + 
+                             com.example.chatappjava.config.ServerConfig.getServerPort() + content;
+                }
+                return new String[]{content};
+            }
+        } catch (Exception e) {
+            Log.e("BaseChatActivity", "Error parsing voice data", e);
+        }
+        return null;
+    }
+    
+    private void playVoiceMessage(String voiceUrl, String messageId) {
+        try {
+            // Check if we're resuming the same message BEFORE stopping
+            String oldMessageId = currentlyPlayingMessageId;
+            boolean wasSameMessage = (messageId != null && oldMessageId != null && messageId.equals(oldMessageId));
+            
+            // Get saved position BEFORE stopping (important - retrieve position before stopping)
+            int resumePosition = 0;
+            if (messageId != null) {
+                resumePosition = com.example.chatappjava.adapters.MessageAdapter.getMessagePosition(messageId);
+                android.util.Log.d("BaseChatActivity", "Retrieved saved position for " + messageId + ": " + resumePosition + "ms");
+            }
+            
+            // Stop any existing playback (this will save position if it's currently playing)
+            if (currentVoicePlayer != null && currentVoicePlayer.isPlaying()) {
+                stopVoicePlayback(false); // Don't clear progress, just stop
+                
+                // Re-check position after stopping in case it was just saved
+                if (messageId != null && wasSameMessage && resumePosition == 0) {
+                    resumePosition = com.example.chatappjava.adapters.MessageAdapter.getMessagePosition(messageId);
+                    android.util.Log.d("BaseChatActivity", "Re-checked position after stop: " + resumePosition + "ms");
+                }
+            } else if (currentVoicePlayer != null) {
+                // Player exists but not playing, just release it
+                try {
+                    currentVoicePlayer.release();
+                } catch (Exception e) {
+                    android.util.Log.w("BaseChatActivity", "Error releasing MediaPlayer", e);
+                }
+                currentVoicePlayer = null;
+            }
+            
+            // Check if we're resuming based on saved position (not just same message check)
+            // A message with saved position > 0 means it was paused and should resume
+            boolean isResuming = (messageId != null && resumePosition > 0);
+            
+            if (isResuming) {
+                // Resuming - use the saved position
+                android.util.Log.d("BaseChatActivity", "Resuming message " + messageId + " from position: " + resumePosition + "ms");
+            } else if (messageId != null) {
+                // Starting fresh - ensure no saved position
+                if (!wasSameMessage) {
+                    com.example.chatappjava.adapters.MessageAdapter.clearMessageProgress(messageId);
+                }
+                resumePosition = 0; // Ensure we start from beginning
+                android.util.Log.d("BaseChatActivity", "Starting " + (wasSameMessage ? "same" : "new") + " message " + messageId + " from beginning");
+            }
+            
+            currentVoicePlayer = new android.media.MediaPlayer();
+            
+            // Set audio attributes for voice playback
+            android.media.AudioAttributes audioAttributes = new android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+            currentVoicePlayer.setAudioAttributes(audioAttributes);
+            
+            currentVoicePlayer.setDataSource(voiceUrl);
+            currentVoicePlayer.prepareAsync();
+            
+            final int seekPosition = resumePosition;
+            final boolean shouldSeek = isResuming && seekPosition > 0;
+            currentVoicePlayer.setOnPreparedListener(mp -> {
+                // Seek to saved position if resuming
+                if (shouldSeek) {
+                    try {
+                        int duration = mp.getDuration();
+                        if (duration > 0 && seekPosition < duration) {
+                            mp.seekTo(seekPosition);
+                            android.util.Log.d("BaseChatActivity", "Seeked to position: " + seekPosition + "ms (duration: " + duration + "ms)");
+                        } else {
+                            android.util.Log.w("BaseChatActivity", "Invalid seek position: " + seekPosition + " (duration: " + duration + "ms)");
+                        }
+                    } catch (IllegalStateException e) {
+                        android.util.Log.e("BaseChatActivity", "MediaPlayer not in valid state for seeking", e);
+                    } catch (Exception e) {
+                        android.util.Log.e("BaseChatActivity", "Error seeking to position", e);
+                    }
+                }
+                
+                try {
+                    mp.start();
+                    currentlyPlayingMessageId = messageId;
+                    updateVoiceMessagePlayState(messageId, true);
+                    startPlaybackUpdates(messageId);
+                } catch (Exception e) {
+                    android.util.Log.e("BaseChatActivity", "Error starting playback", e);
+                }
+            });
+            
+            // Release when playback completes
+            currentVoicePlayer.setOnCompletionListener(mp -> {
+                // Set progress to 100% when playback completes, but DON'T reset position
+                // Keep the position at the end so user can see it finished
+                if (messageId != null) {
+                    com.example.chatappjava.adapters.MessageAdapter.updateMessageProgress(messageId, 100);
+                    // Don't reset position - keep it at the end (or full duration) for visual consistency
+                    try {
+                        int duration = mp.getDuration();
+                        if (duration > 0) {
+                            com.example.chatappjava.adapters.MessageAdapter.saveMessagePosition(messageId, duration);
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.w("BaseChatActivity", "Could not get duration on completion", e);
+                    }
+                }
+                stopVoicePlayback(false); // Don't clear progress on completion
+                if (messageId != null) {
+                    updateVoiceMessagePlayState(messageId, false);
+                }
+            });
+            
+            // Handle errors
+            currentVoicePlayer.setOnErrorListener((mp, what, extra) -> {
+                Log.e("BaseChatActivity", "MediaPlayer error: what=" + what + ", extra=" + extra);
+                stopVoicePlayback(false); // Don't clear progress on error, keep current position
+                if (messageId != null) {
+                    updateVoiceMessagePlayState(messageId, false);
+                }
+                runOnUiThread(() -> Toast.makeText(this, "Failed to play voice message", Toast.LENGTH_SHORT).show());
+                return true;
+            });
+            
+        } catch (Exception e) {
+            Log.e("BaseChatActivity", "Failed to play voice message", e);
+            runOnUiThread(() -> Toast.makeText(this, "Failed to play voice message: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            stopVoicePlayback(false);
+        }
+    }
+    
+    private void stopVoicePlayback(boolean clearProgress) {
+        // Save current progress and position before stopping if we're pausing (not clearing)
+        if (!clearProgress && currentVoicePlayer != null && currentlyPlayingMessageId != null) {
+            try {
+                int currentPosition = 0;
+                boolean wasPlaying = false;
+                
+                try {
+                    if (currentVoicePlayer.isPlaying()) {
+                        wasPlaying = true;
+                    }
+                    currentPosition = currentVoicePlayer.getCurrentPosition();
+                    android.util.Log.d("BaseChatActivity", "Got current position: " + currentPosition + "ms (wasPlaying: " + wasPlaying + ")");
+                } catch (IllegalStateException e) {
+                    // MediaPlayer might be in invalid state, try to get position from progress
+                    android.util.Log.w("BaseChatActivity", "Could not get current position from MediaPlayer", e);
+                    try {
+                        int duration = currentVoicePlayer.getDuration();
+                        int progress = com.example.chatappjava.adapters.MessageAdapter.getMessageProgress(currentlyPlayingMessageId);
+                        if (duration > 0 && progress > 0) {
+                            currentPosition = (int) ((progress * duration) / 100L);
+                            android.util.Log.d("BaseChatActivity", "Estimated position from progress: " + currentPosition + "ms");
+                        } else {
+                            android.util.Log.w("BaseChatActivity", "Could not estimate position - duration: " + duration + ", progress: " + progress);
+                        }
+                    } catch (Exception ex) {
+                        android.util.Log.w("BaseChatActivity", "Could not estimate position", ex);
+                    }
+                }
+                
+                // Save position even if 0 (as long as it's a valid value)
+                // This ensures we can track that we paused, even at the start
+                if (currentPosition >= 0) {
+                    // Save position for resume
+                    com.example.chatappjava.adapters.MessageAdapter.saveMessagePosition(
+                        currentlyPlayingMessageId, currentPosition);
+                    
+                    // Save progress percentage
+                    try {
+                        int duration = currentVoicePlayer.getDuration();
+                        if (duration > 0 && currentPosition > 0) {
+                            int progressPercent = (int) ((currentPosition * 100L) / duration);
+                            if (progressPercent >= 0 && progressPercent <= 100) {
+                                com.example.chatappjava.adapters.MessageAdapter.updateMessageProgress(
+                                    currentlyPlayingMessageId, progressPercent);
+                                android.util.Log.d("BaseChatActivity", "Saved progress: " + progressPercent + "%");
+                            }
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.w("BaseChatActivity", "Could not get duration for progress calculation", e);
+                    }
+                    
+                    android.util.Log.d("BaseChatActivity", "Saved position: " + currentPosition + "ms for message: " + currentlyPlayingMessageId);
+                } else {
+                    android.util.Log.w("BaseChatActivity", "Invalid position value: " + currentPosition + ", not saving");
+                }
+            } catch (Exception e) {
+                android.util.Log.e("BaseChatActivity", "Error saving position", e);
+            }
+        }
+        
+        String playingId = currentlyPlayingMessageId;
+        
+        if (currentVoicePlayer != null) {
+            try {
+                // Check if playing before trying to stop, handle IllegalStateException
+                boolean wasPlaying = false;
+                try {
+                    wasPlaying = currentVoicePlayer.isPlaying();
+                } catch (IllegalStateException e) {
+                    // MediaPlayer might be in invalid state (e.g., STOPPED)
+                    android.util.Log.w("BaseChatActivity", "MediaPlayer state issue when checking isPlaying", e);
+                    // Try to stop anyway if we're in an active state
+                    wasPlaying = true;
+                }
+                
+                if (wasPlaying) {
+                    try {
+                        currentVoicePlayer.stop();
+                    } catch (IllegalStateException e) {
+                        android.util.Log.w("BaseChatActivity", "MediaPlayer already stopped", e);
+                    }
+                }
+                
+                try {
+                    currentVoicePlayer.release();
+                } catch (Exception e) {
+                    android.util.Log.w("BaseChatActivity", "Error releasing MediaPlayer", e);
+                }
+            } catch (Exception e) {
+                Log.e("BaseChatActivity", "Error stopping playback", e);
+            } finally {
+                currentVoicePlayer = null;
+            }
+        }
+        
+        currentlyPlayingMessageId = null;
+        stopPlaybackUpdates();
+        
+        if (playingId != null) {
+            // Clear progress only if explicitly requested
+            if (clearProgress) {
+                com.example.chatappjava.adapters.MessageAdapter.clearMessageProgress(playingId);
+            }
+            // Ensure UI update happens on UI thread
+            runOnUiThread(() -> {
+                updateVoiceMessagePlayState(playingId, false);
+            });
+        }
+    }
+    
+    private void stopVoicePlayback() {
+        stopVoicePlayback(false); // Default: don't clear progress (for pause)
+    }
+    
+    private void startPlaybackUpdates(String messageId) {
+        if (playbackHandler == null) {
+            playbackHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        stopPlaybackUpdates();
+        
+        playbackUpdateRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (currentVoicePlayer != null && currentVoicePlayer.isPlaying()) {
+                    try {
+                        int currentPosition = currentVoicePlayer.getCurrentPosition();
+                        int duration = currentVoicePlayer.getDuration();
+                        if (duration > 0) {
+                            updateVoiceMessageProgress(messageId, currentPosition, duration);
+                        }
+                    } catch (Exception e) {
+                        // Ignore
+                    }
+                    if (playbackHandler != null) {
+                        playbackHandler.postDelayed(this, 100); // Update every 100ms
+                    }
+                }
+            }
+        };
+        
+        playbackHandler.post(playbackUpdateRunnable);
+    }
+    
+    private void stopPlaybackUpdates() {
+        if (playbackUpdateRunnable != null && playbackHandler != null) {
+            playbackHandler.removeCallbacks(playbackUpdateRunnable);
+        }
+        playbackUpdateRunnable = null;
+    }
+    
+    private void updateVoiceMessagePlayState(String messageId, boolean isPlaying) {
+        if (messageAdapter == null) return;
+        
+        runOnUiThread(() -> {
+            // Update the adapter's currently playing message ID
+            if (isPlaying) {
+                messageAdapter.setCurrentlyPlayingMessageId(messageId);
+            } else {
+                messageAdapter.setCurrentlyPlayingMessageId(null);
+            }
+        });
+    }
+    
+    private void updateVoiceMessageProgress(String messageId, int currentMs, int totalMs) {
+        if (messageAdapter == null || messageId == null || totalMs <= 0) return;
+        
+        int progressPercent = (int) ((currentMs * 100L) / totalMs);
+        if (progressPercent < 0) progressPercent = 0;
+        if (progressPercent > 100) progressPercent = 100;
+
+        int finalProgressPercent = progressPercent;
+        runOnUiThread(() -> {
+            // Update progress in adapter
+            com.example.chatappjava.adapters.MessageAdapter.updateMessageProgress(messageId, finalProgressPercent);
+            
+            // Find and update the specific message item
+            for (int i = 0; i < messages.size(); i++) {
+                Message msg = messages.get(i);
+                if (msg != null && msg.getId() != null && msg.getId().equals(messageId) && msg.isVoiceMessage()) {
+                    messageAdapter.notifyItemChanged(i);
+                    break;
+                }
+            }
+        });
+    }
+
     @Override
     public void onFileClick(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
         try {

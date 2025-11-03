@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/dialog_background_less_transparent"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/tv_recording_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="00:00"
+        android:textSize="32sp"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Recording..."
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="24dp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/tv_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:background="?attr/selectableItemBackground"
+            android:minWidth="80dp"
+            android:gravity="center"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/tv_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:background="?attr/selectableItemBackground"
+            android:minWidth="80dp"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</LinearLayout>
+

@@ -1,5 +1,6 @@
 package com.example.chatappjava.ui.theme;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -37,10 +38,8 @@ import okhttp3.Response;
 public class GroupMembersActivity extends AppCompatActivity implements GroupMembersAdapter.OnMemberClickListener {
     
     private TextView tvGroupName, tvMemberCount;
-    private ImageView ivBack, ivAddMember;
+    private ImageView ivBack;
     private RecyclerView rvMembers;
-    private android.view.View btnAddMember;
-    private com.google.android.material.floatingactionbutton.FloatingActionButton fabAddMember;
     private EditText etSearch;
     private View emptyState;
     
@@ -602,12 +601,13 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
             JSONObject memberData = new JSONObject();
             memberData.put("userId", member.getId());
             
-            android.util.Log.d("GroupMembersActivity", "Sending remove request: " + memberData.toString());
+            android.util.Log.d("GroupMembersActivity", "Sending remove request: " + memberData);
             
             apiClient.removeMember(token, currentChat.getId(), memberData, new Callback() {
+                @SuppressLint("SetTextI18n")
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    String responseBody = response.body() != null ? response.body().string() : "";
+                    String responseBody = response.body().string();
                     runOnUiThread(() -> {
                         if (response.isSuccessful()) {
                             Toast.makeText(GroupMembersActivity.this, "Member removed successfully", Toast.LENGTH_SHORT).show();

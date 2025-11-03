@@ -65,7 +65,7 @@ const fileUpload = multer({
     fileSize: 50 * 1024 * 1024 // 50MB limit for files
   },
   fileFilter: function (req, file, cb) {
-    // Allow PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX
+    // Allow PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX, and audio files for voice messages
     const allowedTypes = [
       'application/pdf',
       'text/plain',
@@ -74,13 +74,27 @@ const fileUpload = multer({
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      // Audio file types for voice messages
+      'audio/mp4',
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/wave',
+      'audio/x-wav',
+      'audio/aac',
+      'audio/ogg',
+      'audio/webm',
+      'audio/3gpp',
+      'audio/amr',
+      'audio/x-m4a'
     ];
     
-    if (allowedTypes.includes(file.mimetype)) {
+    // Also allow if mime type starts with 'audio/' for other audio formats
+    if (allowedTypes.includes(file.mimetype) || file.mimetype.startsWith('audio/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX files are allowed'), false);
+      cb(new Error('Only PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX, and audio files are allowed'), false);
     }
   }
 });

@@ -107,6 +107,14 @@
                     tools:src="@drawable/ic_launcher_round" />
             </FrameLayout>
 
+            <!-- Voice Message Container (Sent) -->
+            <include
+                android:id="@+id/ll_sent_voice_message"
+                layout="@layout/item_voice_message_sent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
             <!-- Edited label for sent message -->
             <TextView
                 android:id="@+id/tv_sent_edited"
@@ -293,6 +301,14 @@
                     android:visibility="gone"
                     tools:src="@drawable/ic_launcher_round" />
             </FrameLayout>
+
+            <!-- Voice Message Container (Received) -->
+            <include
+                android:id="@+id/ll_received_voice_message"
+                layout="@layout/item_voice_message_received"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
 
             <!-- Edited label for received message -->
             <TextView

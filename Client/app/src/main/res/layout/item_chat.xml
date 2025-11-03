@@ -100,7 +100,7 @@
                     android:background="@drawable/bg_unread_count"
                     android:gravity="center"
                     android:textSize="12sp"
-                    android:textColor="@android:color/black"
+                    android:textColor="@android:color/white"
                     android:textStyle="bold"
                     android:visibility="gone"
                     tools:text="3"

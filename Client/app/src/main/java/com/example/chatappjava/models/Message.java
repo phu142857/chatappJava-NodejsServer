@@ -328,6 +328,10 @@ public class Message {
     public boolean isFileMessage() {
         return "file".equals(type);
     }
+    
+    public boolean isVoiceMessage() {
+        return "voice".equals(type) || "audio".equals(type);
+    }
 
     public boolean isGroupChat() {
         return "group".equals(chatType);
