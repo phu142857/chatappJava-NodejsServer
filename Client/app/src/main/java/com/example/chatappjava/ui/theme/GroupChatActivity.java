@@ -9,8 +9,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
 
-import androidx.cardview.widget.CardView;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 
@@ -281,11 +279,13 @@ public class GroupChatActivity extends BaseChatActivity {
         LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
         LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
-        CardView removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
+        LinearLayout removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
         LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
         
         // Show remove avatar option
-        removeAvatarCard.setVisibility(View.VISIBLE);
+        if (removeAvatarCard != null) {
+            removeAvatarCard.setVisibility(View.VISIBLE);
+        }
         
         // Update title
         TextView titleView = dialogView.findViewById(R.id.title);
@@ -326,18 +326,22 @@ public class GroupChatActivity extends BaseChatActivity {
             }
         });
         
-        removeAvatarButton.setOnClickListener(v -> {
-            confirmRemoveAvatar();
-            if (imageSelectDialog != null) {
-                imageSelectDialog.dismiss();
-            }
-        });
+        if (removeAvatarButton != null) {
+            removeAvatarButton.setOnClickListener(v -> {
+                confirmRemoveAvatar();
+                if (imageSelectDialog != null) {
+                    imageSelectDialog.dismiss();
+                }
+            });
+        }
         
-        cancelButton.setOnClickListener(v -> {
-            if (imageSelectDialog != null) {
-                imageSelectDialog.dismiss();
-            }
-        });
+        if (cancelButton != null) {
+            cancelButton.setOnClickListener(v -> {
+                if (imageSelectDialog != null) {
+                    imageSelectDialog.dismiss();
+                }
+            });
+        }
         
         // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);

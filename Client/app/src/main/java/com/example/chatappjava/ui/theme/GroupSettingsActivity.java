@@ -14,8 +14,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
 
-import androidx.cardview.widget.CardView;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;

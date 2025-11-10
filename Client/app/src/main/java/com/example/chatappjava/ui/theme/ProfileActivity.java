@@ -20,8 +20,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
 
-import androidx.cardview.widget.CardView;
-
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;

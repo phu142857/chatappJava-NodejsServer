@@ -9,7 +9,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.cardview.widget.CardView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.SharedPreferencesManager;
@@ -117,8 +116,9 @@ public class LoginActivity extends AppCompatActivity {
         tvMsg.setText("Enter your email to receive a reset code.");
 
         // Replace message view with an email input field
-        androidx.cardview.widget.CardView cardView = (androidx.cardview.widget.CardView) dialogView;
-        android.widget.LinearLayout container = (android.widget.LinearLayout) cardView.getChildAt(0);
+        // Root view is a LinearLayout, get its first child (the inner LinearLayout with content)
+        android.widget.LinearLayout rootLayout = (android.widget.LinearLayout) dialogView;
+        android.widget.LinearLayout container = (android.widget.LinearLayout) rootLayout.getChildAt(0);
         android.widget.EditText et = new android.widget.EditText(this);
         et.setHint("Email address");
         et.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
@@ -305,8 +305,9 @@ public class LoginActivity extends AppCompatActivity {
         tvTitle.setText("Set New Password");
         tvMsg.setText("");
 
-        androidx.cardview.widget.CardView cardView = (androidx.cardview.widget.CardView) dialogView;
-        android.widget.LinearLayout container = (android.widget.LinearLayout) cardView.getChildAt(0);
+        // Root view is a LinearLayout, get its first child (the inner LinearLayout with content)
+        android.widget.LinearLayout rootLayout = (android.widget.LinearLayout) dialogView;
+        android.widget.LinearLayout container = (android.widget.LinearLayout) rootLayout.getChildAt(0);
         android.widget.EditText etNew = new android.widget.EditText(this);
         etNew.setHint("New password");
         etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
