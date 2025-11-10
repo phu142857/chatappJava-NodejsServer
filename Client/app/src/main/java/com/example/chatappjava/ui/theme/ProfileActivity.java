@@ -624,7 +624,7 @@ public class ProfileActivity extends AppCompatActivity {
         View fileOption = dialogView.findViewById(R.id.option_file);
         if (fileOption != null) fileOption.setVisibility(View.GONE);
         LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
-        CardView removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
+        LinearLayout removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
         LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
         
         // Show/hide remove avatar option based on current avatar
@@ -669,11 +669,13 @@ public class ProfileActivity extends AppCompatActivity {
             }
         });
         
-        cancelButton.setOnClickListener(v -> {
-            if (imageSelectDialog != null) {
-                imageSelectDialog.dismiss();
-            }
-        });
+        if (cancelButton != null) {
+            cancelButton.setOnClickListener(v -> {
+                if (imageSelectDialog != null) {
+                    imageSelectDialog.dismiss();
+                }
+            });
+        }
         
         // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);

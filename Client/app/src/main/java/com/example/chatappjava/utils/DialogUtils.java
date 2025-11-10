@@ -13,8 +13,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.cardview.widget.CardView;
-
 import com.example.chatappjava.R;
 
 public final class DialogUtils {
@@ -87,8 +85,8 @@ public final class DialogUtils {
         editText.setSelection(editText.getText().length()); // Place cursor at end
         editText.setHint("Enter new message content...");
         editText.setPadding(50, 20, 50, 20);
-        editText.setTextColor(context.getResources().getColor(android.R.color.white));
-        editText.setHintTextColor(context.getResources().getColor(android.R.color.white));
+        editText.setTextColor(context.getResources().getColor(com.example.chatappjava.R.color.black));
+        editText.setHintTextColor(context.getResources().getColor(com.example.chatappjava.R.color.black));
         editText.setBackground(context.getResources().getDrawable(com.example.chatappjava.R.drawable.rounded_container));
         
         // Set layout parameters
@@ -100,9 +98,10 @@ public final class DialogUtils {
         editText.setLayoutParams(params);
         
         // Add EditText to the layout
-        CardView cardView = (CardView) view;
-        android.widget.LinearLayout layout = (android.widget.LinearLayout) cardView.getChildAt(0);
-        layout.addView(editText, 1); // Insert at position 1 (after title, before buttons)
+        // Root view is a LinearLayout, get its first child (the inner LinearLayout with content)
+        android.widget.LinearLayout rootLayout = (android.widget.LinearLayout) view;
+        android.widget.LinearLayout contentLayout = (android.widget.LinearLayout) rootLayout.getChildAt(0);
+        contentLayout.addView(editText, 1); // Insert at position 1 (after title, before buttons)
 
         tvTitle.setText(title != null ? title : "");
         btnPos.setText(positive != null ? positive : "Save");
