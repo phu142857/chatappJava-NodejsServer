@@ -174,7 +174,7 @@
             android:src="@drawable/ic_end_call"
             android:padding="16dp"
             android:scaleType="centerInside"
-            app:tint="@android:color/black" />
+            app:tint="@android:color/white" />
 
     </LinearLayout>
 

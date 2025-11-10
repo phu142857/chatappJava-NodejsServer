@@ -311,14 +311,14 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         if (avatarUrl != null && !avatarUrl.isEmpty()) {
             try {
                 com.squareup.picasso.Picasso.get().load(avatarUrl)
-                    .placeholder(R.drawable.ic_person_avatar)
-                    .error(R.drawable.ic_person_avatar)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
                     .into(ivMemberAvatar);
             } catch (Exception ignored) {
-                ivMemberAvatar.setImageResource(R.drawable.ic_person_avatar);
+                ivMemberAvatar.setImageResource(R.drawable.ic_profile_placeholder);
             }
         } else {
-            ivMemberAvatar.setImageResource(R.drawable.ic_person_avatar);
+            ivMemberAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
 
         // Check permissions

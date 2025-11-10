@@ -313,11 +313,11 @@ public class ProfileActivity extends AppCompatActivity {
             }
             Picasso.get()
                     .load(avatarUrl)
-                    .placeholder(R.drawable.ic_person_avatar)
-                    .error(R.drawable.ic_person_avatar)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
                     .into(civAvatar);
         } else {
-            civAvatar.setImageResource(R.drawable.ic_person_avatar);
+            civAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
 
         hasChanges = false;
@@ -621,7 +621,6 @@ public class ProfileActivity extends AppCompatActivity {
         // Hide generic file upload for avatar change
         View fileOption = dialogView.findViewById(R.id.option_file);
         if (fileOption != null) fileOption.setVisibility(View.GONE);
-        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
         LinearLayout removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
         LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
         
@@ -666,15 +665,7 @@ public class ProfileActivity extends AppCompatActivity {
                 imageSelectDialog.dismiss();
             }
         });
-        
-        if (cancelButton != null) {
-            cancelButton.setOnClickListener(v -> {
-                if (imageSelectDialog != null) {
-                    imageSelectDialog.dismiss();
-                }
-            });
-        }
-        
+
         // Create dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
