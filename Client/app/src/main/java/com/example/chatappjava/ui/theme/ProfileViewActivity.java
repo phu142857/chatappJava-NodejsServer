@@ -396,6 +396,8 @@ public class ProfileViewActivity extends AppCompatActivity {
         input.setMinLines(3);
         input.setMaxLines(6);
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
+        input.setHintTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
         int padding = (int) (16 * getResources().getDisplayMetrics().density);
         input.setPadding(padding, padding, padding, padding);
 

@@ -123,8 +123,8 @@ public class LoginActivity extends AppCompatActivity {
         et.setHint("Email address");
         et.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         et.setPadding(50, 20, 50, 20);
-        et.setTextColor(getResources().getColor(android.R.color.white));
-        et.setHintTextColor(getResources().getColor(android.R.color.white));
+        et.setTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
+        et.setHintTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
         et.setBackground(getResources().getDrawable(com.example.chatappjava.R.drawable.rounded_container));
         
         // Set layout parameters
@@ -312,8 +312,8 @@ public class LoginActivity extends AppCompatActivity {
         etNew.setHint("New password");
         etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         etNew.setPadding(50, 20, 50, 20);
-        etNew.setTextColor(getResources().getColor(android.R.color.white));
-        etNew.setHintTextColor(getResources().getColor(android.R.color.white));
+        etNew.setTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
+        etNew.setHintTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
         etNew.setBackground(getResources().getDrawable(com.example.chatappjava.R.drawable.rounded_container));
         
         // Set layout parameters for new password field
@@ -329,8 +329,8 @@ public class LoginActivity extends AppCompatActivity {
         etConfirm.setHint("Confirm password");
         etConfirm.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         etConfirm.setPadding(50, 20, 50, 20);
-        etConfirm.setTextColor(getResources().getColor(android.R.color.white));
-        etConfirm.setHintTextColor(getResources().getColor(android.R.color.white));
+        etConfirm.setTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
+        etConfirm.setHintTextColor(getResources().getColor(com.example.chatappjava.R.color.black));
         etConfirm.setBackground(getResources().getDrawable(com.example.chatappjava.R.drawable.rounded_container));
         
         // Set layout parameters for confirm password field
