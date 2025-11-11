@@ -1135,10 +1135,32 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
         
+        // Check if current user is the group owner
+        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        String creatorId = chat.getCreatorId();
+        boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
+        
         // Get option views
         LinearLayout optionViewInfo = dialogView.findViewById(R.id.option_view_group_info);
         LinearLayout optionDeleteChat = dialogView.findViewById(R.id.option_delete_chat);
         LinearLayout optionDeleteGroup = dialogView.findViewById(R.id.option_delete_group);
+        LinearLayout optionLeaveGroup = dialogView.findViewById(R.id.option_leave_group);
+        LinearLayout optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
+        
+        // Show/hide options based on user role
+        // Owner: show delete options, hide leave group
+        // Moderator/Member: show leave group, hide delete options
+        if (optionDeleteChat != null) {
+            optionDeleteChat.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+        }
+        
+        if (optionDeleteGroup != null) {
+            optionDeleteGroup.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+        }
+        
+        if (optionLeaveGroup != null) {
+            optionLeaveGroup.setVisibility(isOwner ? View.GONE : View.VISIBLE);
+        }
         
         AlertDialog dialog = builder.setView(dialogView).create();
         if (dialog.getWindow() != null) {
@@ -1146,21 +1168,48 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
         
-        // Set click listeners
-        optionViewInfo.setOnClickListener(v -> {
-            showChatInfo(chat);
-            dialog.dismiss();
-        });
+        // Set click listeners with null checks
+        if (optionViewInfo != null) {
+            optionViewInfo.setOnClickListener(v -> {
+                showChatInfo(chat);
+                dialog.dismiss();
+            });
+        }
         
-        optionDeleteChat.setOnClickListener(v -> {
-            dialog.dismiss();
-            confirmDeleteChat(chat);
-        });
+        if (optionDeleteChat != null && isOwner) {
+            optionDeleteChat.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmDeleteChat(chat);
+            });
+        }
         
-        optionDeleteGroup.setOnClickListener(v -> {
-            dialog.dismiss();
-            confirmDeleteGroup(chat);
-        });
+        if (optionDeleteGroup != null && isOwner) {
+            optionDeleteGroup.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmDeleteGroup(chat);
+            });
+        }
+        
+        if (optionLeaveGroup != null && !isOwner) {
+            optionLeaveGroup.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmLeaveGroup(chat);
+            });
+        }
+        
+        if (optionJoinRequests != null) {
+            optionJoinRequests.setOnClickListener(v -> {
+                dialog.dismiss();
+                Intent intent = new Intent(this, GroupJoinRequestsActivity.class);
+                try {
+                    intent.putExtra("chat", chat.toJson().toString());
+                    startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    e.printStackTrace();
+                    Toast.makeText(this, "Error opening join requests", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
         
         dialog.show();
     }

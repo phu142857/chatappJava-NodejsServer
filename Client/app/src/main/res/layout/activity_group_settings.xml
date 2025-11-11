@@ -151,6 +151,39 @@
 
                     </LinearLayout>
 
+                    <!-- Change Group Avatar -->
+                    <LinearLayout
+                        android:id="@+id/option_change_avatar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/rounded_container">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_menu_camera"
+                            android:layout_marginEnd="12dp"
+                            app:tint="@color/black" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Change Group Avatar"
+                            android:textSize="16sp"
+                            android:textColor="@color/black" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@android:drawable/ic_menu_more"
+                            app:tint="@color/black" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </LinearLayout>

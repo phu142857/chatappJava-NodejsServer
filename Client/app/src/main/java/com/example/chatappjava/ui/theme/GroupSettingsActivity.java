@@ -136,6 +136,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
         
         // Group Information
         findViewById(R.id.option_view_group_info).setOnClickListener(v -> showGroupInfo());
+        // Change avatar listener will be set in lockCreatorOnlyOptions() after permissions are loaded
         
         // Member Management - listeners will be set after permissions are loaded
         // They are set in lockCreatorOnlyOptions() method
@@ -398,6 +399,9 @@ public class GroupSettingsActivity extends AppCompatActivity {
 
         // Leave group is allowed for members; if creator, disable/guide
         lockOption(R.id.option_leave_group, isOwner, "Creator cannot leave. Delete group instead", v -> confirmLeaveGroup());
+        
+        // Change avatar - only admins/moderators/owner can change
+        lockOption(R.id.option_change_avatar, !hasManagementPermissions, "Only group creator, admins, and moderators can change group avatar", v -> showImageSelectDialog());
     }
 
     private void lockOption(int optionId, boolean lock, String message, View.OnClickListener actionListener) {
@@ -719,6 +723,58 @@ public class GroupSettingsActivity extends AppCompatActivity {
         }
     }
 
+    private void showImageSelectDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_attachment_select, null);
+        
+        // Update title
+        TextView titleView = dialogView.findViewById(R.id.title);
+        if (titleView != null) {
+            titleView.setText("Change Group Avatar");
+        }
+        
+        // Hide file upload option for avatar change
+        View fileOption = dialogView.findViewById(R.id.option_file);
+        if (fileOption != null) {
+            fileOption.setVisibility(View.GONE);
+        }
+        
+        // Hide remove avatar option (not needed for group avatar)
+        View removeAvatarOption = dialogView.findViewById(R.id.option_remove_avatar);
+        if (removeAvatarOption != null) {
+            removeAvatarOption.setVisibility(View.GONE);
+        }
+        
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        
+        cameraOption.setOnClickListener(v -> {
+            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            cameraLauncher.launch(cameraIntent);
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            galleryLauncher.launch("image/*");
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        imageSelectDialog = builder.create();
+        
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        imageSelectDialog.show();
+    }
+    
     private void uploadGroupAvatar(File imageFile) {
         String token = sharedPrefsManager.getToken();
         if (token == null || token.isEmpty()) {
@@ -728,12 +784,36 @@ public class GroupSettingsActivity extends AppCompatActivity {
         Toast.makeText(this, "Uploading avatar...", Toast.LENGTH_SHORT).show();
         apiClient.uploadGroupAvatar(token, currentChat.getId(), imageFile, new Callback() {
             @Override
-            public void onResponse(Call call, Response response) {
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        Toast.makeText(GroupSettingsActivity.this, "Avatar updated", Toast.LENGTH_SHORT).show();
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                String avatarUrl = jsonResponse.getJSONObject("data").getString("avatarUrl");
+                                // Update current chat with new avatar URL
+                                currentChat.setAvatar(avatarUrl);
+                                Toast.makeText(GroupSettingsActivity.this, "Avatar updated successfully", Toast.LENGTH_SHORT).show();
+                                // Refresh chat data from server
+                                refreshCurrentChatFromServer();
+                            } else {
+                                Toast.makeText(GroupSettingsActivity.this, "Failed to upload avatar: " + jsonResponse.optString("message", "Unknown error"), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Toast.makeText(GroupSettingsActivity.this, "Avatar updated", Toast.LENGTH_SHORT).show();
+                            // Still refresh even if parsing fails
+                            refreshCurrentChatFromServer();
+                        }
                     } else {
-                        Toast.makeText(GroupSettingsActivity.this, "Failed to upload avatar", Toast.LENGTH_SHORT).show();
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            String errorMsg = jsonResponse.optString("message", "Failed to upload avatar");
+                            Toast.makeText(GroupSettingsActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            Toast.makeText(GroupSettingsActivity.this, "Failed to upload avatar", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
             }
