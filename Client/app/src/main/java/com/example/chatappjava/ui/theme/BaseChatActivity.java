@@ -1573,6 +1573,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
     }
     
+    @SuppressLint("ClickableViewAccessibility")
     protected void setupClickListeners() {
         // Back button
         if (ivBack != null) {
@@ -1739,10 +1740,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 }
                                 // fallback to text if no attachment
                                 String c = fwd.optString("content", "");
-                                if (!c.isEmpty()) { sendMessage(c); return; }
+                                if (!c.isEmpty()) { sendMessage(c);
+                                }
                             } else {
                                 String c = fwd.optString("content", "");
-                                if (!c.isEmpty()) { sendMessage(c); return; }
+                                if (!c.isEmpty()) { sendMessage(c);
+                                }
                             }
                         } catch (Exception ignored) {
                             if (pendingForwardContent != null && !pendingForwardContent.isEmpty()) {

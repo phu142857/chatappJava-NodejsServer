@@ -1148,8 +1148,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         LinearLayout optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
         
         // Show/hide options based on user role
-        // Owner: show delete options, hide leave group
-        // Moderator/Member: show leave group, hide delete options
+        // Owner: show delete options, hide leave group, show join requests
+        // Moderator/Member: show leave group, hide delete options, hide join requests
         if (optionDeleteChat != null) {
             optionDeleteChat.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         }
@@ -1160,6 +1160,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         if (optionLeaveGroup != null) {
             optionLeaveGroup.setVisibility(isOwner ? View.GONE : View.VISIBLE);
+        }
+        
+        if (optionJoinRequests != null) {
+            optionJoinRequests.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         }
         
         AlertDialog dialog = builder.setView(dialogView).create();
@@ -1197,7 +1201,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             });
         }
         
-        if (optionJoinRequests != null) {
+        if (optionJoinRequests != null && isOwner) {
             optionJoinRequests.setOnClickListener(v -> {
                 dialog.dismiss();
                 Intent intent = new Intent(this, GroupJoinRequestsActivity.class);
