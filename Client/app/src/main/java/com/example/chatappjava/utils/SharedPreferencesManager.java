@@ -35,6 +35,8 @@ public class SharedPreferencesManager {
         try {
             JSONObject userJson = new JSONObject(userInfo);
             
+            // Get a fresh editor instance to ensure it's ready
+            SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putBoolean(KEY_IS_LOGGED_IN, true);
             editor.putString(KEY_TOKEN, token);
             editor.putString(KEY_USER_INFO, userInfo);
@@ -42,9 +44,18 @@ public class SharedPreferencesManager {
             editor.putString(KEY_USER_NAME, userJson.optString("username", ""));
             editor.putString(KEY_USER_EMAIL, userJson.optString("email", ""));
             editor.putString(KEY_USER_AVATAR, userJson.optString("avatar", ""));
-            editor.apply();
+            
+            // Use commit() for immediate synchronous write (better for debugging)
+            boolean success = editor.commit();
+            if (!success) {
+                android.util.Log.e("SharedPreferencesManager", "Failed to save login info");
+            }
             
         } catch (JSONException e) {
+            android.util.Log.e("SharedPreferencesManager", "Error parsing userInfo JSON: " + e.getMessage());
+            e.printStackTrace();
+        } catch (Exception e) {
+            android.util.Log.e("SharedPreferencesManager", "Unexpected error saving login info: " + e.getMessage());
             e.printStackTrace();
         }
     }
