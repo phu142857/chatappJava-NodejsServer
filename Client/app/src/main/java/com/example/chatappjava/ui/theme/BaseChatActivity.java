@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -53,7 +54,14 @@ import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
 import com.example.chatappjava.ui.call.RingingActivity;
 import com.example.chatappjava.utils.AvatarManager;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
+import com.example.chatappjava.utils.MessageRepository;
+import com.example.chatappjava.utils.OfflineMessageSyncManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.ConnectivityManager.NetworkCallback;
+import android.net.Network;
+import android.net.NetworkRequest;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -91,6 +99,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected TextView tvReplyAuthor;
     protected TextView tvReplyContent;
     protected ImageView ivReplyClose;
+    // Offline indicator
+    protected android.view.View offlineIndicator;
     protected String replyingToMessageId;
     protected String replyingToAuthor;
     protected String replyingToContent;
@@ -101,7 +111,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected User otherUser;
     protected List<Message> messages;
     protected MessageAdapter messageAdapter;
-    protected SharedPreferencesManager sharedPrefsManager;
+    protected DatabaseManager databaseManager;
+    protected MessageRepository messageRepository;
+    protected OfflineMessageSyncManager syncManager;
     protected ApiClient apiClient;
     protected AvatarManager avatarManager;
     protected AlertDialog emojiDialog;
@@ -172,6 +184,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         initViews();
         initData();
         setupSocketManager();
+        setupNetworkListener(); // Setup network listener for auto-sync
         setupClickListeners();
         setupRecyclerView();
         loadChatData();
@@ -285,7 +298,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
     
     private void initiateCall(String callType) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -339,9 +352,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     private User getCurrentUser() {
         // Create a simple user object for current user
         User currentUser = new User();
-        currentUser.setId(sharedPrefsManager.getUserId());
-        currentUser.setUsername(sharedPrefsManager.getUserName());
-        currentUser.setAvatar(sharedPrefsManager.getUserAvatar());
+        currentUser.setId(databaseManager.getUserId());
+        currentUser.setUsername(databaseManager.getUserName());
+        currentUser.setAvatar(databaseManager.getUserAvatar());
         return currentUser;
     }
     
@@ -631,7 +644,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             return;
         }
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -685,7 +698,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             return;
         }
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -771,8 +784,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void sendFileMessage(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
         if (currentChat == null) return;
         
-        String token = sharedPrefsManager.getToken();
-        String senderId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String senderId = databaseManager.getUserId();
         
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -875,8 +888,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void sendImageMessage(String imageUrl, android.net.Uri localUri) {
         if (currentChat == null) return;
         
-        String token = sharedPrefsManager.getToken();
-        String senderId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String senderId = databaseManager.getUserId();
         
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -1273,7 +1286,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             return;
         }
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -1329,8 +1342,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void sendVoiceMessage(String fileUrl, String fileName, String originalName, String mimeType, long fileSize) {
         if (currentChat == null) return;
         
-        String token = sharedPrefsManager.getToken();
-        String senderId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String senderId = databaseManager.getUserId();
         
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -1484,15 +1497,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         tvReplyAuthor = findViewById(R.id.tv_reply_author);
         tvReplyContent = findViewById(R.id.tv_reply_content);
         ivReplyClose = findViewById(R.id.iv_reply_close);
+        offlineIndicator = findViewById(R.id.offline_indicator);
         
         // Log view initialization
         android.util.Log.d("BaseChatActivity", "Views initialized - ivBack: " + (ivBack != null) + 
                           ", ivProfile: " + (ivProfile != null) + 
                           ", tvChatName: " + (tvChatName != null));
+        
+        // Update offline indicator visibility
+        updateOfflineIndicator();
     }
 
     protected void initData() {
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
+        messageRepository = new MessageRepository(this);
+        syncManager = new OfflineMessageSyncManager(this);
         apiClient = new ApiClient();
         avatarManager = AvatarManager.getInstance(this);
         socketManager = ChatApplication.getInstance().getSocketManager();
@@ -1664,7 +1683,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void setupRecyclerView() {
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         messageAdapter = new MessageAdapter(messages, currentUserId);
         messageAdapter.setOnMessageClickListener(this);
         messageAdapter.setAvatarManager(avatarManager);
@@ -1766,13 +1785,18 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void loadMessages() {
         if (currentChat == null) return;
 
-        String token = sharedPrefsManager.getToken();
-        boolean isRefresh = !isInitialLoad; // polling refresh vs first load
-        if (!isRefresh) {
-            currentPage = 1;
-            hasMore = true;
-        }
-        apiClient.getMessages(token, currentChat.getId(), 1, pageSize, new Callback() {
+        // First, try to load from local database (works offline)
+        loadMessagesFromDatabase();
+        
+        // Then try to load from server if network is available
+        if (isNetworkAvailable()) {
+            String token = databaseManager.getToken();
+            boolean isRefresh = !isInitialLoad; // polling refresh vs first load
+            if (!isRefresh) {
+                currentPage = 1;
+                hasMore = true;
+            }
+            apiClient.getMessages(token, currentChat.getId(), 1, pageSize, new Callback() {
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -1795,6 +1819,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         android.util.Log.d("BaseChatActivity", "Parsed message - chatType: " + message.getChatType() + 
                                                 ", senderUsername: " + message.getSenderUsername() + 
                                                 ", senderAvatar: " + message.getSenderAvatar());
+                                        // Save message to local database
+                                        messageRepository.saveMessage(message);
                                         pageOne.add(message);
                                     }
                                     hasMore = messagesArray.length() >= pageSize;
@@ -1865,15 +1891,113 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to load messages: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    // If we failed to load from server, show message from database
+                    if (messages.isEmpty()) {
+                        loadMessagesFromDatabase();
+                    }
+                    // Only show toast if we don't have any messages from database
+                    if (messages.isEmpty()) {
+                    }
+                });
             }
         });
+        } else {
+            // No network - just show database messages (already loaded above)
+            if (messages.isEmpty()) {
+            }
+        }
+    }
+    
+    /**
+     * Load messages from local database
+     */
+    private void loadMessagesFromDatabase() {
+        if (currentChat == null || messageRepository == null) return;
+        
+        List<Message> dbMessages = messageRepository.getMessagesForChat(currentChat.getId(), 0);
+        if (!dbMessages.isEmpty()) {
+            messages.clear();
+            messages.addAll(dbMessages);
+            messageAdapter.notifyDataSetChanged();
+            scrollToBottom();
+            android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + " messages from database");
+        }
+    }
+    
+    /**
+     * Check if network is available
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = 
+            (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+            return activeNetwork != null && activeNetwork.isConnected();
+        }
+        return false;
+    }
+    
+    /**
+     * Setup network listener to auto-sync pending messages when WiFi comes back
+     */
+    private void setupNetworkListener() {
+        ConnectivityManager connectivityManager = 
+            (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        
+        if (connectivityManager == null) return;
+        
+        NetworkRequest request = new NetworkRequest.Builder().build();
+        NetworkCallback callback = new NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                // Network is available - sync pending messages
+                android.util.Log.d("BaseChatActivity", "Network available, syncing pending messages");
+                runOnUiThread(() -> {
+                    updateOfflineIndicator();
+                    if (syncManager != null) {
+                        syncManager.syncPendingMessages();
+                    }
+                });
+            }
+            
+            @Override
+            public void onLost(Network network) {
+                android.util.Log.d("BaseChatActivity", "Network lost");
+                runOnUiThread(() -> updateOfflineIndicator());
+            }
+        };
+        
+        connectivityManager.registerNetworkCallback(request, callback);
+    }
+    
+    /**
+     * Update offline indicator visibility based on network status
+     */
+    private void updateOfflineIndicator() {
+        if (offlineIndicator == null) return;
+        
+        boolean isOnline = isNetworkAvailable();
+        offlineIndicator.setVisibility(isOnline ? View.GONE : View.VISIBLE);
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Update offline indicator
+        updateOfflineIndicator();
+        
+        // Sync pending messages when activity resumes (in case network came back)
+        if (syncManager != null && isNetworkAvailable()) {
+            syncManager.syncPendingMessages();
+        }
     }
 
     private void loadMoreMessages() {
         if (currentChat == null || isLoadingMore || !hasMore) return;
         isLoadingMore = true;
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         // Capture current top item and offset to restore after prepend
         LinearLayoutManager lmBefore = (LinearLayoutManager) rvMessages.getLayoutManager();
         int firstVisibleBefore = lmBefore != null ? lmBefore.findFirstVisibleItemPosition() : 0;
@@ -1895,6 +2019,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             java.util.List<Message> older = new java.util.ArrayList<>();
                             for (int i = 0; i < arr.length(); i++) {
                                 Message m = Message.fromJson(arr.getJSONObject(i));
+                                // Save to database
+                                if (messageRepository != null) {
+                                    messageRepository.saveMessage(m);
+                                }
                                 older.add(m);
                             }
                             messages.addAll(0, older);
@@ -1919,8 +2047,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void sendMessage(String content) {
         if (TextUtils.isEmpty(content.trim())) return;
 
-        String token = sharedPrefsManager.getToken();
-        String senderId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String senderId = databaseManager.getUserId();
 
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -1966,6 +2094,19 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             }
         }
 
+        // Save message to database first (with pending status if offline)
+        // Don't set ID - MessageRepository will generate temp ID for offline messages
+        message.setId(null);
+        Message savedMessage = messageRepository.saveMessage(message);
+        if (savedMessage != null) {
+            message = savedMessage; // Use saved message with temp ID
+        }
+        
+        // Create final reference for use in lambda
+        final Message finalMessage = message;
+        final String finalMessageId = message.getId();
+        final int messagePosition = messages.size();
+        
         // Add to local list immediately for better UX
         message.setLocalSignature(buildLocalSignature(message));
         messages.add(message);
@@ -1976,7 +2117,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Clear input
         etMessage.setText("");
 
-        // Send to server
+        // Check network availability
+        if (!isNetworkAvailable()) {
+            // Offline: Message already saved with pending status
+            messageAdapter.notifyItemChanged(messages.size() - 1); // Update UI to show pending status
+            return;
+        }
+
+        // Online: Send to server
         try {
             // Create JSON object that matches server expectations
             JSONObject messageJson = new JSONObject();
@@ -2008,34 +2156,50 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         JSONObject data = jsonResponse.optJSONObject("data");
                                         if (data != null && data.has("message")) {
                                             JSONObject m = data.getJSONObject("message");
+                                            Message serverMessage = Message.fromJson(m);
+                                            
+                                            // Update sync status in database
+                                            messageRepository.updateSyncStatus(
+                                                finalMessageId,
+                                                serverMessage.getId(),
+                                                "synced",
+                                                null
+                                            );
+                                            
                                             // Replace the last local placeholder that matches signature
-                                            int idx = findLocalPlaceholderIndex(Message.fromJson(m));
+                                            int idx = findLocalPlaceholderIndex(serverMessage);
                                             if (idx >= 0) {
-                                                messages.set(idx, Message.fromJson(m));
+                                                messages.set(idx, serverMessage);
                                                 messageAdapter.notifyItemChanged(idx);
                                             }
                                         }
                                     } catch (Exception ignored) {}
                                     clearReplyState();
                                 } else {
-                                    // Remove from local list if failed
-                                    messages.remove(message);
-                                    messageAdapter.notifyDataSetChanged();
+                                    // Save as pending instead of removing
+                                    finalMessage.setId(null);
+                                    messageRepository.saveMessage(finalMessage);
+                                    if (messagePosition < messages.size()) {
+                                        messageAdapter.notifyItemChanged(messagePosition);
+                                    }
                                     String errorMsg = jsonResponse.optString("message", "Failed to send message");
-                                    Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                                 }
                             } catch (JSONException e) {
                                 Log.e("BaseActivity", "Error processing response", e);
-                                // Remove from local list if failed
-                                messages.remove(message);
-                                messageAdapter.notifyDataSetChanged();
-                                Toast.makeText(BaseChatActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                                // Save as pending instead of removing
+                                finalMessage.setId(null);
+                                messageRepository.saveMessage(finalMessage);
+                                if (messagePosition < messages.size()) {
+                                    messageAdapter.notifyItemChanged(messagePosition);
+                                }
                             }
                         } else {
-                            // Remove from local list if failed
-                            messages.remove(message);
-                            messageAdapter.notifyDataSetChanged();
-                            Toast.makeText(BaseChatActivity.this, "Failed to send message: " + response.code(), Toast.LENGTH_SHORT).show();
+                            // Save as pending instead of removing
+                            finalMessage.setId(null);
+                            messageRepository.saveMessage(finalMessage);
+                            if (messagePosition < messages.size()) {
+                                messageAdapter.notifyItemChanged(messagePosition);
+                            }
                         }
                     });
                 }
@@ -2045,16 +2209,22 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 public void onFailure(Call call, IOException e) {
                     android.util.Log.e("BaseChatActivity", "Send message failed: " + e.getMessage());
                     runOnUiThread(() -> {
-                        // Remove from local list if failed
-                        messages.remove(message);
-                        messageAdapter.notifyDataSetChanged();
-                        Toast.makeText(BaseChatActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        // Save as pending instead of removing
+                        finalMessage.setId(null);
+                        messageRepository.saveMessage(finalMessage);
+                        if (messagePosition < messages.size()) {
+                            messageAdapter.notifyItemChanged(messagePosition);
+                        }
+                        Toast.makeText(BaseChatActivity.this, "Không có kết nối. Tin nhắn sẽ được gửi khi có mạng.", Toast.LENGTH_LONG).show();
                     });
                 }
             });
         } catch (JSONException e) {
             Log.e("BaseActivity", "Error preparing message", e);
-            Toast.makeText(this, "Error preparing message", Toast.LENGTH_SHORT).show();
+            // Save as pending
+            finalMessage.setId(null);
+            messageRepository.saveMessage(finalMessage);
+            Toast.makeText(this, "Lỗi chuẩn bị tin nhắn. Sẽ thử lại sau.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -2162,7 +2332,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     protected void fetchGroupMembersForMentions() {
         try {
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             if (token == null || token.isEmpty() || currentChat == null) return;
             apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
                 @Override
@@ -2324,7 +2494,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     @SuppressLint("NotifyDataSetChanged")
     @Override
     public void onReactClick(Message message, String emoji) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         // Optimistic UI update: update local message to show reaction immediately
         try {
@@ -2417,6 +2587,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (currentChat == null || !chatId.equals(currentChat.getId())) return;
 
             Message incoming = Message.fromJson(messageJson);
+            // Save to database
+            if (messageRepository != null) {
+                messageRepository.saveMessage(incoming);
+            }
             // Upsert by id
             int idx = indexOfMessageById(incoming.getId());
             if (idx >= 0) {
@@ -2484,7 +2658,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     private int findLocalPlaceholderIndex(Message incoming) {
         if (incoming == null) return -1;
-        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
         if (currentUserId == null) return -1;
         // If server includes clientNonce, prefer matching by nonce
         String incomingNonce = null;
@@ -2509,7 +2683,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     private String buildLocalSignature(Message m) {
         try {
-            String uid = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : "";
+            String uid = databaseManager != null ? databaseManager.getUserId() : "";
             String type = m.isImageMessage() ? "image" : (m.isTextMessage() ? "text" : m.getType());
             String contentKey = m.isTextMessage() ? (m.getContent() != null ? m.getContent() : "") : "img";
             return uid + "|" + type + "|" + contentKey;
@@ -2520,7 +2694,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_message_options, null);
         
-        boolean isOwnMessage = message.getSenderId() != null && message.getSenderId().equals(sharedPrefsManager.getUserId());
+        boolean isOwnMessage = message.getSenderId() != null && message.getSenderId().equals(databaseManager.getUserId());
         boolean canEdit = message.isTextMessage() && isOwnMessage;
         
         // Show/hide edit option based on permissions
@@ -2628,10 +2802,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         }
         if (btnRemove != null) btnRemove.setOnClickListener(v -> {
             try {
-                String token = sharedPrefsManager.getToken();
+                String token = databaseManager.getToken();
                 if (token != null && !token.isEmpty()) {
                     // Determine current user's emoji to remove from message.reactionsRaw
-                    String myUserId = sharedPrefsManager.getUserId();
+                    String myUserId = databaseManager.getUserId();
                     String emojiToRemove = findUserReactionEmoji(message, myUserId);
                     if (emojiToRemove == null || emojiToRemove.isEmpty()) {
                         dlg.dismiss();
@@ -2720,7 +2894,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void performEditMessage(Message message, String newContent) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.editMessage(token, message.getId(), newContent, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
@@ -2768,7 +2942,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void deleteMessageForEveryone(Message message) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.deleteMessage(token, message.getId(), new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {

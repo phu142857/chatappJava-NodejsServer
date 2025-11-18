@@ -6,7 +6,7 @@ import android.util.Log;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.network.SocketManager;
 import com.example.chatappjava.ui.call.RingingActivity;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import org.json.JSONException;
 
 /**
@@ -16,7 +16,7 @@ public class ChatApplication extends Application {
     private static final String TAG = "ChatApplication";
     private static ChatApplication instance;
     private SocketManager socketManager;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     
     @Override
     public void onCreate() {
@@ -24,7 +24,7 @@ public class ChatApplication extends Application {
         instance = this;
         
         // Initialize managers
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         socketManager = SocketManager.getInstance();
         
         // Setup global socket connection
@@ -39,13 +39,13 @@ public class ChatApplication extends Application {
         return socketManager;
     }
     
-    public SharedPreferencesManager getSharedPrefsManager() {
-        return sharedPrefsManager;
+    public DatabaseManager getSharedPrefsManager() {
+        return databaseManager;
     }
     
     private void setupGlobalSocketManager() {
-        String token = sharedPrefsManager.getToken();
-        String userId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String userId = databaseManager.getUserId();
         
         if (token != null && userId != null) {
             socketManager.connect(token, userId);

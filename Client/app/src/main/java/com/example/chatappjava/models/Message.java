@@ -257,10 +257,17 @@ public class Message {
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public String getChatId() { return chatId; }
     public void setChatId(String chatId) { this.chatId = chatId; }
     
     public String getSenderId() { return senderId; }
     public void setSenderId(String senderId) { this.senderId = senderId; }
+    
+    public String getSenderDisplayName() { return senderDisplayName; }
+    public void setSenderDisplayName(String senderDisplayName) { this.senderDisplayName = senderDisplayName; }
+    
+    public String getSenderAvatarUrl() { return senderAvatarUrl; }
+    public void setSenderAvatarUrl(String senderAvatarUrl) { this.senderAvatarUrl = senderAvatarUrl; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
@@ -273,6 +280,11 @@ public class Message {
     
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+    
+    public boolean isRead() { return isRead; }
+    public void setRead(boolean read) { this.isRead = read; }
+    
+    public boolean isDeleted() { return isDeleted; }
     public void setDeleted(boolean deleted) { isDeleted = deleted; }
 
     public String getAttachments() { return attachments; }
@@ -315,6 +327,9 @@ public class Message {
     public void setReplyToSenderName(String replyToSenderName) { this.replyToSenderName = replyToSenderName; }
     public boolean isEdited() { return edited; }
     public void setEdited(boolean edited) { this.edited = edited; }
+    
+    public long getEditedAt() { return editedAt; }
+    public void setEditedAt(long editedAt) { this.editedAt = editedAt; }
     
     // Helper methods
     public boolean isTextMessage() {

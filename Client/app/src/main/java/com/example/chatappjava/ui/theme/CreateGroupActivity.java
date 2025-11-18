@@ -19,7 +19,7 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.SelectableUserAdapter;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,7 +41,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
     private final List<User> friends = new ArrayList<>();
     private final List<String> selectedUserIds = new ArrayList<>();
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefs;
+    private DatabaseManager sharedPrefs;
     private EditText etSearch;
     private TextView tvCreate;
     private final List<User> allFriends = new ArrayList<>();
@@ -60,7 +60,7 @@ public class CreateGroupActivity extends AppCompatActivity implements Selectable
         tvCreate = findViewById(R.id.tv_create);
 
         apiClient = new ApiClient();
-        sharedPrefs = new SharedPreferencesManager(this);
+        sharedPrefs = new DatabaseManager(this);
 
         adapter = new SelectableUserAdapter(friends, this);
         rvFriends.setLayoutManager(new LinearLayoutManager(this));

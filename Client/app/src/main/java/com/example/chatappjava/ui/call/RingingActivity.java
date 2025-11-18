@@ -27,7 +27,7 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONException;
@@ -84,7 +84,7 @@ public class RingingActivity extends AppCompatActivity {
     private AudioManager audioManager;
     
     // Managers
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager sharedPrefsManager;
     private ApiClient apiClient;
     
     @Override
@@ -97,7 +97,7 @@ public class RingingActivity extends AppCompatActivity {
         setContentView(R.layout.activity_ringing);
         
         // Initialize managers
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        sharedPrefsManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         
         // Initialize audio manager

@@ -22,7 +22,7 @@ import androidx.annotation.Nullable;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -46,7 +46,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     private TextView tvRequestCount;
     
     private Chat currentChat;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private ApiClient apiClient;
     private boolean isUpdatingSettings = false;
     private ActivityResultLauncher<Intent> cameraLauncher;
@@ -113,7 +113,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void initData() {
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         memberRoles = new java.util.HashMap<>();
         
@@ -170,7 +170,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void fetchMemberRoles() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             updatePermissionsWithFallback();
             return;
@@ -246,7 +246,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     
     private void updatePermissionsWithFallback() {
         // Fallback to Chat model check if API fails
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         String creatorId = currentChat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
         boolean hasManagementPermissions = isOwner || (currentChat.isGroupChat() && currentChat.hasManagementPermissions(currentUserId));
@@ -254,7 +254,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void updatePermissions() {
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         String creatorId = currentChat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
         
@@ -318,7 +318,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
 
     private void refreshCurrentChatFromServer() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || currentChat == null) return;
         apiClient.getChats(token, new Callback() {
             @Override
@@ -371,7 +371,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     
     private void lockCreatorOnlyOptions(boolean hasManagementPermissions) {
         // Check delete permission separately (only owner/admin, not moderators)
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         String creatorId = currentChat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
         boolean hasDeletePermission = isOwner;
@@ -417,7 +417,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void fetchJoinRequestCount() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         
         apiClient.getJoinRequestsCount(token, currentChat.getId(), new Callback() {
@@ -551,7 +551,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void leaveGroup() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -590,7 +590,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void deleteGroup() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -616,7 +616,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void updateGroupSettings(boolean isPublic) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -776,7 +776,7 @@ public class GroupSettingsActivity extends AppCompatActivity {
     }
     
     private void uploadGroupAvatar(File imageFile) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;

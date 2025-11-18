@@ -24,7 +24,10 @@ import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
+import com.example.chatappjava.utils.ConversationRepository;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import com.example.chatappjava.config.ServerConfig;
 import com.squareup.picasso.Picasso;
 import com.example.chatappjava.adapters.CallListAdapter;
@@ -55,7 +58,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private TextView tvUserName;
     
     // Data and Services
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
+    private ConversationRepository conversationRepository;
     private ApiClient apiClient;
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
@@ -154,7 +158,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void initializeServices() {
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
+        conversationRepository = new ConversationRepository(this);
         apiClient = new ApiClient();
         chatList = new ArrayList<>();
         callList = new ArrayList<>();
@@ -162,7 +167,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         avatarManager.initialize(); // Initialize avatar manager with scheduled refresh
 
         // Check if user is logged in
-        if (!sharedPrefsManager.isLoggedIn()) {
+        if (!databaseManager.isLoggedIn()) {
             redirectToLogin();
             return;
         }
@@ -238,7 +243,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         // Setup call adapter
         callAdapter = new CallListAdapter(this);
         callAdapter.setOnCallClickListener(this);
-        callAdapter.setCurrentUserId(sharedPrefsManager.getUserId());
+        callAdapter.setCurrentUserId(databaseManager.getUserId());
         
         rvChatList.setLayoutManager(new LinearLayoutManager(this));
         rvChatList.setAdapter(chatAdapter);
@@ -256,8 +261,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
         
         // Load user profile information
-        String username = sharedPrefsManager.getUserName();
-        String avatarUrl = sharedPrefsManager.getUserAvatar();
+        String username = databaseManager.getUserName();
+        String avatarUrl = databaseManager.getUserAvatar();
         
         Log.d(TAG, "Loading user profile - Username: " + username + ", Avatar URL: " + avatarUrl);
         
@@ -402,7 +407,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
         isLoadingCalls = true;
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             isLoadingCalls = false;
             return;
@@ -473,7 +478,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 }
             } else if (statusCode == 401) {
                 System.out.println("HomeActivity: Session expired while loading call history");
-                sharedPrefsManager.clearLoginInfo();
+                databaseManager.clearLoginInfo();
                 redirectToLogin();
             } else {
                 System.out.println("HomeActivity: Failed to load call history with status: " + statusCode);
@@ -510,7 +515,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 "Delete",
                 "Cancel",
                 () -> {
-                    String token = sharedPrefsManager.getToken();
+                    String token = databaseManager.getToken();
                     if (token == null || token.isEmpty()) {
                         Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
                         return;
@@ -550,7 +555,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 "Unfriend",
                 "Cancel",
                 () -> {
-                    String token = sharedPrefsManager.getToken();
+                    String token = databaseManager.getToken();
                     if (token == null || token.isEmpty()) {
                         Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
                         return;
@@ -561,7 +566,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     } else if (!chat.getParticipantIds().isEmpty()) {
                         // Fallback: pick a participant that's not current user
                         for (String pid : chat.getParticipantIds()) {
-                            if (!pid.equals(sharedPrefsManager.getUserId())) {
+                            if (!pid.equals(databaseManager.getUserId())) {
                                 otherUserId = pid;
                                 break;
                             }
@@ -599,7 +604,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     protected void onResume() {
         super.onResume();
         
-        if (!sharedPrefsManager.isLoggedIn()) {
+        if (!databaseManager.isLoggedIn()) {
             redirectToLogin();
         } else {
             // Reload user profile data when returning to activity
@@ -726,7 +731,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
 
     private void loadFriendRequestCount() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             updateFriendRequestBadge(0, 0);
             return;
@@ -754,7 +759,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                 org.json.JSONObject requestJson = requestsArray.getJSONObject(i);
                                 String status = requestJson.optString("status", "");
                                 String receiverId = requestJson.optString("receiverId", "");
-                                if ("pending".equals(status) && receiverId.equals(sharedPrefsManager.getUserId())) {
+                                if ("pending".equals(status) && receiverId.equals(databaseManager.getUserId())) {
                                     pendingReceivedCount++;
                                 }
                             }
@@ -804,10 +809,20 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         isLoadingChats = true;
         System.out.println("HomeActivity: Loading chats...");
         
+        // First, try to load from local database (works offline)
+        loadChatsFromDatabase();
+        
         // Force refresh avatars on reload
         avatarManager.forceRefreshAvatars();
         
-        String token = sharedPrefsManager.getToken();
+        // Then try to load from server if network is available
+        if (!isNetworkAvailable()) {
+            System.out.println("HomeActivity: No network, showing chats from database");
+            isLoadingChats = false;
+            return;
+        }
+        
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             System.out.println("HomeActivity: No token available for loading chats");
             isLoadingChats = false;
@@ -819,7 +834,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     System.out.println("HomeActivity: Failed to load chats: " + e.getMessage());
-                    // Don't show error toast for chat loading, just log it
+                    // If we failed to load from server, show chats from database
+                    if (chatList.isEmpty()) {
+                        loadChatsFromDatabase();
+                    }
                     isLoadingChats = false;
                 });
             }
@@ -834,6 +852,39 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         });
     }
+    
+    /**
+     * Load chats from local database
+     */
+    private void loadChatsFromDatabase() {
+        if (conversationRepository == null) return;
+        
+        List<Chat> dbChats = conversationRepository.getAllConversations();
+        if (!dbChats.isEmpty()) {
+            this.chatList = dbChats;
+            if (chatAdapter != null) {
+                if (currentTab == 1) {
+                    applyGroupsFilter();
+                } else {
+                    applyChatsFilter();
+                }
+            }
+            System.out.println("HomeActivity: Loaded " + dbChats.size() + " chats from database");
+        }
+    }
+    
+    /**
+     * Check if network is available
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = 
+            (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+            return activeNetwork != null && activeNetwork.isConnected();
+        }
+        return false;
+    }
 
     private boolean isChatWithBlockedUser(Chat chat) {
         try {
@@ -842,7 +893,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             String otherId = null;
             if (chat.getParticipantIds() != null) {
                 for (String pid : chat.getParticipantIds()) {
-                    if (pid != null && !pid.equals(sharedPrefsManager.getUserId())) { otherId = pid; break; }
+                    if (pid != null && !pid.equals(databaseManager.getUserId())) { otherId = pid; break; }
                 }
             }
             // Fallback to potential field on otherParticipant if provided
@@ -854,7 +905,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
 
     private void loadBlockedUsers() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         apiClient.getBlockedUsers(token, new okhttp3.Callback() {
             @Override
@@ -906,6 +957,11 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         try {
                             Chat chat = Chat.fromJson(chatJson);
                             chats.add(chat);
+                            
+                            // Save to database for offline access
+                            if (conversationRepository != null) {
+                                conversationRepository.saveConversation(chat);
+                            }
                         } catch (Exception e) {
                             System.out.println("HomeActivity: Error parsing chat " + i + ": " + e.getMessage());
                             e.printStackTrace();
@@ -930,7 +986,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 }
             } else if (statusCode == 401) {
                 System.out.println("HomeActivity: Session expired while loading chats");
-                sharedPrefsManager.clearLoginInfo();
+                databaseManager.clearLoginInfo();
                 // Redirect to login
                 Intent intent = new Intent(HomeActivity.this, com.example.chatappjava.ui.theme.LoginActivity.class);
                 startActivity(intent);
@@ -984,7 +1040,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private void leaveGroup(Chat chat) {
         Toast.makeText(this, "Leaving group...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.leaveGroup(token, chat.getId(), new okhttp3.Callback() {
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
@@ -1043,7 +1099,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private void deleteGroup(Chat chat) {
         Toast.makeText(this, "Deleting group...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.deleteChat(token, chat.getId(), new okhttp3.Callback() {
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
@@ -1136,7 +1192,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
         
         // Check if current user is the group owner
-        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
         String creatorId = chat.getCreatorId();
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
         
@@ -1281,7 +1337,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
 
         // If not locally marked as friend, check with server
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
             dialogView.findViewById(R.id.card_block_user).setVisibility(View.VISIBLE);
@@ -1377,7 +1433,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void blockUser(String userId) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;

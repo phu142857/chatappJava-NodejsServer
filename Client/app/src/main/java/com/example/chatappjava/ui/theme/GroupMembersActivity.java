@@ -20,7 +20,7 @@ import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -47,7 +47,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private List<User> members;
     private List<User> allMembers;
     private GroupMembersAdapter membersAdapter;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private ApiClient apiClient;
     private AvatarManager avatarManager;
     private AlertDialog memberOptionsDialog;
@@ -75,7 +75,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     }
     
     private void initData() {
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         avatarManager = AvatarManager.getInstance(this);
         members = new ArrayList<>();
@@ -129,7 +129,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         tvMemberCount.setText(currentChat.getParticipantCount() + " members");
         
         // Check if current user is the group owner
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         String creatorId = currentChat.getCreatorId();
         
         // Debug logging
@@ -150,7 +150,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     }
     
     private void fetchGroupMembers() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             finish();
@@ -322,7 +322,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
         }
 
         // Check permissions
-        String currentUserId = sharedPrefsManager != null ? sharedPrefsManager.getUserId() : null;
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
         String creatorId = currentChat != null ? currentChat.getCreatorId() : null;
         
         boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
@@ -430,7 +430,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private void changeMemberRole(User member, String newRole) {
         Toast.makeText(this, "Changing role...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         try {
             JSONObject roleData = new JSONObject();
             roleData.put("userId", member.getId());
@@ -504,7 +504,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
     private void transferOwnership(User member) {
         Toast.makeText(this, "Transferring ownership...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         try {
             JSONObject ownershipData = new JSONObject();
             ownershipData.put("newOwnerId", member.getId());
@@ -525,7 +525,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                                         "Ownership transferred successfully", Toast.LENGTH_SHORT).show();
                                     
                                     // Update local data - old owner becomes moderator, new owner becomes owner
-                                    String currentUserId = sharedPrefsManager.getUserId();
+                                    String currentUserId = databaseManager.getUserId();
                                     memberRoles.put(currentUserId, "Moderator");
                                     memberRoles.put(member.getId(), "Owner");
                                     
@@ -596,7 +596,7 @@ public class GroupMembersActivity extends AppCompatActivity implements GroupMemb
                           ", ID: " + member.getId() + 
                           ", Chat ID: " + currentChat.getId());
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         try {
             JSONObject memberData = new JSONObject();
             memberData.put("userId", member.getId());

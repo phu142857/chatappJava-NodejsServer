@@ -15,7 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -39,7 +39,7 @@ public class BlockedUsersActivity extends AppCompatActivity {
     private BlockedUsersAdapter adapter;
 
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefs;
+    private DatabaseManager sharedPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,7 +47,7 @@ public class BlockedUsersActivity extends AppCompatActivity {
         setContentView(R.layout.activity_blocked_users);
 
         apiClient = new ApiClient();
-        sharedPrefs = new SharedPreferencesManager(this);
+        sharedPrefs = new DatabaseManager(this);
 
         initViews();
         setupRecycler();

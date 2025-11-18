@@ -10,8 +10,8 @@ public class ServerConfig {
     // Change these values to match your server setup
     
     // Server IP and Port (change this to your actual server IP)
-    private static final String SERVER_IP = "103.75.183.125";
-//    private static final String SERVER_IP = "192.168.1.11";
+//    private static final String SERVER_IP = "103.75.183.125";
+    private static final String SERVER_IP = "192.168.2.36";
     private static final int SERVER_PORT = 49664;
     
     // Protocol configuration
@@ -43,7 +43,7 @@ public class ServerConfig {
     public static String getServerIp() {
         com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
         if (app != null) {
-            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
             String override = prefs.getOverrideServerIp();
             if (override != null && !override.isEmpty()) return override;
         }
@@ -56,7 +56,7 @@ public class ServerConfig {
     public static int getServerPort() {
         com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
         if (app != null) {
-            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
             int override = prefs.getOverrideServerPort();
             if (override > 0) return override;
         }
@@ -69,7 +69,7 @@ public class ServerConfig {
     public static boolean isUsingHttps() {
         com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
         if (app != null) {
-            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
             Boolean override = prefs.getOverrideUseHttps();
             if (override != null) return override;
         }
@@ -82,7 +82,7 @@ public class ServerConfig {
     public static boolean isUsingWss() {
         com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
         if (app != null) {
-            com.example.chatappjava.utils.SharedPreferencesManager prefs = app.getSharedPrefsManager();
+            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
             Boolean override = prefs.getOverrideUseWss();
             if (override != null) return override;
         }

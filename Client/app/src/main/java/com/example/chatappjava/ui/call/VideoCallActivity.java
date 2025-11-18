@@ -25,7 +25,7 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import com.squareup.picasso.Picasso;
 
 import org.webrtc.AudioSource;
@@ -119,7 +119,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
     private int callDurationSeconds = 0;
 
     // Managers
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private ApiClient apiClient;
 
     @Override
@@ -132,7 +132,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         setContentView(R.layout.activity_video_call);
 
         // Initialize managers
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         socketManager = SocketManager.getInstance();
 
@@ -1061,7 +1061,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             try {
                 // Check if this offer is from another user (not from ourselves)
                 String fromUserId = offer.optString("fromUserId", "");
-                String currentUserId = sharedPrefsManager.getUserId();
+                String currentUserId = databaseManager.getUserId();
 
                 if (!fromUserId.isEmpty() && !fromUserId.equals(currentUserId)) {
                     Log.d(TAG, "Received WebRTC offer from user: " + fromUserId);
@@ -1095,7 +1095,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             try {
                 // Check if this answer is from another user (not from ourselves)
                 String fromUserId = answer.optString("fromUserId", "");
-                String currentUserId = sharedPrefsManager.getUserId();
+                String currentUserId = databaseManager.getUserId();
 
                 if (!fromUserId.isEmpty() && !fromUserId.equals(currentUserId)) {
                     Log.d(TAG, "Received WebRTC answer from user: " + fromUserId);
@@ -1118,7 +1118,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             try {
                 // Check if this ICE candidate is from another user (not from ourselves)
                 String fromUserId = candidate.optString("fromUserId", "");
-                String currentUserId = sharedPrefsManager.getUserId();
+                String currentUserId = databaseManager.getUserId();
 
                 if (!fromUserId.isEmpty() && !fromUserId.equals(currentUserId)) {
                     Log.d(TAG, "Received ICE candidate from user: " + fromUserId);
@@ -1343,7 +1343,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         tvCallStatus.setText("Connecting...");
 
         // Call API to accept call
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.joinCall(token, callId, new Callback() {
             @Override
             public void onFailure(Call call, java.io.IOException e) {
@@ -1490,7 +1490,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     private void updateCallSettings() {
         // Update call settings via API
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         JSONObject settings = new JSONObject();
         try {
             settings.put("muteAudio", isMuted);
@@ -1541,7 +1541,7 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
         }
 
         // Call API to end call
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.endCall(token, callId, new Callback() {
             @Override
             public void onFailure(Call call, java.io.IOException e) {

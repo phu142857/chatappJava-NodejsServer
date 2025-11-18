@@ -30,7 +30,7 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import com.github.dhaval2404.imagepicker.ImagePicker;
 import com.squareup.picasso.Picasso;
 import com.github.chrisbanes.photoview.PhotoView;
@@ -57,7 +57,7 @@ public class ProfileActivity extends AppCompatActivity {
     private ImageView ivBack;
 
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private User currentUser;
     private boolean hasChanges = false;
     private Uri selectedImageUri;
@@ -94,7 +94,7 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void initializeServices() {
         apiClient = new ApiClient();
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
     }
 
     private void setupImagePicker() {
@@ -249,7 +249,7 @@ public class ProfileActivity extends AppCompatActivity {
     private void loadUserProfile() {
         showLoading(true);
 
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             showLoading(false);
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -385,7 +385,7 @@ public class ProfileActivity extends AppCompatActivity {
 
         showLoading(true);
 
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             showLoading(false);
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -590,7 +590,7 @@ public class ProfileActivity extends AppCompatActivity {
                 currentUser = User.fromJson(userData);
                 
                 // Update shared preferences with new user info
-                sharedPrefsManager.saveLoginInfo(sharedPrefsManager.getToken(), userData.toString());
+                databaseManager.saveLoginInfo(databaseManager.getToken(), userData.toString());
                 
                 // Clear selected image URI since it's been uploaded
                 selectedImageUri = null;

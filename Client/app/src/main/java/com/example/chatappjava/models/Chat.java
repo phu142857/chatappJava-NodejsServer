@@ -206,10 +206,22 @@ public class Chat {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public String getLastMessage() { return lastMessage; }
+    
+    public long getLastMessageTime() { return lastMessageTime; }
+    public void setLastMessageTime(long lastMessageTime) { this.lastMessageTime = lastMessageTime; }
 
     public int getUnreadCount() { return unreadCount; }
+    
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { this.isActive = active; }
+    
+    public long getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
     public List<String> getParticipantIds() { return participantIds; }
     
     public String getCreatorId() { return creatorId; }

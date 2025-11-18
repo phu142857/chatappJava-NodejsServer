@@ -21,7 +21,7 @@ import com.example.chatappjava.adapters.GroupSearchAdapter;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,7 +43,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private TextView tabUsers, tabGroups, tabDiscover;
     
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager sharedPrefsManager;
     private UserSearchAdapter userAdapter;
     private GroupSearchAdapter groupAdapter;
     private List<User> searchResults;
@@ -91,7 +91,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     
     private void initializeServices() {
         apiClient = new ApiClient();
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        sharedPrefsManager = new DatabaseManager(this);
         searchResults = new ArrayList<>();
         groupResults = new ArrayList<>();
         currentGroupMemberIds = new ArrayList<>();

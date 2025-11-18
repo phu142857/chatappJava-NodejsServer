@@ -11,7 +11,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.chatappjava.R;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +27,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvRegister, tvForgotPassword;
     private TextView tvLoginError;
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,7 +39,7 @@ public class LoginActivity extends AppCompatActivity {
         setupClickListeners();
         
         // Check if the user is already logged in
-        if (sharedPrefsManager.isLoggedIn()) {
+        if (databaseManager.isLoggedIn()) {
             navigateToMainActivity();
         }
     }
@@ -82,7 +82,7 @@ public class LoginActivity extends AppCompatActivity {
     
     private void initializeServices() {
         apiClient = new ApiClient();
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
     }
     
     private void setupClickListeners() {
@@ -478,7 +478,7 @@ public class LoginActivity extends AppCompatActivity {
                 JSONObject user = data.getJSONObject("user");
                 
                 // Save login information
-                sharedPrefsManager.saveLoginInfo(token, user.toString());
+                databaseManager.saveLoginInfo(token, user.toString());
                 
                 // Reconnect socket with new token
                 com.example.chatappjava.ChatApplication.getInstance().reconnectSocket();

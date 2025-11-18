@@ -17,7 +17,7 @@ import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.adapters.FriendsAdapter;
 import com.example.chatappjava.utils.AvatarManager;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,7 +41,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     
     private User otherUser;
     private AvatarManager avatarManager;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private ApiClient apiClient;
     private AlertDialog currentDialog;
     private boolean isBlockedInSession; // local flag to reflect block state in this session
@@ -86,7 +86,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     
     private void initData() {
         avatarManager = AvatarManager.getInstance(this);
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         
         Intent intent = getIntent();
@@ -125,7 +125,7 @@ public class ProfileViewActivity extends AppCompatActivity {
             Toast.makeText(this, "No user to block", Toast.LENGTH_SHORT).show();
             return;
         }
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -216,7 +216,7 @@ public class ProfileViewActivity extends AppCompatActivity {
 
     private void loadFriends() {
         if (rvFriends == null || otherUser == null) return;
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
 
         apiClient.getUserFriendsById(token, otherUser.getId(), new okhttp3.Callback() {
@@ -431,7 +431,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     }
 
     private void submitReport(String content) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -463,7 +463,7 @@ public class ProfileViewActivity extends AppCompatActivity {
             return;
         }
 
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || otherUser == null) {
             if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
             if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
@@ -515,8 +515,8 @@ public class ProfileViewActivity extends AppCompatActivity {
 
     private void checkPendingFriendRequest(View addFriendOption) {
         if (addFriendOption == null) return;
-        String token = sharedPrefsManager.getToken();
-        String currentUserId = sharedPrefsManager.getUserId();
+        String token = databaseManager.getToken();
+        String currentUserId = databaseManager.getUserId();
         if (token == null || token.isEmpty() || currentUserId == null || currentUserId.isEmpty() || otherUser == null) {
             return;
         }
@@ -585,7 +585,7 @@ public class ProfileViewActivity extends AppCompatActivity {
 
     private void sendFriendRequest() {
         try {
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             if (token == null || token.isEmpty()) {
                 Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
                 return;
@@ -623,7 +623,7 @@ public class ProfileViewActivity extends AppCompatActivity {
 
     private void performUnfriend() {
         if (otherUser == null) return;
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -653,7 +653,7 @@ public class ProfileViewActivity extends AppCompatActivity {
         if (otherUser == null) return;
         
         // First, try to find existing chat with this user
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token != null && !token.isEmpty()) {
             apiClient.getChats(token, new okhttp3.Callback() {
                 @Override
@@ -723,7 +723,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     
     private void createNewPrivateChat() {
         // Create a new private chat on the server
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
             return;
@@ -792,7 +792,7 @@ public class ProfileViewActivity extends AppCompatActivity {
     private void loadOtherUserData() {
         if (otherUser == null) return;
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         
         // Use ApiClient to get updated user data
@@ -833,7 +833,7 @@ public class ProfileViewActivity extends AppCompatActivity {
             finish();
             return;
         }
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             finish();

@@ -20,7 +20,7 @@ import com.example.chatappjava.adapters.FriendRequestAdapter;
 import com.example.chatappjava.models.FriendRequest;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -46,7 +46,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private View containerFriends;
 
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
     private FriendRequestAdapter adapter;
     private List<FriendRequest> friendRequests;
     private List<FriendRequest> allFriendRequests;
@@ -96,13 +96,13 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
 
     private void initializeServices() {
         apiClient = new ApiClient();
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         friendRequests = new ArrayList<>();
         allFriendRequests = new ArrayList<>();
     }
 
     private void setupRecyclerView() {
-        String currentUserId = sharedPrefsManager.getUserId();
+        String currentUserId = databaseManager.getUserId();
         System.out.println("FriendRequestActivity: Setting up adapter with currentUserId: '" + currentUserId + "'");
         System.out.println("FriendRequestActivity: Current User ID length: " + (currentUserId != null ? currentUserId.length() : "null"));
         System.out.println("FriendRequestActivity: Current User ID isEmpty: " + (currentUserId != null ? currentUserId.isEmpty() : "null"));
@@ -160,7 +160,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
 
     private void loadFriendRequests() {
         showLoading(true);
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             finish();
@@ -188,7 +188,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     }
 
     private void loadMyFriends() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || rvMyFriends == null) return;
         apiClient.authenticatedGet("/api/users/friends", token, new Callback() {
             @Override
@@ -262,7 +262,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
 
             } else if (statusCode == 401) {
                 Toast.makeText(this, "Session expired. Please login again.", Toast.LENGTH_SHORT).show();
-                sharedPrefsManager.clearLoginInfo();
+                databaseManager.clearLoginInfo();
                 finish();
             } else {
                 String message = jsonResponse.optString("message", "Failed to load friend requests");
@@ -353,7 +353,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private void respondToFriendRequest(FriendRequest request, String action) {
         showLoading(true);
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             showLoading(false);
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
@@ -418,7 +418,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     }
 
     private void createChatAfterAccept(FriendRequest request) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -492,7 +492,7 @@ public class FriendRequestActivity extends AppCompatActivity implements FriendRe
     private void cancelFriendRequest(FriendRequest request) {
         showLoading(true);
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             showLoading(false);
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();

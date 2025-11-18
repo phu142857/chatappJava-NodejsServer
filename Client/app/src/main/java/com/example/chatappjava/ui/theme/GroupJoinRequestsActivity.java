@@ -15,7 +15,7 @@ import com.example.chatappjava.adapters.MessageAdapter;
 import com.example.chatappjava.models.Chat;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +31,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
     private final List<User> requests = new ArrayList<>();
     private final List<User> allRequests = new ArrayList<>();
     private ApiClient apiClient;
-    private SharedPreferencesManager sharedPrefs;
+    private DatabaseManager databaseManager;
     private Chat currentChat;
     private EditText etSearch;
 
@@ -55,7 +55,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
 
         apiClient = new ApiClient();
-        sharedPrefs = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
 
         // Read chat
         try {
@@ -79,7 +79,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
     }
 
     private void loadRequests() {
-        String token = sharedPrefs.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || currentChat == null) {
             Toast.makeText(this, "Missing data", Toast.LENGTH_SHORT).show();
             finish();
@@ -146,7 +146,7 @@ public class GroupJoinRequestsActivity extends AppCompatActivity {
     }
 
     private void respond(User user, boolean approve) {
-        String token = sharedPrefs.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || currentChat == null) return;
         try {
             JSONObject body = new JSONObject();

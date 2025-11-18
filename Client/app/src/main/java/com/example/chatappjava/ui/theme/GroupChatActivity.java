@@ -215,7 +215,7 @@ public class GroupChatActivity extends BaseChatActivity {
     private void fetchJoinRequestCount(CountCallback cb) {
         try {
             if (currentChat == null) { cb.onResult(0); return; }
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             if (token == null || token.isEmpty()) { cb.onResult(0); return; }
             // Placeholder endpoint; implement on server to return { success, data: { count } }
             String chatId = currentChat.getId();
@@ -388,7 +388,7 @@ public class GroupChatActivity extends BaseChatActivity {
             // Convert URI to File
             java.io.File imageFile = new java.io.File(selectedImageUri.getPath());
             
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             apiClient.uploadGroupAvatar(token, currentChat.getId(), imageFile, new Callback() {
                 @Override
                 public void onFailure(Call call, java.io.IOException e) {
@@ -504,7 +504,7 @@ public class GroupChatActivity extends BaseChatActivity {
         
         Toast.makeText(this, "Leaving group...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.leaveGroup(token, currentChat.getId(), new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -565,7 +565,7 @@ public class GroupChatActivity extends BaseChatActivity {
         
         Toast.makeText(this, "Deleting group...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.deleteChat(token, currentChat.getId(), new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -600,7 +600,7 @@ public class GroupChatActivity extends BaseChatActivity {
     }
     
     private void fetchActualMemberCount() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty() || currentChat == null) return;
         
         // Use the same method as GroupMembersActivity to get actual member count
@@ -645,7 +645,7 @@ public class GroupChatActivity extends BaseChatActivity {
     private void loadGroupData() {
         if (currentChat == null) return;
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         
         // Use ApiClient to get updated group data
@@ -715,7 +715,7 @@ public class GroupChatActivity extends BaseChatActivity {
     }
     
     private void updateGroupSettings(boolean isPublic) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;

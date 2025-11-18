@@ -126,7 +126,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     }
     
     private void joinCallAndStartVideo(String callId) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         apiClient.joinCall(token, callId, new okhttp3.Callback() {
             @Override
             public void onFailure(@NonNull okhttp3.Call call, java.io.IOException e) {
@@ -183,7 +183,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     
     private void cancelCall() {
         if (currentCallId != null) {
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             apiClient.endCall(token, currentCallId, new okhttp3.Callback() {
                 @Override
                 public void onFailure(@NonNull okhttp3.Call call, java.io.IOException e) {
@@ -306,7 +306,7 @@ public class PrivateChatActivity extends BaseChatActivity {
         Toast.makeText(this, "Calling...", Toast.LENGTH_SHORT).show();
         
         // Create call on server first
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         String chatId = currentChat.getId();
         
         apiClient.initiateCall(token, chatId, "video", new okhttp3.Callback() {
@@ -385,7 +385,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     }
     
     private void deleteChat() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
@@ -433,7 +433,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     private void unfriendUser() {
         Toast.makeText(this, "Unfriending...", Toast.LENGTH_SHORT).show();
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         String otherUserId = otherUser != null ? otherUser.getId() : 
                            (currentChat.getOtherParticipant() != null ? currentChat.getOtherParticipant().getId() : null);
         
@@ -487,7 +487,7 @@ public class PrivateChatActivity extends BaseChatActivity {
         
         android.util.Log.d("PrivateChatActivity", "loadOtherUserData: Loading data for user " + otherUser.getId());
         
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             android.util.Log.d("PrivateChatActivity", "loadOtherUserData: No token available, skipping");
             return;
@@ -531,7 +531,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     }
     
     private void loadCurrentUserData() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         
         apiClient.getMe(token, new Callback() {
@@ -550,7 +550,7 @@ public class PrivateChatActivity extends BaseChatActivity {
                         
                         runOnUiThread(() -> {
                             // Update shared preferences with new user info
-                            sharedPrefsManager.saveLoginInfo(token, userData.toString());
+                            databaseManager.saveLoginInfo(token, userData.toString());
                         });
                     } catch (Exception e) {
                         android.util.Log.e("PrivateChatActivity", "Error parsing current user data: " + e.getMessage());

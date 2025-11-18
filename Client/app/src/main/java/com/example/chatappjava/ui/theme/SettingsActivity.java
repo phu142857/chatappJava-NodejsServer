@@ -20,7 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.utils.SharedPreferencesManager;
+import com.example.chatappjava.utils.DatabaseManager;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -28,14 +28,14 @@ public class SettingsActivity extends AppCompatActivity {
     private ImageView ivBack;
     private Switch switchPushNotifications, switchSound, switchVibrate;
     
-    private SharedPreferencesManager sharedPrefsManager;
+    private DatabaseManager databaseManager;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        sharedPrefsManager = new SharedPreferencesManager(this);
+        databaseManager = new DatabaseManager(this);
         initViews();
         loadCurrentSettings();
         setupClickListeners();
@@ -52,7 +52,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void loadCurrentSettings() {
         // Load user name
-        String userName = sharedPrefsManager.getUserName();
+        String userName = databaseManager.getUserName();
         if (userName != null && !userName.isEmpty()) {
             tvUserName.setText(userName);
         } else {
@@ -135,7 +135,7 @@ public class SettingsActivity extends AppCompatActivity {
             if (newPw.length() < 6) { etNewPassword.setError("At least 6 characters"); etNewPassword.requestFocus(); return; }
             if (!newPw.equals(confirmPw)) { etConfirmPassword.setError("Passwords do not match"); etConfirmPassword.requestFocus(); return; }
 
-            String token = sharedPrefsManager.getToken();
+            String token = databaseManager.getToken();
             if (token == null) { Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show(); return; }
 
             ApiClient api = new ApiClient();
@@ -176,7 +176,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void logout() {
-        sharedPrefsManager.clearLoginInfo();
+        databaseManager.clearLoginInfo();
         
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -203,7 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void requestDeleteOtp() {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null) {
             Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
             return;
@@ -287,7 +287,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void confirmDeleteWithOtp(String otp) {
-        String token = sharedPrefsManager.getToken();
+        String token = databaseManager.getToken();
         if (token == null) { Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show(); return; }
         ApiClient api = new ApiClient();
         android.app.ProgressDialog pd = android.app.ProgressDialog.show(this, null, "Deleting account...", true, false);
@@ -301,7 +301,7 @@ public class SettingsActivity extends AppCompatActivity {
                     pd.dismiss();
                     if (response.isSuccessful()) {
                         Toast.makeText(SettingsActivity.this, "Account deleted", Toast.LENGTH_LONG).show();
-                        sharedPrefsManager.clearLoginInfo();
+                        databaseManager.clearLoginInfo();
                         Intent i = new Intent(SettingsActivity.this, LoginActivity.class);
                         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(i);
@@ -375,10 +375,10 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        sharedPrefsManager.setOverrideServerIp(ip);
-        sharedPrefsManager.setOverrideServerPort(port);
-        sharedPrefsManager.setOverrideUseHttps(useHttps);
-        sharedPrefsManager.setOverrideUseWss(useWss);
+        databaseManager.setOverrideServerIp(ip);
+        databaseManager.setOverrideServerPort(port);
+        databaseManager.setOverrideUseHttps(useHttps);
+        databaseManager.setOverrideUseWss(useWss);
 
             Toast.makeText(this, "Server settings saved. Please restart the app to apply.", Toast.LENGTH_LONG).show();
             dialog.dismiss();
@@ -398,10 +398,10 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void resetSettings() {
         // Clear all override settings
-        sharedPrefsManager.setOverrideServerIp(null);
-        sharedPrefsManager.setOverrideServerPort(-1);
-        sharedPrefsManager.setOverrideUseHttps(false);
-        sharedPrefsManager.setOverrideUseWss(false);
+        databaseManager.setOverrideServerIp(null);
+        databaseManager.setOverrideServerPort(-1);
+        databaseManager.setOverrideUseHttps(false);
+        databaseManager.setOverrideUseWss(false);
 
         Toast.makeText(this, "Settings reset to default. Please restart the app to apply.", Toast.LENGTH_LONG).show();
     }
