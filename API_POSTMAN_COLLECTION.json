@@ -1,0 +1,1010 @@
+{
+  "info": {
+    "name": "Chat App API",
+    "description": "Complete API collection for Chat Application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:49664",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chat_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "message_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register - Request OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('OTP sent to email');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Test123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register/request-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register", "request-otp"]
+            }
+          }
+        },
+        {
+          "name": "Register - Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user._id || jsonData.user.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"otpCode\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register/verify-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register", "verify-otp"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user._id || jsonData.user.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newusername\",\n  \"profile\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"bio\": \"My bio\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPass123\",\n  \"newPassword\": \"NewPass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/contacts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "contacts"]
+            }
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/search?q=test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "test"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Friends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/friends",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "friends"]
+            }
+          }
+        },
+        {
+          "name": "Block User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"block\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/block",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "block"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chats",
+      "item": [
+        {
+          "name": "Get User Chats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.length > 0) {",
+                  "        pm.collectionVariables.set('chat_id', jsonData.data[0]._id || jsonData.data[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chats?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Chat by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chats/{{chat_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "{{chat_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Private Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participantId\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chats/private",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "private"]
+            }
+          }
+        },
+        {
+          "name": "Create Group Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Group\",\n  \"description\": \"Group description\",\n  \"participantIds\": [\"{{user_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chats/group",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "group"]
+            }
+          }
+        },
+        {
+          "name": "Update Group Chat",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Group Name\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chats/{{chat_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "{{chat_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Chat",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chats/{{chat_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "{{chat_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Get Messages for Chat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.length > 0) {",
+                  "        pm.collectionVariables.set('message_id', jsonData.data[0]._id || jsonData.data[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{chat_id}}?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{chat_id}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    const msg = jsonData.message || jsonData.data;",
+                  "    if (msg) {",
+                  "        pm.collectionVariables.set('message_id', msg._id || msg.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chatId\": \"{{chat_id}}\",\n  \"content\": \"Hello, this is a test message!\",\n  \"type\": \"text\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages"]
+            }
+          }
+        },
+        {
+          "name": "Edit Message",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated message content\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{message_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{message_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Add Reaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emoji\": \"👍\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{message_id}}/reactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{message_id}}", "reactions"]
+            }
+          }
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messageIds\": [\"{{message_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/{{chat_id}}/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "{{chat_id}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Friend Requests",
+      "item": [
+        {
+          "name": "Get Friend Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/friend-requests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "friend-requests"]
+            }
+          }
+        },
+        {
+          "name": "Send Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiverId\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/friend-requests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "friend-requests"]
+            }
+          }
+        },
+        {
+          "name": "Respond to Friend Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"accept\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/friend-requests/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "friend-requests", ":id"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Get Groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/groups",
+              "host": ["{{base_url}}"],
+              "path": ["api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "Get Public Groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/groups/public",
+              "host": ["{{base_url}}"],
+              "path": ["api", "groups", "public"]
+            }
+          }
+        },
+        {
+          "name": "Search Groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/groups/search?q=test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "groups", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "test"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calls",
+      "item": [
+        {
+          "name": "Get Call History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/calls/history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "calls", "history"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Calls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/calls/active",
+              "host": ["{{base_url}}"],
+              "path": ["api", "calls", "active"]
+            }
+          }
+        },
+        {
+          "name": "Initiate Call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiverId\": \"{{user_id}}\",\n  \"type\": \"video\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/calls/initiate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "calls", "initiate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Server Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/server/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "server", "health"]
+            }
+          }
+        },
+        {
+          "name": "Get User Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/statistics/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get Message Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/statistics/messages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics", "messages"]
+            }
+          }
+        },
+        {
+          "name": "Get All Chats (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chats/admin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chats", "admin"]
+            }
+          }
+        },
+        {
+          "name": "Get All Messages (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/messages/admin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "admin"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

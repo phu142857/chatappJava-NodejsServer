@@ -74,7 +74,7 @@ Server/
 3. Create `.env` file in Server directory with environment variables:
    ```env
    # Server Configuration
-   PORT=5000
+   PORT=49664
    NODE_ENV=development
 
    # Database Configuration
