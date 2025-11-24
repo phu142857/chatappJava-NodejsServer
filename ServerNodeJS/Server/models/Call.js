@@ -107,11 +107,11 @@ const callSchema = new mongoose.Schema({
         }],
         sdpOffer: String,
         sdpAnswer: String,
-        mediaTopology: {
-            type: String,
-            enum: ['mesh', 'sfu', 'hybrid'],
-            default: 'mesh'
-        }
+            mediaTopology: {
+                type: String,
+                enum: ['sfu'],
+                default: 'sfu'
+            }
     },
     
     // Participant media states

@@ -638,11 +638,47 @@ public class SocketManager {
             }
         }
     }
+    
+    /**
+     * Join group call socket room (chatId-based room for proper routing)
+     */
+    public void joinGroupCall(String chatId, String callId, String sessionId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("chatId", chatId);
+                data.put("callId", callId);
+                if (sessionId != null) {
+                    data.put("sessionId", sessionId);
+                }
+                socket.emit("join_group_call", data);
+                Log.d(TAG, "Joined group call socket room - chatId: " + chatId + ", callId: " + callId + ", sessionId: " + sessionId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error joining group call socket room", e);
+            }
+        }
+    }
+    
+    /**
+     * Leave group call socket room
+     */
+    public void leaveGroupCall(String chatId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("chatId", chatId);
+                socket.emit("leave_group_call", data);
+                Log.d(TAG, "Left group call socket room - chatId: " + chatId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error leaving group call socket room", e);
+            }
+        }
+    }
 
     /**
      * Send group call WebRTC offer
      */
-    public void sendGroupCallOffer(String callId, String toUserId, JSONObject offer) {
+    public void sendGroupCallOffer(String callId, String toUserId, JSONObject offer, String chatId, String sessionId) {
         if (socket != null && isConnected) {
             JSONObject data = new JSONObject();
             try {
@@ -650,9 +686,15 @@ public class SocketManager {
                 if (toUserId != null) {
                     data.put("toUserId", toUserId);
                 }
+                if (chatId != null) {
+                    data.put("chatId", chatId);
+                }
+                if (sessionId != null) {
+                    data.put("sessionId", sessionId);
+                }
                 data.put("offer", offer);
                 socket.emit("group_call_webrtc_offer", data);
-                Log.d(TAG, "Sent group call offer for call: " + callId);
+                Log.d(TAG, "Sent group call offer for call: " + callId + ", toUserId: " + toUserId + ", sessionId: " + sessionId);
             } catch (JSONException e) {
                 Log.e(TAG, "Error sending group call offer", e);
             }
@@ -662,7 +704,7 @@ public class SocketManager {
     /**
      * Send group call WebRTC answer
      */
-    public void sendGroupCallAnswer(String callId, String toUserId, JSONObject answer) {
+    public void sendGroupCallAnswer(String callId, String toUserId, JSONObject answer, String chatId, String sessionId) {
         if (socket != null && isConnected) {
             JSONObject data = new JSONObject();
             try {
@@ -670,9 +712,15 @@ public class SocketManager {
                 if (toUserId != null) {
                     data.put("toUserId", toUserId);
                 }
+                if (chatId != null) {
+                    data.put("chatId", chatId);
+                }
+                if (sessionId != null) {
+                    data.put("sessionId", sessionId);
+                }
                 data.put("answer", answer);
                 socket.emit("group_call_webrtc_answer", data);
-                Log.d(TAG, "Sent group call answer for call: " + callId);
+                Log.d(TAG, "Sent group call answer for call: " + callId + ", toUserId: " + toUserId + ", sessionId: " + sessionId);
             } catch (JSONException e) {
                 Log.e(TAG, "Error sending group call answer", e);
             }
@@ -682,7 +730,7 @@ public class SocketManager {
     /**
      * Send group call ICE candidate
      */
-    public void sendGroupCallIceCandidate(String callId, String toUserId, JSONObject candidate) {
+    public void sendGroupCallIceCandidate(String callId, String toUserId, JSONObject candidate, String chatId, String sessionId) {
         if (socket != null && isConnected) {
             JSONObject data = new JSONObject();
             try {
@@ -690,9 +738,15 @@ public class SocketManager {
                 if (toUserId != null) {
                     data.put("toUserId", toUserId);
                 }
+                if (chatId != null) {
+                    data.put("chatId", chatId);
+                }
+                if (sessionId != null) {
+                    data.put("sessionId", sessionId);
+                }
                 data.put("candidate", candidate);
                 socket.emit("group_call_ice_candidate", data);
-                Log.d(TAG, "Sent group call ICE candidate for call: " + callId);
+                Log.d(TAG, "Sent group call ICE candidate for call: " + callId + ", toUserId: " + toUserId + ", sessionId: " + sessionId);
             } catch (JSONException e) {
                 Log.e(TAG, "Error sending group call ICE candidate", e);
             }
@@ -714,6 +768,188 @@ public class SocketManager {
     public void off(String event) {
         if (socket != null) {
             socket.off(event);
+        }
+    }
+
+    // ============= SFU (Selective Forwarding Unit) Methods =============
+
+    /**
+     * Create SFU room
+     */
+    public void createSFURoom(String roomId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                socket.emit("sfu-create-room", data);
+                Log.d(TAG, "Sent create SFU room: " + roomId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error creating SFU room", e);
+            }
+        }
+    }
+
+    /**
+     * Get SFU router capabilities
+     */
+    public void getSFURouterCapabilities(String roomId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                socket.emit("sfu-get-router-capabilities", data);
+                Log.d(TAG, "Requested SFU router capabilities for room: " + roomId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error getting SFU router capabilities", e);
+            }
+        }
+    }
+
+    /**
+     * Create SFU transport (send or receive)
+     */
+    public void createSFUTransport(String roomId, String peerId, String direction) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("direction", direction); // "send" or "receive"
+                socket.emit("sfu-create-transport", data);
+                Log.d(TAG, "Sent create SFU transport: roomId=" + roomId + ", peerId=" + peerId + ", direction=" + direction);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error creating SFU transport", e);
+            }
+        }
+    }
+
+    /**
+     * Connect SFU transport
+     */
+    public void connectSFUTransport(String roomId, String peerId, String transportId, JSONObject dtlsParameters) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("transportId", transportId);
+                data.put("dtlsParameters", dtlsParameters);
+                socket.emit("sfu-connect-transport", data);
+                Log.d(TAG, "Sent connect SFU transport: transportId=" + transportId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error connecting SFU transport", e);
+            }
+        }
+    }
+
+    /**
+     * Create SFU producer (send media)
+     */
+    public void createSFUProducer(String roomId, String peerId, String transportId, JSONObject rtpParameters, String kind) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("transportId", transportId);
+                data.put("rtpParameters", rtpParameters);
+                data.put("kind", kind); // "audio" or "video"
+                socket.emit("sfu-produce", data);
+                Log.d(TAG, "Sent create SFU producer: kind=" + kind);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error creating SFU producer", e);
+            }
+        }
+    }
+
+    /**
+     * Create SFU consumer (receive media)
+     */
+    public void createSFUConsumer(String roomId, String peerId, String transportId, String producerId, JSONObject rtpCapabilities) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("transportId", transportId);
+                data.put("producerId", producerId);
+                data.put("rtpCapabilities", rtpCapabilities);
+                socket.emit("sfu-consume", data);
+                Log.d(TAG, "Sent create SFU consumer: producerId=" + producerId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error creating SFU consumer", e);
+            }
+        }
+    }
+
+    /**
+     * Resume SFU consumer (start receiving media)
+     */
+    public void resumeSFUConsumer(String roomId, String peerId, String consumerId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("consumerId", consumerId);
+                socket.emit("sfu-resume-consumer", data);
+                Log.d(TAG, "Sent resume SFU consumer: consumerId=" + consumerId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error resuming SFU consumer", e);
+            }
+        }
+    }
+
+    /**
+     * Close SFU producer
+     */
+    public void closeSFUProducer(String roomId, String peerId, String producerId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("producerId", producerId);
+                socket.emit("sfu-close-producer", data);
+                Log.d(TAG, "Sent close SFU producer: producerId=" + producerId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error closing SFU producer", e);
+            }
+        }
+    }
+
+    /**
+     * Close SFU consumer
+     */
+    public void closeSFUConsumer(String roomId, String peerId, String consumerId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                data.put("consumerId", consumerId);
+                socket.emit("sfu-close-consumer", data);
+                Log.d(TAG, "Sent close SFU consumer: consumerId=" + consumerId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error closing SFU consumer", e);
+            }
+        }
+    }
+
+    /**
+     * Remove peer from SFU room
+     */
+    public void removeSFUPeer(String roomId, String peerId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("roomId", roomId);
+                data.put("peerId", peerId);
+                socket.emit("sfu-remove-peer", data);
+                Log.d(TAG, "Sent remove SFU peer: peerId=" + peerId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error removing SFU peer", e);
+            }
         }
     }
 

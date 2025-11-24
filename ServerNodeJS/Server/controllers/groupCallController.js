@@ -4,8 +4,27 @@ const Group = require('../models/Group');
 const User = require('../models/User');
 const Message = require('../models/Message');
 const { v4: uuidv4 } = require('uuid');
+const sfuService = require('../services/sfuService');
 
 // Helper function to extract chatId string from call object (handles both ObjectId and populated object)
+// Helper: Ensure call has correct SFU configuration
+const ensureSFUConfig = (call) => {
+    if (!call.webrtcData) {
+        call.webrtcData = {};
+    }
+    // CRITICAL: Migrate old 'mesh' calls to 'sfu'
+    if (call.webrtcData.mediaTopology !== 'sfu') {
+        call.webrtcData.mediaTopology = 'sfu';
+    }
+    // Ensure roomId exists
+    if (!call.webrtcData.roomId) {
+        const chatId = extractChatId(call);
+        if (chatId) {
+            call.webrtcData.roomId = `room_${chatId}`;
+        }
+    }
+};
+
 const extractChatId = (call) => {
     if (!call || !call.chatId) {
         return null;
@@ -142,6 +161,7 @@ const initiateGroupCall = async (req, res) => {
                     isCaller: false,
                     sessionId: uuidv4()
                 });
+                ensureSFUConfig(call);
                 await call.save();
             }
             
@@ -203,7 +223,7 @@ const initiateGroupCall = async (req, res) => {
                                 { urls: 'stun:stun1.l.google.com:19302' },
                                 { urls: 'stun:stun2.l.google.com:19302' }
                             ],
-                            mediaTopology: 'mesh'
+                            mediaTopology: 'sfu'
                         },
                         participants: [{
                             userId: callerId,
@@ -272,6 +292,7 @@ const initiateGroupCall = async (req, res) => {
                     isCaller: false,
                     sessionId: uuidv4()
                 });
+                ensureSFUConfig(call);
                 await call.save();
                 console.log(`[GroupCall] Added caller as participant. New participant count: ${call.participants.length}`);
             }
@@ -294,6 +315,16 @@ const initiateGroupCall = async (req, res) => {
         // Call was just created by this caller - continue with normal flow
         console.log(`[GroupCall] Call created successfully by caller. callId=${call.callId}, roomId=${call.webrtcData?.roomId}`);
         
+        // CRITICAL: Create SFU room for this call
+        try {
+            const roomId = call.webrtcData?.roomId || `room_${chatIdStr}`;
+            await sfuService.createRoom(roomId);
+            console.log(`[GroupCall] SFU room created: ${roomId}`);
+        } catch (error) {
+            console.error(`[GroupCall] Failed to create SFU room: ${error.message}`);
+            // Don't fail the call creation, but log the error
+        }
+        
         // Check if this call was just created or already existed
         const wasJustCreated = call.participants.length === 1 && 
                                call.participants[0].userId.toString() === callerId &&
@@ -314,6 +345,7 @@ const initiateGroupCall = async (req, res) => {
                     isCaller: false,
                     sessionId: uuidv4()
                 });
+                ensureSFUConfig(call);
                 await call.save();
             }
             
@@ -347,6 +379,7 @@ const initiateGroupCall = async (req, res) => {
                     }
                 }
             }
+            ensureSFUConfig(call);
             await call.save();
         } else {
             // Call already existed, check if caller needs to be added
@@ -373,6 +406,7 @@ const initiateGroupCall = async (req, res) => {
                     });
                 }
                 
+                ensureSFUConfig(call);
                 await call.save();
             }
         }
@@ -421,6 +455,7 @@ const initiateGroupCall = async (req, res) => {
                 });
             }
             
+            ensureSFUConfig(call);
             await call.save();
 
             // Create system message in group chat (only for new calls, and only once)
@@ -481,7 +516,7 @@ const initiateGroupCall = async (req, res) => {
                 },
                 callType: type,
                 isGroupCall: true,
-                mediaTopology: 'mesh',
+                mediaTopology: 'sfu',
                 bannerCopy: `Live group ${type} call in progress`,
                 timestamp: new Date()
             };
@@ -527,13 +562,26 @@ const initiateGroupCall = async (req, res) => {
             console.log(`Broadcast group_call_passive_alert_broadcast to all clients`);
         }
 
+        // CRITICAL: Get SFU router capabilities for the caller
+        let rtpCapabilities = null;
+        try {
+            const roomId = call.webrtcData?.roomId || `room_${chatIdStr}`;
+            rtpCapabilities = sfuService.getRouterCapabilities(roomId);
+        } catch (error) {
+            console.error(`[GroupCall] Failed to get SFU router capabilities: ${error.message}`);
+        }
+
         // CRITICAL: Always return the actual callId from the database (not generated one)
         res.status(201).json({
             success: true,
             message: 'Group call initiated successfully',
             callId: call.callId, // Use actual callId from database
             data: call,
-            isExisting: !wasJustCreated // Indicate if this was an existing call
+            isExisting: !wasJustCreated, // Indicate if this was an existing call
+            // CRITICAL: Include SFU info for immediate initialization
+            sfu: rtpCapabilities ? {
+                rtpCapabilities: rtpCapabilities
+            } : null
         });
 
     } catch (error) {
@@ -606,6 +654,7 @@ const joinGroupCall = async (req, res) => {
                 isCaller: false,
                 sessionId: uuidv4()
             });
+            ensureSFUConfig(call);
             await call.save();
             console.log(`[GroupCall] Added user as participant for callId=${callId}, userId=${userId}, sessionId=${participant.sessionId}`);
         }
@@ -642,7 +691,27 @@ const joinGroupCall = async (req, res) => {
             details: 'User joined the group call'
         });
 
+        // CRITICAL: Ensure SFU config before save
+        ensureSFUConfig(call);
         await call.save();
+
+        // CRITICAL: Ensure SFU room exists for this call
+        try {
+            const roomId = call.webrtcData?.roomId || `room_${extractChatId(call)}`;
+            await sfuService.createRoom(roomId);
+            console.log(`[GroupCall] SFU room ensured: ${roomId}`);
+        } catch (error) {
+            console.error(`[GroupCall] Failed to ensure SFU room: ${error.message}`);
+        }
+
+        // CRITICAL: Ensure SFU room exists for this call
+        try {
+            const roomId = call.webrtcData?.roomId || `room_${extractChatId(call)}`;
+            await sfuService.createRoom(roomId);
+            console.log(`[GroupCall] SFU room ensured: ${roomId}`);
+        } catch (error) {
+            console.error(`[GroupCall] Failed to ensure SFU room: ${error.message}`);
+        }
 
         // Populate call data
         await call.populate([
@@ -684,12 +753,25 @@ const joinGroupCall = async (req, res) => {
         // Extract chatId for response
         const chatId = extractChatId(call);
         
+        // Get SFU router capabilities for client
+        let rtpCapabilities = null;
+        try {
+            const roomId = call.webrtcData?.roomId || `room_${chatId}`;
+            rtpCapabilities = sfuService.getRouterCapabilities(roomId);
+        } catch (error) {
+            console.error(`[GroupCall] Failed to get SFU router capabilities: ${error.message}`);
+        }
+        
         res.json({
             success: true,
             message: 'Joined group call successfully',
             data: call,
             sessionId: participant.sessionId,
-            chatId: chatId
+            chatId: chatId,
+            sfu: {
+                roomId: call.webrtcData?.roomId || `room_${chatId}`,
+                rtpCapabilities: rtpCapabilities
+            }
         });
 
     } catch (error) {
@@ -758,6 +840,8 @@ const updateParticipantMedia = async (req, res) => {
             });
         }
 
+        // CRITICAL: Ensure SFU config before save
+        ensureSFUConfig(call);
         await call.save();
 
         // Broadcast media update to all participants
@@ -869,6 +953,7 @@ const leaveGroupCall = async (req, res) => {
             await call.endCall();
         }
 
+        ensureSFUConfig(call);
         await call.save();
 
         // Notify all participants

@@ -646,9 +646,33 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 @Override
                 public void onMemberRemoved(String chatId, String chatName) {
                     runOnUiThread(() -> {
-                        Log.d(TAG, "Member removed from group: " + chatName);
+                        Log.d(TAG, "Member removed from group: " + chatName + " (chatId: " + chatId + ")");
+                        
+                        // CRITICAL FIX: Delete from local database immediately
+                        if (conversationRepository != null && chatId != null) {
+                            conversationRepository.deleteConversation(chatId);
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(chatId);
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                            }
+                        }
+                        
+                        // Remove from current list and refresh UI
+                        chatList.removeIf(c -> c.getId().equals(chatId));
+                        if (chatAdapter != null) {
+                            if (currentTab == 1) {
+                                applyGroupsFilter();
+                            } else {
+                                applyChatsFilter();
+                            }
+                        }
+                        
                         Toast.makeText(HomeActivity.this, "You have been removed from " + chatName, Toast.LENGTH_LONG).show();
-                        // Refresh chat list to remove the group
+                        // Refresh chat list from server
                         loadChats();
                     });
                 }
@@ -950,6 +974,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     
                     // Parse chats and update adapter
                     List<Chat> chats = new ArrayList<>();
+                    java.util.Set<String> serverChatIds = new java.util.HashSet<>();
+                    
                     for (int i = 0; i < chatsArray.length(); i++) {
                         org.json.JSONObject chatJson = chatsArray.getJSONObject(i);
                         System.out.println("HomeActivity: Chat " + i + ": " + chatJson.toString());
@@ -957,6 +983,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         try {
                             Chat chat = Chat.fromJson(chatJson);
                             chats.add(chat);
+                            serverChatIds.add(chat.getId());
                             
                             // Save to database for offline access
                             if (conversationRepository != null) {
@@ -965,6 +992,28 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         } catch (Exception e) {
                             System.out.println("HomeActivity: Error parsing chat " + i + ": " + e.getMessage());
                             e.printStackTrace();
+                        }
+                    }
+                    
+                    // CRITICAL FIX: Delete chats from local database that are no longer on server
+                    // This handles cases where chats/groups were deleted but still exist in local SQLite
+                    if (conversationRepository != null) {
+                        List<Chat> localChats = conversationRepository.getAllConversations();
+                        for (Chat localChat : localChats) {
+                            if (!serverChatIds.contains(localChat.getId())) {
+                                System.out.println("HomeActivity: Deleting chat from local database: " + localChat.getId() + " (" + localChat.getName() + ")");
+                            // Delete conversation from local database
+                            conversationRepository.deleteConversation(localChat.getId());
+                            
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(localChat.getId());
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages for chat " + localChat.getId() + ": " + e.getMessage());
+                            }
+                            }
                         }
                     }
                     
@@ -1051,17 +1100,41 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
                             
                             if (jsonResponse.optBoolean("deleted", false)) {
-                                // Group was deleted
+                                // Group was deleted - remove from local database immediately
+                                if (conversationRepository != null) {
+                                    conversationRepository.deleteConversation(chat.getId());
+                                    // Also delete all messages for this chat
+                                    try {
+                                        com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                            new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                        messageRepo.deleteAllMessagesForChat(chat.getId());
+                                    } catch (Exception e) {
+                                        System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                                    }
+                                }
                                 String message = jsonResponse.optString("message", "Group deleted successfully");
                                 Toast.makeText(HomeActivity.this, message, Toast.LENGTH_LONG).show();
                             } else {
-                                // Normal leave
+                                // Normal leave - remove from local database
+                                if (conversationRepository != null) {
+                                    conversationRepository.deleteConversation(chat.getId());
+                                }
                                 Toast.makeText(HomeActivity.this, "Left group successfully", Toast.LENGTH_SHORT).show();
                             }
                             
-                            // Add small delay to ensure server processing is complete
+                            // Remove from current list and refresh UI
+                            chatList.removeIf(c -> c.getId().equals(chat.getId()));
+                            if (chatAdapter != null) {
+                                if (currentTab == 1) {
+                                    applyGroupsFilter();
+                                } else {
+                                    applyChatsFilter();
+                                }
+                            }
+                            
+                            // Add small delay to ensure server processing is complete, then reload
                             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                                loadChats(); // Refresh chat list
+                                loadChats(); // Refresh chat list from server
                             }, 500);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -1105,8 +1178,31 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
+                        // Remove from local database immediately
+                        if (conversationRepository != null) {
+                            conversationRepository.deleteConversation(chat.getId());
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(chat.getId());
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                            }
+                        }
+                        
+                        // Remove from current list and refresh UI
+                        chatList.removeIf(c -> c.getId().equals(chat.getId()));
+                        if (chatAdapter != null) {
+                            if (currentTab == 1) {
+                                applyGroupsFilter();
+                            } else {
+                                applyChatsFilter();
+                            }
+                        }
+                        
                         Toast.makeText(HomeActivity.this, "Group deleted successfully", Toast.LENGTH_SHORT).show();
-                        loadChats(); // Refresh chat list
+                        loadChats(); // Refresh chat list from server
                     } else {
                         Toast.makeText(HomeActivity.this, "Failed to delete group", Toast.LENGTH_SHORT).show();
                     }

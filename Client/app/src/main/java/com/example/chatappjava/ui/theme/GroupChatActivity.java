@@ -982,9 +982,17 @@ public class GroupChatActivity extends BaseChatActivity {
                         if (response.code() == 200) {
                             JSONObject jsonResponse = new JSONObject(responseBody);
                             if (jsonResponse.optBoolean("success", false)) {
+                                // CRITICAL FIX: Check if data exists and is not null
+                                if (!jsonResponse.has("data") || jsonResponse.isNull("data")) {
+                                    android.util.Log.d("GroupChatActivity", "No call data in response (data is null or missing)");
+                                    hideGroupCallNotification();
+                                    return;
+                                }
+                                
                                 JSONObject data = jsonResponse.getJSONObject("data");
                                 if (data == null || data.isNull("callId")) {
                                     android.util.Log.d("GroupChatActivity", "No call data in response");
+                                    hideGroupCallNotification();
                                     return;
                                 }
                                 

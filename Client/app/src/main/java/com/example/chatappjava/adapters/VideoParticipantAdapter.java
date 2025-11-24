@@ -440,6 +440,42 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                     // The sink will be added in onViewAttachedToWindow
                     android.util.Log.w("VideoParticipantAdapter", "Surface not ready in onBindViewHolder for " + participant.getUsername() + 
                                       " (view may not be attached yet), will add in onViewAttachedToWindow");
+                    
+                    // CRITICAL: Schedule multiple retries to ensure sink is added
+                    // Retry 1: After 200ms
+                    holder.svParticipantVideo.postDelayed(() -> {
+                        try {
+                            if (existingTrack != null && holder.svParticipantVideo != null && existingTrack.enabled()) {
+                                try {
+                                    existingTrack.removeSink(holder.svParticipantVideo);
+                                } catch (Exception ex) {
+                                    // Ignore
+                                }
+                                existingTrack.addSink(holder.svParticipantVideo);
+                                android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink on retry 1 for " + participant.getUsername());
+                            }
+                        } catch (IllegalStateException ex) {
+                            // Still not ready, retry again
+                            android.util.Log.w("VideoParticipantAdapter", "Surface still not ready for " + participant.getUsername() + ", retrying again...");
+                            holder.svParticipantVideo.postDelayed(() -> {
+                                try {
+                                    if (existingTrack != null && holder.svParticipantVideo != null && existingTrack.enabled()) {
+                                        try {
+                                            existingTrack.removeSink(holder.svParticipantVideo);
+                                        } catch (Exception ex2) {
+                                            // Ignore
+                                        }
+                                        existingTrack.addSink(holder.svParticipantVideo);
+                                        android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink on retry 2 for " + participant.getUsername());
+                                    }
+                                } catch (Exception ex2) {
+                                    android.util.Log.e("VideoParticipantAdapter", "Error adding sink on retry 2 for " + participant.getUsername(), ex2);
+                                }
+                            }, 300);
+                        } catch (Exception ex) {
+                            android.util.Log.e("VideoParticipantAdapter", "Error adding sink on retry 1 for " + participant.getUsername(), ex);
+                        }
+                    }, 200);
                 } catch (Exception e) {
                     android.util.Log.e("VideoParticipantAdapter", "Error adding video sink for " + participant.getUsername(), e);
                     // Retry after delay
@@ -452,10 +488,10 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                                     // Ignore
                                 }
                                 existingTrack.addSink(holder.svParticipantVideo);
-                                android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink on retry for " + participant.getUsername());
+                                android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink on exception retry for " + participant.getUsername());
                             }
                         } catch (Exception ex) {
-                            android.util.Log.e("VideoParticipantAdapter", "Error adding sink on retry for " + participant.getUsername(), ex);
+                            android.util.Log.e("VideoParticipantAdapter", "Error adding sink on exception retry for " + participant.getUsername(), ex);
                         }
                     }, 200);
                 }
@@ -569,6 +605,7 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                     }
                     
                     // Wait a bit for Android Surface to be fully ready, then add sink
+                    // Use multiple retries to ensure sink is added
                     holder.svParticipantVideo.postDelayed(() -> {
                         try {
                             if (participant.getVideoTrack() != null && holder.svParticipantVideo != null && 
@@ -585,18 +622,43 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                                 android.util.Log.d("VideoParticipantAdapter", "✓ Added sink on attach for " + participant.getUsername());
                             }
                         } catch (IllegalStateException e) {
-                            // Surface still not ready - retry again
+                            // Surface still not ready - retry again with multiple attempts
                             android.util.Log.w("VideoParticipantAdapter", "Surface still not ready for " + participant.getUsername() + ", retrying...");
+                            
+                            // Retry 1: After 200ms
                             holder.svParticipantVideo.postDelayed(() -> {
                                 try {
                                     if (participant.getVideoTrack() != null && holder.svParticipantVideo != null && 
                                         participant.getVideoTrack().enabled() && !participant.isVideoMuted()) {
-                                        participant.getVideoTrack().removeSink(holder.svParticipantVideo);
+                                        try {
+                                            participant.getVideoTrack().removeSink(holder.svParticipantVideo);
+                                        } catch (Exception ex) {
+                                            // Ignore
+                                        }
                                         participant.getVideoTrack().addSink(holder.svParticipantVideo);
-                                        android.util.Log.d("VideoParticipantAdapter", "✓ Added sink on second retry for " + participant.getUsername());
+                                        android.util.Log.d("VideoParticipantAdapter", "✓ Added sink on attach retry 1 for " + participant.getUsername());
                                     }
+                                } catch (IllegalStateException ex) {
+                                    // Still not ready, retry again
+                                    android.util.Log.w("VideoParticipantAdapter", "Surface still not ready for " + participant.getUsername() + ", retrying again...");
+                                    holder.svParticipantVideo.postDelayed(() -> {
+                                        try {
+                                            if (participant.getVideoTrack() != null && holder.svParticipantVideo != null && 
+                                                participant.getVideoTrack().enabled() && !participant.isVideoMuted()) {
+                                                try {
+                                                    participant.getVideoTrack().removeSink(holder.svParticipantVideo);
+                                                } catch (Exception ex2) {
+                                                    // Ignore
+                                                }
+                                                participant.getVideoTrack().addSink(holder.svParticipantVideo);
+                                                android.util.Log.d("VideoParticipantAdapter", "✓ Added sink on attach retry 2 for " + participant.getUsername());
+                                            }
+                                        } catch (Exception ex2) {
+                                            android.util.Log.e("VideoParticipantAdapter", "Error adding sink on attach retry 2: " + ex2.getMessage());
+                                        }
+                                    }, 300);
                                 } catch (Exception ex) {
-                                    android.util.Log.e("VideoParticipantAdapter", "Error adding sink on second retry: " + ex.getMessage());
+                                    android.util.Log.e("VideoParticipantAdapter", "Error adding sink on attach retry 1: " + ex.getMessage());
                                 }
                             }, 200);
                         } catch (Exception e) {

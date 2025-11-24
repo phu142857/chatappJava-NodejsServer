@@ -28,6 +28,7 @@ const extractChatId = (call) => {
     return call.chatId.toString();
 };
 const GroupSocketHandler = require('./groupSocket');
+const sfuService = require('../services/sfuService');
 
 class SocketHandler {
   constructor(io) {
@@ -38,6 +39,11 @@ class SocketHandler {
     this.groupHandler = new GroupSocketHandler(io);
     this.setupMiddleware();
     this.setupConnectionHandling();
+    
+    // Initialize SFU service
+    sfuService.initialize().catch(err => {
+      console.error('[SFU] Failed to initialize SFU service:', err);
+    });
   }
 
   // Setup socket middleware for authentication
@@ -499,11 +505,23 @@ class SocketHandler {
     // Group call specific events - simplified join/leave handlers
     socket.on('join_group_call', async (data) => {
       try {
-        const { chatId, callId, sessionId } = data;
+        let { chatId, callId, sessionId } = data;
         
         if (!chatId) {
           socket.emit('group_call_error', { message: 'chatId is required' });
           return;
+        }
+        
+        // Normalize chatId - handle both string and object formats
+        if (typeof chatId === 'object') {
+          chatId = chatId._id || chatId.id || JSON.stringify(chatId);
+        } else if (typeof chatId === 'string' && chatId.startsWith('{')) {
+          try {
+            const chatObj = JSON.parse(chatId);
+            chatId = chatObj._id || chatObj.id || chatId;
+          } catch (e) {
+            console.warn(`[Socket] Could not parse chatId: ${chatId}`);
+          }
         }
         
         const room = `group_call_${chatId}`;
@@ -578,6 +596,18 @@ class SocketHandler {
 
         // Send current participants list to joining user
         const activeParticipants = call.participants.filter(p => p.status === 'connected');
+        
+        // Get SFU router capabilities if using SFU
+        let rtpCapabilities = null;
+        if (call.webrtcData.mediaTopology === 'sfu') {
+          try {
+            const roomId = call.webrtcData.roomId || `room_${chatId}`;
+            rtpCapabilities = sfuService.getRouterCapabilities(roomId);
+          } catch (error) {
+            console.error(`[Socket] Failed to get SFU router capabilities: ${error.message}`);
+          }
+        }
+        
         socket.emit('group_call_room_state', {
           callId: callId,
           chatId: chatId,
@@ -585,7 +615,8 @@ class SocketHandler {
           participantMedia: call.participantMedia,
           roomId: call.webrtcData.roomId,
           iceServers: call.webrtcData.iceServers,
-          topology: call.webrtcData.mediaTopology
+          topology: call.webrtcData.mediaTopology,
+          sfu: rtpCapabilities ? { rtpCapabilities } : null
         });
 
       } catch (error) {
@@ -594,7 +625,11 @@ class SocketHandler {
       }
     });
 
-    // WebRTC signaling for group calls (mesh topology)
+    // Mesh WebRTC signaling removed - SFU only
+    // All offer/answer/ice candidate handlers removed
+    // SFU handles all signaling via sfu-* events
+    
+    // Placeholder to prevent errors - will be removed
     socket.on('group_call_webrtc_offer', async (data) => {
       try {
       const { callId, offer, toUserId, sessionId, chatId: providedChatId } = data;
@@ -617,10 +652,21 @@ class SocketHandler {
         // CRITICAL: Validate sessionId if provided
         if (sessionId) {
           const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
-          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
-            console.log(`[signal] DROPPED offer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
-            return; // Drop stale offer
+          if (fromParticipant) {
+            if (fromParticipant.sessionId && fromParticipant.sessionId !== sessionId) {
+              console.log(`[signal] DROPPED offer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+              return; // Drop stale offer
+            } else if (!fromParticipant.sessionId) {
+              // Participant doesn't have sessionId yet - update it (first message from this session)
+              fromParticipant.sessionId = sessionId;
+              call.save().catch(err => console.error(`[signal] Error saving sessionId: ${err.message}`));
+              console.log(`[signal] Updated sessionId for ${socket.userId} to ${sessionId}`);
+            }
+          } else {
+            console.warn(`[signal] Participant ${socket.userId} not found in call ${callId} - allowing offer (may be race condition)`);
           }
+        } else {
+          console.log(`[signal] No sessionId provided for offer from ${socket.userId} - allowing (backward compatibility)`);
         }
 
       const payload = {
@@ -682,10 +728,21 @@ class SocketHandler {
         // CRITICAL: Validate sessionId if provided
         if (sessionId) {
           const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
-          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
-            console.log(`[signal] DROPPED answer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
-            return; // Drop stale answer
+          if (fromParticipant) {
+            if (fromParticipant.sessionId && fromParticipant.sessionId !== sessionId) {
+              console.log(`[signal] DROPPED answer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+              return; // Drop stale answer
+            } else if (!fromParticipant.sessionId) {
+              // Participant doesn't have sessionId yet - update it (first message from this session)
+              fromParticipant.sessionId = sessionId;
+              call.save().catch(err => console.error(`[signal] Error saving sessionId: ${err.message}`));
+              console.log(`[signal] Updated sessionId for ${socket.userId} to ${sessionId}`);
+            }
+          } else {
+            console.warn(`[signal] Participant ${socket.userId} not found in call ${callId} - allowing answer (may be race condition)`);
           }
+        } else {
+          console.log(`[signal] No sessionId provided for answer from ${socket.userId} - allowing (backward compatibility)`);
         }
 
       const payload = {
@@ -746,10 +803,21 @@ class SocketHandler {
         // CRITICAL: Validate sessionId if provided
         if (sessionId) {
           const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
-          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
-            console.log(`[signal] DROPPED ice_candidate - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
-            return; // Drop stale candidate
+          if (fromParticipant) {
+            if (fromParticipant.sessionId && fromParticipant.sessionId !== sessionId) {
+              console.log(`[signal] DROPPED ice_candidate - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+              return; // Drop stale candidate
+            } else if (!fromParticipant.sessionId) {
+              // Participant doesn't have sessionId yet - update it (first message from this session)
+              fromParticipant.sessionId = sessionId;
+              call.save().catch(err => console.error(`[signal] Error saving sessionId: ${err.message}`));
+              console.log(`[signal] Updated sessionId for ${socket.userId} to ${sessionId}`);
+            }
+          } else {
+            console.warn(`[signal] Participant ${socket.userId} not found in call ${callId} - allowing ice_candidate (may be race condition)`);
           }
+        } else {
+          console.log(`[signal] No sessionId provided for ice_candidate from ${socket.userId} - allowing (backward compatibility)`);
         }
 
       const payload = {
@@ -786,6 +854,8 @@ class SocketHandler {
         console.error('Error handling group call ICE candidate:', error);
       }
     });
+    
+    // All mesh handlers above are deprecated - SFU only now
 
     // Dismiss group call passive notification
     socket.on('dismiss_group_call_alert', async (data) => {
@@ -802,6 +872,252 @@ class SocketHandler {
       } catch (error) {
         console.error('Dismiss group call alert error:', error);
       }
+    });
+
+    // ========== SFU (Selective Forwarding Unit) Handlers ==========
+    
+    // Create SFU room
+    socket.on('sfu-create-room', async (data) => {
+      try {
+        const { roomId } = data;
+        if (!roomId) {
+          socket.emit('sfu-error', { message: 'roomId is required' });
+          return;
+        }
+        
+        const room = await sfuService.createRoom(roomId);
+        const routerCapabilities = sfuService.getRouterCapabilities(roomId);
+        
+        socket.emit('sfu-room-created', { 
+          roomId, 
+          rtpCapabilities: routerCapabilities 
+        });
+        console.log(`[SFU] Room ${roomId} created for user ${socket.userId}`);
+      } catch (error) {
+        console.error('[SFU] Create room error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Get router capabilities
+    socket.on('sfu-get-router-capabilities', async (data) => {
+      try {
+        const { roomId } = data;
+        if (!roomId) {
+          socket.emit('sfu-error', { message: 'roomId is required' });
+          return;
+        }
+        
+        const rtpCapabilities = sfuService.getRouterCapabilities(roomId);
+        socket.emit('sfu-router-capabilities', { roomId, rtpCapabilities });
+      } catch (error) {
+        console.error('[SFU] Get router capabilities error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Create transport (send or receive)
+    socket.on('sfu-create-transport', async (data) => {
+      try {
+        const { roomId, peerId, direction } = data;
+        if (!roomId || !peerId || !direction) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, and direction are required' });
+          return;
+        }
+        
+        if (direction !== 'send' && direction !== 'receive') {
+          socket.emit('sfu-error', { message: 'direction must be "send" or "receive"' });
+          return;
+        }
+        
+        const transport = await sfuService.createTransport(roomId, peerId, direction, this.io);
+        socket.emit('sfu-transport-created', { transport, direction });
+        console.log(`[SFU] Created ${direction} transport ${transport.id} for peer ${peerId} in room ${roomId}`);
+        
+        // CRITICAL: When receive transport is created, send existing producers to this peer
+        if (direction === 'receive') {
+          try {
+            const existingProducers = sfuService.getExistingProducers(roomId, peerId);
+            console.log(`[SFU] Sending ${existingProducers.length} existing producers to peer ${peerId}`);
+            for (const producer of existingProducers) {
+              // Extract chatId from roomId for socket room
+              let chatId = roomId.replace('room_', '');
+              if (chatId.startsWith('{')) {
+                try {
+                  const chatObj = JSON.parse(chatId);
+                  chatId = chatObj._id || chatObj.id || chatId;
+                } catch (e) {
+                  console.warn(`[SFU] Could not parse chatId from roomId: ${roomId}`);
+                }
+              }
+              
+              // Emit to this specific socket (the new peer)
+              socket.emit('sfu-new-producer', {
+                roomId,
+                producerPeerId: producer.producerPeerId,
+                producerId: producer.producerId,
+                kind: producer.kind
+              });
+              console.log(`[SFU] Sent existing producer ${producer.producerId} (${producer.kind}) from peer ${producer.producerPeerId} to new peer ${peerId}`);
+            }
+          } catch (error) {
+            console.error('[SFU] Error sending existing producers:', error);
+          }
+        }
+      } catch (error) {
+        console.error('[SFU] Create transport error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Connect transport
+    socket.on('sfu-connect-transport', async (data) => {
+      try {
+        const { roomId, peerId, transportId, dtlsParameters } = data;
+        if (!roomId || !peerId || !transportId || !dtlsParameters) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, transportId, and dtlsParameters are required' });
+          return;
+        }
+        
+        await sfuService.connectTransport(roomId, peerId, transportId, dtlsParameters);
+        socket.emit('sfu-transport-connected', { transportId });
+        console.log(`[SFU] Transport ${transportId} connected for peer ${peerId}`);
+      } catch (error) {
+        console.error('[SFU] Connect transport error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Create producer (send media)
+    socket.on('sfu-produce', async (data) => {
+      try {
+        const { roomId, peerId, transportId, rtpParameters, kind } = data;
+        if (!roomId || !peerId || !transportId || !rtpParameters || !kind) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, transportId, rtpParameters, and kind are required' });
+          return;
+        }
+        
+        const producer = await sfuService.createProducer(roomId, peerId, transportId, rtpParameters, kind);
+        
+        // Notify other peers about new producer
+        // Extract chatId from roomId - handle both "room_xxx" and "room_{...}" formats
+        let chatId = roomId.replace('room_', '');
+        // If chatId is a JSON string, parse it to get the actual ID
+        if (chatId.startsWith('{')) {
+          try {
+            const chatObj = JSON.parse(chatId);
+            chatId = chatObj._id || chatObj.id || chatId;
+          } catch (e) {
+            console.warn(`[SFU] Could not parse chatId from roomId: ${roomId}`);
+          }
+        }
+        const socketRoom = `group_call_${chatId}`;
+        console.log(`[SFU] Emitting sfu-new-producer to room: ${socketRoom}, producerId: ${producer.id}, kind: ${producer.kind}`);
+        socket.to(socketRoom).emit('sfu-new-producer', {
+          roomId,
+          producerPeerId: peerId,
+          producerId: producer.id,
+          kind: producer.kind
+        });
+        
+        socket.emit('sfu-producer-created', { producer });
+        console.log(`[SFU] Created producer ${producer.id} (${kind}) for peer ${peerId}`);
+      } catch (error) {
+        console.error('[SFU] Create producer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Create consumer (receive media)
+    socket.on('sfu-consume', async (data) => {
+      try {
+        const { roomId, peerId, transportId, producerId, rtpCapabilities } = data;
+        if (!roomId || !peerId || !transportId || !producerId || !rtpCapabilities) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, transportId, producerId, and rtpCapabilities are required' });
+          return;
+        }
+        
+        const consumer = await sfuService.createConsumer(roomId, peerId, transportId, producerId, rtpCapabilities);
+        socket.emit('sfu-consumer-created', { consumer });
+        console.log(`[SFU] Created consumer ${consumer.id} for peer ${peerId} consuming producer ${producerId}`);
+      } catch (error) {
+        console.error('[SFU] Create consumer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Close producer
+    socket.on('sfu-close-producer', async (data) => {
+      try {
+        const { roomId, peerId, producerId } = data;
+        if (!roomId || !peerId || !producerId) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, and producerId are required' });
+          return;
+        }
+        
+        await sfuService.closeProducer(roomId, peerId, producerId);
+        socket.emit('sfu-producer-closed', { producerId });
+      } catch (error) {
+        console.error('[SFU] Close producer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Resume consumer (start receiving media)
+    socket.on('sfu-resume-consumer', async (data) => {
+      try {
+        const { roomId, peerId, consumerId } = data;
+        if (!roomId || !peerId || !consumerId) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, and consumerId are required' });
+          return;
+        }
+        
+        await sfuService.resumeConsumer(roomId, peerId, consumerId);
+        socket.emit('sfu-consumer-resumed', { consumerId });
+        console.log(`[SFU] Resumed consumer ${consumerId} for peer ${peerId}`);
+      } catch (error) {
+        console.error('[SFU] Resume consumer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Close consumer
+    socket.on('sfu-close-consumer', async (data) => {
+      try {
+        const { roomId, peerId, consumerId } = data;
+        if (!roomId || !peerId || !consumerId) {
+          socket.emit('sfu-error', { message: 'roomId, peerId, and consumerId are required' });
+          return;
+        }
+        
+        await sfuService.closeConsumer(roomId, peerId, consumerId);
+        socket.emit('sfu-consumer-closed', { consumerId });
+      } catch (error) {
+        console.error('[SFU] Close consumer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Remove peer from room
+    socket.on('sfu-remove-peer', async (data) => {
+      try {
+        const { roomId, peerId } = data;
+        if (!roomId || !peerId) {
+          socket.emit('sfu-error', { message: 'roomId and peerId are required' });
+          return;
+        }
+        
+        await sfuService.removePeer(roomId, peerId);
+        socket.emit('sfu-peer-removed', { peerId });
+      } catch (error) {
+        console.error('[SFU] Remove peer error:', error);
+        socket.emit('sfu-error', { message: error.message });
+      }
+    });
+
+    // Handle disconnect - cleanup SFU resources
+    socket.on('disconnect', async () => {
+      // Cleanup will be handled in handleDisconnect
     });
   }
 

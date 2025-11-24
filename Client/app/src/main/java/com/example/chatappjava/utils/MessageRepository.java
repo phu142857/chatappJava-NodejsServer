@@ -397,6 +397,26 @@ public class MessageRepository {
     }
     
     /**
+     * Delete all messages for a chat (hard delete - removes from database)
+     * Used when a chat/group is deleted
+     */
+    public void deleteAllMessagesForChat(String chatId) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            int deleted = db.delete(
+                DatabaseHelper.TABLE_MESSAGES,
+                DatabaseHelper.COL_MSG_CHAT_ID + " = ?",
+                new String[]{chatId}
+            );
+            Log.d(TAG, "Deleted " + deleted + " messages for chat: " + chatId);
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting messages for chat: " + chatId, e);
+        } finally {
+            db.close();
+        }
+    }
+    
+    /**
      * Convert Cursor to Message object
      */
     private Message cursorToMessage(Cursor cursor) {
