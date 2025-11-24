@@ -42,7 +42,7 @@ const callSchema = new mongoose.Schema({
         },
         status: {
             type: String,
-            enum: ['invited', 'ringing', 'connected', 'declined', 'missed', 'left'],
+            enum: ['invited', 'notified', 'ringing', 'connected', 'declined', 'missed', 'left'],
             default: 'invited'
         },
         joinedAt: {
@@ -56,13 +56,17 @@ const callSchema = new mongoose.Schema({
         isCaller: {
             type: Boolean,
             default: false
+        },
+        sessionId: {
+            type: String,
+            default: null
         }
     }],
     
     // Call status
     status: {
         type: String,
-        enum: ['initiated', 'ringing', 'active', 'ended', 'declined', 'missed', 'cancelled'],
+        enum: ['initiated', 'notified', 'ringing', 'active', 'ended', 'declined', 'missed', 'cancelled'],
         default: 'initiated',
         index: true
     },
@@ -102,8 +106,39 @@ const callSchema = new mongoose.Schema({
             credential: String
         }],
         sdpOffer: String,
-        sdpAnswer: String
+        sdpAnswer: String,
+        mediaTopology: {
+            type: String,
+            enum: ['mesh', 'sfu', 'hybrid'],
+            default: 'mesh'
+        }
     },
+    
+    // Participant media states
+    participantMedia: [{
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        audioMuted: {
+            type: Boolean,
+            default: false
+        },
+        videoMuted: {
+            type: Boolean,
+            default: true  // Video off by default for group calls
+        },
+        screenSharing: {
+            type: Boolean,
+            default: false
+        },
+        streamId: String,
+        connectionQuality: {
+            type: String,
+            enum: ['excellent', 'good', 'fair', 'poor'],
+            default: 'good'
+        }
+    }],
     
     // Call quality metrics
     quality: {
@@ -171,6 +206,19 @@ callSchema.index({ 'participants.userId': 1, status: 1 });
 callSchema.index({ startedAt: -1 });
 callSchema.index({ callId: 1 }, { unique: true });
 
+// CRITICAL: Partial unique index to ensure only one active call per chat
+// This prevents race conditions when multiple users create calls simultaneously
+callSchema.index(
+    { chatId: 1, isGroupCall: 1 },
+    { 
+        unique: true,
+        partialFilterExpression: { 
+            status: { $in: ['initiated', 'notified', 'ringing', 'active'] },
+            isGroupCall: true
+        }
+    }
+);
+
 // Virtual for call duration calculation
 callSchema.virtual('calculatedDuration').get(function() {
     if (this.endedAt && this.startedAt) {
@@ -228,10 +276,14 @@ callSchema.methods.addLog = function(userId, action, details = '') {
     return this.save();
 };
 
-callSchema.methods.endCall = function() {
+callSchema.methods.endCall = async function(endedBy) {
     this.status = 'ended';
     this.endedAt = new Date();
     this.duration = this.calculatedDuration;
+    
+    // Update webrtcData to mark room as ended
+    this.webrtcData = this.webrtcData || {};
+    this.webrtcData.roomEnded = true;
     
     // Update all participants status to 'left'
     this.participants.forEach(participant => {
@@ -254,7 +306,7 @@ callSchema.methods.getCaller = function() {
 
 // Static methods
 callSchema.statics.findActiveCalls = function() {
-    return this.find({ status: { $in: ['initiated', 'ringing', 'active'] } });
+    return this.find({ status: { $in: ['initiated', 'notified', 'ringing', 'active'] } });
 };
 
 callSchema.statics.findCallsByUser = function(userId) {
@@ -264,7 +316,7 @@ callSchema.statics.findCallsByUser = function(userId) {
 callSchema.statics.findActiveCallByChat = function(chatId) {
     return this.findOne({ 
         chatId: chatId, 
-        status: { $in: ['initiated', 'ringing', 'active'] } 
+        status: { $in: ['initiated', 'notified', 'ringing', 'active'] } 
     });
 };
 

@@ -12,6 +12,7 @@ public class ServerConfig {
     // Server IP and Port (change this to your actual server IP)
 //    private static final String SERVER_IP = "103.75.183.125";
     private static final String SERVER_IP = "192.168.2.36";
+//    private static final String SERVER_IP = "10.45.145.75";
     private static final int SERVER_PORT = 49664;
     
     // Protocol configuration

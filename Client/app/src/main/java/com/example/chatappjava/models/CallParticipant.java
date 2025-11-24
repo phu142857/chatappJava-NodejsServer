@@ -2,74 +2,165 @@ package com.example.chatappjava.models;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.webrtc.VideoTrack;
 
 public class CallParticipant {
     private String userId;
     private String username;
     private String avatar;
-    private String status; // "invited", "ringing", "connected", "declined", "missed", "left"
-    private long joinedAt;
-    private long leftAt;
+    private boolean audioMuted;
+    private boolean videoMuted;
+    private boolean screenSharing;
+    private boolean isLocal;
     private boolean isCaller;
-    
-    // Constructors
-    public CallParticipant() {}
+    private VideoTrack videoTrack;
+    private String connectionQuality;
+    private String status; // invited, notified, ringing, connected, declined, missed, left
 
-    // Create CallParticipant from JSON
+    public CallParticipant() {
+        this.audioMuted = false;
+        this.videoMuted = true;  // Video off by default
+        this.screenSharing = false;
+        this.isLocal = false;
+        this.isCaller = false;
+        this.connectionQuality = "good";
+        this.status = "invited";
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public boolean isAudioMuted() {
+        return audioMuted;
+    }
+
+    public void setAudioMuted(boolean audioMuted) {
+        this.audioMuted = audioMuted;
+    }
+
+    public boolean isVideoMuted() {
+        return videoMuted;
+    }
+
+    public void setVideoMuted(boolean videoMuted) {
+        this.videoMuted = videoMuted;
+    }
+
+    public boolean isScreenSharing() {
+        return screenSharing;
+    }
+
+    public void setScreenSharing(boolean screenSharing) {
+        this.screenSharing = screenSharing;
+    }
+
+    public boolean isLocal() {
+        return isLocal;
+    }
+
+    public void setLocal(boolean local) {
+        isLocal = local;
+    }
+
+    public VideoTrack getVideoTrack() {
+        return videoTrack;
+    }
+
+    public void setVideoTrack(VideoTrack videoTrack) {
+        this.videoTrack = videoTrack;
+    }
+
+    public String getConnectionQuality() {
+        return connectionQuality;
+    }
+
+    public void setConnectionQuality(String connectionQuality) {
+        this.connectionQuality = connectionQuality;
+    }
+
+    public boolean isCaller() {
+        return isCaller;
+    }
+
+    public void setCaller(boolean caller) {
+        isCaller = caller;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    /**
+     * Create CallParticipant from JSON object
+     */
     public static CallParticipant fromJson(JSONObject json) throws JSONException {
         CallParticipant participant = new CallParticipant();
         
-        // Handle both ObjectId and populated object cases
+        // Handle userId - can be a string or an object with _id
         if (json.has("userId")) {
-            if (json.get("userId") instanceof JSONObject) {
-                // Populated object case
-                JSONObject userObj = json.getJSONObject("userId");
-                participant.userId = userObj.optString("_id", "");
-                participant.username = userObj.optString("username", "");
-                participant.avatar = userObj.optString("avatar", "");
+            Object userIdObj = json.get("userId");
+            if (userIdObj instanceof JSONObject) {
+                JSONObject userObj = (JSONObject) userIdObj;
+                participant.setUserId(userObj.optString("_id", ""));
+                participant.setUsername(userObj.optString("username", ""));
+                participant.setAvatar(userObj.optString("avatar", ""));
             } else {
-                // ObjectId case
-                participant.userId = json.optString("userId", "");
-                participant.username = json.optString("username", "");
-                participant.avatar = json.optString("avatar", "");
+                participant.setUserId(json.optString("userId", ""));
             }
         }
         
-        participant.status = json.optString("status", "invited");
-        participant.joinedAt = json.optLong("joinedAt", 0);
-        participant.leftAt = json.optLong("leftAt", 0);
-        participant.isCaller = json.optBoolean("isCaller", false);
+        // Parse other fields
+        participant.setUsername(json.optString("username", participant.getUsername()));
+        participant.setAvatar(json.optString("avatar", participant.getAvatar()));
+        participant.setAudioMuted(json.optBoolean("audioMuted", false));
+        participant.setVideoMuted(json.optBoolean("videoMuted", true));
+        participant.setScreenSharing(json.optBoolean("screenSharing", false));
+        participant.setCaller(json.optBoolean("isCaller", false));
+        participant.setStatus(json.optString("status", "invited"));
+        participant.setConnectionQuality(json.optString("connectionQuality", "good"));
         
         return participant;
     }
-    
-    // Convert to JSON
+
+    /**
+     * Convert CallParticipant to JSON object
+     */
     public JSONObject toJson() throws JSONException {
         JSONObject json = new JSONObject();
         json.put("userId", userId);
         json.put("username", username);
         json.put("avatar", avatar);
-        json.put("status", status);
-        json.put("joinedAt", joinedAt);
-        json.put("leftAt", leftAt);
+        json.put("audioMuted", audioMuted);
+        json.put("videoMuted", videoMuted);
+        json.put("screenSharing", screenSharing);
         json.put("isCaller", isCaller);
-        
+        json.put("status", status);
+        json.put("connectionQuality", connectionQuality);
         return json;
     }
-    
-    // Getters and Setters
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-    
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    
-    public String getAvatar() { return avatar; }
-    public void setAvatar(String avatar) { this.avatar = avatar; }
-    
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-    
-    public boolean isCaller() { return isCaller; }
-
 }

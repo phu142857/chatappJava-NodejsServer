@@ -621,6 +621,102 @@ public class SocketManager {
         }
     }
 
+    // ============= Group Video Call Methods =============
+
+    /**
+     * Join group call room
+     */
+    public void joinGroupCallRoom(String callId) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("callId", callId);
+                socket.emit("join_group_call_room", data);
+                Log.d(TAG, "Joined group call room: " + callId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error joining group call room", e);
+            }
+        }
+    }
+
+    /**
+     * Send group call WebRTC offer
+     */
+    public void sendGroupCallOffer(String callId, String toUserId, JSONObject offer) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("callId", callId);
+                if (toUserId != null) {
+                    data.put("toUserId", toUserId);
+                }
+                data.put("offer", offer);
+                socket.emit("group_call_webrtc_offer", data);
+                Log.d(TAG, "Sent group call offer for call: " + callId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error sending group call offer", e);
+            }
+        }
+    }
+
+    /**
+     * Send group call WebRTC answer
+     */
+    public void sendGroupCallAnswer(String callId, String toUserId, JSONObject answer) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("callId", callId);
+                if (toUserId != null) {
+                    data.put("toUserId", toUserId);
+                }
+                data.put("answer", answer);
+                socket.emit("group_call_webrtc_answer", data);
+                Log.d(TAG, "Sent group call answer for call: " + callId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error sending group call answer", e);
+            }
+        }
+    }
+
+    /**
+     * Send group call ICE candidate
+     */
+    public void sendGroupCallIceCandidate(String callId, String toUserId, JSONObject candidate) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("callId", callId);
+                if (toUserId != null) {
+                    data.put("toUserId", toUserId);
+                }
+                data.put("candidate", candidate);
+                socket.emit("group_call_ice_candidate", data);
+                Log.d(TAG, "Sent group call ICE candidate for call: " + callId);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error sending group call ICE candidate", e);
+            }
+        }
+    }
+
+    /**
+     * Listen to a socket event with a custom listener
+     */
+    public void on(String event, Emitter.Listener listener) {
+        if (socket != null) {
+            socket.on(event, listener);
+        }
+    }
+
+    /**
+     * Remove a socket event listener
+     */
+    public void off(String event) {
+        if (socket != null) {
+            socket.off(event);
+        }
+    }
+
     // Active call guard APIs
     public synchronized void setActiveCallId(String callId) {
         this.activeCallId = callId;

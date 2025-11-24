@@ -1609,15 +1609,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
         // Hide/disable call button for group chats
         if (ivVideoCall != null) {
-            if (currentChat != null && currentChat.isGroupChat()) {
-                ivVideoCall.setVisibility(View.GONE);
-            } else {
-                ivVideoCall.setOnClickListener(v -> {
-                    Animation scaleAnimation = AnimationUtils.loadAnimation(this, R.anim.button_scale);
-                    v.startAnimation(scaleAnimation);
-                    new Handler(Looper.getMainLooper()).postDelayed(this::handleVideoCall, 150);
-                });
-            }
+            // Video call button is now available for both private and group chats
+            ivVideoCall.setOnClickListener(v -> {
+                Animation scaleAnimation = AnimationUtils.loadAnimation(this, R.anim.button_scale);
+                v.startAnimation(scaleAnimation);
+                new Handler(Looper.getMainLooper()).postDelayed(this::handleVideoCall, 150);
+            });
         }
 
         // Common click listeners

@@ -123,7 +123,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Offline Indicator Bar -->
     <LinearLayout
         android:id="@+id/offline_indicator"
         android:layout_width="0dp"
@@ -153,6 +152,55 @@
 
     </LinearLayout>
 
+    <!-- Group Call Active Notification -->
+    <LinearLayout
+        android:id="@+id/group_call_notification"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal"
+        android:padding="12dp"
+        android:visibility="gone"
+        android:background="@color/primary_color"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toBottomOf="@id/offline_indicator"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_video_call"
+            app:tint="@android:color/white" />
+
+        <TextView
+            android:id="@+id/tv_group_call_notification_text"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Group video call in progress"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TAP TO JOIN"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:background="@drawable/rounded_container"
+            android:backgroundTint="#FFFFFF33" />
+
+    </LinearLayout>
+
     <!-- Messages Card -->
     <LinearLayout android:id="@+id/messages_card"
         android:layout_width="0dp"
@@ -160,7 +208,7 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
-        app:layout_constraintTop_toBottomOf="@id/offline_indicator"
+        app:layout_constraintTop_toBottomOf="@id/group_call_notification"
         app:layout_constraintBottom_toTopOf="@id/reply_bar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" android:orientation="vertical">

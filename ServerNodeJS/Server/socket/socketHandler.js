@@ -4,12 +4,36 @@ const Group = require('../models/Group');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const Call = require('../models/Call');
+
+// Helper function to extract chatId string from call object (handles both ObjectId and populated object)
+const extractChatId = (call) => {
+    if (!call || !call.chatId) {
+        return null;
+    }
+    if (typeof call.chatId === 'string') {
+        return call.chatId;
+    }
+    if (typeof call.chatId === 'object') {
+        // Populated object - extract _id or id
+        if (call.chatId._id) {
+            return call.chatId._id.toString();
+        }
+        if (call.chatId.id) {
+            return call.chatId.id.toString();
+        }
+        // Fallback to toString()
+        return call.chatId.toString();
+    }
+    // ObjectId
+    return call.chatId.toString();
+};
 const GroupSocketHandler = require('./groupSocket');
 
 class SocketHandler {
   constructor(io) {
     this.io = io;
-    this.connectedUsers = new Map(); // Map to track connected users
+    this.connectedUsers = new Map(); // Map to track connected users: { userId: { socketId, user, connectedAt } }
+    this.socketToUserMap = new Map(); // Map to track socketId -> userId: { socketId: userId }
     this.activeCalls = new Map(); // Map to track active calls
     this.groupHandler = new GroupSocketHandler(io);
     this.setupMiddleware();
@@ -58,6 +82,9 @@ class SocketHandler {
         user: socket.user,
         connectedAt: new Date()
       });
+      
+      // Store socketId -> userId mapping for quick lookup
+      this.socketToUserMap.set(socket.id, socket.userId);
 
       // Handle user-specific events
       this.handleUserEvents(socket);
@@ -227,6 +254,9 @@ class SocketHandler {
     
     // Remove from connected users
     this.connectedUsers.delete(socket.userId);
+    
+    // Remove socketId -> userId mapping
+    this.socketToUserMap.delete(socket.id);
     
     // Handle group disconnection
     this.groupHandler.handleUserDisconnect(socket.userId);
@@ -464,6 +494,314 @@ class SocketHandler {
     socket.on('member_removed_from_group', (data) => {
       console.log(`User ${socket.userId} received member removal notification:`, data);
       // Client should handle this event to refresh group members list
+    });
+
+    // Group call specific events - simplified join/leave handlers
+    socket.on('join_group_call', async (data) => {
+      try {
+        const { chatId, callId, sessionId } = data;
+        
+        if (!chatId) {
+          socket.emit('group_call_error', { message: 'chatId is required' });
+          return;
+        }
+        
+        const room = `group_call_${chatId}`;
+        socket.join(room);
+        console.log(`[Socket] User ${socket.userId} joined room ${room} (callId: ${callId}, sessionId: ${sessionId || 'none'})`);
+        
+        socket.emit('group_call_joined', { chatId, callId, sessionId });
+      } catch (error) {
+        console.error('Join group call error:', error);
+        socket.emit('group_call_error', { message: 'Failed to join group call' });
+      }
+    });
+
+    socket.on('leave_group_call', async (data) => {
+      try {
+        const { chatId } = data;
+        
+        if (!chatId) {
+          return;
+        }
+        
+        const room = `group_call_${chatId}`;
+        socket.leave(room);
+        console.log(`[Socket] User ${socket.userId} left room ${room}`);
+      } catch (error) {
+        console.error('Leave group call error:', error);
+      }
+    });
+
+    socket.on('join_group_call_room', async (data) => {
+      try {
+        const { callId } = data;
+        
+        // Verify user is participant in group call
+        const call = await Call.findOne({ callId: callId, isGroupCall: true });
+        if (!call) {
+          socket.emit('group_call_error', { message: 'Group call not found' });
+          return;
+        }
+
+        const participant = call.participants.find(p => p.userId.toString() === socket.userId);
+        if (!participant) {
+          socket.emit('group_call_error', { message: 'You are not a participant in this call' });
+          return;
+        }
+
+        // CRITICAL FIX: Use chatId for socket room instead of callId
+        // This ensures all users in the same chat join the same socket room
+        // even if they have different callIds (due to race conditions)
+        const chatId = extractChatId(call);
+        if (!chatId) {
+          console.error(`[Socket] Cannot extract chatId from call ${callId}`);
+          socket.emit('group_call_error', { message: 'Invalid call data' });
+          return;
+        }
+        const socketRoom = `group_call_${chatId}`;
+        
+        // Join socket room based on chatId (not callId)
+        socket.join(socketRoom);
+        
+        console.log(`User ${socket.userId} joined group call socket room: ${socketRoom} (callId: ${callId}, chatId: ${chatId})`);
+
+        // Notify other participants in the same chat room
+        socket.to(socketRoom).emit('group_call_user_joined_room', {
+          callId: callId,
+          chatId: chatId,
+          userId: socket.userId,
+          username: socket.user.username,
+          avatar: socket.user.avatar,
+          timestamp: new Date()
+        });
+
+        // Send current participants list to joining user
+        const activeParticipants = call.participants.filter(p => p.status === 'connected');
+        socket.emit('group_call_room_state', {
+          callId: callId,
+          chatId: chatId,
+          participants: activeParticipants,
+          participantMedia: call.participantMedia,
+          roomId: call.webrtcData.roomId,
+          iceServers: call.webrtcData.iceServers,
+          topology: call.webrtcData.mediaTopology
+        });
+
+      } catch (error) {
+        console.error('Join group call room error:', error);
+        socket.emit('group_call_error', { message: 'Failed to join group call room' });
+      }
+    });
+
+    // WebRTC signaling for group calls (mesh topology)
+    socket.on('group_call_webrtc_offer', async (data) => {
+      try {
+      const { callId, offer, toUserId, sessionId, chatId: providedChatId } = data;
+
+        // Get call to find chatId for socket room and validate sessionId
+        const call = await Call.findOne({ callId: callId, isGroupCall: true });
+        if (!call) {
+          console.error(`[signal] Call not found for offer: ${callId}`);
+          return;
+        }
+
+        // Extract chatId properly using helper function
+        const chatId = providedChatId || extractChatId(call);
+        if (!chatId) {
+          console.error(`[signal] Cannot extract chatId from call ${callId}`);
+          return;
+        }
+        const socketRoom = `group_call_${chatId}`;
+
+        // CRITICAL: Validate sessionId if provided
+        if (sessionId) {
+          const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
+          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
+            console.log(`[signal] DROPPED offer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+            return; // Drop stale offer
+          }
+        }
+
+      const payload = {
+        callId: callId,
+          chatId: chatId,
+        offer: offer,
+        fromUserId: socket.userId,
+        fromUsername: socket.user.username,
+        sessionId: sessionId
+      };
+
+      if (toUserId) {
+        // Send to specific participant (for mesh)
+        // Find socketId for target user
+        let targetSocketId = null;
+        for (const [sid, uid] of this.socketToUserMap.entries()) {
+          if (uid === toUserId) {
+            targetSocketId = sid;
+            break;
+          }
+        }
+        
+        if (targetSocketId) {
+          this.io.to(targetSocketId).emit('group_call_webrtc_offer', payload);
+        } else {
+          // Fallback to user room
+          this.io.to(`user_${toUserId}`).emit('group_call_webrtc_offer', payload);
+        }
+          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+      } else {
+          // Broadcast to all in chat room except sender
+          socket.to(socketRoom).emit('group_call_webrtc_offer', payload);
+          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+        }
+      } catch (error) {
+        console.error('Error handling group call offer:', error);
+      }
+    });
+
+    socket.on('group_call_webrtc_answer', async (data) => {
+      try {
+      const { callId, answer, toUserId, sessionId, chatId: providedChatId } = data;
+
+        // Get call to find chatId for socket room and validate sessionId
+        const call = await Call.findOne({ callId: callId, isGroupCall: true });
+        if (!call) {
+          console.error(`[signal] Call not found for answer: ${callId}`);
+          return;
+        }
+
+        // Extract chatId properly using helper function
+        const chatId = providedChatId || extractChatId(call);
+        if (!chatId) {
+          console.error(`[signal] Cannot extract chatId from call ${callId}`);
+          return;
+        }
+        const socketRoom = `group_call_${chatId}`;
+
+        // CRITICAL: Validate sessionId if provided
+        if (sessionId) {
+          const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
+          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
+            console.log(`[signal] DROPPED answer - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+            return; // Drop stale answer
+          }
+        }
+
+      const payload = {
+        callId: callId,
+          chatId: chatId,
+        answer: answer,
+        fromUserId: socket.userId,
+        fromUsername: socket.user.username,
+        sessionId: sessionId
+      };
+
+      if (toUserId) {
+        // Send to specific participant (for mesh)
+        // Find socketId for target user
+        let targetSocketId = null;
+        for (const [sid, uid] of this.socketToUserMap.entries()) {
+          if (uid === toUserId) {
+            targetSocketId = sid;
+            break;
+          }
+        }
+        
+        if (targetSocketId) {
+          this.io.to(targetSocketId).emit('group_call_webrtc_answer', payload);
+        } else {
+          this.io.to(`user_${toUserId}`).emit('group_call_webrtc_answer', payload);
+        }
+          console.log(`[signal] forward answer call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+      } else {
+          // Broadcast to all in chat room except sender
+          socket.to(socketRoom).emit('group_call_webrtc_answer', payload);
+          console.log(`[signal] forward answer call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+        }
+      } catch (error) {
+        console.error('Error handling group call answer:', error);
+      }
+    });
+
+    socket.on('group_call_ice_candidate', async (data) => {
+      try {
+      const { callId, candidate, toUserId, sessionId, chatId: providedChatId } = data;
+
+        // Get call to find chatId for socket room and validate sessionId
+        const call = await Call.findOne({ callId: callId, isGroupCall: true });
+        if (!call) {
+          console.error(`[signal] Call not found for ICE candidate: ${callId}`);
+          return;
+        }
+
+        // Extract chatId properly using helper function
+        const chatId = providedChatId || extractChatId(call);
+        if (!chatId) {
+          console.error(`[signal] Cannot extract chatId from call ${callId}`);
+          return;
+        }
+        const socketRoom = `group_call_${chatId}`;
+
+        // CRITICAL: Validate sessionId if provided
+        if (sessionId) {
+          const fromParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
+          if (fromParticipant && fromParticipant.sessionId !== sessionId) {
+            console.log(`[signal] DROPPED ice_candidate - sessionId mismatch: from=${socket.userId}, expected=${fromParticipant.sessionId}, received=${sessionId}, callId=${callId}`);
+            return; // Drop stale candidate
+          }
+        }
+
+      const payload = {
+        callId: callId,
+          chatId: chatId,
+        candidate: candidate,
+        fromUserId: socket.userId,
+        sessionId: sessionId
+      };
+
+      if (toUserId) {
+        // Send to specific participant (for mesh)
+        // Find socketId for target user
+        let targetSocketId = null;
+        for (const [sid, uid] of this.socketToUserMap.entries()) {
+          if (uid === toUserId) {
+            targetSocketId = sid;
+            break;
+          }
+        }
+        
+        if (targetSocketId) {
+          this.io.to(targetSocketId).emit('group_call_ice_candidate', payload);
+        } else {
+          this.io.to(`user_${toUserId}`).emit('group_call_ice_candidate', payload);
+        }
+          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+      } else {
+          // Broadcast to all in chat room except sender
+          socket.to(socketRoom).emit('group_call_ice_candidate', payload);
+          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
+        }
+      } catch (error) {
+        console.error('Error handling group call ICE candidate:', error);
+      }
+    });
+
+    // Dismiss group call passive notification
+    socket.on('dismiss_group_call_alert', async (data) => {
+      try {
+        const { callId } = data;
+        
+        // Just acknowledge dismissal, no database change needed
+        socket.emit('group_call_alert_dismissed', {
+          callId: callId,
+          timestamp: new Date()
+        });
+
+        console.log(`User ${socket.userId} dismissed group call alert for ${callId}`);
+      } catch (error) {
+        console.error('Dismiss group call alert error:', error);
+      }
     });
   }
 

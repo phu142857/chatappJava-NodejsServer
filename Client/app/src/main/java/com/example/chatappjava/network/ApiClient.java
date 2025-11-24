@@ -228,6 +228,19 @@ public class ApiClient {
     }
 
     /**
+     * Sends an authenticated PATCH request.
+     */
+    public void authenticatedPatch(String endpoint, String token, JSONObject data, Callback callback) {
+        RequestBody body = RequestBody.create(data.toString(), JSON);
+        Request request = createAuthenticatedRequest(token)
+                .url(getBaseUrl() + endpoint)
+                .patch(body)
+                .build();
+
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
      * Block or unblock a user
      */
     public void blockUser(String token, String userId, String action, Callback callback) {
