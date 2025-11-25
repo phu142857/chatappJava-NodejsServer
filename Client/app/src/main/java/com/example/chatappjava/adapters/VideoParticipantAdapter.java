@@ -183,6 +183,13 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                 try {
                     videoTrack.addSink(holder.svParticipantVideo);
                     android.util.Log.d("VideoParticipantAdapter", "✓ Directly added video sink for " + participant.getUsername());
+                    
+                    // CRITICAL: Force surface view refresh to ensure video renders
+                    holder.svParticipantVideo.post(() -> {
+                        holder.svParticipantVideo.requestLayout();
+                        holder.svParticipantVideo.invalidate();
+                        android.util.Log.d("VideoParticipantAdapter", "✓ Forced surface view refresh for " + participant.getUsername());
+                    });
                 } catch (IllegalStateException e) {
                     android.util.Log.w("VideoParticipantAdapter", "Surface not ready, scheduling delayed add for " + participant.getUsername());
                     // Retry after delay with re-initialization
@@ -297,6 +304,13 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
             holder.videoPlaceholder.setVisibility(android.view.View.GONE);
             holder.svParticipantVideo.setVisibility(android.view.View.VISIBLE);
             android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink for " + username);
+            
+            // CRITICAL: Force surface view refresh to ensure video renders
+            holder.svParticipantVideo.post(() -> {
+                holder.svParticipantVideo.requestLayout();
+                holder.svParticipantVideo.invalidate();
+                android.util.Log.d("VideoParticipantAdapter", "✓ Forced surface view refresh for " + username);
+            });
         } catch (IllegalStateException e) {
             android.util.Log.w("VideoParticipantAdapter", "Surface not ready for " + username + ", will retry: " + e.getMessage());
             // Retry after delay with initialization
@@ -342,6 +356,8 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         CallParticipant participant = participants.get(position);
+        android.util.Log.d("VideoParticipantAdapter", "═══════════════════════════════════════════════════════════");
+        android.util.Log.d("VideoParticipantAdapter", "🎯🎯🎯 onBindViewHolder CALLED for position: " + position + ", username: " + participant.getUsername());
 
         // Set participant name
         holder.tvParticipantName.setText(participant.getUsername());
@@ -419,6 +435,15 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
             holder.videoPlaceholder.setVisibility(View.GONE);
             holder.svParticipantVideo.setVisibility(View.VISIBLE);
             
+            // CRITICAL: Log surface view state to verify it's ready
+            android.util.Log.d("VideoParticipantAdapter", "Surface view state for " + participant.getUsername() + 
+                              ": visibility=" + holder.svParticipantVideo.getVisibility() + 
+                              " (VISIBLE=" + View.VISIBLE + ")" +
+                              ", width=" + holder.svParticipantVideo.getWidth() + 
+                              ", height=" + holder.svParticipantVideo.getHeight() +
+                              ", alpha=" + holder.svParticipantVideo.getAlpha() +
+                              ", isAttached=" + (holder.itemView.getWindowToken() != null));
+            
             // CRITICAL: Add video track to surface view (like private call: remoteVideoTrack.addSink(remoteVideoView))
             // Remove any existing sink first to avoid duplicates
             try {
@@ -433,9 +458,49 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
             // Surface is already initialized in onCreateViewHolder, so it should be ready
             if (existingTrack != null && holder.svParticipantVideo != null) {
                 try {
+                    android.util.Log.d("VideoParticipantAdapter", "🎥 About to add video sink for " + participant.getUsername() + 
+                                      " - track: " + existingTrack.id() + 
+                                      ", enabled: " + existingTrack.enabled() + 
+                                      ", state: " + existingTrack.state());
+                    // CRITICAL: Ensure track is enabled before adding sink (like private call)
+                    if (!existingTrack.enabled()) {
+                        android.util.Log.w("VideoParticipantAdapter", "Track is disabled, enabling it for " + participant.getUsername());
+                        existingTrack.setEnabled(true);
+                    }
+                    
                     existingTrack.addSink(holder.svParticipantVideo);
-                    android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink for " + participant.getUsername() + " (like private call)");
+                    android.util.Log.d("VideoParticipantAdapter", "✅✅✅ Successfully added video sink for " + participant.getUsername() + " (like private call)");
+                    
+                    // CRITICAL: Double-check track is enabled after adding sink
+                    if (!existingTrack.enabled()) {
+                        android.util.Log.e("VideoParticipantAdapter", "⚠️ Track became disabled after adding sink, re-enabling for " + participant.getUsername());
+                        existingTrack.setEnabled(true);
+                    }
+                    
+                    // CRITICAL: Force surface view refresh (like private call does)
+                    // This ensures the video is rendered immediately
+                    holder.svParticipantVideo.post(() -> {
+                        // Ensure all settings match private call exactly
+                        holder.svParticipantVideo.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+                        if (participant.isLocal()) {
+                            holder.svParticipantVideo.setMirror(true);
+                        } else {
+                            holder.svParticipantVideo.setMirror(false);
+                        }
+                        holder.svParticipantVideo.setAlpha(1.0f);
+                        holder.svParticipantVideo.requestLayout();
+                        holder.svParticipantVideo.invalidate();
+                        // Also ensure visibility is correct
+                        holder.svParticipantVideo.setVisibility(View.VISIBLE);
+                        holder.videoPlaceholder.setVisibility(View.GONE);
+                        android.util.Log.d("VideoParticipantAdapter", "✓ Forced surface view refresh for " + participant.getUsername() + 
+                                          " - width: " + holder.svParticipantVideo.getWidth() + 
+                                          ", height: " + holder.svParticipantVideo.getHeight() +
+                                          ", scaling: SCALE_ASPECT_FILL" +
+                                          ", mirror: " + participant.isLocal());
+                    });
                 } catch (IllegalStateException e) {
+                    android.util.Log.e("VideoParticipantAdapter", "✗✗✗ IllegalStateException adding sink for " + participant.getUsername() + ": " + e.getMessage());
                     // Surface not ready - this can happen if view isn't attached yet
                     // The sink will be added in onViewAttachedToWindow
                     android.util.Log.w("VideoParticipantAdapter", "Surface not ready in onBindViewHolder for " + participant.getUsername() + 
@@ -453,6 +518,11 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
                                 }
                                 existingTrack.addSink(holder.svParticipantVideo);
                                 android.util.Log.d("VideoParticipantAdapter", "✓ Added video sink on retry 1 for " + participant.getUsername());
+                                // Force refresh
+                                holder.svParticipantVideo.post(() -> {
+                                    holder.svParticipantVideo.requestLayout();
+                                    holder.svParticipantVideo.invalidate();
+                                });
                             }
                         } catch (IllegalStateException ex) {
                             // Still not ready, retry again
@@ -555,8 +625,22 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
     @Override
     public void onViewRecycled(@NonNull ViewHolder holder) {
         super.onViewRecycled(holder);
-        // Remove video sink from any track before recycling
+        // CRITICAL: Remove video sink ONLY when view holder is recycled (not just detached)
+        // This is the only time we should remove the sink - when the view holder is being reused
         if (holder.svParticipantVideo != null) {
+            int position = holder.getAdapterPosition();
+            if (position >= 0 && position < participants.size()) {
+                CallParticipant participant = participants.get(position);
+                if (participant.getVideoTrack() != null) {
+                    try {
+                        participant.getVideoTrack().removeSink(holder.svParticipantVideo);
+                        android.util.Log.d("VideoParticipantAdapter", "Removed sink for " + participant.getUsername() + " (view holder recycled)");
+                    } catch (Exception e) {
+                        // Ignore
+                    }
+                }
+            }
+            
             try {
                 // Clear the image
                 holder.svParticipantVideo.clearImage();
@@ -673,28 +757,16 @@ public class VideoParticipantAdapter extends RecyclerView.Adapter<VideoParticipa
     @Override
     public void onViewDetachedFromWindow(@NonNull ViewHolder holder) {
         super.onViewDetachedFromWindow(holder);
-        // CRITICAL: Remove sink when detached, but DON'T release surface view
-        // RecyclerView can detach/reattach views frequently, and releasing causes
-        // "Dropping frame - Not initialized or already released" errors
-        // The surface will be reused when the view is reattached
-        if (holder.svParticipantVideo != null) {
-            int position = holder.getAdapterPosition();
-            if (position >= 0 && position < participants.size()) {
-                CallParticipant participant = participants.get(position);
-                if (participant.getVideoTrack() != null) {
-                    try {
-                        participant.getVideoTrack().removeSink(holder.svParticipantVideo);
-                        android.util.Log.d("VideoParticipantAdapter", "Removed sink for " + participant.getUsername() + " (surface kept alive)");
-                    } catch (Exception e) {
-                        // Ignore
-                    }
-                }
-            }
-            
-            // DO NOT release surface view here - RecyclerView will reuse it
-            // Releasing causes frames to be dropped when view is reattached
-            // Surface will be properly cleaned up when adapter is destroyed
-        }
+        // CRITICAL: DO NOT remove sink when view is temporarily detached
+        // RecyclerView frequently detaches/reattaches views during scrolling/layout changes
+        // Removing the sink interrupts video rendering and causes black screen
+        // The sink will only be removed in onViewRecycled when the view holder is actually recycled
+        // This matches private call behavior - sink stays attached even when view is off-screen
+        android.util.Log.d("VideoParticipantAdapter", "View detached from window (sink kept attached for continuous rendering)");
+        
+        // DO NOT release surface view here - RecyclerView will reuse it
+        // Releasing causes frames to be dropped when view is reattached
+        // Surface will be properly cleaned up when adapter is destroyed
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

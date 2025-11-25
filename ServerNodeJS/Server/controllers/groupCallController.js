@@ -96,12 +96,15 @@ const initiateGroupCall = async (req, res) => {
             });
         }
 
-        if (!['audio', 'video'].includes(type)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Call type must be audio or video'
-            });
+        // CRITICAL: Ensure type is valid, default to 'video' for group calls
+        // This prevents black screen issues from audio-only calls
+        const callType = (type && ['audio', 'video'].includes(type)) ? type : 'video';
+        
+        if (callType !== type) {
+            console.log(`[GroupCall] Invalid or missing type '${type}', defaulting to 'video'`);
         }
+        
+        console.log(`[GroupCall] Initiating group call: chatId=${chatId}, type=${callType}, callerId=${callerId}`);
 
         // Check if chat exists and is a group chat
         const chat = await Chat.findById(chatId);
@@ -150,7 +153,20 @@ const initiateGroupCall = async (req, res) => {
         
         if (call) {
             // Active call exists - add caller if not already participant
-            console.log(`[GroupCall] Found existing call for chatId ${chatId}: callId=${call.callId}`);
+            console.log(`[GroupCall] Found existing call for chatId ${chatId}: callId=${call.callId}, type=${call.type}, requestedType=${type}`);
+            
+            // CRITICAL: If existing call is 'audio' but user requested 'video', upgrade to video
+            // This prevents black screen issues where audio calls don't have video tracks
+            const callType = (type && ['audio', 'video'].includes(type)) ? type : 'video';
+            if (call.type === 'audio' && callType === 'video') {
+                console.log(`[GroupCall] Upgrading call from audio to video: callId=${call.callId}`);
+                call.type = 'video';
+                ensureSFUConfig(call);
+                await call.save();
+            } else if (call.type !== callType) {
+                console.log(`[GroupCall] Call type mismatch: existing=${call.type}, requested=${callType}. Using existing type.`);
+            }
+            
             const isParticipant = call.participants.some(
                 p => p.userId && p.userId.toString() === callerId
             );
@@ -170,6 +186,8 @@ const initiateGroupCall = async (req, res) => {
                 { path: 'chatId', select: 'name type participants' },
                 { path: 'participants.userId', select: 'username avatar status' }
             ]);
+            
+            console.log(`[GroupCall] Returning existing call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}`);
             
             return res.status(200).json({
                 success: true,
@@ -210,7 +228,7 @@ const initiateGroupCall = async (req, res) => {
                         // Only set these if creating a new document
                         // CRITICAL: Use deterministic callId for first call, timestamped for subsequent calls
                         callId: deterministicCallId,
-                        type: type,
+                        type: callType, // Use validated callType (defaults to 'video')
                         chatId: chatId,
                         isGroupCall: true,
                         status: 'notified',
@@ -244,7 +262,7 @@ const initiateGroupCall = async (req, res) => {
                         logs: [{
                             userId: callerId,
                             action: 'call_initiated',
-                            details: `Initiated ${type} group call`
+                            details: `Initiated ${callType} group call`
                         }]
                     }
                 },
@@ -451,7 +469,7 @@ const initiateGroupCall = async (req, res) => {
                 call.logs.push({
                     userId: callerId,
                     action: 'call_initiated',
-                    details: `Initiated ${type} group call`
+                    details: `Initiated ${call.type} group call`
                 });
             }
             
@@ -472,12 +490,12 @@ const initiateGroupCall = async (req, res) => {
                 const systemMessage = new Message({
                     chat: chatId,
                     sender: callerId,
-                    content: `${caller.username} started a group ${type} call`,
+                    content: `${caller.username} started a group ${call.type} call`,
                     messageType: 'system',
                     systemMessageType: 'call_started',
                     metadata: {
                         callId: call.callId,
-                        callType: type,
+                        callType: call.type,
                         isGroupCall: true
                     }
                 });
@@ -514,10 +532,10 @@ const initiateGroupCall = async (req, res) => {
                     username: caller.username,
                     avatar: caller.avatar
                 },
-                callType: type,
+                callType: call.type,
                 isGroupCall: true,
                 mediaTopology: 'sfu',
-                bannerCopy: `Live group ${type} call in progress`,
+                bannerCopy: `Live group ${call.type} call in progress`,
                 timestamp: new Date()
             };
             
@@ -571,6 +589,9 @@ const initiateGroupCall = async (req, res) => {
             console.error(`[GroupCall] Failed to get SFU router capabilities: ${error.message}`);
         }
 
+        // CRITICAL: Log call type to help diagnose black screen issues
+        console.log(`[GroupCall] Returning call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}, participants=${call.participants.length}`);
+        
         // CRITICAL: Always return the actual callId from the database (not generated one)
         res.status(201).json({
             success: true,
@@ -578,6 +599,8 @@ const initiateGroupCall = async (req, res) => {
             callId: call.callId, // Use actual callId from database
             data: call,
             isExisting: !wasJustCreated, // Indicate if this was an existing call
+            // CRITICAL: Include call type in response to help client
+            callType: call.type, // Explicitly include call type
             // CRITICAL: Include SFU info for immediate initialization
             sfu: rtpCapabilities ? {
                 rtpCapabilities: rtpCapabilities
@@ -753,6 +776,9 @@ const joinGroupCall = async (req, res) => {
         // Extract chatId for response
         const chatId = extractChatId(call);
         
+        // CRITICAL: Log call type when joining to help diagnose black screen issues
+        console.log(`[GroupCall] User ${userId} joined call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}`);
+        
         // Get SFU router capabilities for client
         let rtpCapabilities = null;
         try {
@@ -768,6 +794,7 @@ const joinGroupCall = async (req, res) => {
             data: call,
             sessionId: participant.sessionId,
             chatId: chatId,
+            callType: call.type, // Explicitly include call type
             sfu: {
                 roomId: call.webrtcData?.roomId || `room_${chatId}`,
                 rtpCapabilities: rtpCapabilities
@@ -1062,7 +1089,16 @@ const getGroupCallDetails = async (req, res) => {
         }
 
         // Check if user is a participant
-        const participant = call.participants.find(p => p.userId.toString() === userId);
+        // Handle both populated (object) and unpopulated (ObjectId) userId
+        const participant = call.participants.find(p => {
+            if (!p.userId) return false;
+            // Handle populated object
+            if (typeof p.userId === 'object' && p.userId._id) {
+                return p.userId._id.toString() === userId;
+            }
+            // Handle ObjectId or string
+            return p.userId.toString() === userId;
+        });
         if (!participant) {
             return res.status(403).json({
                 success: false,

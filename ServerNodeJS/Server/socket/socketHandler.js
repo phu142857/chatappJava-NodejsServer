@@ -691,11 +691,16 @@ class SocketHandler {
         
         if (targetSocketId) {
           this.io.to(targetSocketId).emit('group_call_webrtc_offer', payload);
+          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} (direct socket) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         } else {
-          // Fallback to user room
+          // CRITICAL FIX: Try multiple delivery methods
+          // 1. Try user room
           this.io.to(`user_${toUserId}`).emit('group_call_webrtc_offer', payload);
+          // 2. Also try socket room (group_call_${chatId}) as fallback
+          // This ensures users in the same group call room receive the offer
+          socket.to(socketRoom).emit('group_call_webrtc_offer', payload);
+          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} (user room + socket room: ${socketRoom}) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
-          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
       } else {
           // Broadcast to all in chat room except sender
           socket.to(socketRoom).emit('group_call_webrtc_offer', payload);
@@ -841,10 +846,16 @@ class SocketHandler {
         
         if (targetSocketId) {
           this.io.to(targetSocketId).emit('group_call_ice_candidate', payload);
+          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} (direct socket) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         } else {
+          // CRITICAL FIX: Try multiple delivery methods
+          // 1. Try user room
           this.io.to(`user_${toUserId}`).emit('group_call_ice_candidate', payload);
+          // 2. Also try socket room (group_call_${chatId}) as fallback
+          // This ensures users in the same group call room receive the ICE candidate
+          socket.to(socketRoom).emit('group_call_ice_candidate', payload);
+          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} (user room + socket room: ${socketRoom}) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
-          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
       } else {
           // Broadcast to all in chat room except sender
           socket.to(socketRoom).emit('group_call_ice_candidate', payload);

@@ -1255,6 +1255,16 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         Log.d(TAG, "Initializing SFU for room: " + sfuRoomId);
         
         sfuManager = new SFUManager(sfuRoomId, currentUserId, socketManager, peerConnectionFactory, eglBase);
+        
+        // CRITICAL: Set ICE servers (includes TURN server) before initializing transports
+        // This is required for ICE connection to work, especially when direct connection fails
+        if (iceServers != null && !iceServers.isEmpty()) {
+            sfuManager.setIceServers(iceServers);
+            Log.d(TAG, "✅ Set " + iceServers.size() + " ICE servers to SFUManager (includes TURN)");
+        } else {
+            Log.w(TAG, "⚠️ No ICE servers available - using default STUN only (TURN server missing!)");
+        }
+        
         sfuManager.setListener(new SFUManager.SFUListener() {
             @Override
             public void onTransportCreated(String direction, JSONObject transport) {
@@ -1412,11 +1422,23 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             @Override
             public void onRemoteTrack(String producerId, MediaStreamTrack track) {
                 Log.d(TAG, "═══════════════════════════════════════════════════════════");
+                Log.d(TAG, "🎯🎯🎯 onRemoteTrack CALLED in GroupVideoCallActivity");
                 Log.d(TAG, "SFU remote track received: producerId=" + producerId + ", kind=" + (track != null ? track.kind() : "null"));
                 
                 if (track == null) {
-                    Log.e(TAG, "Received null track from producer: " + producerId);
+                    Log.e(TAG, "✗✗✗ Received null track from producer: " + producerId);
                     return;
+                }
+                
+                // CRITICAL: Log track state immediately
+                Log.d(TAG, "Track state: enabled=" + track.enabled() + 
+                      ", state=" + track.state() + 
+                      ", id=" + track.id());
+                
+                // CRITICAL: Force enable track if disabled
+                if (!track.enabled()) {
+                    Log.w(TAG, "⚠️ Track is disabled, enabling it");
+                    track.setEnabled(true);
                 }
                 
                 // Map producerId to userId

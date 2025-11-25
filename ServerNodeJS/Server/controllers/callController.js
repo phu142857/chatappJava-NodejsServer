@@ -80,6 +80,8 @@ const initiateCall = async (req, res) => {
         // Build ICE servers (include TURN if configured)
         const iceServers = [
             { urls: "turn:103.75.183.125:3478", username: "phu142", credential: "phu142" },
+            { urls: "turn:103.75.183.125:5349", username: "phu142", credential: "phu142" },
+            { urls: "turn:192.168.2.36:3478", username: "phu142", credential: "phu142" },
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' }

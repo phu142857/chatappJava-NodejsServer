@@ -67,6 +67,9 @@ public class SFUManager {
         public RtpTransceiver transceiver; // Store transceiver for direct track access
     }
 
+    // ICE servers for PeerConnection (includes TURN/STUN from server)
+    private java.util.List<PeerConnection.IceServer> iceServers = new java.util.ArrayList<>();
+    
     public SFUManager(String roomId, String peerId, SocketManager socketManager, 
                      PeerConnectionFactory peerConnectionFactory, EglBase eglBase) {
         this.roomId = roomId;
@@ -74,6 +77,25 @@ public class SFUManager {
         this.socketManager = socketManager;
         this.peerConnectionFactory = peerConnectionFactory;
         this.eglBase = eglBase;
+        
+        // Default STUN server (will be replaced by server-provided ICE servers)
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
+    }
+    
+    /**
+     * Set ICE servers from server response (includes TURN server)
+     * CRITICAL: Must be called before creating transports to use TURN server
+     */
+    public void setIceServers(java.util.List<PeerConnection.IceServer> servers) {
+        if (servers != null && !servers.isEmpty()) {
+            this.iceServers = new java.util.ArrayList<>(servers);
+            Log.d(TAG, "✅✅✅ ICE servers updated: " + iceServers.size() + " servers (includes TURN)");
+            for (PeerConnection.IceServer server : iceServers) {
+                Log.d(TAG, "  - " + server.uri);
+            }
+        } else {
+            Log.w(TAG, "⚠️ No ICE servers provided, using default STUN only");
+        }
     }
 
     public void setListener(SFUListener listener) {
@@ -255,6 +277,43 @@ public class SFUManager {
             }
         });
 
+        // Consumer resumed (confirmation from server)
+        socketManager.on("sfu-consumer-resumed", args -> {
+            if (args.length > 0 && args[0] instanceof JSONObject) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String consumerId = data.getString("consumerId");
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
+                    Log.d(TAG, "✅✅✅ SFU consumer resumed confirmation: consumerId=" + consumerId);
+                    
+                    // Find consumer by ID and ensure track is notified
+                    for (Map.Entry<String, Consumer> entry : consumers.entrySet()) {
+                        Consumer consumer = entry.getValue();
+                        if (consumer.id != null && consumer.id.equals(consumerId)) {
+                            Log.d(TAG, "Found consumer for resumed ID: producerId=" + entry.getKey());
+                            // If track is available, notify listener (frames should start flowing now)
+                            if (consumer.track != null && listener != null) {
+                                Log.d(TAG, "Consumer resumed - track available, notifying listener for producerId: " + entry.getKey());
+                                // Track should now be receiving frames, notify listener
+                                try {
+                                    listener.onRemoteTrack(entry.getKey(), consumer.track);
+                                    Log.d(TAG, "✅ Called onRemoteTrack after consumer resume for producerId: " + entry.getKey());
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error calling onRemoteTrack after resume", e);
+                                }
+                            } else {
+                                Log.w(TAG, "Consumer resumed but track not yet available for producerId: " + entry.getKey());
+                            }
+                            break;
+                        }
+                    }
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error handling sfu-consumer-resumed", e);
+                }
+            }
+        });
+
         // Consumer created
         socketManager.on("sfu-consumer-created", args -> {
             if (args.length > 0 && args[0] instanceof JSONObject) {
@@ -383,16 +442,12 @@ public class SFUManager {
             }
             Log.d(TAG, "peerConnectionFactory exists: " + (peerConnectionFactory != null));
             
-            // Extract ICE parameters from transport
-            // Note: With Mediasoup, we don't use ICE candidates as ICE servers
-            // Mediasoup handles ICE negotiation internally
-            // We just need basic STUN servers for initial connection
-            java.util.List<PeerConnection.IceServer> iceServers = new java.util.ArrayList<>();
-            
-            // Add default STUN servers (same as VideoCallActivity)
-            iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
-            
-            Log.d(TAG, "Using " + iceServers.size() + " default ICE servers (Mediasoup handles ICE internally)");
+            // Use ICE servers from server response (includes TURN server)
+            // CRITICAL: TURN server is needed when direct connection to Mediasoup server fails
+            Log.d(TAG, "Using " + iceServers.size() + " ICE servers from server (includes TURN if provided)");
+            for (PeerConnection.IceServer server : iceServers) {
+                Log.d(TAG, "  ICE Server: " + server.uri);
+            }
             
             // Create RTC configuration (same as VideoCallActivity)
             PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
@@ -409,16 +464,41 @@ public class SFUManager {
             PeerConnection.Observer observer = new PeerConnection.Observer() {
                 @Override
                 public void onSignalingChange(PeerConnection.SignalingState signalingState) {
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
                     Log.d(TAG, finalDirection + " transport signaling state: " + signalingState);
+                    
+                    // CRITICAL: Log when signaling is stable (ready for media)
+                    if (signalingState == PeerConnection.SignalingState.STABLE) {
+                        Log.d(TAG, "✅✅✅ " + finalDirection + " transport signaling STABLE - SDP negotiation complete!");
+                    }
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
                 }
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
                     Log.d(TAG, finalDirection + " transport ICE state: " + iceConnectionState);
+                    
+                    // CRITICAL: Log when ICE connection is established
+                    if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
+                        Log.d(TAG, "✅✅✅ " + finalDirection + " transport ICE CONNECTED - frames should start flowing!");
+                    } else if (iceConnectionState == PeerConnection.IceConnectionState.COMPLETED) {
+                        Log.d(TAG, "✅✅✅ " + finalDirection + " transport ICE COMPLETED - connection fully established!");
+                    } else if (iceConnectionState == PeerConnection.IceConnectionState.FAILED) {
+                        Log.e(TAG, "✗✗✗ " + finalDirection + " transport ICE FAILED - connection failed!");
+                    } else if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
+                        Log.w(TAG, "⚠️ " + finalDirection + " transport ICE DISCONNECTED");
+                    }
+                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
                 }
 
                 @Override
-                public void onIceConnectionReceivingChange(boolean receiving) {}
+                public void onIceConnectionReceivingChange(boolean receiving) {
+                    Log.d(TAG, finalDirection + " transport ICE receiving: " + receiving);
+                    if (receiving && finalDirection.equals("receive")) {
+                        Log.d(TAG, "✅ Receive transport is receiving ICE - ready for media!");
+                    }
+                }
 
                 @Override
                 public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
@@ -1187,12 +1267,52 @@ public class SFUManager {
                                                 
                                                 // Also check if track is already available (might have been added before SDP was set)
                                                 if (consumer != null && consumer.track != null) {
-                                                    Log.d(TAG, "Track already available for consumer, calling onRemoteTrack");
-                                                    if (listener != null) {
-                                                        listener.onRemoteTrack(producerId, consumer.track);
+                                                    MediaStreamTrack track = consumer.track;
+                                                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
+                                                    Log.d(TAG, "Track already available for consumer");
+                                                    Log.d(TAG, "Track details: id=" + track.id() + 
+                                                          ", kind=" + track.kind() + 
+                                                          ", enabled=" + track.enabled() + 
+                                                          ", state=" + track.state());
+                                                    Log.d(TAG, "ProducerId: " + producerId);
+                                                    Log.d(TAG, "Listener is null: " + (listener == null));
+                                                    
+                                                    // CRITICAL: Verify track is valid before calling listener
+                                                    if (track.state() == MediaStreamTrack.State.LIVE || 
+                                                        track.state() == MediaStreamTrack.State.ENDED) {
+                                                        
+                                                        // For video tracks, ensure they're enabled
+                                                        if (track.kind().equals("video")) {
+                                                            VideoTrack videoTrack = (VideoTrack) track;
+                                                            if (!videoTrack.enabled()) {
+                                                                Log.w(TAG, "⚠️ Video track is disabled, enabling it");
+                                                                videoTrack.setEnabled(true);
+                                                            }
+                                                        }
+                                                        
+                                                        if (listener != null) {
+                                                            Log.d(TAG, "✅ Calling listener.onRemoteTrack with valid track");
+                                                            try {
+                                                                listener.onRemoteTrack(producerId, track);
+                                                                Log.d(TAG, "✅ Successfully called listener.onRemoteTrack");
+                                                            } catch (Exception e) {
+                                                                Log.e(TAG, "✗✗✗ Exception calling listener.onRemoteTrack", e);
+                                                                e.printStackTrace();
+                                                            }
+                                                        } else {
+                                                            Log.e(TAG, "✗✗✗ Listener is NULL - cannot call onRemoteTrack!");
+                                                        }
+                                                    } else {
+                                                        Log.w(TAG, "⚠️ Track state is not LIVE: " + track.state() + ", waiting for onAddTrack...");
                                                     }
+                                                    Log.d(TAG, "═══════════════════════════════════════════════════════════");
                                                 } else {
                                                     Log.d(TAG, "Track not yet available, waiting for onAddTrack callback");
+                                                    if (consumer == null) {
+                                                        Log.e(TAG, "✗ Consumer is NULL");
+                                                    } else if (consumer.track == null) {
+                                                        Log.e(TAG, "✗ Consumer track is NULL");
+                                                    }
                                                 }
                                             }
                                             @Override
