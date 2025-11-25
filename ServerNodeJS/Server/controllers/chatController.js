@@ -31,8 +31,9 @@ const getChats = async (req, res) => {
       }
       
       if (chat.type === 'private') {
-        // For private chats, ensure both participants exist and are active
-        return chat.participants.every(p => p.user && p.user._id && p.isActive);
+        // For private chats, ensure both participants exist (but one may be inactive if deleted)
+        // Only check that both participants have valid user objects
+        return chat.participants.every(p => p.user && p.user._id);
       }
       
       return true; // Group chats - user is active participant
@@ -216,14 +217,79 @@ const createPrivateChat = async (req, res) => {
       });
     }
 
-    // Check if private chat already exists
-    const existingChat = await Chat.findPrivateChat(req.user.id, participantId);
+    // Check if private chat already exists (including inactive participants)
+    // First try to find with both active
+    let existingChat = await Chat.findPrivateChat(req.user.id, participantId);
+    
+    // If not found, try to find with any participant status (one might be inactive)
+    if (!existingChat) {
+      existingChat = await Chat.findOne({
+        type: 'private',
+        'participants.user': { $all: [req.user.id, participantId] },
+        isActive: true
+      }).populate('participants.user', 'username email avatar status');
+    }
+    
     if (existingChat) {
+      // Reactivate current user if they were inactive
+      const currentUserParticipant = existingChat.participants.find(
+        p => {
+          const userId = p.user && (p.user._id ? p.user._id.toString() : p.user.toString());
+          return userId === req.user.id;
+        }
+      );
+      if (currentUserParticipant && !currentUserParticipant.isActive) {
+        // When user explicitly creates/opens chat, reset leftAt so they see all messages
+        // This is different from automatic reactivation when receiving a new message
+        currentUserParticipant.leftAt = undefined;
+        await existingChat.addParticipant(req.user.id, 'member');
+        // Reload chat from database to ensure changes are saved and reflected
+        existingChat = await Chat.findById(existingChat._id).populate('participants.user', 'username email avatar status');
+      } else if (!currentUserParticipant) {
+        // User not found in participants - this shouldn't happen, but handle it
+        console.warn(`User ${req.user.id} not found in chat ${existingChat._id} participants`);
+        // Try to add them
+        await existingChat.addParticipant(req.user.id, 'member');
+        existingChat = await Chat.findById(existingChat._id).populate('participants.user', 'username email avatar status');
+      } else {
+        // User is already active, just ensure populated
+        await existingChat.populate('participants.user', 'username email avatar status');
+      }
+      
+      // Format chat data for private chat (set name to other participant's username)
+      const chatData = existingChat.toJSON();
+      if (existingChat.type === 'private') {
+        // Find the other participant (not the current user)
+        const otherParticipant = existingChat.participants.find(
+          p => p.user && p.user._id && p.user._id.toString() !== req.user.id
+        );
+        
+        if (otherParticipant && otherParticipant.user) {
+          // Set chat name to the other participant's name
+          chatData.name = otherParticipant.user.username;
+          chatData.otherParticipant = {
+            id: otherParticipant.user._id,
+            username: otherParticipant.user.username,
+            email: otherParticipant.user.email,
+            avatar: otherParticipant.user.avatar
+          };
+        } else {
+          // Handle case where other participant user is null/deleted
+          chatData.name = 'Unknown User';
+          chatData.otherParticipant = {
+            id: null,
+            username: 'Unknown User',
+            email: '',
+            avatar: ''
+          };
+        }
+      }
+      
       return res.status(200).json({
         success: true,
         message: 'Private chat already exists',
         data: {
-          chat: existingChat
+          chat: chatData
         }
       });
     }
@@ -243,11 +309,40 @@ const createPrivateChat = async (req, res) => {
     // Populate participants
     await chat.populate('participants.user', 'username email avatar status');
 
+    // Format chat data for private chat (set name to other participant's username)
+    const chatData = chat.toJSON();
+    if (chat.type === 'private') {
+      // Find the other participant (not the current user)
+      const otherParticipant = chat.participants.find(
+        p => p.user && p.user._id && p.user._id.toString() !== req.user.id
+      );
+      
+      if (otherParticipant && otherParticipant.user) {
+        // Set chat name to the other participant's name
+        chatData.name = otherParticipant.user.username;
+        chatData.otherParticipant = {
+          id: otherParticipant.user._id,
+          username: otherParticipant.user.username,
+          email: otherParticipant.user.email,
+          avatar: otherParticipant.user.avatar
+        };
+      } else {
+        // Handle case where other participant user is null/deleted
+        chatData.name = 'Unknown User';
+        chatData.otherParticipant = {
+          id: null,
+          username: 'Unknown User',
+          email: '',
+          avatar: ''
+        };
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Private chat created successfully',
       data: {
-        chat
+        chat: chatData
       }
     });
 
@@ -684,7 +779,19 @@ const deleteChat = async (req, res) => {
       });
     }
 
-    // If it's a group chat, also handle the associated group
+    // For private chats, only remove the user's participation (don't delete the whole chat)
+    if (chat.type === 'private') {
+      // Remove current user from participants (set isActive = false)
+      await chat.removeParticipant(req.user.id);
+      
+      res.json({
+        success: true,
+        message: 'Chat deleted successfully'
+      });
+      return;
+    }
+
+    // For group chats, handle the associated group
     if (chat.type === 'group') {
       const group = await Group.findOne({ name: chat.name, isActive: true });
       if (group) {
@@ -703,11 +810,18 @@ const deleteChat = async (req, res) => {
         group.isActive = false;
         await group.save();
       }
+      
+      // For group chats, also remove the user from participants
+      await chat.removeParticipant(req.user.id);
+      
+      // If no active participants left, soft delete the chat
+      const activeParticipants = chat.participants.filter(p => p.isActive);
+      if (activeParticipants.length === 0) {
+        chat.isActive = false;
+      }
+      
+      await chat.save();
     }
-
-    // Soft delete chat
-    chat.isActive = false;
-    await chat.save();
 
     res.json({
       success: true,

@@ -2,6 +2,7 @@ const Message = require('../models/Message');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const { summarizeMessages } = require('../services/summarizeService');
 
 // @desc    Get messages for a chat
 // @route   GET /api/messages/:chatId
@@ -12,7 +13,7 @@ const getMessages = async (req, res) => {
     const { page = 1, limit = 50 } = req.query;
 
     // Check if chat exists and user is participant
-    const chat = await Chat.findById(chatId);
+    const chat = await Chat.findById(chatId).populate('participants.user', 'username avatar status');
     if (!chat || !chat.isActive) {
       return res.status(404).json({
         success: false,
@@ -20,9 +21,13 @@ const getMessages = async (req, res) => {
       });
     }
 
-    const isParticipant = chat.participants.some(
-      p => p.user && p.user.toString() === req.user.id && p.isActive
-    );
+    // Check if user is participant (handle both populated and unpopulated user fields)
+    const isParticipant = chat.participants.some(p => {
+      if (!p.isActive) return false;
+      // Handle populated user (object with _id) or unpopulated (just ObjectId)
+      const userId = p.user && (p.user._id ? p.user._id.toString() : p.user.toString());
+      return userId === req.user.id;
+    });
 
     // Allow admin/moderator to access any chat
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'moderator');
@@ -34,8 +39,18 @@ const getMessages = async (req, res) => {
       });
     }
 
-    // Get messages
-    const messages = await Message.getChatMessages(chatId, parseInt(page), parseInt(limit));
+    // Check if user has leftAt timestamp (deleted chat before and was reactivated)
+    // If so, only show messages after they left (new messages only)
+    const userParticipant = chat.participants.find(p => {
+      if (!p.isActive) return false;
+      // Handle populated user (object with _id) or unpopulated (just ObjectId)
+      const userId = p.user && (p.user._id ? p.user._id.toString() : p.user.toString());
+      return userId === req.user.id;
+    });
+    const leftAt = userParticipant && userParticipant.leftAt ? userParticipant.leftAt : null;
+    
+    // Get messages (filter by leftAt if user deleted chat before)
+    const messages = await Message.getChatMessages(chatId, parseInt(page), parseInt(limit), leftAt);
 
     // Mark messages as read
     await Message.markAsRead(chatId, req.user.id);
@@ -136,10 +151,17 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // If private chat, enforce block status: sender cannot send if either side blocked the other
+    // If private chat, enforce block status and reactivate inactive participant
     if (chat.type === 'private') {
       // Get the other participant id
       const otherParticipant = chat.participants.find(p => p.user && p.user.toString() !== req.user.id);
+      
+      // If other participant is inactive, reactivate them (they deleted the chat but should receive new messages)
+      if (otherParticipant && !otherParticipant.isActive) {
+        await chat.addParticipant(otherParticipant.user, 'member');
+        console.log(`Reactivated participant ${otherParticipant.user} in chat ${chat._id} because they received a new message`);
+      }
+      
       const me = await User.findById(req.user.id).select('blockedUsers');
       const other = otherParticipant ? await User.findById(otherParticipant.user).select('blockedUsers') : null;
       const iBlockedThem = me && me.blockedUsers && me.blockedUsers.some(id => id.toString() === otherParticipant.user.toString());
@@ -314,6 +336,28 @@ const deleteMessage = async (req, res) => {
 
     // Soft delete message
     await message.softDelete(req.user.id);
+
+    // Emit socket event to notify all participants
+    const io = req.app.get('io');
+    if (io && chat) {
+      // Get chat participants
+      await chat.populate('participants.user', 'username avatar status');
+      const participants = chat.participants.filter(p => p.isActive);
+      
+      // Emit to all participants
+      participants.forEach(participant => {
+        const userId = participant.user && (participant.user._id ? participant.user._id.toString() : participant.user.toString());
+        if (userId) {
+          const userRoom = `user_${userId}`;
+          io.to(userRoom).emit('message_deleted', {
+            id: message._id,
+            chat: chat._id,
+            chatType: chat.type,
+            deletedBy: req.user.id
+          });
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -626,6 +670,122 @@ const getAllMessages = async (req, res) => {
   }
 };
 
+// @desc    Summarize chat messages using summary cursor (like Facebook Messenger)
+// @route   GET /api/messages/:chatId/summarize
+// @access  Private
+const summarizeChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    // Check if chat exists and user is participant
+    const chat = await Chat.findById(chatId);
+    if (!chat || !chat.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+
+    const isParticipant = chat.participants.some(
+      p => p.user && p.user.toString() === req.user.id && p.isActive
+    );
+
+    // Allow admin/moderator to access any chat
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'moderator');
+
+    if (!isParticipant && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this chat'
+      });
+    }
+
+    // Get last summarized timestamp from chat (summary cursor)
+    const lastSummarizedTimestamp = chat.lastSummarizedTimestamp || null;
+
+    // Build query: messages after lastSummarizedTimestamp
+    // IMPORTANT: Only summarize messages from OTHER users (not from current user)
+    const query = {
+      chat: chatId,
+      isDeleted: false,
+      sender: { $ne: req.user.id } // Only messages from other users
+    };
+
+    if (lastSummarizedTimestamp) {
+      query.createdAt = { $gt: lastSummarizedTimestamp };
+    }
+
+    // Fetch all pending messages (messages after cursor) from other users only
+    // Sort by timestamp descending to get most recent first
+    let pendingMessages = await Message.find(query)
+      .populate('sender', 'username')
+      .sort({ createdAt: -1 }); // Descending order (newest first)
+
+    // Limit to 5-50 most recent messages
+    const MIN_MESSAGES = 5;
+    const MAX_MESSAGES = 50;
+    
+    if (pendingMessages.length > MAX_MESSAGES) {
+      // Take only the 50 most recent messages
+      pendingMessages = pendingMessages.slice(0, MAX_MESSAGES);
+    }
+    
+    // Reverse to chronological order for summarization
+    pendingMessages = pendingMessages.reverse();
+
+    // If no new messages or less than minimum, return early
+    if (pendingMessages.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          summary: 'No new messages to summarize.',
+          message_count: 0,
+          new_last_summarized_timestamp: lastSummarizedTimestamp
+        }
+      });
+    }
+    
+    // If less than minimum messages, still summarize but note it
+    if (pendingMessages.length < MIN_MESSAGES) {
+      // Still summarize, but this is a small batch
+    }
+
+    // Prepare chat context for AI
+    const chatContext = {
+      type: chat.type,
+      participantCount: chat.participants ? chat.participants.filter(p => p.isActive).length : 0
+    };
+
+    // Generate summary using AI (with fallback to rule-based)
+    const summary = await summarizeMessages(pendingMessages, chatContext);
+    const messageCount = pendingMessages.length;
+
+    // Get the newest message timestamp to update cursor
+    const newestMessage = pendingMessages[pendingMessages.length - 1];
+    const newLastSummarizedTimestamp = newestMessage.createdAt;
+
+    // Update chat's lastSummarizedTimestamp
+    chat.lastSummarizedTimestamp = newLastSummarizedTimestamp;
+    await chat.save();
+
+    res.json({
+      success: true,
+      data: {
+        summary: summary.trim(),
+        message_count: messageCount,
+        new_last_summarized_timestamp: newLastSummarizedTimestamp
+      }
+    });
+
+  } catch (error) {
+    console.error('Summarize chat error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while summarizing chat'
+    });
+  }
+};
+
 module.exports = {
   getMessages,
   getAllMessages,
@@ -635,5 +795,6 @@ module.exports = {
   addReaction,
   removeReaction,
   markAsRead,
-  searchMessages
+  searchMessages,
+  summarizeChat
 };

@@ -9,7 +9,8 @@ const {
   addReaction,
   removeReaction,
   markAsRead,
-  searchMessages
+  searchMessages,
+  summarizeChat
 } = require('../controllers/messageController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { getMessageStats } = require('../controllers/serverController');
@@ -129,11 +130,14 @@ router.get('/admin', getAllMessages);
 // Get message statistics (admin only)
 router.get('/stats', adminOnly, getMessageStats);
 
-// Get messages for a chat
-router.get('/:chatId', chatIdValidation, getMessages);
+// Summarize chat messages (must be before /:chatId route)
+router.get('/:chatId/summarize', chatIdValidation, summarizeChat);
 
-// Search messages in a chat
+// Search messages in a chat (must be before /:chatId route)
 router.get('/:chatId/search', searchValidation, searchMessages);
+
+// Get messages for a chat (this must be last to avoid matching other routes)
+router.get('/:chatId', chatIdValidation, getMessages);
 
 // Send message
 router.post('/', sendMessageValidation, sendMessage);

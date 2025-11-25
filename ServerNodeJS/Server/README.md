@@ -97,11 +97,15 @@ Server/
 
    # File Upload (if needed)
    MAX_FILE_SIZE=10mb
+
+   # AI Summarization (Optional - uses Google Gemini free tier)
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
    **Important Notes:** 
    - Ensure MongoDB is running locally or change MONGODB_URI to MongoDB Atlas connection string
    - Change JWT_SECRET to a strong secret string in production
+   - **Gemini API Key (Optional)**: For AI-powered chat summarization, get a free API key from [Google AI Studio](https://makersuite.google.com/app/apikey). If not provided, the system will use a rule-based fallback summarization.
 
 4. Start server:
    ```bash

@@ -101,6 +101,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected ImageView ivReplyClose;
     // Offline indicator
     protected android.view.View offlineIndicator;
+    // Summarize indicator
+    protected android.view.View summarizeIndicator;
     protected String replyingToMessageId;
     protected String replyingToAuthor;
     protected String replyingToContent;
@@ -1498,6 +1500,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         tvReplyContent = findViewById(R.id.tv_reply_content);
         ivReplyClose = findViewById(R.id.iv_reply_close);
         offlineIndicator = findViewById(R.id.offline_indicator);
+        summarizeIndicator = findViewById(R.id.summarize_indicator);
         
         // Log view initialization
         android.util.Log.d("BaseChatActivity", "Views initialized - ivBack: " + (ivBack != null) + 
@@ -1524,6 +1527,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 String chatJson = intent.getStringExtra("chat");
                 JSONObject chatJsonObj = new JSONObject(chatJson);
                 currentChat = Chat.fromJson(chatJsonObj);
+                // Load lastSummarizedTimestamp for this chat
+                loadLastSummarizedTimestamp();
             } catch (JSONException e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Error loading chat data", Toast.LENGTH_SHORT).show();
@@ -1632,6 +1637,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
         if (ivReplyClose != null && replyBar != null) {
             ivReplyClose.setOnClickListener(v -> clearReplyState());
+        }
+
+        // Summarize button
+        if (summarizeIndicator != null) {
+            summarizeIndicator.setOnClickListener(v -> showChatSummary());
         }
 
         // Voice recording button - use touch listener for press/release
@@ -1782,6 +1792,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void loadMessages() {
         if (currentChat == null) return;
 
+        // Clear messages list first to avoid duplicates
+        messages.clear();
+        
         // First, try to load from local database (works offline)
         loadMessagesFromDatabase();
         
@@ -1824,21 +1837,37 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 }
                                 boolean addedNewAtEnd = false;
                                 if (!isRefresh) {
+                                    // Initial load - clear and replace all messages
                                     messages.clear();
-                                    messages.addAll(pageOne);
-                                } else {
-                                    // Merge: upsert by id; if id not found, try replace local placeholder; else append
+                                    // Deduplicate by ID before adding
+                                    java.util.Set<String> seenIds = new java.util.HashSet<>();
                                     for (Message m : pageOne) {
-                                        int existingIdx = indexOfMessageById(m.getId());
+                                        String msgId = m.getId();
+                                        if (msgId != null && !msgId.isEmpty() && !seenIds.contains(msgId)) {
+                                            messages.add(m);
+                                            seenIds.add(msgId);
+                                        }
+                                    }
+                                } else {
+                                    // Refresh/polling - merge: upsert by id; if id not found, try replace local placeholder; else append
+                                    for (Message m : pageOne) {
+                                        String msgId = m.getId();
+                                        if (msgId == null || msgId.isEmpty()) continue; // Skip messages without ID
+                                        
+                                        int existingIdx = indexOfMessageById(msgId);
                                         if (existingIdx >= 0) {
+                                            // Update existing message
                                             messages.set(existingIdx, m);
                                             messageAdapter.notifyItemChanged(existingIdx);
                                         } else {
+                                            // Check for local placeholder
                                             int localIdx = findLocalPlaceholderIndex(m);
                                             if (localIdx >= 0) {
+                                                // Replace local placeholder
                                                 messages.set(localIdx, m);
                                                 messageAdapter.notifyItemChanged(localIdx);
                                             } else {
+                                                // New message - add to end
                                                 messages.add(m);
                                                 addedNewAtEnd = true;
                                             }
@@ -1861,6 +1890,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 }
 
                                 messageAdapter.notifyDataSetChanged();
+                                
+                                // Update summarize indicator
+                                updateSummarizeIndicator();
 
                                 // Handle scrolling based on context
                                 if (!isRefresh) {
@@ -1917,6 +1949,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             messages.clear();
             messages.addAll(dbMessages);
             messageAdapter.notifyDataSetChanged();
+            updateSummarizeIndicator();
             scrollToBottom();
             android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + " messages from database");
         }
@@ -1978,12 +2011,326 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         offlineIndicator.setVisibility(isOnline ? View.GONE : View.VISIBLE);
     }
     
+    // Track last summarization timestamp to only count new unread messages
+    private long lastSummarizedTimestamp = 0;
+    
+    // Handler for auto-hiding summarize indicator after 30 seconds
+    private Handler autoHideSummarizeHandler = null;
+    private Runnable autoHideSummarizeRunnable = null;
+    
+    /**
+     * Get the key for storing lastSummarizedTimestamp in SharedPreferences
+     */
+    private String getSummarizedTimestampKey() {
+        if (currentChat == null) return null;
+        return "last_summarized_" + currentChat.getId();
+    }
+    
+    /**
+     * Load lastSummarizedTimestamp from SharedPreferences
+     */
+    private void loadLastSummarizedTimestamp() {
+        String key = getSummarizedTimestampKey();
+        if (key == null) {
+            lastSummarizedTimestamp = 0;
+            android.util.Log.d("BaseChatActivity", "loadLastSummarizedTimestamp: key is null, reset to 0");
+            return;
+        }
+        android.content.SharedPreferences prefs = getSharedPreferences("chat_prefs", MODE_PRIVATE);
+        lastSummarizedTimestamp = prefs.getLong(key, 0);
+        android.util.Log.d("BaseChatActivity", String.format(
+            "loadLastSummarizedTimestamp: key=%s, timestamp=%d", key, lastSummarizedTimestamp
+        ));
+    }
+    
+    /**
+     * Save lastSummarizedTimestamp to SharedPreferences
+     */
+    private void saveLastSummarizedTimestamp(long timestamp) {
+        String key = getSummarizedTimestampKey();
+        if (key == null) return;
+        android.content.SharedPreferences prefs = getSharedPreferences("chat_prefs", MODE_PRIVATE);
+        prefs.edit().putLong(key, timestamp).apply();
+    }
+    
+    /**
+     * Count unread messages (messages not sent by current user and not read)
+     * After summarization, only count messages after lastSummarizedTimestamp
+     * Also check local database for unread status before server marks them as read
+     */
+    private int countUnreadMessages() {
+        if (messages == null || messages.isEmpty()) {
+            android.util.Log.d("BaseChatActivity", "countUnreadMessages: messages is null or empty");
+            return 0;
+        }
+        
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
+        if (currentUserId == null) {
+            android.util.Log.d("BaseChatActivity", "countUnreadMessages: currentUserId is null");
+            return 0;
+        }
+        
+        int count = 0;
+        int totalMessages = messages.size();
+        int skippedByTimestamp = 0;
+        int skippedByReadStatus = 0;
+        
+        // Get unread message IDs from local database (before server marks them as read)
+        java.util.Set<String> unreadMessageIds = new java.util.HashSet<>();
+        if (messageRepository != null && currentChat != null) {
+            List<Message> dbMessages = messageRepository.getMessagesForChat(currentChat.getId(), 0);
+            for (Message dbMsg : dbMessages) {
+                if (!dbMsg.isRead() && dbMsg.getSenderId() != null && 
+                    !dbMsg.getSenderId().equals(currentUserId)) {
+                    unreadMessageIds.add(dbMsg.getId());
+                }
+            }
+        }
+        
+        for (Message message : messages) {
+            // Count messages that are not from current user
+            if (message.getSenderId() != null && 
+                !message.getSenderId().equals(currentUserId) && 
+                !message.isDeleted()) {
+                
+                // Check if message is unread (either from message.isRead() or from local database)
+                boolean isUnread = !message.isRead() || 
+                    (message.getId() != null && unreadMessageIds.contains(message.getId()));
+                
+                if (!isUnread) {
+                    skippedByReadStatus++;
+                    continue;
+                }
+                
+                // If we've summarized before, only count messages after lastSummarizedTimestamp
+                if (lastSummarizedTimestamp > 0) {
+                    long messageTimestamp = message.getTimestamp();
+                    if (messageTimestamp <= lastSummarizedTimestamp) {
+                        skippedByTimestamp++;
+                        continue; // Skip messages that were already summarized
+                    }
+                }
+                count++;
+            }
+        }
+        
+        android.util.Log.d("BaseChatActivity", String.format(
+            "countUnreadMessages: total=%d, unread=%d, lastSummarizedTimestamp=%d, skippedByTimestamp=%d, skippedByReadStatus=%d",
+            totalMessages, count, lastSummarizedTimestamp, skippedByTimestamp, skippedByReadStatus
+        ));
+        
+        return count;
+    }
+    
+    /**
+     * Update summarize indicator visibility based on unread message count
+     */
+    private void updateSummarizeIndicator() {
+        if (summarizeIndicator == null) {
+            android.util.Log.w("BaseChatActivity", "updateSummarizeIndicator: summarizeIndicator is null");
+            return;
+        }
+        
+        int unreadCount = countUnreadMessages();
+        // Show summarize button when there are 13 or more unread messages
+        boolean shouldShow = unreadCount >= 13;
+        
+        android.util.Log.d("BaseChatActivity", String.format(
+            "updateSummarizeIndicator: unreadCount=%d, shouldShow=%s, currentVisibility=%s",
+            unreadCount, shouldShow, 
+            summarizeIndicator.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"
+        ));
+        
+        summarizeIndicator.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
+        
+        // Cancel previous auto-hide timer if exists
+        cancelAutoHideSummarizeTimer();
+        
+        // If showing, start auto-hide timer (30 seconds)
+        if (shouldShow) {
+            startAutoHideSummarizeTimer();
+        }
+    }
+    
+    /**
+     * Start auto-hide timer for summarize indicator (30 seconds)
+     */
+    private void startAutoHideSummarizeTimer() {
+        if (autoHideSummarizeHandler == null) {
+            autoHideSummarizeHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        // Cancel previous timer if exists
+        cancelAutoHideSummarizeTimer();
+        
+        autoHideSummarizeRunnable = new Runnable() {
+            @Override
+            public void run() {
+                // Auto-hide summarize indicator after 30 seconds
+                if (summarizeIndicator != null && summarizeIndicator.getVisibility() == View.VISIBLE) {
+                    summarizeIndicator.setVisibility(View.GONE);
+                    // Update lastSummarizedTimestamp to current time to prevent showing again
+                    lastSummarizedTimestamp = System.currentTimeMillis();
+                    saveLastSummarizedTimestamp(lastSummarizedTimestamp);
+                }
+            }
+        };
+        
+        // Schedule to hide after 30 seconds (30000 milliseconds)
+        autoHideSummarizeHandler.postDelayed(autoHideSummarizeRunnable, 30000);
+    }
+    
+    /**
+     * Cancel auto-hide timer for summarize indicator
+     */
+    private void cancelAutoHideSummarizeTimer() {
+        if (autoHideSummarizeHandler != null && autoHideSummarizeRunnable != null) {
+            autoHideSummarizeHandler.removeCallbacks(autoHideSummarizeRunnable);
+            autoHideSummarizeRunnable = null;
+        }
+    }
+    
+    /**
+     * Show chat summary dialog
+     */
+    private void showChatSummary() {
+        if (currentChat == null) return;
+        
+        // Show loading dialog
+        AlertDialog loadingDialog = new AlertDialog.Builder(this)
+            .setMessage("Đang tóm tắt chat...")
+            .setCancelable(false)
+            .create();
+        loadingDialog.show();
+        
+        String token = databaseManager.getToken();
+        apiClient.summarizeChat(token, currentChat.getId(), new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    loadingDialog.dismiss();
+                    if (response.isSuccessful()) {
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                String summary = jsonResponse.optJSONObject("data")
+                                    .optString("summary", "Không thể tạo tóm tắt");
+                                
+                                // Update lastSummarizedTimestamp to current time
+                                // This ensures we only count new unread messages after summarization
+                                lastSummarizedTimestamp = System.currentTimeMillis();
+                                // Save to SharedPreferences to persist across activity restarts
+                                saveLastSummarizedTimestamp(lastSummarizedTimestamp);
+                                
+                                showSummaryDialog(summary);
+                                // Hide summarize indicator after successful summarization
+                                updateSummarizeIndicator();
+                            } else {
+                                String errorMsg = jsonResponse.optString("message", "Không thể tạo tóm tắt");
+                                Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(BaseChatActivity.this, "Lỗi xử lý phản hồi", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(BaseChatActivity.this, "Lỗi: " + response.code(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    loadingDialog.dismiss();
+                    Toast.makeText(BaseChatActivity.this, "Lỗi kết nối: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * Show summary dialog with the chat summary (Meta AI style)
+     */
+    private void showSummaryDialog(String summary) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_summary, null);
+        TextView tvSummary = dialogView.findViewById(R.id.tv_summary);
+        
+        // Format summary text: convert **bold** to SpannableString with bold style
+        android.text.SpannableString spannable = formatSummaryText(summary);
+        tvSummary.setText(spannable);
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        builder.setPositiveButton("Đóng", null);
+        
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        dialog.show();
+    }
+    
+    /**
+     * Format summary text: convert **text** to bold and improve formatting
+     */
+    private android.text.SpannableString formatSummaryText(String text) {
+        // First, replace **text** with just text and track positions
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\*\\*(.+?)\\*\\*");
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+        
+        java.util.List<java.util.Map<String, Object>> boldRanges = new java.util.ArrayList<>();
+        StringBuffer result = new StringBuffer();
+        int currentPos = 0;
+        
+        while (matcher.find()) {
+            // Add text before the match
+            result.append(text.substring(currentPos, matcher.start()));
+            
+            String boldText = matcher.group(1);
+            int boldStart = result.length();
+            result.append(boldText);
+            int boldEnd = result.length();
+            
+            // Store the range for later styling
+            java.util.Map<String, Object> range = new java.util.HashMap<>();
+            range.put("start", boldStart);
+            range.put("end", boldEnd);
+            boldRanges.add(range);
+            
+            currentPos = matcher.end();
+        }
+        
+        // Add remaining text
+        result.append(text.substring(currentPos));
+        
+        // Create SpannableString and apply bold styles
+        android.text.SpannableString spannable = new android.text.SpannableString(result.toString());
+        
+        for (java.util.Map<String, Object> range : boldRanges) {
+            int start = (Integer) range.get("start");
+            int end = (Integer) range.get("end");
+            android.text.style.StyleSpan boldSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
+            spannable.setSpan(boldSpan, start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        return spannable;
+    }
+    
     @Override
     protected void onResume() {
         super.onResume();
+        // Restart auto-hide timer if summarize indicator is visible
+        if (summarizeIndicator != null && summarizeIndicator.getVisibility() == View.VISIBLE) {
+            startAutoHideSummarizeTimer();
+        }
         
         // Update offline indicator
         updateOfflineIndicator();
+        
+        // Update summarize indicator
+        updateSummarizeIndicator();
         
         // Sync pending messages when activity resumes (in case network came back)
         if (syncManager != null && isNetworkAvailable()) {
@@ -2436,6 +2783,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     @Override
     protected void onDestroy() {
+        // Cancel auto-hide timer
+        cancelAutoHideSummarizeTimer();
         // Clean up recording resources
         if (isRecording) {
             try {
@@ -2584,28 +2933,49 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (currentChat == null || !chatId.equals(currentChat.getId())) return;
 
             Message incoming = Message.fromJson(messageJson);
-            // Save to database
+            
+            // First check if message already exists by ID (most reliable)
+            int idx = indexOfMessageById(incoming.getId());
+            if (idx >= 0) {
+                // Message already exists, just update it
+                messages.set(idx, incoming);
+                messageAdapter.notifyItemChanged(idx);
+                // Still save to database to ensure sync
+                if (messageRepository != null) {
+                    messageRepository.saveMessage(incoming);
+                }
+                return;
+            }
+            
+            // Check for local placeholder (for offline messages that were just synced)
+            int localIdx = findLocalPlaceholderIndex(incoming);
+            if (localIdx >= 0) {
+                // Replace local placeholder with server message
+                messages.set(localIdx, incoming);
+                messageAdapter.notifyItemChanged(localIdx);
+                // Save to database
+                if (messageRepository != null) {
+                    messageRepository.saveMessage(incoming);
+                }
+                // Update summarize indicator when new message arrives
+                updateSummarizeIndicator();
+                // Only scroll to bottom if user is already at the bottom
+                scrollToBottomIfAtBottom();
+                return;
+            }
+            
+            // New message - add to list and save to database
+            // Save to database first
             if (messageRepository != null) {
                 messageRepository.saveMessage(incoming);
             }
-            // Upsert by id
-            int idx = indexOfMessageById(incoming.getId());
-            if (idx >= 0) {
-                messages.set(idx, incoming);
-                messageAdapter.notifyItemChanged(idx);
-            } else {
-        // De-duplicate: if there is a local placeholder with same signature, replace it
-        int localIdx = findLocalPlaceholderIndex(incoming);
-                if (localIdx >= 0) {
-                    messages.set(localIdx, incoming);
-                    messageAdapter.notifyItemChanged(localIdx);
-                } else {
-                    messages.add(incoming);
-                    messageAdapter.notifyItemInserted(messages.size() - 1);
-                }
-                // Only scroll to bottom if user is already at the bottom
-                scrollToBottomIfAtBottom();
-            }
+            // Add to UI list
+            messages.add(incoming);
+            messageAdapter.notifyItemInserted(messages.size() - 1);
+            // Update summarize indicator when new message arrives
+            updateSummarizeIndicator();
+            // Only scroll to bottom if user is already at the bottom
+            scrollToBottomIfAtBottom();
         } catch (Exception e) {
             android.util.Log.e("BaseChatActivity", "Failed to handle incoming message: " + e.getMessage());
         }
@@ -2632,6 +3002,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             String chatId = metaJson.optString("chat");
             if (currentChat == null) return;
             if (!chatId.isEmpty() && !chatId.equals(currentChat.getId())) return;
+            
+            // Update local database to mark message as deleted
+            if (messageRepository != null && messageId != null && !messageId.isEmpty()) {
+                messageRepository.deleteMessage(messageId);
+            }
+            
             int idx = indexOfMessageById(messageId);
             if (idx >= 0) {
                 Message m = messages.get(idx);
@@ -2951,6 +3327,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             public void onResponse(okhttp3.Call call, okhttp3.Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
+                        // Update local database to mark message as deleted
+                        if (messageRepository != null) {
+                            messageRepository.deleteMessage(message.getId());
+                        }
+                        
                         // Remove locally to reflect immediate deletion
                         int idx = indexOfMessageById(message.getId());
                         if (idx >= 0) {

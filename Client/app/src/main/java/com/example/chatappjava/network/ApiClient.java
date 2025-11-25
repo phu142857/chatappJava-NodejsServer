@@ -463,6 +463,13 @@ public class ApiClient {
     }
     
     /**
+     * Summarize chat messages
+     */
+    public void summarizeChat(String token, String chatId, Callback callback) {
+        authenticatedGet("/api/messages/" + chatId + "/summarize", token, callback);
+    }
+    
+    /**
      * Delete a chat
      */
     public void deleteChat(String token, String chatId, Callback callback) {

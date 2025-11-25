@@ -182,13 +182,22 @@ messageSchema.pre('save', function(next) {
 });
 
 // Static method to get chat messages
-messageSchema.statics.getChatMessages = function(chatId, page = 1, limit = 50) {
+// afterTimestamp: if provided, only return messages created after this timestamp
+messageSchema.statics.getChatMessages = function(chatId, page = 1, limit = 50, afterTimestamp = null) {
   const skip = (page - 1) * limit;
   
-  return this.find({
+  const query = {
     chat: chatId,
     isDeleted: false
-  })
+  };
+  
+  // If afterTimestamp is provided, only get messages after that timestamp
+  // This is used when a user deleted the chat and was reactivated - they should only see new messages
+  if (afterTimestamp) {
+    query.createdAt = { $gt: afterTimestamp };
+  }
+  
+  return this.find(query)
   .populate('sender', 'username avatar status')
   .populate('replyTo', 'content sender type')
   .populate('reactions.user', 'username')

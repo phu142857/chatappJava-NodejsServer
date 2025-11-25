@@ -152,16 +152,15 @@
 
     </LinearLayout>
 
-    <!-- Group Call Active Notification -->
+    <!-- Chat Summarize Button -->
     <LinearLayout
-        android:id="@+id/group_call_notification"
+        android:id="@+id/summarize_indicator"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_horizontal"
         android:padding="12dp"
         android:visibility="gone"
-        android:background="@color/primary_color"
         android:clickable="true"
         android:focusable="true"
         app:layout_constraintTop_toBottomOf="@id/offline_indicator"
@@ -171,9 +170,39 @@
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_marginEnd="8dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            app:tint="@color/primary_color" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Summarize Chat"
+            android:textColor="@color/primary_color"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Group Call Active Notification -->
+    <LinearLayout
+        android:id="@+id/group_call_notification"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal"
+        android:padding="12dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toBottomOf="@id/summarize_indicator"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:src="@drawable/ic_video_call"
-            app:tint="@android:color/white" />
+            app:tint="@color/primary_color" />
 
         <TextView
             android:id="@+id/tv_group_call_notification_text"
@@ -181,7 +210,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="Group video call in progress"
-            android:textColor="@android:color/white"
+            android:textColor="@color/primary_color"
             android:textSize="14sp"
             android:textStyle="bold" />
 
@@ -189,7 +218,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="TAP TO JOIN"
-            android:textColor="@android:color/white"
+            android:textColor="@color/primary_color"
             android:textSize="12sp"
             android:textStyle="bold"
             android:paddingStart="8dp"

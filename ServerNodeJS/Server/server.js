@@ -30,6 +30,9 @@ const SocketHandler = require('./socket/socketHandler');
 // Import database config
 const connectDB = require('./config/database');
 
+// Import summarize service
+const { initializeGemini } = require('./services/summarizeService');
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -297,6 +300,13 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server accessible from: http://0.0.0.0:${PORT}`);
+  
+  // Initialize Gemini AI for summarization
+  if (initializeGemini()) {
+    console.log('✓ Gemini AI initialized for chat summarization');
+  } else {
+    console.log('⚠ Gemini AI not available - using fallback summarization');
+  }
   console.log(`WebAdmin URL: ${process.env.WEBADMIN_URL}`);
   console.log(`Client URL: ${process.env.CLIENT_URL}`);
 });

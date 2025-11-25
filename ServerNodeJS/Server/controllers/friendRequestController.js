@@ -329,14 +329,35 @@ const createPrivateChat = async (userId1, userId2) => {
   try {
     console.log(`💬 Creating private chat between ${userId1} and ${userId2}`);
     
-    // Check if chat already exists
-    const existingChat = await Chat.findOne({
+    // Check if chat already exists (including inactive participants)
+    let existingChat = await Chat.findOne({
       type: 'private',
       'participants.user': { $all: [userId1, userId2] },
-      'participants.isActive': true
+      'participants.isActive': true,
+      isActive: true
     });
     
+    // If not found, try to find with any participant status
+    if (!existingChat) {
+      existingChat = await Chat.findOne({
+        type: 'private',
+        'participants.user': { $all: [userId1, userId2] },
+        isActive: true
+      });
+    }
+    
     if (existingChat) {
+      // Reactivate both participants if they were inactive
+      const participant1 = existingChat.participants.find(p => p.user && p.user.toString() === userId1.toString());
+      const participant2 = existingChat.participants.find(p => p.user && p.user.toString() === userId2.toString());
+      
+      if (participant1 && !participant1.isActive) {
+        await existingChat.addParticipant(userId1, 'member');
+      }
+      if (participant2 && !participant2.isActive) {
+        await existingChat.addParticipant(userId2, 'member');
+      }
+      
       console.log(`💬 Private chat already exists: ${existingChat._id}`);
       return existingChat;
     }
