@@ -246,48 +246,48 @@ async function generateAISummary(messages, chatContext = {}) {
   }).join('\n');
 
   // Build prompt for professional conversation summary
-  const prompt = `Bạn là một trợ lý tóm tắt hội thoại chuyên nghiệp và súc tích. Nhiệm vụ của bạn là phân tích đoạn hội thoại dưới đây và cung cấp một bản tóm tắt ngắn gọn nhưng đầy đủ thông tin.
+  const prompt = `You are a professional and concise conversation summarization assistant. Your task is to analyze the conversation below and provide a brief but comprehensive summary.
 
-**1. Vai trò:**
+**1. Role:**
 
-Hãy tập trung vào các điểm chính:
+Focus on the key points:
 
-* **Ai là người nói?** (Các bên tham gia)
+* **Who is speaking?** (Participants)
 
-* **Chủ đề chính là gì?**
+* **What is the main topic?**
 
-* **Những quyết định/hành động đã được chốt/thống nhất?**
+* **What decisions/actions have been finalized/agreed upon?**
 
-* **Các chi tiết quan trọng (thời gian, địa điểm, con số) là gì?**
+* **What are the important details (time, location, numbers)?**
 
-**2. Đoạn hội thoại cần tóm tắt:**
+**2. Conversation to summarize:**
 
 ${formattedMessages}
 
-${chatContext.type === 'group' ? `Đây là một nhóm chat với ${chatContext.participantCount || 'nhiều'} thành viên.` : 'Đây là một cuộc trò chuyện riêng tư giữa hai người.'}
+${chatContext.type === 'group' ? `This is a group chat with ${chatContext.participantCount || 'multiple'} members.` : 'This is a private conversation between two people.'}
 
-**3. Định dạng đầu ra mong muốn:**
+**3. Desired output format:**
 
-Vui lòng cung cấp tóm tắt của bạn theo cấu trúc sau, sử dụng ngôn ngữ tự nhiên:
+Please provide your summary in the following structure, using natural language:
 
-**Tóm Tắt Hội Thoại:**
+**Conversation Summary:**
 
-* **Các bên:** [Liệt kê tên những người tham gia]
+* **Participants:** [List the names of the participants]
 
-* **Chủ đề:** [Nêu chủ đề bao quát của cuộc nói chuyện]
+* **Topic:** [State the overall topic of the conversation]
 
-* **Nội dung Chính:** [Tóm tắt chi tiết các quyết định, đề xuất, hoặc thông tin quan trọng. Sử dụng bullet points (•) nếu có nhiều điểm. Nhóm các chủ đề liên quan lại với nhau.]
+* **Main Content:** [Summarize in detail the decisions, proposals, or important information. Use bullet points (•) if there are multiple points. Group related topics together.]
 
-* **Hành động/Quyết định Đã Chốt:** [Liệt kê các việc cần làm, lịch hẹn, hoặc thỏa thuận đã được xác nhận. Sử dụng bullet points (•) cho mỗi hành động/quyết định.]
+* **Actions/Decisions Finalized:** [List the tasks to be done, appointments, or agreements that have been confirmed. Use bullet points (•) for each action/decision.]
 
-Lưu ý:
-- Viết bằng tiếng Việt nếu cuộc hội thoại bằng tiếng Việt, ngược lại viết bằng tiếng Anh
-- Giữ tóm tắt ngắn gọn nhưng đầy đủ thông tin
-- Tập trung vào thông tin quan trọng và có thể hành động được
-- Nếu có tin nhắn media (hình ảnh, file), đề cập trong phần Nội dung Chính
-- Sử dụng ngôn ngữ tự nhiên, dễ hiểu
+Notes:
+- Write in the same language as the conversation (if conversation is in Vietnamese, write in Vietnamese; if in English, write in English)
+- Keep the summary concise but comprehensive
+- Focus on important and actionable information
+- If there are media messages (images, files), mention them in the Main Content section
+- Use natural, easy-to-understand language
 
-Hãy cung cấp tóm tắt theo đúng format trên:`;
+Please provide the summary in the exact format above:`;
 
   // First, try new @google/genai SDK with gemini-2.5-flash
   const newSDKResult = await tryNewGenAI(prompt);
@@ -426,15 +426,15 @@ function generateFallbackSummary(messages) {
 
   // Get participant names
   const participants = [...new Set(textMessages.map(msg => msg.sender?.username || 'User'))];
-  const participantList = participants.length === 1 
+  const participantList = participants.length === 1
     ? participants[0] 
-    : participants.slice(0, -1).join(', ') + ' và ' + participants[participants.length - 1];
+    : participants.slice(0, -1).join(', ') + ' and ' + participants[participants.length - 1];
 
   // Build summary in the new format
-  let summary = `**Tóm Tắt Hội Thoại:**\n\n`;
+  let summary = `**Conversation Summary:**\n\n`;
   
-  // Các bên
-  summary += `* **Các bên:** ${participantList}\n\n`;
+  // Participants
+  summary += `* **Participants:** ${participantList}\n\n`;
 
   // Group messages by sender to identify main topics
   const messagesBySender = {};
@@ -449,12 +449,12 @@ function generateFallbackSummary(messages) {
     });
   });
 
-  // Chủ đề (simplified - based on message count and content)
+  // Topic (simplified - based on message count and content)
   const totalMessages = textMessages.length;
-  summary += `* **Chủ đề:** Cuộc trò chuyện giữa ${participantList} về các vấn đề khác nhau\n\n`;
+  summary += `* **Topic:** Conversation between ${participantList} about various topics\n\n`;
 
-  // Nội dung Chính
-  summary += `* **Nội dung Chính:**\n`;
+  // Main Content
+  summary += `* **Main Content:**\n`;
   
   Object.keys(messagesBySender).forEach(sender => {
     const senderMessages = messagesBySender[sender];
@@ -474,23 +474,23 @@ function generateFallbackSummary(messages) {
       });
       
       if (messageCount > 2) {
-        summary += `  • ${sender}: ... và ${messageCount - 2} tin nhắn khác\n`;
+        summary += `  • ${sender}: ... and ${messageCount - 2} more messages\n`;
       }
     }
   });
 
   // Add media messages if any
   if (mediaMessages.length > 0) {
-    summary += `  • ${mediaMessages.length} tin nhắn media được chia sẻ\n`;
+    summary += `  • ${mediaMessages.length} media messages shared\n`;
   }
 
   summary += `\n`;
 
-  // Hành động/Quyết định Đã Chốt
-  summary += `* **Hành động/Quyết định Đã Chốt:**\n`;
+  // Actions/Decisions Finalized
+  summary += `* **Actions/Decisions Finalized:**\n`;
   
   // Try to identify action items from messages (simplified)
-  const actionKeywords = ['hẹn', 'sẽ', 'cần', 'phải', 'nhớ', 'đừng quên', 'meet', 'meeting', 'schedule'];
+  const actionKeywords = ['meet', 'meeting', 'schedule', 'will', 'need', 'must', 'remember', 'don\'t forget', 'appointment', 'deadline'];
   const actionMessages = textMessages.filter(msg => {
     const content = msg.content.toLowerCase();
     return actionKeywords.some(keyword => content.includes(keyword));
@@ -502,7 +502,7 @@ function generateFallbackSummary(messages) {
       summary += `  • ${preview}\n`;
     });
   } else {
-    summary += `  • Không có hành động cụ thể nào được chốt trong đoạn hội thoại này\n`;
+    summary += `  • No specific actions were finalized in this conversation\n`;
   }
 
   return summary.trim();

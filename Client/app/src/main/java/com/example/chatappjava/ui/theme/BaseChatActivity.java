@@ -2198,7 +2198,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         // Show loading dialog
         AlertDialog loadingDialog = new AlertDialog.Builder(this)
-            .setMessage("Đang tóm tắt chat...")
+            .setMessage("Summarizing chat...")
             .setCancelable(false)
             .create();
         loadingDialog.show();
@@ -2215,7 +2215,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             JSONObject jsonResponse = new JSONObject(responseBody);
                             if (jsonResponse.optBoolean("success", false)) {
                                 String summary = jsonResponse.optJSONObject("data")
-                                    .optString("summary", "Không thể tạo tóm tắt");
+                                    .optString("summary", "Unable to generate summary");
                                 
                                 // Update lastSummarizedTimestamp to current time
                                 // This ensures we only count new unread messages after summarization
@@ -2227,15 +2227,15 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 // Hide summarize indicator after successful summarization
                                 updateSummarizeIndicator();
                             } else {
-                                String errorMsg = jsonResponse.optString("message", "Không thể tạo tóm tắt");
+                                String errorMsg = jsonResponse.optString("message", "Unable to generate summary");
                                 Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
-                            Toast.makeText(BaseChatActivity.this, "Lỗi xử lý phản hồi", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(BaseChatActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
                         }
                     } else {
-                        Toast.makeText(BaseChatActivity.this, "Lỗi: " + response.code(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(BaseChatActivity.this, "Error: " + response.code(), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -2244,7 +2244,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     loadingDialog.dismiss();
-                    Toast.makeText(BaseChatActivity.this, "Lỗi kết nối: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(BaseChatActivity.this, "Connection error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -2263,7 +2263,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(dialogView);
-        builder.setPositiveButton("Đóng", null);
+        builder.setPositiveButton("Close", null);
         
         AlertDialog dialog = builder.create();
         if (dialog.getWindow() != null) {
@@ -2559,7 +2559,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                         if (messagePosition < messages.size()) {
                             messageAdapter.notifyItemChanged(messagePosition);
                         }
-                        Toast.makeText(BaseChatActivity.this, "Không có kết nối. Tin nhắn sẽ được gửi khi có mạng.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(BaseChatActivity.this, "No connection. Message will be sent when network is available.", Toast.LENGTH_LONG).show();
                     });
                 }
             });
@@ -2568,7 +2568,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             // Save as pending
             finalMessage.setId(null);
             messageRepository.saveMessage(finalMessage);
-            Toast.makeText(this, "Lỗi chuẩn bị tin nhắn. Sẽ thử lại sau.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error preparing message. Will retry later.", Toast.LENGTH_SHORT).show();
         }
     }
 

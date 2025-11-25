@@ -1202,9 +1202,9 @@ const respondJoinRequest = async (req, res) => {
     if (action === 'approve') {
       // Mark approved and perform full add-member sync (same như addMember)
       reqItem.status = 'approved';
-      // 1) Kích hoạt/Thêm vào Group
+      // 1) Activate/Add to Group
       await group.addMember(userId, 'member');
-      // 2) Đảm bảo tồn tại Chat nhóm và thêm participant
+      // 2) Ensure group chat exists and add participant
       let chat = await Chat.findOne({ type: 'group', groupId: group._id, isActive: true });
       if (!chat) chat = await Chat.findOne({ type: 'group', name: group.name, isActive: true });
       if (!chat) {
@@ -1225,7 +1225,7 @@ const respondJoinRequest = async (req, res) => {
       if (chat) {
         await chat.addParticipant(userId, 'member');
       }
-      // 3) Gửi socket notify cho user được duyệt
+      // 3) Send socket notification to approved user
       try {
         const io = req.app.get('io');
         if (io) {
