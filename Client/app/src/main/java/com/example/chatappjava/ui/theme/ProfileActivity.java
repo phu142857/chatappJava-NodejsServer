@@ -27,9 +27,12 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.chatappjava.R;
+import com.example.chatappjava.adapters.FriendsAdapter;
+import com.example.chatappjava.adapters.PostAdapter;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.DatabaseManager;
 import com.github.dhaval2404.imagepicker.ImagePicker;
 import com.squareup.picasso.Picasso;
@@ -55,6 +58,16 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView tvSave;
     private ProgressBar progressBar;
     private ImageView ivBack;
+    
+    // Friends and Posts
+    private androidx.recyclerview.widget.RecyclerView rvFriends;
+    private androidx.recyclerview.widget.RecyclerView rvPosts;
+    private TextView tvNoFriends;
+    private TextView tvNoPosts;
+    private com.example.chatappjava.adapters.FriendsAdapter friendsAdapter;
+    private com.example.chatappjava.adapters.PostAdapter postAdapter;
+    private java.util.List<com.example.chatappjava.models.User> friendsList;
+    private java.util.List<com.example.chatappjava.models.Post> postsList;
 
     private ApiClient apiClient;
     private DatabaseManager databaseManager;
@@ -77,6 +90,8 @@ public class ProfileActivity extends AppCompatActivity {
         setupClickListeners();
         setupTextWatchers();
         loadUserProfile();
+        loadFriends();
+        loadPosts();
     }
 
     private void initializeViews() {
@@ -90,11 +105,240 @@ public class ProfileActivity extends AppCompatActivity {
         tvSave = findViewById(R.id.tv_save);
         progressBar = findViewById(R.id.progress_bar);
         ivBack = findViewById(R.id.iv_back);
+        
+        // Friends and Posts
+        rvFriends = findViewById(R.id.rv_friends);
+        rvPosts = findViewById(R.id.rv_posts);
+        tvNoFriends = findViewById(R.id.tv_no_friends);
+        tvNoPosts = findViewById(R.id.tv_no_posts);
+        
+        // Initialize lists
+        friendsList = new java.util.ArrayList<>();
+        postsList = new java.util.ArrayList<>();
+        
+        // Setup RecyclerViews
+        if (rvFriends != null) {
+            rvFriends.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+            friendsAdapter = new FriendsAdapter(user -> {
+                try {
+                    Intent intent = new Intent(ProfileActivity.this, ProfileViewActivity.class);
+                    intent.putExtra("user", user.toJson().toString());
+                    startActivity(intent);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+            rvFriends.setAdapter(friendsAdapter);
+        }
+        
+        if (rvPosts != null) {
+            rvPosts.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+            postAdapter = new PostAdapter(this, postsList, new PostAdapter.OnPostClickListener() {
+                @Override
+                public void onPostClick(com.example.chatappjava.models.Post post) {
+                    Intent intent = new Intent(ProfileActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        Toast.makeText(ProfileActivity.this, "Error opening post", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onLikeClick(com.example.chatappjava.models.Post post, int position) {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(ProfileActivity.this, "Please login again", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    apiClient.toggleLikePost(token, post.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(ProfileActivity.this, "Failed to like post", Toast.LENGTH_SHORT).show());
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            runOnUiThread(() -> {
+                                if (response.isSuccessful()) {
+                                    post.setLiked(!post.isLiked());
+                                    if (post.isLiked()) {
+                                        post.setLikesCount(post.getLikesCount() + 1);
+                                    } else {
+                                        post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                                    }
+                                    postAdapter.updatePost(position, post);
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCommentClick(com.example.chatappjava.models.Post post) {
+                    Intent intent = new Intent(ProfileActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        Toast.makeText(ProfileActivity.this, "Error opening post", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onShareClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileActivity.this, "Share feature", Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onPostMenuClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileActivity.this, "Post options", Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onAuthorClick(com.example.chatappjava.models.Post post) {
+                    // Already on own profile
+                }
+                
+                @Override
+                public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
+                    Toast.makeText(ProfileActivity.this, "Media viewer", Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onTaggedUsersClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileActivity.this, "Tagged users", Toast.LENGTH_SHORT).show();
+                }
+            });
+            rvPosts.setAdapter(postAdapter);
+        }
     }
 
     private void initializeServices() {
         apiClient = new ApiClient();
         databaseManager = new DatabaseManager(this);
+        AvatarManager.getInstance(this); // Initialize AvatarManager for post adapter
+    }
+    
+    private void loadFriends() {
+        if (rvFriends == null) return;
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        String currentUserId = databaseManager.getUserId();
+        if (currentUserId == null || currentUserId.isEmpty()) return;
+        
+        apiClient.getUserFriendsById(token, currentUserId, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (tvNoFriends != null) {
+                        tvNoFriends.setVisibility(View.VISIBLE);
+                        tvNoFriends.setText("Failed to load friends");
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    if (!response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            if (tvNoFriends != null) {
+                                tvNoFriends.setVisibility(View.VISIBLE);
+                                tvNoFriends.setText("No friends to show");
+                            }
+                        });
+                        return;
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONObject data = json.getJSONObject("data");
+                    org.json.JSONArray arr = data.getJSONArray("friends");
+                    java.util.List<com.example.chatappjava.models.User> list = new java.util.ArrayList<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        com.example.chatappjava.models.User friend = com.example.chatappjava.models.User.fromJson(u);
+                        list.add(friend);
+                    }
+                    runOnUiThread(() -> {
+                        friendsList.clear();
+                        friendsList.addAll(list);
+                        if (friendsAdapter != null) friendsAdapter.setItems(list);
+                        if (tvNoFriends != null) tvNoFriends.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        if (tvNoFriends != null) {
+                            tvNoFriends.setVisibility(View.VISIBLE);
+                            tvNoFriends.setText("Failed to parse friends");
+                        }
+                    });
+                }
+            }
+        });
+    }
+    
+    private void loadPosts() {
+        if (rvPosts == null) return;
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        String currentUserId = databaseManager.getUserId();
+        if (currentUserId == null || currentUserId.isEmpty()) return;
+        
+        apiClient.getUserPosts(token, currentUserId, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (tvNoPosts != null) {
+                        tvNoPosts.setVisibility(View.VISIBLE);
+                        tvNoPosts.setText("Failed to load posts");
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    if (!response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            if (tvNoPosts != null) {
+                                tvNoPosts.setVisibility(View.VISIBLE);
+                                tvNoPosts.setText("No posts to show");
+                            }
+                        });
+                        return;
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    if (json.optBoolean("success", false)) {
+                        org.json.JSONObject data = json.getJSONObject("data");
+                        org.json.JSONArray postsArray = data.getJSONArray("posts");
+                        java.util.List<com.example.chatappjava.models.Post> list = new java.util.ArrayList<>();
+                        for (int i = 0; i < postsArray.length(); i++) {
+                            org.json.JSONObject postJson = postsArray.getJSONObject(i);
+                            com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                            list.add(post);
+                        }
+                        runOnUiThread(() -> {
+                            postsList.clear();
+                            postsList.addAll(list);
+                            if (postAdapter != null) postAdapter.setPosts(list);
+                            if (tvNoPosts != null) tvNoPosts.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                        });
+                    }
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        if (tvNoPosts != null) {
+                            tvNoPosts.setVisibility(View.VISIBLE);
+                            tvNoPosts.setText("Failed to parse posts");
+                        }
+                    });
+                }
+            }
+        });
     }
 
     private void setupImagePicker() {

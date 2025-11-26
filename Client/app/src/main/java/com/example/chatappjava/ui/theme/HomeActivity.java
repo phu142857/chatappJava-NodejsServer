@@ -57,6 +57,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private LinearLayout llFriendRequests;
     private TextView tvFriendRequestCount;
     private TextView tvFriendRequestsTitle;
+    private View userProfileSection; // Top bar with user profile
     
     // Posts Tab - Create Post Bar
     private LinearLayout llCreatePostBar;
@@ -158,6 +159,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         // messages_title removed from layout
         ivSearch = findViewById(R.id.iv_search);
         ivMoreVert = findViewById(R.id.iv_more_vert);
+        userProfileSection = findViewById(R.id.user_profile_section);
         tvChats = findViewById(R.id.tv_chats);
         tvGroups = findViewById(R.id.tv_groups);
         tvCalls = findViewById(R.id.tv_calls);
@@ -903,6 +905,19 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (llCreatePostBar != null) {
             llCreatePostBar.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
         }
+        
+        // Hide top bar (user profile, search, settings) on Posts tab
+        boolean isPostsTab = (tabIndex == 3);
+        if (userProfileSection != null) {
+            userProfileSection.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
+        }
+        if (ivSearch != null) {
+            ivSearch.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
+        }
+        if (ivMoreVert != null) {
+            ivMoreVert.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
+        }
+        
         // Toggle New Group Extended FAB visibility: only on Groups tab
         if (efabNewGroup != null) {
             efabNewGroup.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
@@ -925,12 +940,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 ConstraintSet constraintSet = new ConstraintSet();
                 constraintSet.clone(rootLayout);
                 
-                // For Posts tab, connect RecyclerView to create post bar
+                // For Posts tab, connect RecyclerView to create post bar (or top if no create post bar)
                 // For other tabs, connect RecyclerView to bottom of friend requests
                 constraintSet.clear(R.id.chat_list_card, ConstraintSet.TOP);
                 if (tabIndex == 3) {
-                    // Posts tab: connect to create post bar
-                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_create_post_bar, ConstraintSet.BOTTOM, 8);
+                    // Posts tab: connect to create post bar, or top if create post bar is hidden
+                    if (llCreatePostBar != null && llCreatePostBar.getVisibility() == View.VISIBLE) {
+                        constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_create_post_bar, ConstraintSet.BOTTOM, 8);
+                    } else {
+                        // If create post bar is hidden, connect to top of parent
+                        constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 8);
+                    }
                 } else {
                     // Other tabs: connect to friend requests
                 constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
