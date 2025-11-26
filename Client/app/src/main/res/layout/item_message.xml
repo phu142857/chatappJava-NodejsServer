@@ -17,12 +17,12 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="end"
+        android:layout_marginEnd="2dp"
         android:visibility="gone">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="50dp"
             android:orientation="vertical"
             android:gravity="end"
             android:clipChildren="false"
@@ -42,7 +42,7 @@
                     android:layout_width="72dp"
                     android:layout_height="48dp"
                     android:scaleType="centerCrop"
-                    android:layout_marginBottom="6dp"
+                    android:layout_marginBottom="8dp"
                     android:visibility="gone"
                     tools:src="@drawable/ic_profile_placeholder" />
                 <TextView
@@ -91,7 +91,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
-                    android:layout_marginBottom="2dp"
+                    android:layout_marginBottom="8dp"
                     android:layout_marginEnd="2dp"
                     android:translationX="2dp"
                     android:translationY="6dp"
@@ -120,7 +120,7 @@
                 android:id="@+id/tv_sent_edited"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:text="(edited)"
                 android:textSize="10sp"
                 android:textColor="@color/gray"
@@ -130,7 +130,7 @@
                 android:id="@+id/fl_sent_image_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="8dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:visibility="gone">
@@ -156,7 +156,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
-                    android:layout_marginBottom="2dp"
+                    android:layout_marginBottom="8dp"
                     android:layout_marginEnd="2dp"
                     android:translationX="2dp"
                     android:translationY="6dp"
@@ -175,7 +175,7 @@
                 android:id="@+id/tv_sent_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="8dp"
                 android:text="10:30 AM"
                 android:textSize="10sp"
                 android:textColor="@color/text_hint"
@@ -193,6 +193,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="start"
+        android:layout_marginStart="2dp"
         android:visibility="gone">
 
         <de.hdodenhof.circleimageview.CircleImageView
@@ -208,7 +209,6 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="50dp"
             android:orientation="vertical"
             android:gravity="start"
             android:clipChildren="false"
@@ -228,7 +228,7 @@
                     android:layout_width="72dp"
                     android:layout_height="48dp"
                     android:scaleType="centerCrop"
-                    android:layout_marginBottom="6dp"
+                    android:layout_marginBottom="8dp"
                     android:visibility="gone"
                     tools:src="@drawable/ic_profile_placeholder" />
                 <TextView
@@ -286,7 +286,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
-                    android:layout_marginBottom="2dp"
+                    android:layout_marginBottom="8dp"
                     android:layout_marginEnd="2dp"
                     android:translationX="2dp"
                     android:translationY="6dp"
@@ -315,7 +315,7 @@
                 android:id="@+id/tv_received_edited"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:text="(edited)"
                 android:textSize="10sp"
                 android:textColor="@color/gray"
@@ -325,7 +325,7 @@
                 android:id="@+id/fl_received_image_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="8dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:visibility="gone">
@@ -351,7 +351,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
-                    android:layout_marginBottom="2dp"
+                    android:layout_marginBottom="8dp"
                     android:layout_marginEnd="2dp"
                     android:translationX="2dp"
                     android:translationY="6dp"
@@ -370,7 +370,7 @@
                 android:id="@+id/tv_received_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="8dp"
                 android:text="10:30 AM"
                 android:textSize="10sp"
                 android:textColor="@color/text_hint"

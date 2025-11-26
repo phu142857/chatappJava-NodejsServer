@@ -22,7 +22,7 @@
         android:orientation="vertical" android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -79,9 +79,9 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -91,7 +91,7 @@
             <!-- Group Information Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -107,7 +107,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Group Name -->
                     <TextView
@@ -130,7 +130,7 @@
                         android:background="@drawable/input_pill"
                         android:padding="12dp"
                         android:minHeight="48dp"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Group Description -->
                     <TextView
@@ -155,7 +155,7 @@
                         android:padding="12dp"
                         android:minHeight="80dp"
                         android:gravity="top"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Public/Private Toggle -->
                     <LinearLayout
@@ -184,7 +184,7 @@
                                 android:text="Anyone can join this group"
                                 android:textSize="12sp"
                                 android:textColor="@color/black"
-                                android:layout_marginTop="4dp" />
+                                android:layout_marginTop="8dp" />
 
                         </LinearLayout>
 
@@ -203,7 +203,7 @@
             <!-- Friends Selection Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="8dp"
                 android:layout_weight="1" android:orientation="vertical">
 
                 <LinearLayout
@@ -228,7 +228,7 @@
                         android:text="Select at least 2 friends to create a group"
                         android:textSize="14sp"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Search bar moved inside Select Friends section -->
                     <LinearLayout
@@ -268,7 +268,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:visibility="gone"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Friends RecyclerView fills remaining space inside card -->
                     <androidx.recyclerview.widget.RecyclerView

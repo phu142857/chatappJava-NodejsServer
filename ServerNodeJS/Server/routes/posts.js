@@ -1,0 +1,172 @@
+const express = require('express');
+const { body, param, query } = require('express-validator');
+const {
+  createPost,
+  getUserPosts,
+  getFeedPosts,
+  getPostById,
+  updatePost,
+  deletePost,
+  toggleLike,
+  addComment,
+  deleteComment,
+  sharePost
+} = require('../controllers/postController');
+const { authMiddleware } = require('../middleware/authMiddleware');
+
+const router = express.Router();
+
+// Apply auth middleware to all routes
+router.use(authMiddleware);
+
+// Validation rules
+const createPostValidation = [
+  body('content')
+    .optional()
+    .isLength({ max: 5000 })
+    .withMessage('Post content cannot exceed 5000 characters'),
+  body('images')
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage('Maximum 5 images allowed per post'),
+  body('images.*')
+    .optional()
+    .isString()
+    .withMessage('Image must be a string (URL or ID)'),
+  body('privacySetting')
+    .optional()
+    .isIn(['public', 'friends', 'only_me'])
+    .withMessage('Privacy setting must be one of: public, friends, only_me'),
+  body('location')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Location must be a string'),
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  body('tags.*')
+    .optional()
+    .isMongoId()
+    .withMessage('Each tag must be a valid user ID')
+];
+
+const updatePostValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  body('content')
+    .optional()
+    .isLength({ max: 5000 })
+    .withMessage('Post content cannot exceed 5000 characters'),
+  body('images')
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage('Maximum 5 images allowed per post'),
+  body('images.*')
+    .optional()
+    .isString()
+    .withMessage('Image must be a string (URL or ID)'),
+  body('privacySetting')
+    .optional()
+    .isIn(['public', 'friends', 'only_me'])
+    .withMessage('Privacy setting must be one of: public, friends, only_me'),
+  body('location')
+    .optional()
+    .isString()
+    .trim()
+    .withMessage('Location must be a string'),
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  body('tags.*')
+    .optional()
+    .isMongoId()
+    .withMessage('Each tag must be a valid user ID')
+];
+
+const postIdValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format')
+];
+
+const userIdValidation = [
+  param('userId')
+    .isMongoId()
+    .withMessage('Invalid user ID format')
+];
+
+const addCommentValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  body('content')
+    .notEmpty()
+    .withMessage('Comment content is required')
+    .isLength({ max: 1000 })
+    .withMessage('Comment cannot exceed 1000 characters')
+    .trim()
+];
+
+// Routes
+
+// Create post
+router.post('/', createPostValidation, createPost);
+
+// Get feed posts (public and friends' posts)
+router.get('/feed', [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+], getFeedPosts);
+
+// Get user's posts
+router.get('/user/:userId', userIdValidation, [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+], getUserPosts);
+
+// Get post by ID
+router.get('/:id', postIdValidation, getPostById);
+
+// Update post
+router.put('/:id', updatePostValidation, updatePost);
+
+// Delete post
+router.delete('/:id', postIdValidation, deletePost);
+
+// Like/Unlike post
+router.post('/:id/like', postIdValidation, toggleLike);
+
+// Add comment
+router.post('/:id/comments', addCommentValidation, addComment);
+
+// Delete comment
+router.delete('/:id/comments/:commentId', [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  param('commentId')
+    .isMongoId()
+    .withMessage('Invalid comment ID format')
+], deleteComment);
+
+// Share post
+router.post('/:id/share', postIdValidation, sharePost);
+
+module.exports = router;
+

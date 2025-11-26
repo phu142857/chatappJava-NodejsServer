@@ -5,5 +5,3 @@
     <!-- Semi-transparent dark background to mimic Messenger floating chip -->
     <solid android:color="#3D000000" />
 </shape>
-
-

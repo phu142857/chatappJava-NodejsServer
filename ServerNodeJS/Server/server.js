@@ -22,6 +22,7 @@ const serverRoutes = require('./routes/server');
 const statisticsRoutes = require('./routes/statistics');
 const securityRoutes = require('./routes/security');
 const reportRoutes = require('./routes/reports');
+const postRoutes = require('./routes/posts');
 
 // Import socket handler
 const SocketHandler = require('./socket/socketHandler');
@@ -269,6 +270,7 @@ app.use('/api/server', serverRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/posts', postRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

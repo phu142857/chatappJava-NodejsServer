@@ -22,9 +22,8 @@
     <LinearLayout android:id="@+id/header_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -68,7 +67,7 @@
                     android:id="@+id/tv_user_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="8dp"
                     android:textColor="@color/black"
                     android:textSize="14sp"
                     tools:text="John Doe" />
@@ -83,10 +82,9 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginBottom="8dp"
         app:layout_constraintTop_toBottomOf="@id/header_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -100,7 +98,7 @@
             <!-- Account Settings Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -116,7 +114,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Profile -->
                     <LinearLayout
@@ -226,7 +224,7 @@
             <!-- Privacy &amp; Security Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -242,7 +240,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Blocked Users -->
                     <LinearLayout
@@ -318,7 +316,7 @@
             <!-- Notifications Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -334,7 +332,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Push Notifications -->
                     <LinearLayout
@@ -366,7 +364,7 @@
                                 android:text="Receive notifications for new messages"
                                 android:textSize="12sp"
                                 android:textColor="@color/black"
-                                android:layout_marginTop="4dp" />
+                                android:layout_marginTop="8dp" />
 
                         </LinearLayout>
 
@@ -408,7 +406,7 @@
                                 android:text="Play sound for notifications"
                                 android:textSize="12sp"
                                 android:textColor="@color/black"
-                                android:layout_marginTop="4dp" />
+                                android:layout_marginTop="8dp" />
 
                         </LinearLayout>
 
@@ -449,7 +447,7 @@
                                 android:text="Vibrate for notifications"
                                 android:textSize="12sp"
                                 android:textColor="@color/black"
-                                android:layout_marginTop="4dp" />
+                                android:layout_marginTop="8dp" />
 
                         </LinearLayout>
 
@@ -468,7 +466,7 @@
             <!-- Server Settings Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -484,7 +482,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- Server Configuration -->
                     <LinearLayout
@@ -560,7 +558,7 @@
             <!-- About Section -->
             <LinearLayout android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" android:orientation="vertical">
+                android:layout_marginBottom="8dp" android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -576,7 +574,7 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="8dp" />
 
                     <!-- App Version -->
                     <LinearLayout

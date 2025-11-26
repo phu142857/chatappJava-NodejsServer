@@ -97,4 +97,51 @@
     <color name="chat_bubble_received_legacy">#F3F4F6</color>
     <color name="chat_text_sent_legacy">#FFFFFF</color>
     <color name="chat_text_received_legacy">#111827</color>
+    
+    <!-- Icon Color System - Vibrant/Colorful Style -->
+    
+    <!-- Primary Brand Colors -->
+    <color name="icon_primary_brand">#1877F2</color>
+    <color name="icon_secondary_accent">#00C300</color>
+    <color name="icon_tertiary_accent">#FFC000</color>
+    <color name="icon_background_reference">#F0F2F5</color>
+    
+    <!-- Active/Primary Navigation Icons (Full Color, Filled) -->
+    <color name="icon_active">#1877F2</color>
+    <color name="icon_active_filled">#1877F2</color>
+    
+    <!-- Inactive Navigation Icons (Colorful but Less Saturated) -->
+    <color name="icon_inactive">#8A8A8E</color>
+    <color name="icon_inactive_accent">#B0C4DE</color>
+    
+    <!-- Interaction/Reaction Icons (Vibrant Colors) -->
+    <color name="icon_like">#1877F2</color>
+    <color name="icon_like_active">#1877F2</color>
+    <color name="icon_love">#E84C3D</color>
+    <color name="icon_comment">#1877F2</color>
+    <color name="icon_share">#00C300</color>
+    <color name="icon_success">#00C300</color>
+    
+    <!-- Utility Icons (Distinct Color, Not Pure Black) -->
+    <color name="icon_utility">#555555</color>
+    <color name="icon_utility_dark">#3A3A3C</color>
+    <color name="icon_search">#555555</color>
+    <color name="icon_settings">#555555</color>
+    <color name="icon_close">#555555</color>
+    <color name="icon_more">#555555</color>
+    
+    <!-- Action Icons (Vibrant Colors) -->
+    <color name="icon_primary_action">#1877F2</color>
+    <color name="icon_photo">#00C300</color>
+    <color name="icon_video">#1877F2</color>
+    <color name="icon_location">#FFC000</color>
+    <color name="icon_tag">#1877F2</color>
+    <color name="icon_live">#E84C3D</color>
+    
+    <!-- Utility Icons on Dark Backgrounds -->
+    <color name="icon_white">#FFFFFF</color>
+    
+    <!-- Legacy Support (for backward compatibility) -->
+    <color name="icon_primary">#1877F2</color>
+    <color name="icon_inactive_legacy">#AAAAAA</color>
 </resources>

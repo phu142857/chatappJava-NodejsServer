@@ -10,7 +10,6 @@
             <corners android:radius="28dp" />
         </shape>
     </item>
-    
     <!-- Default state -->
     <item>
         <shape android:shape="rectangle">
@@ -22,4 +21,3 @@
         </shape>
     </item>
 </selector>
-

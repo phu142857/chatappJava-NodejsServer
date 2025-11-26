@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewParent;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -16,6 +17,8 @@ import android.os.Looper;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatappjava.R;
@@ -33,12 +36,14 @@ import com.squareup.picasso.Picasso;
 import com.example.chatappjava.adapters.CallListAdapter;
 import com.example.chatappjava.models.Call;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class HomeActivity extends AppCompatActivity implements ChatListAdapter.OnChatClickListener, CallListAdapter.OnCallClickListener{
+public class HomeActivity extends AppCompatActivity implements ChatListAdapter.OnChatClickListener, CallListAdapter.OnCallClickListener {
     
     private static final String TAG = "HomeActivity";
     
@@ -47,11 +52,20 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ImageView ivSearch, ivMoreVert;
     private View btnNewGroupAction;
     private View efabNewGroup;
-    private TextView tvChats, tvGroups, tvCalls;
+    private TextView tvChats, tvGroups, tvCalls, tvPosts;
     private RecyclerView rvChatList;
     private LinearLayout llFriendRequests;
     private TextView tvFriendRequestCount;
     private TextView tvFriendRequestsTitle;
+    
+    // Posts Tab - Create Post Bar
+    private LinearLayout llCreatePostBar;
+    private LinearLayout llCreatePostInput;
+    private TextView tvCreatePostHint;
+    private de.hdodenhof.circleimageview.CircleImageView ivPostProfileThumbnail;
+    private LinearLayout llLivePost;
+    private LinearLayout llPhotoPost;
+    private LinearLayout llVideoPost;
     
     // User Profile Components
     private de.hdodenhof.circleimageview.CircleImageView ivUserAvatar;
@@ -63,11 +77,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ApiClient apiClient;
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
+    private com.example.chatappjava.adapters.PostAdapter postAdapter;
     private List<Chat> chatList;
     private List<Call> callList;
+    private List<com.example.chatappjava.models.Post> postList;
     private AvatarManager avatarManager;
     private boolean isLoadingChats = false;
     private boolean isLoadingCalls = false;
+    private boolean isLoadingPosts = false;
     private boolean isPolling = false;
     private AlertDialog currentDialog;
     private final java.util.Set<String> blockedUserIds = new java.util.HashSet<>();
@@ -87,7 +104,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     };
     
     // Current tab tracking
-    private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls
+    private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls, 3: Posts
     // Hold reference to message listener for add/remove
     private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
     private android.content.BroadcastReceiver blockedChangedReceiver;
@@ -144,6 +161,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvChats = findViewById(R.id.tv_chats);
         tvGroups = findViewById(R.id.tv_groups);
         tvCalls = findViewById(R.id.tv_calls);
+        tvPosts = findViewById(R.id.tv_posts);
         rvChatList = findViewById(R.id.rv_chat_list);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
         tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
@@ -151,6 +169,15 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvFriendRequestsTitle = findViewById(R.id.tv_requests_title);
         // New Group Extended FAB
         efabNewGroup = findViewById(R.id.efab_new_group);
+        
+        // Posts Tab - Create Post Bar
+        llCreatePostBar = findViewById(R.id.ll_create_post_bar);
+        llCreatePostInput = findViewById(R.id.ll_create_post_input);
+        tvCreatePostHint = findViewById(R.id.tv_create_post_hint);
+        ivPostProfileThumbnail = findViewById(R.id.iv_post_profile_thumbnail);
+        llLivePost = findViewById(R.id.ll_live_post);
+        llPhotoPost = findViewById(R.id.ll_photo_post);
+        llVideoPost = findViewById(R.id.ll_video_post);
         
         // User Profile Components
         ivUserAvatar = findViewById(R.id.iv_user_avatar);
@@ -163,6 +190,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         apiClient = new ApiClient();
         chatList = new ArrayList<>();
         callList = new ArrayList<>();
+        postList = new ArrayList<>();
         avatarManager = AvatarManager.getInstance(this);
         avatarManager.initialize(); // Initialize avatar manager with scheduled refresh
 
@@ -226,6 +254,54 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 switchTab(2);
             }
         });
+        
+        tvPosts.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(3);
+            }
+        });
+        
+        // Create Post Bar Click Listeners
+        if (llCreatePostInput != null) {
+            llCreatePostInput.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llPhotoPost != null) {
+            llPhotoPost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llVideoPost != null) {
+            llVideoPost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llLivePost != null) {
+            llLivePost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Toast.makeText(HomeActivity.this, "Live streaming coming soon", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
         if (efabNewGroup != null) {
             efabNewGroup.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -235,6 +311,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 }
             });
         }
+        
     }
     
     private void setupRecyclerView() {
@@ -244,6 +321,116 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         callAdapter = new CallListAdapter(this);
         callAdapter.setOnCallClickListener(this);
         callAdapter.setCurrentUserId(databaseManager.getUserId());
+        
+        // Setup post adapter
+        postAdapter = new com.example.chatappjava.adapters.PostAdapter(this, postList, new com.example.chatappjava.adapters.PostAdapter.OnPostClickListener() {
+            @Override
+            public void onPostClick(com.example.chatappjava.models.Post post) {
+                // TODO: Open post detail view
+            }
+            
+            @Override
+            public void onLikeClick(com.example.chatappjava.models.Post post, int position) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    Toast.makeText(HomeActivity.this, "Please login again", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Optimistically update UI
+                boolean newLikedState = !post.isLiked();
+                post.setLiked(newLikedState);
+                if (newLikedState) {
+                    post.setLikesCount(post.getLikesCount() + 1);
+                } else {
+                    post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                }
+                postAdapter.updatePost(position, post);
+                
+                // Make API call to like/unlike post
+                apiClient.toggleLikePost(token, post.getId(), new okhttp3.Callback() {
+                    @Override
+                    public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> {
+                            // Revert optimistic update on failure
+                            post.setLiked(!newLikedState);
+                            if (newLikedState) {
+                                post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                            } else {
+                                post.setLikesCount(post.getLikesCount() + 1);
+                            }
+                            postAdapter.updatePost(position, post);
+                        });
+                    }
+                    
+                    @Override
+                    public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        if (response.isSuccessful()) {
+                            try {
+                                String responseBody = response.body().string();
+                                JSONObject jsonResponse = new JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    JSONObject data = jsonResponse.optJSONObject("data");
+                                    if (data != null) {
+                                        boolean liked = data.optBoolean("liked", newLikedState);
+                                        int likesCount = data.optInt("likesCount", post.getLikesCount());
+                                        
+                                        runOnUiThread(() -> {
+                                            post.setLiked(liked);
+                                            post.setLikesCount(likesCount);
+                                            postAdapter.updatePost(position, post);
+                                        });
+                                    }
+                                }
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Error parsing like response: " + e.getMessage());
+                            }
+                        } else {
+                            runOnUiThread(() -> {
+                                // Revert optimistic update on failure
+                                post.setLiked(!newLikedState);
+                                if (newLikedState) {
+                                    post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                                } else {
+                                    post.setLikesCount(post.getLikesCount() + 1);
+                                }
+                                postAdapter.updatePost(position, post);
+                                
+                                if (response.code() == 401) {
+                                    databaseManager.clearLoginInfo();
+                                    redirectToLogin();
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            
+            @Override
+            public void onCommentClick(com.example.chatappjava.models.Post post) {
+                // TODO: Open comment thread
+            }
+            
+            @Override
+            public void onShareClick(com.example.chatappjava.models.Post post) {
+                // TODO: Open share dialog
+            }
+            
+            @Override
+            public void onPostMenuClick(com.example.chatappjava.models.Post post) {
+                // TODO: Show post options menu
+            }
+            
+            @Override
+            public void onAuthorClick(com.example.chatappjava.models.Post post) {
+                // TODO: Open author profile
+            }
+            
+            @Override
+            public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
+                // TODO: Open media viewer
+            }
+        });
         
         rvChatList.setLayoutManager(new LinearLayoutManager(this));
         rvChatList.setAdapter(chatAdapter);
@@ -329,6 +516,19 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         // Both avatar and profile section are clickable
         ivUserAvatar.setOnClickListener(profileClickListener);
         findViewById(R.id.user_profile_section).setOnClickListener(profileClickListener);
+        
+        // Load avatar for post profile thumbnail
+        if (ivPostProfileThumbnail != null && avatarManager != null) {
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                String fullAvatarUrl = avatarUrl;
+                if (!avatarUrl.startsWith("http")) {
+                    fullAvatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + avatarUrl;
+                }
+                avatarManager.loadAvatar(fullAvatarUrl, ivPostProfileThumbnail, R.drawable.ic_profile_placeholder);
+            } else {
+                ivPostProfileThumbnail.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        }
     }
     
     private void switchTab(int tabIndex) {
@@ -338,6 +538,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvChats.setSelected(false);
         tvGroups.setSelected(false);
         tvCalls.setSelected(false);
+        tvPosts.setSelected(false);
+        
         // Show title only on Chats tab
         if (tvFriendRequestsTitle != null) {
             tvFriendRequestsTitle.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
@@ -346,9 +548,61 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (llFriendRequests != null) {
             llFriendRequests.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
         }
+        // Show Create Post Bar only on Posts tab
+        if (llCreatePostBar != null) {
+            llCreatePostBar.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
+        }
         // Toggle New Group Extended FAB visibility: only on Groups tab
         if (efabNewGroup != null) {
             efabNewGroup.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
+        }
+        
+        // Update RecyclerView constraints and padding for different tabs using ConstraintSet
+        View chatListCard = findViewById(R.id.chat_list_card);
+        RecyclerView recyclerView = findViewById(R.id.rv_chat_list);
+        
+        // Ensure RecyclerView is visible
+        if (recyclerView != null) {
+            recyclerView.setVisibility(View.VISIBLE);
+        }
+        if (chatListCard != null) {
+            chatListCard.setVisibility(View.VISIBLE);
+            
+            ViewParent parent = chatListCard.getParent();
+            if (parent instanceof ConstraintLayout) {
+                ConstraintLayout rootLayout = (ConstraintLayout) parent;
+                ConstraintSet constraintSet = new ConstraintSet();
+                constraintSet.clone(rootLayout);
+                
+                // For Posts tab, connect RecyclerView to create post bar
+                // For other tabs, connect RecyclerView to bottom of friend requests
+                constraintSet.clear(R.id.chat_list_card, ConstraintSet.TOP);
+                if (tabIndex == 3) {
+                    // Posts tab: connect to create post bar
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_create_post_bar, ConstraintSet.BOTTOM, 8);
+                } else {
+                    // Other tabs: connect to friend requests
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
+                }
+                constraintSet.clear(R.id.chat_list_card, ConstraintSet.BOTTOM);
+                constraintSet.connect(R.id.chat_list_card, ConstraintSet.BOTTOM, R.id.tab_container, ConstraintSet.TOP, 8);
+                // Set margins for tabs
+                if (chatListCard != null) {
+                    android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) chatListCard.getLayoutParams();
+                    if (params != null) {
+                        params.leftMargin = 0;
+                        params.rightMargin = 0;
+                        params.topMargin = 0;
+                        params.bottomMargin = 0;
+                        chatListCard.setLayoutParams(params);
+                    }
+                }
+                // Remove padding bottom
+                if (recyclerView != null) {
+                    recyclerView.setPadding(0, 0, 0, 0);
+                }
+                constraintSet.applyTo(rootLayout);
+            }
         }
         
         // Highlight selected tab (color will be handled by tab_text_selector)
@@ -370,6 +624,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 // Switch to call adapter and load call history
                 rvChatList.setAdapter(callAdapter);
                 loadCallHistory();
+                break;
+            case 3:
+                tvPosts.setSelected(true);
+                // Switch to post adapter and load posts
+                rvChatList.setAdapter(postAdapter);
+                loadPosts();
                 break;
         }
     }
@@ -489,6 +749,108 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
     }
 
+    private void loadPosts() {
+        loadPosts(false);
+    }
+    
+    private void loadPosts(boolean forceReload) {
+        if (isLoadingPosts || postAdapter == null) {
+            return;
+        }
+        
+        // If posts are already loaded and not forcing reload, don't reload
+        if (!forceReload && !postList.isEmpty()) {
+            return;
+        }
+        
+        isLoadingPosts = true;
+        
+        if (forceReload) {
+            postList.clear();
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            isLoadingPosts = false;
+            return;
+        }
+        
+        String currentUserId = databaseManager.getUserId();
+        
+        // Call API to get feed posts
+        apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to load posts: " + e.getMessage());
+                    isLoadingPosts = false;
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                JSONArray postsArray = data.getJSONArray("posts");
+                                
+                                List<com.example.chatappjava.models.Post> newPosts = new ArrayList<>();
+                                for (int i = 0; i < postsArray.length(); i++) {
+                                    try {
+                                        JSONObject postJson = postsArray.getJSONObject(i);
+                                        
+                                        // Check if current user liked this post
+                                        JSONArray likesArray = postJson.optJSONArray("likes");
+                                        if (likesArray != null && currentUserId != null) {
+                                            boolean isLiked = false;
+                                            for (int j = 0; j < likesArray.length(); j++) {
+                                                JSONObject likeObj = likesArray.optJSONObject(j);
+                                                if (likeObj != null) {
+                                                    JSONObject userObj = likeObj.optJSONObject("user");
+                                                    if (userObj != null) {
+                                                        String likeUserId = userObj.optString("_id", "");
+                                                        if (currentUserId.equals(likeUserId)) {
+                                                            isLiked = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            postJson.put("isLiked", isLiked);
+                                        }
+                                        
+                                        com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                        newPosts.add(post);
+                                    } catch (JSONException e) {
+                                        Log.e(TAG, "Error parsing post: " + e.getMessage());
+                                    }
+                                }
+                                
+                                if (forceReload) {
+                                    postList.clear();
+                                }
+                                postList.addAll(newPosts);
+                                postAdapter.setPosts(postList);
+                            }
+                        } else if (response.code() == 401) {
+                            databaseManager.clearLoginInfo();
+                            redirectToLogin();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing posts response: " + e.getMessage());
+                    } finally {
+                        isLoadingPosts = false;
+                    }
+                });
+            }
+        });
+    }
+    
     private void reloadHome() {
         // Refresh both chats and friend requests
         loadFriendRequestCount();
@@ -733,6 +1095,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == 1002 && resultCode == RESULT_OK) {
+            // Post was created successfully, refresh posts if on Posts tab
+            if (currentTab == 3) {
+                loadPosts(true); // Force reload
+            }
+        }
         
         if (requestCode == 1001 && resultCode == RESULT_OK) {
             // Friend request was accepted/rejected, refresh count and chat list
@@ -1623,5 +1992,6 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             Toast.makeText(this, "Error initiating call", Toast.LENGTH_SHORT).show();
         }
     }
+    
 
 }

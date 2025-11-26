@@ -38,6 +38,7 @@ let adminToken = null;
 let testUserId = null;
 let testChatId = null;
 let testMessageId = null;
+let testPostId = null;
 
 // Helper function to make HTTP requests
 function makeRequest(method, url, data = null, token = null) {
@@ -190,6 +191,23 @@ async function runTests() {
     assert(response.body.user || response.body.data, 'Response should contain user data');
   });
 
+  await test('Update Profile', async () => {
+    const response = await makeRequest('PUT', `${API_BASE}/auth/profile`, {
+      username: `testuser_${Date.now()}`,
+      profile: {
+        firstName: 'Test',
+        lastName: 'User',
+        bio: 'Test bio'
+      }
+    }, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Refresh Token', async () => {
+    const response = await makeRequest('POST', `${API_BASE}/auth/refresh`, null, authToken);
+    assertSuccess(response);
+  });
+
   // Users Tests
   console.log('\n--- Users Tests ---');
 
@@ -203,6 +221,16 @@ async function runTests() {
     assertSuccess(response);
   });
 
+  await test('Get Blocked Users', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/users/blocked`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Get Friends', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/users/friends`, null, authToken);
+    assertSuccess(response);
+  });
+
   await test('Search Users', async () => {
     const response = await makeRequest('GET', `${API_BASE}/users/search?q=test`, null, authToken);
     assertSuccess(response);
@@ -211,6 +239,11 @@ async function runTests() {
   if (testUserId) {
     await test('Get User by ID', async () => {
       const response = await makeRequest('GET', `${API_BASE}/users/${testUserId}`, null, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Get User Friends', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/users/${testUserId}/friends`, null, authToken);
       assertSuccess(response);
     });
   }
@@ -232,6 +265,20 @@ async function runTests() {
       const response = await makeRequest('GET', `${API_BASE}/chats/${testChatId}`, null, authToken);
       assertSuccess(response);
     });
+
+    await test('Get Group Members', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/chats/${testChatId}/members`, null, authToken);
+      assertSuccess(response);
+    });
+  }
+
+  if (testUserId) {
+    await test('Create Private Chat', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/chats/private`, {
+        participantId: testUserId
+      }, authToken);
+      assertSuccess(response);
+    });
   }
 
   // Messages Tests
@@ -247,6 +294,16 @@ async function runTests() {
       }
     });
 
+    await test('Search Messages in Chat', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/messages/${testChatId}/search?q=test`, null, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Summarize Chat', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/messages/${testChatId}/summarize`, null, authToken);
+      assertSuccess(response);
+    });
+
     await test('Send Message', async () => {
       const response = await makeRequest('POST', `${API_BASE}/messages`, {
         chatId: testChatId,
@@ -260,9 +317,37 @@ async function runTests() {
         console.log(`  Message sent with ID: ${testMessageId}`);
       }
     });
+
+    if (testMessageId) {
+      await test('Edit Message', async () => {
+        const response = await makeRequest('PUT', `${API_BASE}/messages/${testMessageId}`, {
+          content: `Updated message ${Date.now()}`
+        }, authToken);
+        assertSuccess(response);
+      });
+
+      await test('Add Reaction to Message', async () => {
+        const response = await makeRequest('POST', `${API_BASE}/messages/${testMessageId}/reactions`, {
+          emoji: '👍'
+        }, authToken);
+        assertSuccess(response);
+      });
+    }
+
+    await test('Mark Messages as Read', async () => {
+      const response = await makeRequest('PUT', `${API_BASE}/messages/${testChatId}/read`, {
+        messageIds: testMessageId ? [testMessageId] : []
+      }, authToken);
+      assertSuccess(response);
+    });
   } else {
     skip('Get Messages for Chat (no chat available)');
     skip('Send Message (no chat available)');
+    skip('Search Messages (no chat available)');
+    skip('Summarize Chat (no chat available)');
+    skip('Edit Message (no chat available)');
+    skip('Add Reaction (no chat available)');
+    skip('Mark as Read (no chat available)');
   }
 
   // Friend Requests Tests
@@ -272,6 +357,16 @@ async function runTests() {
     const response = await makeRequest('GET', `${API_BASE}/friend-requests`, null, authToken);
     assertSuccess(response);
   });
+
+  if (testUserId) {
+    await test('Send Friend Request', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/friend-requests`, {
+        receiverId: testUserId
+      }, authToken);
+      // May fail if already friends or request exists, that's OK
+      console.log(`  Status: ${response.status}`);
+    });
+  }
 
   // Groups Tests
   console.log('\n--- Groups Tests ---');
@@ -283,6 +378,16 @@ async function runTests() {
 
   await test('Get Public Groups', async () => {
     const response = await makeRequest('GET', `${API_BASE}/groups/public`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Get Group Contacts', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/groups/contacts`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Search Groups', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/groups/search?q=test`, null, authToken);
     assertSuccess(response);
   });
 
@@ -298,6 +403,94 @@ async function runTests() {
     const response = await makeRequest('GET', `${API_BASE}/calls/active`, null, authToken);
     assertSuccess(response);
   });
+
+  // Group Calls Tests
+  console.log('\n--- Group Calls Tests ---');
+
+  if (testChatId) {
+    await test('Get Active Group Call', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/group-calls/chat/${testChatId}/active`, null, authToken);
+      assertSuccess(response);
+    });
+  } else {
+    skip('Get Active Group Call (no chat available)');
+  }
+
+  // Upload Tests
+  console.log('\n--- Upload Tests ---');
+
+  if (testChatId) {
+    skip('Upload Chat Image (requires multipart/form-data)');
+    skip('Upload Chat File (requires multipart/form-data)');
+  } else {
+    skip('Upload Tests (no chat available)');
+  }
+
+  // Posts Tests
+  console.log('\n--- Posts Tests ---');
+
+  await test('Create Post', async () => {
+    const response = await makeRequest('POST', `${API_BASE}/posts`, {
+      content: `Test post content ${Date.now()}`,
+      privacySetting: 'public',
+      location: 'Test Location'
+    }, authToken);
+    assertSuccess(response);
+    if (response.body.data && response.body.data.postId) {
+      testPostId = response.body.data.postId;
+      console.log(`  Post created with ID: ${testPostId}`);
+    }
+  });
+
+  await test('Get Feed Posts', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/posts/feed?page=1&limit=10`, null, authToken);
+    assertSuccess(response);
+  });
+
+  if (testUserId) {
+    await test('Get User Posts', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/posts/user/${testUserId}?page=1&limit=10`, null, authToken);
+      assertSuccess(response);
+    });
+  }
+
+  if (testPostId) {
+    await test('Get Post by ID', async () => {
+      const response = await makeRequest('GET', `${API_BASE}/posts/${testPostId}`, null, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Like Post', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/like`, null, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Add Comment to Post', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/comments`, {
+        content: 'This is a test comment'
+      }, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Update Post', async () => {
+      const response = await makeRequest('PUT', `${API_BASE}/posts/${testPostId}`, {
+        content: `Updated post content ${Date.now()}`,
+        privacySetting: 'friends'
+      }, authToken);
+      assertSuccess(response);
+    });
+
+    await test('Share Post', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/share`, null, authToken);
+      assertSuccess(response);
+    });
+  } else {
+    skip('Get Post by ID (no post available)');
+    skip('Like Post (no post available)');
+    skip('Add Comment (no post available)');
+    skip('Update Post (no post available)');
+    skip('Share Post (no post available)');
+  }
 
   // Admin Tests (if admin credentials provided)
   if (ADMIN_EMAIL && ADMIN_PASSWORD) {
@@ -326,8 +519,28 @@ async function runTests() {
         assertSuccess(response);
       });
 
+      await test('Get All Calls (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/calls/admin`, null, adminToken);
+        assertSuccess(response);
+      });
+
       await test('Get Server Health (Admin)', async () => {
         const response = await makeRequest('GET', `${API_BASE}/server/health`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Server User Stats (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/server/users/stats`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Server Message Stats (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/server/messages/stats`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Server Call Stats (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/server/calls/stats`, null, adminToken);
         assertSuccess(response);
       });
 
@@ -338,6 +551,31 @@ async function runTests() {
 
       await test('Get Message Statistics (Admin)', async () => {
         const response = await makeRequest('GET', `${API_BASE}/statistics/messages`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Call Statistics (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/statistics/calls`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Top Users (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/statistics/top-users`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Blocked IPs (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/security/blocked-ips`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Audit Logs (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/security/audit-logs`, null, adminToken);
+        assertSuccess(response);
+      });
+
+      await test('Get Reports (Admin)', async () => {
+        const response = await makeRequest('GET', `${API_BASE}/reports`, null, adminToken);
         assertSuccess(response);
       });
     }

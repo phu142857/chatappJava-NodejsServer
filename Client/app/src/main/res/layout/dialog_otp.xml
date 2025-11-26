@@ -128,7 +128,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:layout_marginTop="16dp">
+            android:layout_marginTop="8dp">
 
             <Button
                 android:id="@+id/btn_resend_otp"

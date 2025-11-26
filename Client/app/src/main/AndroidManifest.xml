@@ -152,6 +152,16 @@
             android:exported="false"
             android:label="Blocked Users"
             android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.CreatePostActivity"
+            android:exported="false"
+            android:label="Create Post"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.PostFeedActivity"
+            android:exported="false"
+            android:label="Post Feed"
+            android:theme="@style/Theme.ChatAppJava" />
 
         
     </application>

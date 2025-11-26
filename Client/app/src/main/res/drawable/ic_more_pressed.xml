@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-
     <!-- Item 1: The Outer Circle -->
     <item>
         <shape android:shape="oval">
@@ -12,7 +11,6 @@
                  or explicitly by setting a size here if needed, though often not required. -->
         </shape>
     </item>
-
     <!-- Item 2: Your ic_more icon, centered.
          Adjust android:gravity or inset attributes if needed for precise positioning.
          The drawable itself will be scaled to fit, respecting its intrinsic aspect ratio.
@@ -27,5 +25,4 @@
         android:bottom="4dp"
         android:left="4dp"
         android:right="4dp"/> <!-- Adjust these insets to control the space between the icon and the circle -->
-
 </layer-list>

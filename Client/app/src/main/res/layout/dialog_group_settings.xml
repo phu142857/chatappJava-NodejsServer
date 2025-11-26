@@ -22,7 +22,7 @@
             android:textStyle="bold"
             android:textColor="@android:color/black"
             android:gravity="center"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="8dp" />
 
         <!-- Group Name -->
         <TextView
@@ -40,7 +40,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="8dp">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -62,7 +62,7 @@
                     android:text="Anyone can join this group"
                     android:textSize="12sp"
                     android:textColor="@android:color/black"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="8dp" />
 
             </LinearLayout>
 
@@ -81,7 +81,7 @@
             android:text="When enabled, anyone can find and join this group. When disabled, only invited members can join."
             android:textSize="12sp"
             android:textColor="@android:color/black"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="8dp" />
 
         <!-- Buttons -->
         <LinearLayout

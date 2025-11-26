@@ -646,6 +646,43 @@ public class ApiClient {
     }
 
     /**
+     * Upload post image to server
+     * @param token Authentication token
+     * @param imageFile Image file to upload
+     * @param userId User ID for organizing uploads (used as chatId in upload path)
+     * @param callback Response callback
+     */
+    public void uploadPostImage(String token, File imageFile, String userId, Callback callback) {
+        try {
+            // Use chat upload endpoint with userId as chatId to organize by user
+            String url = getBaseUrl() + UPLOAD_CHAT_IMAGE_ENDPOINT + "/" + userId + "/image";
+            
+            RequestBody fileBody = RequestBody.create(
+                MediaType.parse("image/*"), 
+                imageFile
+            );
+            
+            RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("image", imageFile.getName(), fileBody)
+                .addFormDataPart("chatId", userId)
+                .build();
+            
+            Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + token)
+                .post(requestBody)
+                .build();
+            
+            client.newCall(request).enqueue(callback);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare post image upload: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Upload chat file to server (PDF, TXT, etc.)
      * @param token Authentication token
      * @param fileUri File URI to upload
@@ -1103,5 +1140,93 @@ public class ApiClient {
             e.printStackTrace();
             callback.onFailure(null, new IOException("Failed to prepare report body"));
         }
+    }
+
+    // ==================== POSTS API ====================
+    
+    /**
+     * Create a new post
+     */
+    public void createPost(String token, JSONObject postData, Callback callback) {
+        authenticatedPost("/api/posts", token, postData, callback);
+    }
+    
+    /**
+     * Get feed posts (public and friends' posts)
+     */
+    public void getFeedPosts(String token, int page, int limit, Callback callback) {
+        String endpoint = "/api/posts/feed?page=" + page + "&limit=" + limit;
+        authenticatedGet(endpoint, token, callback);
+    }
+    
+    /**
+     * Get user's posts
+     */
+    public void getUserPosts(String token, String userId, int page, int limit, Callback callback) {
+        String endpoint = "/api/posts/user/" + userId + "?page=" + page + "&limit=" + limit;
+        authenticatedGet(endpoint, token, callback);
+    }
+    
+    /**
+     * Get post by ID
+     */
+    public void getPostById(String token, String postId, Callback callback) {
+        String endpoint = "/api/posts/" + postId;
+        authenticatedGet(endpoint, token, callback);
+    }
+    
+    /**
+     * Update post
+     */
+    public void updatePost(String token, String postId, JSONObject postData, Callback callback) {
+        String endpoint = "/api/posts/" + postId;
+        authenticatedPut(endpoint, token, postData, callback);
+    }
+    
+    /**
+     * Delete post
+     */
+    public void deletePost(String token, String postId, Callback callback) {
+        String endpoint = "/api/posts/" + postId;
+        authenticatedDelete(endpoint, token, callback);
+    }
+    
+    /**
+     * Like/Unlike post
+     */
+    public void toggleLikePost(String token, String postId, Callback callback) {
+        String endpoint = "/api/posts/" + postId + "/like";
+        authenticatedPost(endpoint, token, new JSONObject(), callback);
+    }
+    
+    /**
+     * Add comment to post
+     */
+    public void addComment(String token, String postId, String content, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("content", content);
+            String endpoint = "/api/posts/" + postId + "/comments";
+            authenticatedPost(endpoint, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare comment body"));
+        }
+    }
+    
+    /**
+     * Delete comment
+     */
+    public void deleteComment(String token, String postId, String commentId, Callback callback) {
+        String endpoint = "/api/posts/" + postId + "/comments/" + commentId;
+        authenticatedDelete(endpoint, token, callback);
+    }
+    
+    /**
+     * Share post
+     */
+    public void sharePost(String token, String postId, Callback callback) {
+        String endpoint = "/api/posts/" + postId + "/share";
+        authenticatedPost(endpoint, token, new JSONObject(), callback);
     }
 }

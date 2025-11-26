@@ -2,11 +2,8 @@
 <!-- Ripple ring for ringing animation -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    
     <stroke
         android:width="4dp"
         android:color="#7BCCFF" />
-    
     <solid android:color="@android:color/transparent" />
-    
 </shape>

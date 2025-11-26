@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="120dp"
+    android:layout_height="120dp"
+    android:layout_marginEnd="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Media Image/Video Thumbnail -->
+        <ImageView
+            android:id="@+id/iv_media_thumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="Media preview" />
+
+        <!-- Video Play Icon Overlay -->
+        <ImageView
+            android:id="@+id/iv_video_indicator"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_centerInParent="true"
+            android:src="@android:drawable/ic_media_play"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="#80000000"
+            android:padding="6dp"
+            android:visibility="gone"
+            app:tint="@android:color/white" />
+
+        <!-- Remove Button -->
+        <ImageButton
+            android:id="@+id/iv_remove_media"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="4dp"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="#E53935"
+            android:src="@drawable/ic_close"
+            android:contentDescription="Remove media"
+            android:padding="6dp"
+            app:tint="@android:color/white" />
+
+    </RelativeLayout>
+
+</androidx.cardview.widget.CardView>
