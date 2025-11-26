@@ -25,10 +25,12 @@ public class Post {
     private String reactionType; // "like", "love", "wow", "sad", "angry", null
     private String sharedPostId; // ID of the original post if this is a share
     private Post sharedPost; // The original post object (populated from backend)
+    private List<User> taggedUsers; // Users tagged in this post
     
     // Constructors
     public Post() {
         this.mediaUrls = new ArrayList<>();
+        this.taggedUsers = new ArrayList<>();
     }
     
     public Post(String id, String authorId, String authorUsername, String content) {
@@ -188,6 +190,25 @@ public class Post {
             }
         }
         
+        // Handle tags - backend returns populated User objects
+        JSONArray tagsArray = json.optJSONArray("tags");
+        if (tagsArray != null && tagsArray.length() > 0) {
+            post.taggedUsers = new ArrayList<>();
+            for (int i = 0; i < tagsArray.length(); i++) {
+                Object tagObj = tagsArray.get(i);
+                if (tagObj instanceof JSONObject) {
+                    try {
+                        User taggedUser = User.fromJson((JSONObject) tagObj);
+                        post.taggedUsers.add(taggedUser);
+                    } catch (JSONException e) {
+                        // Skip invalid user objects
+                    }
+                }
+            }
+        } else {
+            post.taggedUsers = new ArrayList<>();
+        }
+        
         return post;
     }
     
@@ -339,6 +360,14 @@ public class Post {
     
     public void setSharedPost(Post sharedPost) {
         this.sharedPost = sharedPost;
+    }
+    
+    public List<User> getTaggedUsers() {
+        return taggedUsers != null ? taggedUsers : new ArrayList<>();
+    }
+    
+    public void setTaggedUsers(List<User> taggedUsers) {
+        this.taggedUsers = taggedUsers;
     }
     
     // Helper methods

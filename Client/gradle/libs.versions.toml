@@ -19,6 +19,7 @@ permissionx = "1.8.1"
 uikit = "2.9.0"
 webrtc = "1.0.5"
 webrtcGoogleWebrtc = "1.0.30039"
+swiperefreshlayout = "1.1.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -45,6 +46,7 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version
 permissionx = { module = "com.guolindev.permissionx:permissionx", version.ref = "permissionx" }
 uikit = { module = "com.zegocloud:uikit", version.ref = "uikit" }
 webrtc = { module = "com.mesibo.api:webrtc", version.ref = "webrtc" }
+swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

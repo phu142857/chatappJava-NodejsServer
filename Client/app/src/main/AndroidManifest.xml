@@ -169,9 +169,36 @@
             android:theme="@style/Theme.ChatAppJava" />
         <activity
             android:name=".ui.theme.PostDetailActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="Post"
-            android:theme="@style/Theme.ChatAppJava" />
+            android:theme="@style/Theme.ChatAppJava"
+            android:launchMode="singleTop">
+            <!-- Deep Link Intent Filter - Custom Scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="chatapp"
+                    android:host="post" />
+            </intent-filter>
+            <!-- Deep Link Intent Filter - HTTP/HTTPS -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="http"
+                    android:host="192.168.2.36"
+                    android:port="49664"
+                    android:pathPrefix="/post" />
+                <data
+                    android:scheme="https"
+                    android:host="192.168.2.36"
+                    android:port="49664"
+                    android:pathPrefix="/post" />
+            </intent-filter>
+        </activity>
 
         
     </application>

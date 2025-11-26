@@ -18,6 +18,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,6 +29,7 @@ import com.example.chatappjava.adapters.ReactionUserAdapter;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.Comment;
 import com.example.chatappjava.models.Post;
+import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.ui.dialogs.ReactionPickerDialog;
 import com.example.chatappjava.utils.AvatarManager;
@@ -55,7 +57,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     private ImageButton ivBack;
     private TextView tvTitle;
     private CircleImageView ivPostAvatar;
-    private TextView tvPostUsername, tvPostTimestamp;
+    private TextView tvPostUsername, tvPostTaggedUsers, tvPostTimestamp;
     private ImageButton ivPostMenu;
     private TextView tvPostContent;
     private FrameLayout flPostMedia;
@@ -112,8 +114,38 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         // Adjust window for keyboard
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
-        // Get post from intent
-        String postJson = getIntent().getStringExtra("post");
+        // Initialize essential services early (needed for deep links)
+        databaseManager = new DatabaseManager(this);
+        apiClient = new ApiClient();
+        avatarManager = AvatarManager.getInstance(this);
+        currentUserId = databaseManager.getUserId();
+        currentUserAvatar = databaseManager.getUserAvatar();
+
+        // Handle deep link (from URL)
+        Intent intent = getIntent();
+        android.net.Uri data = intent.getData();
+        
+        Log.d(TAG, "onCreate - Intent data: " + (data != null ? data.toString() : "null"));
+        Log.d(TAG, "onCreate - Intent action: " + intent.getAction());
+        
+        if (data != null) {
+            // Deep link: chatapp://post/:id or https://domain.com/post/:id
+            String postId = extractPostIdFromUri(data);
+            Log.d(TAG, "Extracted post ID: " + postId);
+            if (postId != null && !postId.isEmpty()) {
+                // Load post by ID from API
+                loadPostById(postId);
+                return;
+            } else {
+                Log.e(TAG, "Failed to extract post ID from deep link: " + data.toString());
+                Toast.makeText(this, "Invalid post link", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+        }
+
+        // Get post from intent (normal navigation)
+        String postJson = intent.getStringExtra("post");
         if (postJson == null) {
             Toast.makeText(this, "Post data not found", Toast.LENGTH_SHORT).show();
             finish();
@@ -130,13 +162,136 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
 
         initializeViews();
-        initializeServices();
+        // databaseManager and apiClient already initialized above, but need to initialize commentList
+        if (commentList == null) {
+            commentList = new ArrayList<>();
+        }
         setupRecyclerView();
         setupClickListeners();
         setupTextWatcher();
         loadUserProfile();
         loadFullPost();
         loadComments();
+    }
+    
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        
+        // Handle deep link when activity is already open
+        android.net.Uri data = intent.getData();
+        Log.d(TAG, "onNewIntent - Intent data: " + (data != null ? data.toString() : "null"));
+        
+        if (data != null) {
+            String postId = extractPostIdFromUri(data);
+            Log.d(TAG, "onNewIntent - Extracted post ID: " + postId);
+            if (postId != null && !postId.isEmpty()) {
+                loadPostById(postId);
+            } else {
+                Log.e(TAG, "Failed to extract post ID from deep link in onNewIntent: " + data.toString());
+                Toast.makeText(this, "Invalid post link", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
+    private String extractPostIdFromUri(android.net.Uri uri) {
+        if (uri == null) return null;
+        
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        String path = uri.getPath();
+        String port = uri.getPort() != -1 ? String.valueOf(uri.getPort()) : null;
+        
+        Log.d(TAG, "Deep link - scheme: " + scheme + ", host: " + host + ", port: " + port + ", path: " + path);
+        
+        // Handle custom scheme: chatapp://post/:id
+        if ("chatapp".equals(scheme) && "post".equals(host)) {
+            // Path should be /:id
+            if (path != null && path.startsWith("/")) {
+                String postId = path.substring(1); // Remove leading /
+                Log.d(TAG, "Extracted post ID from custom scheme: " + postId);
+                return postId;
+            }
+        }
+        
+        // Handle HTTP/HTTPS: http://192.168.2.36:49664/post/:id
+        if (("http".equals(scheme) || "https".equals(scheme)) && path != null) {
+            // Extract post ID from path /post/:id
+            if (path.startsWith("/post/")) {
+                String[] segments = path.split("/");
+                if (segments.length >= 3) {
+                    String postId = segments[2]; // post ID is the third segment
+                    Log.d(TAG, "Extracted post ID from HTTP/HTTPS: " + postId);
+                    return postId;
+                }
+            }
+        }
+        
+        Log.w(TAG, "Could not extract post ID from URI: " + uri);
+        return null;
+    }
+    
+    private void loadPostById(String postId) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login to view post", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        // Initialize views (databaseManager and apiClient already initialized in onCreate)
+        initializeViews();
+        // Initialize commentList if not already done
+        if (commentList == null) {
+            commentList = new ArrayList<>();
+        }
+        setupRecyclerView();
+        setupClickListeners();
+        setupTextWatcher();
+        loadUserProfile();
+        
+        // Show loading
+        progressLoading.setVisibility(View.VISIBLE);
+        rvComments.setVisibility(View.GONE);
+        llEmptyState.setVisibility(View.GONE);
+        
+        apiClient.getPostById(token, postId, new okhttp3.Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    progressLoading.setVisibility(View.GONE);
+                    llEmptyState.setVisibility(View.VISIBLE);
+                    Toast.makeText(PostDetailActivity.this, "Failed to load post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    progressLoading.setVisibility(View.GONE);
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.getBoolean("success")) {
+                            JSONObject postData = jsonResponse.getJSONObject("data").getJSONObject("post");
+                            post = Post.fromJson(postData);
+                            
+                            loadFullPost();
+                            loadComments();
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to load post");
+                            Toast.makeText(PostDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                            llEmptyState.setVisibility(View.VISIBLE);
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing post response", e);
+                        Toast.makeText(PostDetailActivity.this, "Error loading post", Toast.LENGTH_SHORT).show();
+                        llEmptyState.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
     }
 
     private void initializeViews() {
@@ -145,6 +300,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         tvTitle = findViewById(R.id.tv_title);
         ivPostAvatar = findViewById(R.id.iv_post_avatar);
         tvPostUsername = findViewById(R.id.tv_post_username);
+        tvPostTaggedUsers = findViewById(R.id.tv_post_tagged_users);
         tvPostTimestamp = findViewById(R.id.tv_post_timestamp);
         ivPostMenu = findViewById(R.id.iv_post_menu);
         tvPostContent = findViewById(R.id.tv_post_content);
@@ -199,6 +355,9 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
 
     private void setupClickListeners() {
         ivBack.setOnClickListener(v -> finish());
+
+        // Post menu
+        ivPostMenu.setOnClickListener(v -> showPostOptionsMenu(post));
 
         ivSendComment.setOnClickListener(v -> sendComment());
         ivCancelReply.setOnClickListener(v -> cancelReply());
@@ -258,6 +417,35 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     private void loadFullPost() {
         // Set author info
         tvPostUsername.setText(post.getAuthorUsername());
+        
+        // Set tagged users display: "User with A, B, ..."
+        List<User> taggedUsers = post.getTaggedUsers();
+        if (taggedUsers != null && !taggedUsers.isEmpty()) {
+            StringBuilder tagsText = new StringBuilder();
+            tagsText.append("with "); // "with" in English
+            for (int i = 0; i < taggedUsers.size(); i++) {
+                if (i > 0) {
+                    if (i == taggedUsers.size() - 1) {
+                        tagsText.append(" and "); // "and" in English
+                    } else {
+                        tagsText.append(", ");
+                    }
+                }
+                String displayName = taggedUsers.get(i).getUsername();
+                if (taggedUsers.get(i).getFirstName() != null && !taggedUsers.get(i).getFirstName().isEmpty()) {
+                    displayName = taggedUsers.get(i).getFirstName();
+                }
+                tagsText.append(displayName);
+            }
+            tvPostTaggedUsers.setText(tagsText.toString());
+            tvPostTaggedUsers.setVisibility(View.VISIBLE);
+            
+            // Make tagged users clickable
+            tvPostTaggedUsers.setOnClickListener(v -> showTaggedUsersDialog(post));
+        } else {
+            tvPostTaggedUsers.setVisibility(View.GONE);
+        }
+        
         tvPostTimestamp.setText(post.getFormattedTimestamp());
 
         // Load avatar
@@ -331,6 +519,136 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
     }
 
+    private void showPostOptionsMenu(Post post) {
+        if (post == null) return;
+        
+        boolean isOwnPost = post.getAuthorId() != null && post.getAuthorId().equals(currentUserId);
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_post_options, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        
+        // Set dialog window properties
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // Initialize views
+        LinearLayout optionDeletePost = dialogView.findViewById(R.id.option_delete_post);
+        LinearLayout optionHidePost = dialogView.findViewById(R.id.option_hide_post);
+        LinearLayout optionCancel = dialogView.findViewById(R.id.option_cancel);
+        
+        // Show appropriate options based on ownership
+        if (isOwnPost) {
+            optionDeletePost.setVisibility(View.VISIBLE);
+            optionHidePost.setVisibility(View.GONE);
+        } else {
+            optionDeletePost.setVisibility(View.GONE);
+            optionHidePost.setVisibility(View.VISIBLE);
+        }
+        
+        // Delete Post
+        optionDeletePost.setOnClickListener(v -> {
+            dialog.dismiss();
+            deletePost(post);
+        });
+        
+        // Hide Post
+        optionHidePost.setOnClickListener(v -> {
+            dialog.dismiss();
+            hidePost(post);
+        });
+        
+        // Cancel
+        optionCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
+    }
+    
+    private void deletePost(Post post) {
+        AlertDialog.Builder confirmBuilder = new AlertDialog.Builder(this);
+        confirmBuilder.setTitle("Delete Post");
+        confirmBuilder.setMessage("Are you sure you want to delete this post? This action cannot be undone.");
+        confirmBuilder.setPositiveButton("Delete", (dialog, which) -> {
+            String token = databaseManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            apiClient.deletePost(token, post.getId(), new okhttp3.Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(PostDetailActivity.this, "Failed to delete post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    final String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.getBoolean("success")) {
+                                Toast.makeText(PostDetailActivity.this, "Post deleted successfully", Toast.LENGTH_SHORT).show();
+                                // Close activity and return to previous screen
+                                finish();
+                            } else {
+                                String message = jsonResponse.optString("message", "Failed to delete post");
+                                Toast.makeText(PostDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            Toast.makeText(PostDetailActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        });
+        confirmBuilder.setNegativeButton("Cancel", null);
+        confirmBuilder.show();
+    }
+    
+    private void hidePost(Post post) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        apiClient.hidePost(token, post.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(PostDetailActivity.this, "Failed to hide post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.getBoolean("success")) {
+                            Toast.makeText(PostDetailActivity.this, "Post hidden successfully", Toast.LENGTH_SHORT).show();
+                            // Close activity and return to previous screen
+                            finish();
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to hide post");
+                            Toast.makeText(PostDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(PostDetailActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+    
     private String formatCount(int count) {
         if (count >= 1000000) {
             return String.format("%.1fM", count / 1000000.0);
@@ -960,14 +1278,16 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     }
     
     private void copyPostLink(Post post) {
-        // Generate post URL and copy to clipboard
-        String postUrl = ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        // Generate deep link URL (custom scheme for local app)
+        // This will open the app directly when clicked, similar to clicking on a tagged user
+        String deepLinkUrl = "chatapp://post/" + post.getId();
         
+        // Copy the deep link as plain text (most apps recognize custom schemes in plain text)
         android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", deepLinkUrl);
         clipboard.setPrimaryClip(clip);
         
-        Toast.makeText(this, "Link copied to clipboard", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Post link copied. Click to open in app.", Toast.LENGTH_SHORT).show();
     }
     
     private void shareToExternalApps(Post post) {
@@ -1036,6 +1356,59 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+    
+    private void showTaggedUsersDialog(Post post) {
+        List<User> taggedUsers = post.getTaggedUsers();
+        if (taggedUsers == null || taggedUsers.isEmpty()) {
+            return;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tagged_users, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        TextView tvTitle = dialogView.findViewById(R.id.tv_dialog_title);
+        RecyclerView rvTaggedUsers = dialogView.findViewById(R.id.rv_tagged_users);
+        android.widget.Button btnClose = dialogView.findViewById(R.id.btn_close);
+        
+        if (tvTitle != null) {
+            tvTitle.setText("Tagged People");
+        }
+        
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvTaggedUsers.setLayoutManager(layoutManager);
+        
+        com.example.chatappjava.adapters.TagUserAdapter adapter = new com.example.chatappjava.adapters.TagUserAdapter(
+            this,
+            taggedUsers,
+            new java.util.HashSet<>(),
+            new com.example.chatappjava.adapters.TagUserAdapter.OnTagUserClickListener() {
+                @Override
+                public void onUserClick(com.example.chatappjava.models.User user, boolean isSelected) {
+                    // Open user profile when clicked
+                    Intent intent = new Intent(PostDetailActivity.this, ProfileViewActivity.class);
+                    try {
+                        intent.putExtra("user", user.toJson().toString());
+                        startActivity(intent);
+                        dialog.dismiss();
+                    } catch (JSONException e) {
+                        Toast.makeText(PostDetailActivity.this, "Error opening profile", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        );
+        rvTaggedUsers.setAdapter(adapter);
+        
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
     }
 }
 

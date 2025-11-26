@@ -205,7 +205,8 @@ public class ApiClient {
      * Sends an authenticated POST request.
      */
     public void authenticatedPost(String endpoint, String token, JSONObject data, Callback callback) {
-        RequestBody body = RequestBody.create(data.toString(), JSON);
+        String bodyString = (data != null) ? data.toString() : "{}";
+        RequestBody body = RequestBody.create(bodyString, JSON);
         Request request = createAuthenticatedRequest(token)
                 .url(getBaseUrl() + endpoint)
                 .post(body)
@@ -1189,6 +1190,14 @@ public class ApiClient {
     public void deletePost(String token, String postId, Callback callback) {
         String endpoint = "/api/posts/" + postId;
         authenticatedDelete(endpoint, token, callback);
+    }
+    
+    /**
+     * Hide a post from user's feed
+     */
+    public void hidePost(String token, String postId, Callback callback) {
+        String endpoint = "/api/posts/" + postId + "/hide";
+        authenticatedPost(endpoint, token, null, callback);
     }
     
     /**

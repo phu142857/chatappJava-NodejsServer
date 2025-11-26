@@ -538,14 +538,16 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
             
             private void copyPostLink(com.example.chatappjava.models.Post post) {
-                // Generate post URL and copy to clipboard
-                String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+                // Generate deep link URL (custom scheme for local app)
+                // This will open the app directly when clicked, similar to clicking on a tagged user
+                String deepLinkUrl = "chatapp://post/" + post.getId();
                 
+                // Copy the deep link as plain text (most apps recognize custom schemes in plain text)
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", deepLinkUrl);
                 clipboard.setPrimaryClip(clip);
                 
-                android.widget.Toast.makeText(HomeActivity.this, "Link copied to clipboard", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(HomeActivity.this, "Post link copied. Click to open in app.", android.widget.Toast.LENGTH_SHORT).show();
             }
             
             private void shareToExternalApps(com.example.chatappjava.models.Post post) {
@@ -572,7 +574,144 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             
             @Override
             public void onPostMenuClick(com.example.chatappjava.models.Post post) {
-                // TODO: Show post options menu
+                showPostOptionsMenu(post);
+            }
+            
+            private void showPostOptionsMenu(com.example.chatappjava.models.Post post) {
+                if (post == null) return;
+                
+                String currentUserId = databaseManager.getUserId();
+                boolean isOwnPost = post.getAuthorId() != null && post.getAuthorId().equals(currentUserId);
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_post_options, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                
+                // Set dialog window properties
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                // Initialize views
+                android.widget.LinearLayout optionDeletePost = dialogView.findViewById(com.example.chatappjava.R.id.option_delete_post);
+                android.widget.LinearLayout optionHidePost = dialogView.findViewById(com.example.chatappjava.R.id.option_hide_post);
+                android.widget.LinearLayout optionCancel = dialogView.findViewById(com.example.chatappjava.R.id.option_cancel);
+                
+                // Show appropriate options based on ownership
+                if (isOwnPost) {
+                    optionDeletePost.setVisibility(android.view.View.VISIBLE);
+                    optionHidePost.setVisibility(android.view.View.GONE);
+                } else {
+                    optionDeletePost.setVisibility(android.view.View.GONE);
+                    optionHidePost.setVisibility(android.view.View.VISIBLE);
+                }
+                
+                // Delete Post
+                optionDeletePost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    deletePost(post);
+                });
+                
+                // Hide Post
+                optionHidePost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    hidePost(post);
+                });
+                
+                // Cancel
+                optionCancel.setOnClickListener(v -> dialog.dismiss());
+                
+                dialog.show();
+            }
+            
+            private void deletePost(com.example.chatappjava.models.Post post) {
+                android.app.AlertDialog.Builder confirmBuilder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                confirmBuilder.setTitle("Delete Post");
+                confirmBuilder.setMessage("Are you sure you want to delete this post? This action cannot be undone.");
+                confirmBuilder.setPositiveButton("Delete", (dialog, which) -> {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        android.widget.Toast.makeText(HomeActivity.this, "Please login again", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    apiClient.deletePost(token, post.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> {
+                                android.widget.Toast.makeText(HomeActivity.this, "Failed to delete post: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            final String responseBody = response.body().string();
+                            runOnUiThread(() -> {
+                                try {
+                                    org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                    if (jsonResponse.getBoolean("success")) {
+                                        android.widget.Toast.makeText(HomeActivity.this, "Post deleted successfully", android.widget.Toast.LENGTH_SHORT).show();
+                                        // Reload posts
+                                        if (currentTab == 3) {
+                                            loadPosts(true);
+                                        }
+                                    } else {
+                                        String message = jsonResponse.optString("message", "Failed to delete post");
+                                        android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (org.json.JSONException e) {
+                                    android.widget.Toast.makeText(HomeActivity.this, "Error processing response", android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                });
+                confirmBuilder.setNegativeButton("Cancel", null);
+                confirmBuilder.show();
+            }
+            
+            private void hidePost(com.example.chatappjava.models.Post post) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    android.widget.Toast.makeText(HomeActivity.this, "Please login again", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                apiClient.hidePost(token, post.getId(), new okhttp3.Callback() {
+                    @Override
+                    public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> {
+                            android.widget.Toast.makeText(HomeActivity.this, "Failed to hide post: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                    
+                    @Override
+                    public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        final String responseBody = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.getBoolean("success")) {
+                                    android.widget.Toast.makeText(HomeActivity.this, "Post hidden successfully", android.widget.Toast.LENGTH_SHORT).show();
+                                    // Remove post from list
+                                    int position = postList.indexOf(post);
+                                    if (position >= 0) {
+                                        postList.remove(position);
+                                        postAdapter.notifyItemRemoved(position);
+                                    }
+                                } else {
+                                    String message = jsonResponse.optString("message", "Failed to hide post");
+                                    android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                android.widget.Toast.makeText(HomeActivity.this, "Error processing response", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
             }
             
             @Override
@@ -583,6 +722,64 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             @Override
             public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
                 // TODO: Open media viewer
+            }
+            
+            @Override
+            public void onTaggedUsersClick(com.example.chatappjava.models.Post post) {
+                showTaggedUsersDialog(post);
+            }
+            
+            private void showTaggedUsersDialog(com.example.chatappjava.models.Post post) {
+                java.util.List<com.example.chatappjava.models.User> taggedUsers = post.getTaggedUsers();
+                if (taggedUsers == null || taggedUsers.isEmpty()) {
+                    return;
+                }
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_tagged_users, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                android.widget.TextView tvTitle = dialogView.findViewById(com.example.chatappjava.R.id.tv_dialog_title);
+                androidx.recyclerview.widget.RecyclerView rvTaggedUsers = dialogView.findViewById(com.example.chatappjava.R.id.rv_tagged_users);
+                android.widget.Button btnClose = dialogView.findViewById(com.example.chatappjava.R.id.btn_close);
+                
+                if (tvTitle != null) {
+                    tvTitle.setText("Tagged People");
+                }
+                
+                androidx.recyclerview.widget.LinearLayoutManager layoutManager = new androidx.recyclerview.widget.LinearLayoutManager(HomeActivity.this);
+                rvTaggedUsers.setLayoutManager(layoutManager);
+                
+                com.example.chatappjava.adapters.TagUserAdapter adapter = new com.example.chatappjava.adapters.TagUserAdapter(
+                    HomeActivity.this,
+                    taggedUsers,
+                    new java.util.HashSet<>(),
+                    new com.example.chatappjava.adapters.TagUserAdapter.OnTagUserClickListener() {
+                        @Override
+                        public void onUserClick(com.example.chatappjava.models.User user, boolean isSelected) {
+                            // Open user profile when clicked
+                            android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                            try {
+                                intent.putExtra("user", user.toJson().toString());
+                                startActivity(intent);
+                                dialog.dismiss();
+                            } catch (org.json.JSONException e) {
+                                android.widget.Toast.makeText(HomeActivity.this, "Error opening profile", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                );
+                rvTaggedUsers.setAdapter(adapter);
+                
+                btnClose.setOnClickListener(v -> dialog.dismiss());
+                
+                dialog.show();
             }
         });
         

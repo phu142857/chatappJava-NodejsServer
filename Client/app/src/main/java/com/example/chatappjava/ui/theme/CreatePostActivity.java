@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -19,15 +20,19 @@ import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.Post;
+import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.DatabaseManager;
@@ -86,6 +91,7 @@ public class CreatePostActivity extends AppCompatActivity {
     private List<MediaItem> selectedMedia;
     private String selectedLocation;
     private List<String> taggedUserIds;
+    private List<User> taggedUsers; // Store User objects for display
     private String privacySetting = "Public"; // Public, Friends, Only Me
     
     // State
@@ -200,6 +206,7 @@ public class CreatePostActivity extends AppCompatActivity {
         
         selectedMedia = new ArrayList<>();
         taggedUserIds = new ArrayList<>();
+        taggedUsers = new ArrayList<>();
     }
     
     private void initializeServices() {
@@ -598,8 +605,142 @@ public class CreatePostActivity extends AppCompatActivity {
     }
     
     private void openTagPeopleDialog() {
-        // TODO: Open friend selection dialog
-        Toast.makeText(this, "Tag people feature coming soon", Toast.LENGTH_SHORT).show();
+        // Create dialog with friend list
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tag_people, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        RecyclerView rvFriends = dialogView.findViewById(R.id.rv_friends);
+        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
+        TextView tvNoFriends = dialogView.findViewById(R.id.tv_no_friends);
+        EditText etSearch = dialogView.findViewById(R.id.et_search);
+        Button btnDone = dialogView.findViewById(R.id.btn_done);
+        
+        List<User> friends = new ArrayList<>();
+        List<User> filteredFriends = new ArrayList<>();
+        java.util.Set<String> selectedUserIds = new java.util.HashSet<>(taggedUserIds);
+        
+        // Adapter for friend list - use TagUserAdapter for tag selection
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvFriends.setLayoutManager(layoutManager);
+        
+        // Create TagUserAdapter
+        final com.example.chatappjava.adapters.TagUserAdapter[] adapterRef = new com.example.chatappjava.adapters.TagUserAdapter[1];
+        adapterRef[0] = new com.example.chatappjava.adapters.TagUserAdapter(
+            this,
+            filteredFriends,
+            selectedUserIds,
+            new com.example.chatappjava.adapters.TagUserAdapter.OnTagUserClickListener() {
+                @Override
+                public void onUserClick(User user, boolean isSelected) {
+                    // Selection is already handled in adapter
+                    // Just update the adapter if needed
+                }
+            }
+        );
+        rvFriends.setAdapter(adapterRef[0]);
+        
+        // Search filter
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s.toString().toLowerCase();
+                filteredFriends.clear();
+                for (User friend : friends) {
+                    String username = friend.getUsername() != null ? friend.getUsername().toLowerCase() : "";
+                    String firstName = friend.getFirstName() != null ? friend.getFirstName().toLowerCase() : "";
+                    String lastName = friend.getLastName() != null ? friend.getLastName().toLowerCase() : "";
+                    if (username.contains(query) || firstName.contains(query) || lastName.contains(query)) {
+                        filteredFriends.add(friend);
+                    }
+                }
+                if (adapterRef[0] != null) {
+                    adapterRef[0].updateSelection(selectedUserIds);
+                }
+                tvNoFriends.setVisibility(filteredFriends.isEmpty() ? View.VISIBLE : View.GONE);
+            }
+            
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+        
+        // Done button
+        btnDone.setOnClickListener(v -> {
+            // Update tagged users
+            taggedUserIds.clear();
+            taggedUsers.clear();
+            for (String userId : selectedUserIds) {
+                taggedUserIds.add(userId);
+                // Find user object
+                for (User friend : friends) {
+                    if (friend.getId().equals(userId)) {
+                        taggedUsers.add(friend);
+                        break;
+                    }
+                }
+            }
+            updateLocationTagsVisibility();
+            dialog.dismiss();
+        });
+        
+        // Load friends
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        progressBar.setVisibility(View.VISIBLE);
+        apiClient.authenticatedGet("/api/users/friends", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(CreatePostActivity.this, "Failed to load friends", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    try {
+                        JSONObject json = new JSONObject(body);
+                        if (response.isSuccessful() && json.optBoolean("success", false)) {
+                            JSONObject data = json.getJSONObject("data");
+                            JSONArray arr = data.getJSONArray("friends");
+                            friends.clear();
+                            filteredFriends.clear();
+                            for (int i = 0; i < arr.length(); i++) {
+                                User user = User.fromJson(arr.getJSONObject(i));
+                                friends.add(user);
+                                filteredFriends.add(user);
+                            }
+                            if (adapterRef[0] != null) {
+                                adapterRef[0].updateSelection(selectedUserIds);
+                            }
+                            tvNoFriends.setVisibility(filteredFriends.isEmpty() ? View.VISIBLE : View.GONE);
+                        } else {
+                            Toast.makeText(CreatePostActivity.this, "Failed to load friends", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(CreatePostActivity.this, "Error parsing friends", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+        
+        dialog.show();
     }
     
     private void openLocationPicker() {
@@ -623,7 +764,23 @@ public class CreatePostActivity extends AppCompatActivity {
                 tvLocation.setText(selectedLocation);
             }
             if (hasTags) {
-                tvTaggedUsers.setText(taggedUserIds.size() + " people tagged");
+                if (taggedUsers != null && !taggedUsers.isEmpty()) {
+                    StringBuilder names = new StringBuilder();
+                    for (int i = 0; i < Math.min(taggedUsers.size(), 3); i++) {
+                        if (i > 0) names.append(", ");
+                        String displayName = taggedUsers.get(i).getUsername();
+                        if (taggedUsers.get(i).getFirstName() != null && !taggedUsers.get(i).getFirstName().isEmpty()) {
+                            displayName = taggedUsers.get(i).getFirstName();
+                        }
+                        names.append(displayName);
+                    }
+                    if (taggedUsers.size() > 3) {
+                        names.append(" and ").append(taggedUsers.size() - 3).append(" more");
+                    }
+                    tvTaggedUsers.setText(names.toString());
+                } else {
+                    tvTaggedUsers.setText(taggedUserIds.size() + " people tagged");
+                }
             }
         } else {
             llLocationTags.setVisibility(View.GONE);

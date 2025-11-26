@@ -1017,6 +1017,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([A-Za-z0-9_]+)");
+    private static final Pattern POST_LINK_PATTERN = Pattern.compile("chatapp://post/([a-zA-Z0-9]+)");
 
     private static void applyMentionStyling(TextView textView, String content, boolean isSent) {
         if (content == null) {
@@ -1024,10 +1025,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
         android.text.SpannableString spannable = new android.text.SpannableString(content);
-        Matcher matcher = MENTION_PATTERN.matcher(content);
-        while (matcher.find()) {
-            int start = matcher.start();
-            int end = matcher.end();
+        
+        // Apply mention styling
+        Matcher mentionMatcher = MENTION_PATTERN.matcher(content);
+        while (mentionMatcher.find()) {
+            int start = mentionMatcher.start();
+            int end = mentionMatcher.end();
             android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
             if (isSent) {
                 // On sent bubble (usually colored background with white text), use a semi-transparent highlight
@@ -1041,15 +1044,43 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             // Clickable span to open profile
-            ClickableSpan clickableSpan = getClickableSpan(content, start, end);
+            ClickableSpan clickableSpan = getMentionClickableSpan(content, start, end);
             spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+        
+        // Apply post link styling
+        Matcher postLinkMatcher = POST_LINK_PATTERN.matcher(content);
+        while (postLinkMatcher.find()) {
+            int start = postLinkMatcher.start();
+            int end = postLinkMatcher.end();
+            String postId = postLinkMatcher.group(1);
+            
+            // Use white color and bold style for post links
+            android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
+            android.text.style.ForegroundColorSpan colorSpan = new android.text.style.ForegroundColorSpan(0xFFFFFFFF); // white color
+            
+            if (isSent) {
+                // On sent bubble (usually colored background), white text with bold
+                spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else {
+                // On received bubble (light background), use white color (may need to adjust based on your theme)
+                // If white doesn't work well on light background, you might want to use a darker color
+                // For now, using white as requested
+                spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+            // Clickable span to open post detail
+            ClickableSpan clickableSpan = getPostLinkClickableSpan(postId);
+            spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
         textView.setText(spannable);
         textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
     }
 
     @NonNull
-    private static ClickableSpan getClickableSpan(String content, int start, int end) {
+    private static ClickableSpan getMentionClickableSpan(String content, int start, int end) {
         final String username = content.substring(start + 1, end);
         return new ClickableSpan() {
             @Override
@@ -1059,6 +1090,27 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 // Best-effort: pass username; ProfileViewActivity should handle fetching by username
                 intent.putExtra("username", username);
                 // Optional: also pass minimal user object if we can map username from avatarManager cache later
+                ctx.startActivity(intent);
+            }
+
+            @Override
+            public void updateDrawState(android.text.TextPaint ds) {
+                super.updateDrawState(ds);
+                ds.setUnderlineText(false);
+            }
+        };
+    }
+    
+    @NonNull
+    private static ClickableSpan getPostLinkClickableSpan(String postId) {
+        return new ClickableSpan() {
+            @Override
+            public void onClick(@NonNull View widget) {
+                Context ctx = widget.getContext();
+                // Open PostDetailActivity with deep link
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                intent.setData(android.net.Uri.parse("chatapp://post/" + postId));
+                intent.setClass(ctx, com.example.chatappjava.ui.theme.PostDetailActivity.class);
                 ctx.startActivity(intent);
             }
 

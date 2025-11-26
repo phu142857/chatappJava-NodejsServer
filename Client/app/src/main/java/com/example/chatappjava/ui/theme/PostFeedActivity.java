@@ -6,13 +6,21 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+
+import okhttp3.Call;
+import okhttp3.Response;
+
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,7 +28,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.PostAdapter;
+import com.example.chatappjava.adapters.TagUserAdapter;
 import com.example.chatappjava.models.Post;
+import com.example.chatappjava.models.User;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.DatabaseManager;
@@ -33,6 +43,7 @@ import org.json.JSONObject;
 import android.content.Intent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import de.hdodenhof.circleimageview.CircleImageView;
@@ -611,14 +622,16 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     }
     
     private void copyPostLink(Post post) {
-        // Generate post URL and copy to clipboard
-        String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        // Generate deep link URL (custom scheme for local app)
+        // This will open the app directly when clicked, similar to clicking on a tagged user
+        String deepLinkUrl = "chatapp://post/" + post.getId();
         
+        // Copy the deep link as plain text (most apps recognize custom schemes in plain text)
         android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", deepLinkUrl);
         clipboard.setPrimaryClip(clip);
         
-        Toast.makeText(this, "Link copied to clipboard", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Post link copied. Click to open in app.", Toast.LENGTH_SHORT).show();
     }
     
     private void shareToExternalApps(Post post) {
@@ -690,8 +703,142 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     
     @Override
     public void onPostMenuClick(Post post) {
-        // TODO: Show post options menu (edit, delete, report, etc.)
-        Toast.makeText(this, "Post menu: " + post.getId(), Toast.LENGTH_SHORT).show();
+        showPostOptionsMenu(post);
+    }
+    
+    private void showPostOptionsMenu(Post post) {
+        if (post == null) return;
+        
+        String currentUserId = databaseManager.getUserId();
+        boolean isOwnPost = post.getAuthorId() != null && post.getAuthorId().equals(currentUserId);
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_post_options, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        
+        // Set dialog window properties
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // Initialize views
+        LinearLayout optionDeletePost = dialogView.findViewById(R.id.option_delete_post);
+        LinearLayout optionHidePost = dialogView.findViewById(R.id.option_hide_post);
+        LinearLayout optionCancel = dialogView.findViewById(R.id.option_cancel);
+        
+        // Show appropriate options based on ownership
+        if (isOwnPost) {
+            optionDeletePost.setVisibility(View.VISIBLE);
+            optionHidePost.setVisibility(View.GONE);
+        } else {
+            optionDeletePost.setVisibility(View.GONE);
+            optionHidePost.setVisibility(View.VISIBLE);
+        }
+        
+        // Delete Post
+        optionDeletePost.setOnClickListener(v -> {
+            dialog.dismiss();
+            deletePost(post);
+        });
+        
+        // Hide Post
+        optionHidePost.setOnClickListener(v -> {
+            dialog.dismiss();
+            hidePost(post);
+        });
+        
+        // Cancel
+        optionCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
+    }
+    
+    private void deletePost(Post post) {
+        AlertDialog.Builder confirmBuilder = new AlertDialog.Builder(this);
+        confirmBuilder.setTitle("Delete Post");
+        confirmBuilder.setMessage("Are you sure you want to delete this post? This action cannot be undone.");
+        confirmBuilder.setPositiveButton("Delete", (dialog, which) -> {
+            String token = databaseManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            apiClient.deletePost(token, post.getId(), new okhttp3.Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(PostFeedActivity.this, "Failed to delete post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    final String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.getBoolean("success")) {
+                                Toast.makeText(PostFeedActivity.this, "Post deleted successfully", Toast.LENGTH_SHORT).show();
+                                // Reload posts
+                                loadPosts(true);
+                            } else {
+                                String message = jsonResponse.optString("message", "Failed to delete post");
+                                Toast.makeText(PostFeedActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            Toast.makeText(PostFeedActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        });
+        confirmBuilder.setNegativeButton("Cancel", null);
+        confirmBuilder.show();
+    }
+    
+    private void hidePost(Post post) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        apiClient.hidePost(token, post.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(PostFeedActivity.this, "Failed to hide post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.getBoolean("success")) {
+                            Toast.makeText(PostFeedActivity.this, "Post hidden successfully", Toast.LENGTH_SHORT).show();
+                            // Remove post from list
+                            int position = postList.indexOf(post);
+                            if (position >= 0) {
+                                postList.remove(position);
+                                postAdapter.notifyItemRemoved(position);
+                            }
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to hide post");
+                            Toast.makeText(PostFeedActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(PostFeedActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
     
     @Override
@@ -704,6 +851,64 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     public void onMediaClick(Post post, int mediaIndex) {
         // TODO: Open media viewer
         Toast.makeText(this, "Media clicked: " + mediaIndex, Toast.LENGTH_SHORT).show();
+    }
+    
+    @Override
+    public void onTaggedUsersClick(Post post) {
+        showTaggedUsersDialog(post);
+    }
+    
+    private void showTaggedUsersDialog(Post post) {
+        List<User> taggedUsers = post.getTaggedUsers();
+        if (taggedUsers == null || taggedUsers.isEmpty()) {
+            return;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tagged_users, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        TextView tvTitle = dialogView.findViewById(R.id.tv_dialog_title);
+        RecyclerView rvTaggedUsers = dialogView.findViewById(R.id.rv_tagged_users);
+        Button btnClose = dialogView.findViewById(R.id.btn_close);
+        
+        if (tvTitle != null) {
+            tvTitle.setText("Tagged People");
+        }
+        
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvTaggedUsers.setLayoutManager(layoutManager);
+        
+        TagUserAdapter adapter = new TagUserAdapter(
+            this,
+            taggedUsers,
+            new HashSet<>(),
+            new TagUserAdapter.OnTagUserClickListener() {
+                @Override
+                public void onUserClick(User user, boolean isSelected) {
+                    // Open user profile when clicked
+                    Intent intent = new Intent(PostFeedActivity.this, ProfileViewActivity.class);
+                    try {
+                        intent.putExtra("user", user.toJson().toString());
+                        startActivity(intent);
+                        dialog.dismiss();
+                    } catch (JSONException e) {
+                        Toast.makeText(PostFeedActivity.this, "Error opening profile", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        );
+        rvTaggedUsers.setAdapter(adapter);
+        
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
     }
     
     @Override

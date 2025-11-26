@@ -114,15 +114,37 @@
                             android:layout_marginStart="12dp"
                             android:orientation="vertical">
 
-                            <!-- Username -->
-                            <TextView
-                                android:id="@+id/tv_post_username"
+                            <!-- Username and Tags (same line) -->
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="John Doe"
-                                android:textColor="@color/text_primary"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_post_username"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="John Doe"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <!-- Tagged Users (on same line) -->
+                                <TextView
+                                    android:id="@+id/tv_post_tagged_users"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:text=""
+                                    android:textColor="@color/primary_color"
+                                    android:textSize="16sp"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:background="?attr/selectableItemBackground"
+                                    android:visibility="gone" />
+
+                            </LinearLayout>
 
                             <!-- Time/Date Stamp -->
                             <TextView

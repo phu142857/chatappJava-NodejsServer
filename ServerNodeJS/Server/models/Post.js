@@ -239,10 +239,12 @@ postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
   
   const user = await User.findById(userId);
   const friendIds = user.friends || [];
+  const hiddenPostIds = user.hiddenPosts || [];
   
   const query = {
     isActive: true,
     isDeleted: false,
+    _id: { $nin: hiddenPostIds }, // Exclude hidden posts
     $or: [
       { privacySetting: 'public' },
       {

@@ -35,6 +35,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         void onPostMenuClick(Post post);
         void onAuthorClick(Post post);
         void onMediaClick(Post post, int mediaIndex);
+        void onTaggedUsersClick(Post post);
     }
     
     private final List<Post> posts;
@@ -95,6 +96,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     public static class PostViewHolder extends RecyclerView.ViewHolder {
         private final CircleImageView ivPostAvatar;
         private final TextView tvPostUsername;
+        private final TextView tvPostTaggedUsers;
         private final TextView tvPostTimestamp;
         private final ImageButton ivPostMenu;
         private final TextView tvPostContent;
@@ -127,6 +129,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             super(itemView);
             ivPostAvatar = itemView.findViewById(R.id.iv_post_avatar);
             tvPostUsername = itemView.findViewById(R.id.tv_post_username);
+            tvPostTaggedUsers = itemView.findViewById(R.id.tv_post_tagged_users);
             tvPostTimestamp = itemView.findViewById(R.id.tv_post_timestamp);
             ivPostMenu = itemView.findViewById(R.id.iv_post_menu);
             tvPostContent = itemView.findViewById(R.id.tv_post_content);
@@ -169,6 +172,39 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         public void bind(Post post, OnPostClickListener listener, Context context) {
             // Set author info
             tvPostUsername.setText(post.getAuthorUsername());
+            
+            // Set tagged users display: "User with A, B, ..."
+            List<com.example.chatappjava.models.User> taggedUsers = post.getTaggedUsers();
+            if (taggedUsers != null && !taggedUsers.isEmpty()) {
+                StringBuilder tagsText = new StringBuilder();
+                tagsText.append("with "); // "with" in English
+                for (int i = 0; i < taggedUsers.size(); i++) {
+                    if (i > 0) {
+                        if (i == taggedUsers.size() - 1) {
+                            tagsText.append(" and "); // "and" in English
+                        } else {
+                            tagsText.append(", ");
+                        }
+                    }
+                    String displayName = taggedUsers.get(i).getUsername();
+                    if (taggedUsers.get(i).getFirstName() != null && !taggedUsers.get(i).getFirstName().isEmpty()) {
+                        displayName = taggedUsers.get(i).getFirstName();
+                    }
+                    tagsText.append(displayName);
+                }
+                tvPostTaggedUsers.setText(tagsText.toString());
+                tvPostTaggedUsers.setVisibility(View.VISIBLE);
+                
+                // Make tagged users clickable
+                tvPostTaggedUsers.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onTaggedUsersClick(post);
+                    }
+                });
+            } else {
+                tvPostTaggedUsers.setVisibility(View.GONE);
+            }
+            
             tvPostTimestamp.setText(post.getFormattedTimestamp());
             
             // Load avatar

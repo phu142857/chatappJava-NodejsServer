@@ -396,6 +396,61 @@ const deletePost = async (req, res) => {
   }
 };
 
+// @desc    Hide post from user's feed
+// @route   POST /api/posts/:id/hide
+// @access  Private
+const hidePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const post = await Post.findById(id);
+    if (!post || !post.isActive || post.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Cannot hide your own post
+    if (post.userId.toString() === userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot hide your own post. Use delete instead.'
+      });
+    }
+
+    // Add post to user's hiddenPosts list
+    const user = await User.findById(userId);
+    if (!user.hiddenPosts) {
+      user.hiddenPosts = [];
+    }
+    
+    // Check if already hidden
+    if (user.hiddenPosts.some(postId => postId.toString() === id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Post is already hidden'
+      });
+    }
+
+    user.hiddenPosts.push(id);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Post hidden successfully'
+    });
+
+  } catch (error) {
+    console.error('Hide post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while hiding post'
+    });
+  }
+};
+
 // @desc    Like/Unlike post
 // @route   POST /api/posts/:id/like
 // @access  Private
@@ -822,6 +877,7 @@ module.exports = {
   getPostById,
   updatePost,
   deletePost,
+  hidePost,
   toggleLike,
   addComment,
   editComment,

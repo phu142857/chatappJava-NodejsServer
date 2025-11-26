@@ -7,6 +7,7 @@ const {
   getPostById,
   updatePost,
   deletePost,
+  hidePost,
   toggleLike,
   addComment,
   editComment,
@@ -200,6 +201,9 @@ router.put('/:id', updatePostValidation, updatePost);
 
 // Delete post
 router.delete('/:id', postIdValidation, deletePost);
+
+// Hide post from user's feed
+router.post('/:id/hide', postIdValidation, hidePost);
 
 // Like/Unlike post
 router.post('/:id/like', postIdValidation, toggleLike);
