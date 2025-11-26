@@ -485,5 +485,58 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.CommentV
             }
         }
     }
+    
+    // Pattern for @mentions
+    private static final java.util.regex.Pattern MENTION_PATTERN = java.util.regex.Pattern.compile("@([A-Za-z0-9_]+)");
+    
+    // Apply mention styling to TextView (similar to MessageAdapter)
+    private static void applyMentionStyling(android.widget.TextView textView, String content) {
+        if (content == null) {
+            textView.setText("");
+            return;
+        }
+        android.text.SpannableString spannable = new android.text.SpannableString(content);
+        
+        // Apply mention styling
+        java.util.regex.Matcher mentionMatcher = MENTION_PATTERN.matcher(content);
+        while (mentionMatcher.find()) {
+            int start = mentionMatcher.start();
+            int end = mentionMatcher.end();
+            
+            // Style: blue color and bold
+            android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
+            android.text.style.ForegroundColorSpan colorSpan = new android.text.style.ForegroundColorSpan(0xFF2D6BB3); // Primary blue color
+            
+            spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            
+            // Clickable span to open profile
+            android.text.style.ClickableSpan clickableSpan = getMentionClickableSpan(content, start, end);
+            spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        textView.setText(spannable);
+        textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+    }
+    
+    @androidx.annotation.NonNull
+    private static android.text.style.ClickableSpan getMentionClickableSpan(String content, int start, int end) {
+        final String username = content.substring(start + 1, end);
+        return new android.text.style.ClickableSpan() {
+            @Override
+            public void onClick(@androidx.annotation.NonNull android.view.View widget) {
+                android.content.Context ctx = widget.getContext();
+                android.content.Intent intent = new android.content.Intent(ctx, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                intent.putExtra("username", username);
+                ctx.startActivity(intent);
+            }
+            
+            @Override
+            public void updateDrawState(android.text.TextPaint ds) {
+                super.updateDrawState(ds);
+                ds.setUnderlineText(false);
+            }
+        };
+    }
 }
 

@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -25,7 +26,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.CommentAdapter;
+import com.example.chatappjava.adapters.MentionSuggestionAdapter;
 import com.example.chatappjava.adapters.ReactionUserAdapter;
+import com.example.chatappjava.adapters.TagUserAdapter;
 import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.Comment;
 import com.example.chatappjava.models.Post;
@@ -83,7 +86,19 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     private EditText etCommentInput;
     private ImageButton ivSendComment;
     private ImageButton ivAttachMedia;
+    private ImageButton ivTagPeopleComment;
+    
+    // Tagged users for comment
+    private List<String> taggedUserIdsForComment;
+    private List<User> taggedUsersForComment;
     private TextView tvLoadMoreComments;
+    
+    // @mention autocomplete
+    private List<User> friendsListForMention;
+    private android.widget.PopupWindow mentionPopup;
+    private RecyclerView rvMentionSuggestions;
+    private boolean isMentionMode = false;
+    private int mentionStartPosition = -1;
 
     // Data
     private Post post;
@@ -343,6 +358,8 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         currentUserId = databaseManager.getUserId();
         currentUserAvatar = databaseManager.getUserAvatar();
         commentList = new ArrayList<>();
+        taggedUserIdsForComment = new ArrayList<>();
+        taggedUsersForComment = new ArrayList<>();
     }
 
     private void setupRecyclerView() {
@@ -361,6 +378,9 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
 
         ivSendComment.setOnClickListener(v -> sendComment());
         ivCancelReply.setOnClickListener(v -> cancelReply());
+        if (ivTagPeopleComment != null) {
+            ivTagPeopleComment.setOnClickListener(v -> openTagPeopleDialogForComment());
+        }
 
         // Post interactions
         llLikeButton.setOnClickListener(v -> toggleLike());
@@ -388,10 +408,47 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     private void setupTextWatcher() {
         etCommentInput.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // Check if deleting @ symbol or space after mention
+                if (isMentionMode && count > 0 && start < s.length()) {
+                    char deletedChar = s.charAt(start);
+                    if (deletedChar == '@') {
+                        hideMentionPopup();
+                    } else if (deletedChar == ' ' && start > mentionStartPosition) {
+                        // User deleted space after mention, might want to continue typing
+                        // Keep mention mode active
+                    }
+                }
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Check for @ mention trigger
+                if (count > 0 && start < s.length()) {
+                    char lastChar = s.charAt(start);
+                    if (lastChar == '@') {
+                        // User typed @, show mention suggestions
+                        mentionStartPosition = start;
+                        isMentionMode = true;
+                        showMentionSuggestions("");
+                    } else if (isMentionMode && start > mentionStartPosition) {
+                        // User is typing after @, filter suggestions
+                        String query = s.subSequence(mentionStartPosition + 1, start + 1).toString();
+                        showMentionSuggestions(query);
+                    } else if (isMentionMode && (start < mentionStartPosition || 
+                            (start == mentionStartPosition && s.length() > 0 && s.charAt(start) != '@'))) {
+                        // User moved cursor or deleted @, hide popup
+                        hideMentionPopup();
+                    }
+                } else if (isMentionMode && count == 0 && before > 0) {
+                    // User deleted text, check if still in mention mode
+                    if (start <= mentionStartPosition || (start < s.length() && s.charAt(start) != '@')) {
+                        hideMentionPopup();
+                    } else if (start > mentionStartPosition) {
+                        String query = s.subSequence(mentionStartPosition + 1, start).toString();
+                        showMentionSuggestions(query);
+                    }
+                }
                 boolean hasText = s.length() > 0;
                 ivSendComment.setEnabled(hasText);
                 ivSendComment.setAlpha(hasText ? 1.0f : 0.5f);
@@ -462,9 +519,9 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
             ivPostAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
 
-        // Set content
+        // Set content with mention styling
         if (post.getContent() != null && !post.getContent().isEmpty()) {
-            tvPostContent.setText(post.getContent());
+            applyMentionStyling(tvPostContent, post.getContent());
             tvPostContent.setVisibility(View.VISIBLE);
         } else {
             tvPostContent.setVisibility(View.GONE);
@@ -860,6 +917,19 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         if (replyingToComment != null) {
             finalContent = "@" + replyingToComment.getUsername() + " " + content;
             parentCommentId = replyingToComment.getId();
+        }
+        
+        // Add tagged users mentions to content
+        if (taggedUsersForComment != null && !taggedUsersForComment.isEmpty()) {
+            StringBuilder mentions = new StringBuilder();
+            for (User taggedUser : taggedUsersForComment) {
+                if (!mentions.toString().contains("@" + taggedUser.getUsername())) {
+                    mentions.append("@").append(taggedUser.getUsername()).append(" ");
+                }
+            }
+            if (mentions.length() > 0) {
+                finalContent = mentions.toString() + finalContent;
+            }
         }
 
         ivSendComment.setEnabled(false);
@@ -1409,6 +1479,402 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         btnClose.setOnClickListener(v -> dialog.dismiss());
         
         dialog.show();
+    }
+    
+    // Pattern for @mentions
+    private static final java.util.regex.Pattern MENTION_PATTERN = java.util.regex.Pattern.compile("@([A-Za-z0-9_]+)");
+    
+    // Apply mention styling to TextView
+    private static void applyMentionStyling(TextView textView, String content) {
+        if (content == null) {
+            textView.setText("");
+            return;
+        }
+        android.text.SpannableString spannable = new android.text.SpannableString(content);
+        
+        // Apply mention styling
+        java.util.regex.Matcher mentionMatcher = MENTION_PATTERN.matcher(content);
+        while (mentionMatcher.find()) {
+            int start = mentionMatcher.start();
+            int end = mentionMatcher.end();
+            
+            // Style: blue color and bold
+            android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
+            android.text.style.ForegroundColorSpan colorSpan = new android.text.style.ForegroundColorSpan(0xFF2D6BB3); // Primary blue color
+            
+            spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            
+            // Clickable span to open profile
+            android.text.style.ClickableSpan clickableSpan = getMentionClickableSpan(content, start, end);
+            spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        textView.setText(spannable);
+        textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+    }
+    
+    @androidx.annotation.NonNull
+    private static android.text.style.ClickableSpan getMentionClickableSpan(String content, int start, int end) {
+        final String username = content.substring(start + 1, end);
+        return new android.text.style.ClickableSpan() {
+            @Override
+            public void onClick(@androidx.annotation.NonNull View widget) {
+                android.content.Context ctx = widget.getContext();
+                android.content.Intent intent = new android.content.Intent(ctx, ProfileViewActivity.class);
+                intent.putExtra("username", username);
+                ctx.startActivity(intent);
+            }
+            
+            @Override
+            public void updateDrawState(android.text.TextPaint ds) {
+                super.updateDrawState(ds);
+                ds.setUnderlineText(false);
+            }
+        };
+    }
+    
+    private void openTagPeopleDialogForComment() {
+        // Create dialog with friend list (similar to CreatePostActivity)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tag_people, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        RecyclerView rvFriends = dialogView.findViewById(R.id.rv_friends);
+        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
+        TextView tvNoFriends = dialogView.findViewById(R.id.tv_no_friends);
+        EditText etSearch = dialogView.findViewById(R.id.et_search);
+        Button btnDone = dialogView.findViewById(R.id.btn_done);
+        
+        List<User> friends = new ArrayList<>();
+        List<User> filteredFriends = new ArrayList<>();
+        java.util.Set<String> selectedUserIds = new java.util.HashSet<>();
+        if (taggedUserIdsForComment != null) {
+            selectedUserIds.addAll(taggedUserIdsForComment);
+        }
+        
+        // Adapter for friend list
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvFriends.setLayoutManager(layoutManager);
+        
+        final TagUserAdapter[] adapterRef = new TagUserAdapter[1];
+        adapterRef[0] = new TagUserAdapter(
+            this,
+            filteredFriends,
+            selectedUserIds,
+            new TagUserAdapter.OnTagUserClickListener() {
+                @Override
+                public void onUserClick(User user, boolean isSelected) {
+                    // Selection is already handled in adapter
+                }
+            }
+        );
+        rvFriends.setAdapter(adapterRef[0]);
+        
+        // Search filter
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s.toString().toLowerCase();
+                filteredFriends.clear();
+                for (User friend : friends) {
+                    String username = friend.getUsername() != null ? friend.getUsername().toLowerCase() : "";
+                    String firstName = friend.getFirstName() != null ? friend.getFirstName().toLowerCase() : "";
+                    String lastName = friend.getLastName() != null ? friend.getLastName().toLowerCase() : "";
+                    if (username.contains(query) || firstName.contains(query) || lastName.contains(query)) {
+                        filteredFriends.add(friend);
+                    }
+                }
+                if (adapterRef[0] != null) {
+                    adapterRef[0].updateSelection(selectedUserIds);
+                }
+                tvNoFriends.setVisibility(filteredFriends.isEmpty() ? View.VISIBLE : View.GONE);
+            }
+            
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+        
+        // Done button
+        btnDone.setOnClickListener(v -> {
+            // Update tagged users
+            taggedUserIdsForComment.clear();
+            taggedUsersForComment.clear();
+            for (String userId : selectedUserIds) {
+                taggedUserIdsForComment.add(userId);
+                // Find user object
+                for (User friend : friends) {
+                    if (friend.getId().equals(userId)) {
+                        taggedUsersForComment.add(friend);
+                        break;
+                    }
+                }
+            }
+            // Update comment input to show tagged users
+            if (!taggedUsersForComment.isEmpty()) {
+                StringBuilder mentions = new StringBuilder();
+                for (User taggedUser : taggedUsersForComment) {
+                    mentions.append("@").append(taggedUser.getUsername()).append(" ");
+                }
+                String currentText = etCommentInput.getText().toString();
+                if (!currentText.startsWith(mentions.toString().trim())) {
+                    etCommentInput.setText(mentions.toString() + currentText);
+                    etCommentInput.setSelection(etCommentInput.getText().length());
+                }
+            }
+            dialog.dismiss();
+        });
+        
+        // Load friends
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        progressBar.setVisibility(View.VISIBLE);
+        apiClient.authenticatedGet("/api/users/friends", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(PostDetailActivity.this, "Failed to load friends", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    try {
+                        JSONObject json = new JSONObject(body);
+                        if (response.isSuccessful() && json.optBoolean("success", false)) {
+                            JSONObject data = json.getJSONObject("data");
+                            JSONArray arr = data.getJSONArray("friends");
+                            friends.clear();
+                            filteredFriends.clear();
+                            for (int i = 0; i < arr.length(); i++) {
+                                User user = User.fromJson(arr.getJSONObject(i));
+                                friends.add(user);
+                                filteredFriends.add(user);
+                            }
+                            if (adapterRef[0] != null) {
+                                adapterRef[0].updateSelection(selectedUserIds);
+                            }
+                            tvNoFriends.setVisibility(filteredFriends.isEmpty() ? View.VISIBLE : View.GONE);
+                        } else {
+                            Toast.makeText(PostDetailActivity.this, "Failed to load friends", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(PostDetailActivity.this, "Error parsing friends", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+        
+        dialog.show();
+    }
+    
+    private void loadFriendsForMention() {
+        if (friendsListForMention != null && !friendsListForMention.isEmpty()) {
+            return; // Already loaded
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        
+        friendsListForMention = new ArrayList<>();
+        apiClient.authenticatedGet("/api/users/friends", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                // Silently fail - mention feature will just not work
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject json = new JSONObject(body);
+                        if (response.isSuccessful() && json.optBoolean("success", false)) {
+                            JSONObject data = json.getJSONObject("data");
+                            JSONArray arr = data.getJSONArray("friends");
+                            friendsListForMention.clear();
+                            for (int i = 0; i < arr.length(); i++) {
+                                User user = User.fromJson(arr.getJSONObject(i));
+                                friendsListForMention.add(user);
+                            }
+                        }
+                    } catch (JSONException e) {
+                        // Silently fail
+                    }
+                });
+            }
+        });
+    }
+    
+    private void showMentionSuggestions(String query) {
+        if (friendsListForMention == null || friendsListForMention.isEmpty()) {
+            loadFriendsForMention();
+            return;
+        }
+        
+        // Filter friends based on query
+        List<User> filtered = new ArrayList<>();
+        String lowerQuery = query.toLowerCase();
+        for (User friend : friendsListForMention) {
+            String username = friend.getUsername() != null ? friend.getUsername().toLowerCase() : "";
+            String firstName = friend.getFirstName() != null ? friend.getFirstName().toLowerCase() : "";
+            String lastName = friend.getLastName() != null ? friend.getLastName().toLowerCase() : "";
+            if (username.contains(lowerQuery) || firstName.contains(lowerQuery) || lastName.contains(lowerQuery)) {
+                filtered.add(friend);
+            }
+        }
+        
+        if (filtered.isEmpty()) {
+            hideMentionPopup();
+            return;
+        }
+        
+        // Create or update popup
+        if (mentionPopup == null) {
+            createMentionPopup();
+        }
+        
+        // Update adapter with filtered list
+        if (rvMentionSuggestions != null) {
+            com.example.chatappjava.adapters.MentionSuggestionAdapter adapter = 
+                new com.example.chatappjava.adapters.MentionSuggestionAdapter(this, filtered, user -> {
+                    insertMention(user);
+                });
+            rvMentionSuggestions.setAdapter(adapter);
+        }
+        
+        // Show popup
+        if (mentionPopup != null) {
+            if (!mentionPopup.isShowing()) {
+                // Position popup above the EditText
+                int[] location = new int[2];
+                etCommentInput.getLocationOnScreen(location);
+                int x = location[0];
+                int y = location[1] - (int)(400 * getResources().getDisplayMetrics().density);
+                
+                // Ensure popup doesn't go off screen
+                if (y < 0) {
+                    y = location[1] + etCommentInput.getHeight();
+                }
+                
+                mentionPopup.showAtLocation(etCommentInput, android.view.Gravity.NO_GRAVITY, x, y);
+            }
+        } else {
+            // Create popup if not exists
+            createMentionPopup();
+            // Retry showing after creation
+            etCommentInput.post(() -> showMentionSuggestions(query));
+        }
+    }
+    
+    private void createMentionPopup() {
+        android.view.View popupView = getLayoutInflater().inflate(R.layout.popup_mention_suggestions, null);
+        rvMentionSuggestions = popupView.findViewById(R.id.rv_mention_suggestions);
+        
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvMentionSuggestions.setLayoutManager(layoutManager);
+        
+        // Calculate popup width (match EditText width)
+        etCommentInput.post(() -> {
+            int width = etCommentInput.getWidth();
+            int height = (int) (400 * getResources().getDisplayMetrics().density); // 400dp in pixels
+            
+            mentionPopup = new android.widget.PopupWindow(
+                popupView,
+                width,
+                height,
+                true // Focusable
+            );
+            mentionPopup.setBackgroundDrawable(getResources().getDrawable(android.R.drawable.dialog_holo_light_frame));
+            mentionPopup.setOutsideTouchable(true);
+            mentionPopup.setTouchable(true);
+            
+            // Dismiss when clicking outside
+            popupView.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_OUTSIDE) {
+                    hideMentionPopup();
+                    return true;
+                }
+                return false;
+            });
+        });
+    }
+    
+    private void hideMentionPopup() {
+        if (mentionPopup != null && mentionPopup.isShowing()) {
+            mentionPopup.dismiss();
+        }
+        isMentionMode = false;
+        mentionStartPosition = -1;
+    }
+    
+    private void insertMention(User user) {
+        if (mentionStartPosition < 0) {
+            return;
+        }
+        
+        String username = user.getUsername();
+        Editable editable = etCommentInput.getText();
+        
+        // Replace @query with @username
+        int endPosition = etCommentInput.getSelectionStart();
+        if (endPosition > mentionStartPosition) {
+            // Get current text to find where @mention ends (space or end of text)
+            String currentText = editable.toString();
+            int actualEnd = endPosition;
+            
+            // Find the end of the current mention (space, newline, or end of text)
+            for (int i = endPosition; i < currentText.length(); i++) {
+                char c = currentText.charAt(i);
+                if (c == ' ' || c == '\n' || c == '@') {
+                    actualEnd = i;
+                    break;
+                }
+                if (i == currentText.length() - 1) {
+                    actualEnd = currentText.length();
+                }
+            }
+            
+            // Replace the mention
+            editable.replace(mentionStartPosition, actualEnd, "@" + username + " ");
+            
+            // Add to tagged users list
+            if (taggedUserIdsForComment == null) {
+                taggedUserIdsForComment = new ArrayList<>();
+            }
+            if (taggedUsersForComment == null) {
+                taggedUsersForComment = new ArrayList<>();
+            }
+            if (!taggedUserIdsForComment.contains(user.getId())) {
+                taggedUserIdsForComment.add(user.getId());
+                taggedUsersForComment.add(user);
+            }
+            
+            // Move cursor to end of inserted mention
+            int newCursorPosition = mentionStartPosition + username.length() + 2; // @ + username + space
+            etCommentInput.setSelection(newCursorPosition);
+        }
+        
+        hideMentionPopup();
     }
 }
 
