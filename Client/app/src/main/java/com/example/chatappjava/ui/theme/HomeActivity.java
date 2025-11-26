@@ -408,7 +408,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             
             @Override
             public void onCommentClick(com.example.chatappjava.models.Post post) {
-                // TODO: Open comment thread
+                Intent intent = new Intent(HomeActivity.this, PostDetailActivity.class);
+                try {
+                    intent.putExtra("post", post.toJson().toString());
+                    startActivity(intent);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error passing post data: " + e.getMessage());
+                    Toast.makeText(HomeActivity.this, "Error opening comments", Toast.LENGTH_SHORT).show();
+                }
             }
             
             @Override

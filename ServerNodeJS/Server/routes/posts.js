@@ -9,7 +9,10 @@ const {
   deletePost,
   toggleLike,
   addComment,
+  editComment,
   deleteComment,
+  addReactionToComment,
+  removeReactionFromComment,
   sharePost
 } = require('../controllers/postController');
 const { authMiddleware } = require('../middleware/authMiddleware');
@@ -108,7 +111,42 @@ const addCommentValidation = [
     .withMessage('Comment content is required')
     .isLength({ max: 1000 })
     .withMessage('Comment cannot exceed 1000 characters')
+    .trim(),
+  body('parentCommentId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid parent comment ID format'),
+  body('mediaUrl')
+    .optional()
+    .isString()
+    .withMessage('Media URL must be a string')
+];
+
+const editCommentValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  param('commentId')
+    .isMongoId()
+    .withMessage('Invalid comment ID format'),
+  body('content')
+    .notEmpty()
+    .withMessage('Comment content is required')
+    .isLength({ max: 1000 })
+    .withMessage('Comment cannot exceed 1000 characters')
     .trim()
+];
+
+const reactionValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  param('commentId')
+    .isMongoId()
+    .withMessage('Invalid comment ID format'),
+  body('type')
+    .isIn(['like', 'love', 'haha', 'wow', 'sad', 'angry'])
+    .withMessage('Reaction type must be one of: like, love, haha, wow, sad, angry')
 ];
 
 // Routes
@@ -140,8 +178,22 @@ router.get('/user/:userId', userIdValidation, [
     .withMessage('Limit must be between 1 and 100')
 ], getUserPosts);
 
-// Get post by ID
-router.get('/:id', postIdValidation, getPostById);
+// Get post by ID (with comment pagination)
+router.get('/:id', [
+  postIdValidation,
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+  query('sortBy')
+    .optional()
+    .isIn(['recent', 'relevant'])
+    .withMessage('SortBy must be either "recent" or "relevant"')
+], getPostById);
 
 // Update post
 router.put('/:id', updatePostValidation, updatePost);
@@ -155,6 +207,9 @@ router.post('/:id/like', postIdValidation, toggleLike);
 // Add comment
 router.post('/:id/comments', addCommentValidation, addComment);
 
+// Edit comment
+router.put('/:id/comments/:commentId', editCommentValidation, editComment);
+
 // Delete comment
 router.delete('/:id/comments/:commentId', [
   param('id')
@@ -164,6 +219,19 @@ router.delete('/:id/comments/:commentId', [
     .isMongoId()
     .withMessage('Invalid comment ID format')
 ], deleteComment);
+
+// Add reaction to comment
+router.post('/:id/comments/:commentId/reactions', reactionValidation, addReactionToComment);
+
+// Remove reaction from comment
+router.delete('/:id/comments/:commentId/reactions', [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid post ID format'),
+  param('commentId')
+    .isMongoId()
+    .withMessage('Invalid comment ID format')
+], removeReactionFromComment);
 
 // Share post
 router.post('/:id/share', postIdValidation, sharePost);

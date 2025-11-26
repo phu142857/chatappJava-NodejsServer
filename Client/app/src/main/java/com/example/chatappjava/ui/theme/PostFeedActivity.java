@@ -30,6 +30,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.content.Intent;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -467,8 +469,14 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     
     @Override
     public void onCommentClick(Post post) {
-        // TODO: Open comment thread
-        Toast.makeText(this, "Comments for post: " + post.getId(), Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(PostFeedActivity.this, PostDetailActivity.class);
+        try {
+            intent.putExtra("post", post.toJson().toString());
+            startActivity(intent);
+        } catch (JSONException e) {
+            Log.e(TAG, "Error passing post data: " + e.getMessage());
+            Toast.makeText(this, "Error opening comments", Toast.LENGTH_SHORT).show();
+        }
     }
     
     @Override

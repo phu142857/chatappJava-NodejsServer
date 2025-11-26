@@ -58,6 +58,31 @@ const postSchema = new mongoose.Schema({
       maxlength: [1000, 'Comment cannot exceed 1000 characters'],
       trim: true
     },
+    parentCommentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Post.comments',
+      default: null
+    },
+    mediaUrl: {
+      type: String,
+      default: null
+    },
+    reactions: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      type: {
+        type: String,
+        enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'],
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     createdAt: {
       type: Date,
       default: Date.now
@@ -65,6 +90,14 @@ const postSchema = new mongoose.Schema({
     updatedAt: {
       type: Date,
       default: Date.now
+    },
+    isEdited: {
+      type: Boolean,
+      default: false
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false
     }
   }],
   shares: [{
@@ -105,10 +138,39 @@ postSchema.virtual('likesCount').get(function() {
   return this.likes ? this.likes.length : 0;
 });
 
-// Virtual for comments count
+// Virtual for comments count (only top-level comments, not replies)
 postSchema.virtual('commentsCount').get(function() {
-  return this.comments ? this.comments.length : 0;
+  if (!this.comments) return 0;
+  return this.comments.filter(c => !c.isDeleted && !c.parentCommentId).length;
 });
+
+// Method to get top-level comments with pagination
+postSchema.methods.getTopLevelComments = function(page = 1, limit = 20, sortBy = 'recent') {
+  const skip = (page - 1) * limit;
+  let topLevelComments = this.comments.filter(c => !c.isDeleted && !c.parentCommentId);
+  
+  // Sort comments
+  if (sortBy === 'recent') {
+    topLevelComments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } else if (sortBy === 'relevant') {
+    // Sort by reactions count + replies count (simple relevance)
+    topLevelComments.sort((a, b) => {
+      const aScore = (a.reactions?.length || 0) + (this.comments.filter(c => c.parentCommentId?.toString() === a._id.toString()).length || 0);
+      const bScore = (b.reactions?.length || 0) + (this.comments.filter(c => c.parentCommentId?.toString() === b._id.toString()).length || 0);
+      return bScore - aScore;
+    });
+  }
+  
+  return topLevelComments.slice(skip, skip + limit);
+};
+
+// Method to get replies for a comment
+postSchema.methods.getCommentReplies = function(commentId, limit = 10) {
+  return this.comments
+    .filter(c => !c.isDeleted && c.parentCommentId?.toString() === commentId.toString())
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, limit);
+};
 
 // Virtual for shares count
 postSchema.virtual('sharesCount').get(function() {

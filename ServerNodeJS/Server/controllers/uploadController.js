@@ -23,6 +23,46 @@ const imageStorage = multer.diskStorage({
   }
 });
 
+// Configure multer for post image uploads
+const postImageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../uploads/posts');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'post-image-' + uniqueSuffix + ext);
+  }
+});
+
+// Configure multer for comment media uploads
+const commentMediaStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../uploads/comments');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'comment-media-' + uniqueSuffix + ext);
+  }
+});
+
 // Configure multer for file uploads (PDF, TXT, etc.)
 const fileStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -55,6 +95,36 @@ const imageUpload = multer({
       cb(null, true);
     } else {
       cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
+
+const postImageUpload = multer({
+  storage: postImageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Check if file is an image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
+
+const commentMediaUpload = multer({
+  storage: commentMediaStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit for comments
+  },
+  fileFilter: function (req, file, cb) {
+    // Allow images and GIFs
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (including GIFs) are allowed'), false);
     }
   }
 });
@@ -288,9 +358,90 @@ const getFilePreview = async (req, res) => {
   }
 };
 
+// @desc    Upload post image
+// @route   POST /api/upload/posts/image
+// @access  Private
+const uploadPostImage = async (req, res) => {
+  try {
+    postImageUpload.single('image')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No image file uploaded'
+        });
+      }
+
+      const fileName = req.file.filename;
+      const imageUrl = `/uploads/posts/${fileName}`;
+      
+      res.json({
+        success: true,
+        message: 'Image uploaded successfully',
+        imageUrl: imageUrl
+      });
+    });
+  } catch (error) {
+    console.error('Upload post image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during image upload'
+    });
+  }
+};
+
+// @desc    Upload comment media (image/GIF)
+// @route   POST /api/upload/comments/image
+// @access  Private
+const uploadCommentImage = async (req, res) => {
+  try {
+    commentMediaUpload.single('image')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No image file uploaded'
+        });
+      }
+
+      const fileName = req.file.filename;
+      const imageUrl = `/uploads/comments/${fileName}`;
+      
+      res.json({
+        success: true,
+        message: 'Comment media uploaded successfully',
+        imageUrl: imageUrl,
+        fileName: fileName,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype
+      });
+    });
+  } catch (error) {
+    console.error('Upload comment image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during comment media upload'
+    });
+  }
+};
+
 module.exports = {
   uploadChatImage,
   uploadChatFile,
+  uploadPostImage,
+  uploadCommentImage,
   downloadFile,
   getFilePreview
 };

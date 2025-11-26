@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp">
+
+    <!-- Vertical Line Indicator (Reply Chain) -->
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@color/border_light"
+        android:layout_marginEnd="12dp"
+        android:minHeight="40dp" />
+
+    <!-- Reply Content Container -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="top">
+
+        <!-- User Avatar (Smaller for replies) -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_reply_avatar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/border_light"
+            app:civ_border_width="1dp" />
+
+        <!-- Reply Content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical">
+
+            <!-- Reply Bubble -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface_secondary">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:minWidth="100dp"
+                    android:maxWidth="260dp">
+
+                    <!-- Username -->
+                    <TextView
+                        android:id="@+id/tv_reply_username"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Username"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:paddingBottom="2dp" />
+
+                    <!-- Reply Text Body -->
+                    <TextView
+                        android:id="@+id/tv_reply_content"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="This is a reply to the comment."
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:lineSpacingMultiplier="1.2"
+                        android:linksClickable="true"
+                        android:autoLink="web" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Metadata & Actions Row -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="10dp"
+                android:gravity="center_vertical">
+
+                <!-- Timestamp -->
+                <TextView
+                    android:id="@+id/tv_reply_timestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2m"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="11sp" />
+
+                <!-- Like Count -->
+                <TextView
+                    android:id="@+id/tv_reply_likes_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="0"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+
+                <!-- Like Button -->
+                <TextView
+                    android:id="@+id/tv_reply_like"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Like"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="4dp" />
+
+                <!-- Reply Button -->
+                <TextView
+                    android:id="@+id/tv_reply_reply"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Reply"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="4dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
+

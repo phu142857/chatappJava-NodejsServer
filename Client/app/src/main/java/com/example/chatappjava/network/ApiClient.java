@@ -1203,9 +1203,19 @@ public class ApiClient {
      * Add comment to post
      */
     public void addComment(String token, String postId, String content, Callback callback) {
+        addComment(token, postId, content, null, callback);
+    }
+    
+    /**
+     * Add comment to post (with optional parentCommentId for replies)
+     */
+    public void addComment(String token, String postId, String content, String parentCommentId, Callback callback) {
         try {
             JSONObject body = new JSONObject();
             body.put("content", content);
+            if (parentCommentId != null && !parentCommentId.isEmpty()) {
+                body.put("parentCommentId", parentCommentId);
+            }
             String endpoint = "/api/posts/" + postId + "/comments";
             authenticatedPost(endpoint, token, body, callback);
         } catch (JSONException e) {
@@ -1219,6 +1229,29 @@ public class ApiClient {
      */
     public void deleteComment(String token, String postId, String commentId, Callback callback) {
         String endpoint = "/api/posts/" + postId + "/comments/" + commentId;
+        authenticatedDelete(endpoint, token, callback);
+    }
+    
+    /**
+     * Add reaction to comment
+     */
+    public void addReactionToComment(String token, String postId, String commentId, String reactionType, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("type", reactionType);
+            String endpoint = "/api/posts/" + postId + "/comments/" + commentId + "/reactions";
+            authenticatedPost(endpoint, token, body, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to prepare reaction: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Remove reaction from comment
+     */
+    public void removeReactionFromComment(String token, String postId, String commentId, Callback callback) {
+        String endpoint = "/api/posts/" + postId + "/comments/" + commentId + "/reactions";
         authenticatedDelete(endpoint, token, callback);
     }
     

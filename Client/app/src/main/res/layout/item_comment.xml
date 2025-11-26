@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+    <!-- Main Comment Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="top">
+
+        <!-- User Avatar -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_comment_avatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/border_light"
+            app:civ_border_width="1dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Comment Content Container -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <!-- Comment Bubble -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface_secondary">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:minWidth="120dp"
+                    android:maxWidth="280dp">
+
+                    <!-- Username -->
+                    <TextView
+                        android:id="@+id/tv_comment_username"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Username"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:paddingBottom="4dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <!-- Comment Text Body -->
+                    <TextView
+                        android:id="@+id/tv_comment_content"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="This is a comment text that can span multiple lines and support emojis and links."
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        android:lineSpacingMultiplier="1.2"
+                        android:linksClickable="true"
+                        android:autoLink="web"
+                        android:longClickable="true" />
+
+                    <!-- Media Attachment (Image/GIF) -->
+                    <ImageView
+                        android:id="@+id/iv_comment_media"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:maxHeight="200dp"
+                        android:scaleType="centerCrop"
+                        android:adjustViewBounds="true"
+                        android:visibility="gone"
+                        android:contentDescription="Comment media" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Action Bar (Below Comment) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="12dp"
+                android:gravity="center_vertical">
+
+                <!-- Timestamp -->
+                <TextView
+                    android:id="@+id/tv_comment_timestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5m"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="12sp" />
+
+                <!-- Like Button -->
+                <TextView
+                    android:id="@+id/tv_comment_like"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Like"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="4dp" />
+
+                <!-- Reply Button -->
+                <TextView
+                    android:id="@+id/tv_comment_reply"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Reply"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="4dp" />
+
+                <!-- Reaction Icons (Inline in Action Bar) -->
+                <LinearLayout
+                    android:id="@+id/ll_reaction_icons_inline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tv_reaction_like"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👍"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_reaction_love"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="❤️"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_reaction_haha"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="😂"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_reaction_wow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="😮"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_reaction_sad"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="😢"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_reaction_angry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="😠"
+                        android:textSize="14sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+                <!-- Reaction Count (Clickable) -->
+                <TextView
+                    android:id="@+id/tv_comment_reaction_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="0"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="4dp"
+                    android:visibility="gone" />
+
+                <!-- Three-dot Menu -->
+                <ImageButton
+                    android:id="@+id/iv_comment_menu"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_more"
+                    android:contentDescription="Comment options"
+                    android:padding="6dp"
+                    app:tint="@color/text_secondary"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Reply Thread Indicator & Replies Container -->
+    <LinearLayout
+        android:id="@+id/ll_replies_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginStart="52dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+
+        <!-- View Replies Link -->
+        <TextView
+            android:id="@+id/tv_view_replies"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View 3 replies"
+            android:textColor="@color/icon_active"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="8dp"
+            android:paddingStart="0dp"
+            android:visibility="gone" />
+
+        <!-- Replies List (Nested RecyclerView or LinearLayout) -->
+        <LinearLayout
+            android:id="@+id/ll_replies_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Replies will be added here dynamically -->
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

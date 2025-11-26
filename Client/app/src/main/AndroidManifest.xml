@@ -162,6 +162,16 @@
             android:exported="false"
             android:label="Post Feed"
             android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.CommentThreadActivity"
+            android:exported="false"
+            android:label="Comments"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.PostDetailActivity"
+            android:exported="false"
+            android:label="Post"
+            android:theme="@style/Theme.ChatAppJava" />
 
         
     </application>

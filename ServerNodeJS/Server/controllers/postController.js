@@ -158,6 +158,7 @@ const getFeedPosts = async (req, res) => {
 const getPostById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { page = 1, limit = 20, sortBy = 'recent' } = req.query;
     const userId = req.user.id;
 
     const post = await Post.findOne({
@@ -169,6 +170,7 @@ const getPostById = async (req, res) => {
       .populate('tags', 'username avatar profile.firstName profile.lastName')
       .populate('likes.user', 'username avatar')
       .populate('comments.user', 'username avatar profile.firstName profile.lastName')
+      .populate('comments.reactions.user', 'username avatar')
       .populate('shares.user', 'username avatar');
 
     if (!post) {
@@ -193,14 +195,46 @@ const getPostById = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this post'
-        });
+      });
       }
     }
+
+    // Populate all comments first
+    await post.populate('comments.user', 'username avatar profile.firstName profile.lastName');
+    await post.populate('comments.reactions.user', 'username avatar');
+    
+    // Get top-level comments with pagination and sorting
+    const topLevelComments = post.getTopLevelComments(parseInt(page), parseInt(limit), sortBy);
+    
+    // For each top-level comment, get its replies (limit to 3 most recent)
+    const commentsWithReplies = topLevelComments.map(comment => {
+      const commentObj = comment.toObject();
+      const replies = post.getCommentReplies(comment._id, 3);
+      commentObj.replies = replies.map(r => r.toObject());
+      commentObj.repliesCount = post.comments.filter(c => 
+        !c.isDeleted && c.parentCommentId?.toString() === comment._id.toString()
+      ).length;
+      return commentObj;
+    });
+
+    // Calculate total comments count
+    const totalComments = post.comments.filter(c => !c.isDeleted && !c.parentCommentId).length;
+    const totalPages = Math.ceil(totalComments / parseInt(limit));
 
     res.json({
       success: true,
       data: {
-        post
+        post: {
+          ...post.toObject(),
+          comments: commentsWithReplies
+        },
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalComments,
+          totalPages: totalPages,
+          hasMore: parseInt(page) < totalPages
+        }
       }
     });
 
@@ -409,6 +443,78 @@ const addComment = async (req, res) => {
     }
 
     const { id } = req.params;
+    const { content, parentCommentId = null, mediaUrl = null } = req.body;
+    const userId = req.user.id;
+
+    const post = await Post.findById(id);
+    if (!post || !post.isActive || post.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Validate parentCommentId if provided
+    if (parentCommentId) {
+      const parentComment = post.comments.id(parentCommentId);
+      if (!parentComment || parentComment.isDeleted) {
+        return res.status(404).json({
+          success: false,
+          message: 'Parent comment not found'
+        });
+      }
+    }
+
+    const newComment = {
+      user: userId,
+      content,
+      parentCommentId: parentCommentId || null,
+      mediaUrl: mediaUrl || null,
+      reactions: [],
+      isEdited: false,
+      isDeleted: false
+    };
+
+    post.comments.push(newComment);
+    await post.save();
+    
+    // Populate user info for the new comment
+    const savedComment = post.comments[post.comments.length - 1];
+    await post.populate('comments.user', 'username avatar profile.firstName profile.lastName');
+
+    res.status(201).json({
+      success: true,
+      message: 'Comment added successfully',
+      data: {
+        comment: savedComment,
+        commentsCount: post.commentsCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Add comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while adding comment'
+    });
+  }
+};
+
+// @desc    Edit comment
+// @route   PUT /api/posts/:id/comments/:commentId
+// @access  Private
+const editComment = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { id, commentId } = req.params;
     const { content } = req.body;
     const userId = req.user.id;
 
@@ -420,30 +526,46 @@ const addComment = async (req, res) => {
       });
     }
 
-    post.comments.push({
-      user: userId,
-      content
-    });
+    const comment = post.comments.id(commentId);
+    if (!comment || comment.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Check if user owns the comment
+    if (comment.user.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own comments'
+      });
+    }
+
+    comment.content = content;
+    comment.updatedAt = new Date();
+    comment.isEdited = true;
 
     await post.save();
     await post.populate('comments.user', 'username avatar profile.firstName profile.lastName');
+    await post.populate('comments.reactions.user', 'username avatar');
 
-    const newComment = post.comments[post.comments.length - 1];
+    // Get updated comment
+    const updatedComment = post.comments.id(commentId);
 
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Comment added successfully',
+      message: 'Comment updated successfully',
       data: {
-        comment: newComment,
-        commentsCount: post.comments.length
+        comment: updatedComment
       }
     });
 
   } catch (error) {
-    console.error('Add comment error:', error);
+    console.error('Edit comment error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while adding comment'
+      message: 'Server error while editing comment'
     });
   }
 };
@@ -464,18 +586,13 @@ const deleteComment = async (req, res) => {
       });
     }
 
-    const commentIndex = post.comments.findIndex(
-      comment => comment._id.toString() === commentId
-    );
-
-    if (commentIndex === -1) {
+    const comment = post.comments.id(commentId);
+    if (!comment || comment.isDeleted) {
       return res.status(404).json({
         success: false,
         message: 'Comment not found'
       });
     }
-
-    const comment = post.comments[commentIndex];
 
     // Check if user owns the comment or is admin
     if (comment.user.toString() !== userId && req.user.role !== 'admin') {
@@ -485,14 +602,16 @@ const deleteComment = async (req, res) => {
       });
     }
 
-    post.comments.splice(commentIndex, 1);
+    // Soft delete: mark as deleted instead of removing
+    comment.isDeleted = true;
+    comment.content = '[Deleted]';
     await post.save();
 
     res.json({
       success: true,
       message: 'Comment deleted successfully',
       data: {
-        commentsCount: post.comments.length
+        commentsCount: post.commentsCount
       }
     });
 
@@ -501,6 +620,128 @@ const deleteComment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while deleting comment'
+    });
+  }
+};
+
+// @desc    Add reaction to comment
+// @route   POST /api/posts/:id/comments/:commentId/reactions
+// @access  Private
+const addReactionToComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { type } = req.body;
+    const userId = req.user.id;
+
+    if (!type || !['like', 'love', 'haha', 'wow', 'sad', 'angry'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid reaction type. Must be one of: like, love, haha, wow, sad, angry'
+      });
+    }
+
+    const post = await Post.findById(id);
+    if (!post || !post.isActive || post.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment || comment.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Remove existing reaction from this user
+    comment.reactions = comment.reactions.filter(
+      r => r.user.toString() !== userId.toString()
+    );
+
+    // Add new reaction
+    comment.reactions.push({
+      user: userId,
+      type: type
+    });
+
+    await post.save();
+    await post.populate('comments.reactions.user', 'username avatar');
+
+    res.json({
+      success: true,
+      message: 'Reaction added successfully',
+      data: {
+        reaction: comment.reactions[comment.reactions.length - 1],
+        reactionsCount: comment.reactions.length,
+        reactions: comment.reactions
+      }
+    });
+
+  } catch (error) {
+    console.error('Add reaction to comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while adding reaction'
+    });
+  }
+};
+
+// @desc    Remove reaction from comment
+// @route   DELETE /api/posts/:id/comments/:commentId/reactions
+// @access  Private
+const removeReactionFromComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const userId = req.user.id;
+
+    const post = await Post.findById(id);
+    if (!post || !post.isActive || post.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment || comment.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Remove reaction from this user
+    const initialLength = comment.reactions.length;
+    comment.reactions = comment.reactions.filter(
+      r => r.user.toString() !== userId.toString()
+    );
+
+    if (comment.reactions.length === initialLength) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reaction not found'
+      });
+    }
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: 'Reaction removed successfully',
+      data: {
+        reactionsCount: comment.reactions.length,
+        reactions: comment.reactions
+      }
+    });
+
+  } catch (error) {
+    console.error('Remove reaction from comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while removing reaction'
     });
   }
 };
@@ -560,7 +801,10 @@ module.exports = {
   deletePost,
   toggleLike,
   addComment,
+  editComment,
   deleteComment,
+  addReactionToComment,
+  removeReactionFromComment,
   sharePost
 };
 

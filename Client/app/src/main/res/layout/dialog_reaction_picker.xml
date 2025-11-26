@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/rounded_container"
+    android:backgroundTint="@color/background_secondary"
+    android:elevation="8dp"
+    android:padding="8dp"
+    android:gravity="center_vertical">
+
+    <!-- Like -->
+    <TextView
+        android:id="@+id/tv_reaction_like_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="👍"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Like" />
+
+    <!-- Love -->
+    <TextView
+        android:id="@+id/tv_reaction_love_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="❤️"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Love" />
+
+    <!-- Haha -->
+    <TextView
+        android:id="@+id/tv_reaction_haha_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="😂"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Haha" />
+
+    <!-- Wow -->
+    <TextView
+        android:id="@+id/tv_reaction_wow_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="😮"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Wow" />
+
+    <!-- Sad -->
+    <TextView
+        android:id="@+id/tv_reaction_sad_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="😢"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Sad" />
+
+    <!-- Angry -->
+    <TextView
+        android:id="@+id/tv_reaction_angry_picker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="😠"
+        android:textSize="32sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Angry" />
+
+</LinearLayout>
+

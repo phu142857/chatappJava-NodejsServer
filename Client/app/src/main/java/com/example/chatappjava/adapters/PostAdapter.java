@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatappjava.R;
+import com.example.chatappjava.config.ServerConfig;
 import com.example.chatappjava.models.Post;
 import com.example.chatappjava.utils.AvatarManager;
 import com.squareup.picasso.Picasso;
@@ -142,14 +143,27 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             tvPostTimestamp.setText(post.getFormattedTimestamp());
             
             // Load avatar
-            if (avatarManager != null && post.getAuthorAvatar() != null && !post.getAuthorAvatar().isEmpty()) {
-                String avatarUrl = post.getAuthorAvatar();
+            String avatarUrl = post.getAuthorAvatar();
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
                 // Construct full URL if needed
                 if (!avatarUrl.startsWith("http")) {
-                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                    // Ensure avatarUrl starts with /
+                    if (!avatarUrl.startsWith("/")) {
+                        avatarUrl = "/" + avatarUrl;
+                    }
+                    avatarUrl = ServerConfig.getBaseUrl() + avatarUrl;
                 }
-                avatarManager.loadAvatar(avatarUrl, ivPostAvatar, R.drawable.ic_profile_placeholder);
+                
+                if (avatarManager != null) {
+                    avatarManager.loadAvatar(avatarUrl, ivPostAvatar, R.drawable.ic_profile_placeholder);
+                } else {
+                    // Fallback to Picasso if AvatarManager is not available
+                    Picasso.get()
+                            .load(avatarUrl)
+                            .placeholder(R.drawable.ic_profile_placeholder)
+                            .error(R.drawable.ic_profile_placeholder)
+                            .into(ivPostAvatar);
+                }
             } else {
                 ivPostAvatar.setImageResource(R.drawable.ic_profile_placeholder);
             }
