@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -26,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.config.ServerConfig;
+import com.example.chatappjava.models.Post;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.utils.AvatarManager;
 import com.example.chatappjava.utils.DatabaseManager;
@@ -89,6 +91,14 @@ public class CreatePostActivity extends AppCompatActivity {
     // State
     private boolean hasContent = false;
     private ProgressDialog progressDialog;
+    private String sharedPostId; // ID of the post being shared
+    private Post originalPost; // Original post being shared
+    
+    // Embedded Post Bar Views
+    private View embeddedPostCard;
+    private de.hdodenhof.circleimageview.CircleImageView ivEmbeddedAvatar;
+    private TextView tvEmbeddedUsername;
+    private TextView tvEmbeddedContent;
     
     // Image picker launcher
     private androidx.activity.result.ActivityResultLauncher<Intent> imagePickerLauncher;
@@ -119,6 +129,14 @@ public class CreatePostActivity extends AppCompatActivity {
         setupClickListeners();
         setupTextWatchers();
         loadUserProfile();
+        
+        // Handle shared post after views are initialized
+        // Use post() to ensure layout is ready
+        findViewById(android.R.id.content).post(() -> {
+            Log.d(TAG, "About to call handleSharedPost()");
+            handleSharedPost();
+            Log.d(TAG, "handleSharedPost() completed");
+        });
         
         // Auto-focus on text input
         etPostContent.requestFocus();
@@ -159,6 +177,26 @@ public class CreatePostActivity extends AppCompatActivity {
         ivLocation = findViewById(R.id.iv_location);
         ivEmoji = findViewById(R.id.iv_emoji);
         ivMoreOptions = findViewById(R.id.iv_more_options);
+        
+        // Embedded Post Bar
+        embeddedPostCard = findViewById(R.id.embedded_post_card);
+        Log.d(TAG, "initializeViews - embeddedPostCard: " + (embeddedPostCard != null ? "found" : "NULL"));
+        if (embeddedPostCard != null) {
+            ivEmbeddedAvatar = embeddedPostCard.findViewById(R.id.iv_embedded_avatar);
+            tvEmbeddedUsername = embeddedPostCard.findViewById(R.id.tv_embedded_username);
+            tvEmbeddedContent = embeddedPostCard.findViewById(R.id.tv_embedded_content);
+            Log.d(TAG, "initializeViews - Child views - avatar: " + (ivEmbeddedAvatar != null ? "found" : "null") + 
+                  ", username: " + (tvEmbeddedUsername != null ? "found" : "null") + 
+                  ", content: " + (tvEmbeddedContent != null ? "found" : "null"));
+        } else {
+            Log.e(TAG, "ERROR in initializeViews: embeddedPostCard is NULL! Trying alternative method...");
+            // Try to find the view in the included layout
+            View rootView = findViewById(android.R.id.content);
+            if (rootView != null) {
+                embeddedPostCard = rootView.findViewById(R.id.embedded_post_card);
+                Log.d(TAG, "Alternative find - embeddedPostCard: " + (embeddedPostCard != null ? "found" : "still NULL"));
+            }
+        }
         
         selectedMedia = new ArrayList<>();
         taggedUserIds = new ArrayList<>();
@@ -242,15 +280,209 @@ public class CreatePostActivity extends AppCompatActivity {
     
     private void checkContentAndUpdateButton() {
         String content = etPostContent.getText().toString().trim();
-        hasContent = !content.isEmpty() || !selectedMedia.isEmpty();
-        btnPost.setEnabled(hasContent);
-        
-        // Update button appearance
-        if (hasContent) {
+        // If sharing a post, button is always enabled (content is optional)
+        if (sharedPostId != null && !sharedPostId.isEmpty()) {
+            hasContent = true; // Sharing always counts as content
+            btnPost.setEnabled(true);
             btnPost.setAlpha(1.0f);
         } else {
-            btnPost.setAlpha(0.5f);
+            hasContent = !content.isEmpty() || !selectedMedia.isEmpty();
+            btnPost.setEnabled(hasContent);
+            
+            // Update button appearance
+            if (hasContent) {
+                btnPost.setAlpha(1.0f);
+            } else {
+                btnPost.setAlpha(0.5f);
+            }
         }
+    }
+    
+    private void handleSharedPost() {
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("shared_post_id")) {
+            sharedPostId = intent.getStringExtra("shared_post_id");
+            String sharedPostContent = intent.getStringExtra("shared_post_content");
+            String sharedPostAuthor = intent.getStringExtra("shared_post_author");
+            String sharedPostAuthorId = intent.getStringExtra("shared_post_author_id");
+            String sharedPostAuthorAvatar = intent.getStringExtra("shared_post_author_avatar");
+            String sharedPostMedia = intent.getStringExtra("shared_post_media");
+            
+            Log.d(TAG, "Handling shared post - ID: " + sharedPostId + ", Author: " + sharedPostAuthor);
+            Log.d(TAG, "Embedded post card view before retry: " + (embeddedPostCard != null ? "found" : "NULL"));
+            
+            // Always try to find the view again in case it wasn't ready during initializeViews
+            embeddedPostCard = findViewById(R.id.embedded_post_card);
+            if (embeddedPostCard != null) {
+                // Re-initialize child views
+                ivEmbeddedAvatar = embeddedPostCard.findViewById(R.id.iv_embedded_avatar);
+                tvEmbeddedUsername = embeddedPostCard.findViewById(R.id.tv_embedded_username);
+                tvEmbeddedContent = embeddedPostCard.findViewById(R.id.tv_embedded_content);
+                Log.d(TAG, "Embedded post card view after retry: FOUND");
+                Log.d(TAG, "Child views - avatar: " + (ivEmbeddedAvatar != null ? "found" : "null") + 
+                      ", username: " + (tvEmbeddedUsername != null ? "found" : "null") + 
+                      ", content: " + (tvEmbeddedContent != null ? "found" : "null"));
+            } else {
+                Log.e(TAG, "ERROR: Cannot find embeddedPostCard even after retry!");
+                return; // Exit early if view is not found
+            }
+            
+            // Create a Post object for the original post
+            originalPost = new Post();
+            originalPost.setId(sharedPostId);
+            originalPost.setAuthorUsername(sharedPostAuthor);
+            originalPost.setAuthorId(sharedPostAuthorId);
+            originalPost.setAuthorAvatar(sharedPostAuthorAvatar); // Set avatar
+            originalPost.setContent(sharedPostContent);
+            if (sharedPostMedia != null && !sharedPostMedia.isEmpty()) {
+                List<String> mediaUrls = new ArrayList<>();
+                mediaUrls.add(sharedPostMedia);
+                originalPost.setMediaUrls(mediaUrls);
+                originalPost.setMediaType("image");
+            }
+            
+            // Change hint text
+            etPostContent.setHint("Write something about this post...");
+            
+            // Show embedded post bar
+            if (embeddedPostCard != null) {
+                Log.d(TAG, "Setting embedded post card visibility to VISIBLE");
+                
+                // Load data first
+                loadEmbeddedPostCard(originalPost);
+                
+                // Set visibility immediately
+                embeddedPostCard.setVisibility(View.VISIBLE);
+                
+                // Force the view to be measured and laid out
+                embeddedPostCard.post(() -> {
+                    // Request layout on the view and its parent
+                    View parent = (View) embeddedPostCard.getParent();
+                    if (parent != null) {
+                        parent.requestLayout();
+                    }
+                    embeddedPostCard.requestLayout();
+                    
+                    // Also request layout on the scroll view to ensure it recalculates
+                    androidx.core.widget.NestedScrollView scrollView = findViewById(R.id.scroll_content);
+                    if (scrollView != null) {
+                        scrollView.requestLayout();
+                    }
+                    
+                    // Use ViewTreeObserver to verify layout
+                    embeddedPostCard.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            embeddedPostCard.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                            
+                            int height = embeddedPostCard.getHeight();
+                            int width = embeddedPostCard.getWidth();
+                            int visibility = embeddedPostCard.getVisibility();
+                            
+                            Log.d(TAG, "After layout - visibility: " + visibility + ", height: " + height + ", width: " + width);
+                            
+                            if (height == 0 || width == 0) {
+                                Log.e(TAG, "WARNING: View still has zero dimensions! Parent: " + (parent != null ? parent.getClass().getSimpleName() : "null"));
+                            } else {
+                                Log.d(TAG, "SUCCESS: Embedded post bar is visible with dimensions!");
+                            }
+                        }
+                    });
+                });
+            } else {
+                Log.e(TAG, "ERROR: embeddedPostCard is NULL!");
+            }
+            
+            // Update button state (sharing doesn't require content, but we enable it by default)
+            btnPost.setEnabled(true);
+            btnPost.setAlpha(1.0f);
+        } else {
+            Log.d(TAG, "No shared_post_id in intent");
+            if (embeddedPostCard != null) {
+                embeddedPostCard.setVisibility(View.GONE);
+            }
+        }
+    }
+    
+    private void loadEmbeddedPostCard(Post post) {
+        if (post == null || embeddedPostCard == null) {
+            Log.e(TAG, "loadEmbeddedPostCard: post or embeddedPostCard is null");
+            return;
+        }
+        
+        Log.d(TAG, "Loading embedded post card for: " + post.getAuthorUsername());
+        
+        // Set author info
+        if (tvEmbeddedUsername != null) {
+            String username = post.getAuthorUsername();
+            tvEmbeddedUsername.setText(username != null && !username.isEmpty() ? username : "Unknown User");
+            Log.d(TAG, "Set username: " + username);
+        } else {
+            Log.e(TAG, "tvEmbeddedUsername is null!");
+        }
+        
+        // Load avatar
+        if (ivEmbeddedAvatar != null) {
+            String avatarUrl = post.getAuthorAvatar();
+            Log.d(TAG, "Avatar URL: " + avatarUrl);
+            
+            if (avatarManager != null && avatarUrl != null && !avatarUrl.isEmpty()) {
+                if (!avatarUrl.startsWith("http")) {
+                    if (!avatarUrl.startsWith("/")) {
+                        avatarUrl = "/" + avatarUrl;
+                    }
+                    avatarUrl = ServerConfig.getBaseUrl() + avatarUrl;
+                }
+                Log.d(TAG, "Loading avatar from: " + avatarUrl);
+                avatarManager.loadAvatar(avatarUrl, ivEmbeddedAvatar, R.drawable.ic_profile_placeholder);
+            } else {
+                Log.d(TAG, "Using placeholder avatar");
+                ivEmbeddedAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        } else {
+            Log.e(TAG, "ivEmbeddedAvatar is null!");
+        }
+        
+        // Set content preview (1-2 lines only)
+        if (tvEmbeddedContent != null) {
+            String content = post.getContent();
+            if (content != null && !content.isEmpty()) {
+                tvEmbeddedContent.setText(content);
+                tvEmbeddedContent.setVisibility(View.VISIBLE);
+                Log.d(TAG, "Set content preview: " + (content.length() > 50 ? content.substring(0, 50) + "..." : content));
+            } else {
+                tvEmbeddedContent.setText("Shared a post");
+                tvEmbeddedContent.setVisibility(View.VISIBLE);
+                Log.d(TAG, "Content is empty, showing default text");
+            }
+        } else {
+            Log.e(TAG, "tvEmbeddedContent is null!");
+        }
+        
+        // Ensure all child views are visible
+        if (tvEmbeddedUsername != null) {
+            tvEmbeddedUsername.setVisibility(View.VISIBLE);
+        }
+        if (tvEmbeddedContent != null) {
+            tvEmbeddedContent.setVisibility(View.VISIBLE);
+        }
+        if (ivEmbeddedAvatar != null) {
+            ivEmbeddedAvatar.setVisibility(View.VISIBLE);
+        }
+        
+        // Make bar clickable to view original post
+        embeddedPostCard.setOnClickListener(v -> {
+            Log.d(TAG, "Embedded post bar clicked, opening original post");
+            Intent intent = new Intent(CreatePostActivity.this, PostDetailActivity.class);
+            try {
+                intent.putExtra("post", post.toJson().toString());
+                startActivity(intent);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error opening original post: " + e.getMessage());
+            }
+        });
+        
+        Log.d(TAG, "Embedded post card loaded successfully");
     }
     
     private void loadUserProfile() {
@@ -553,6 +785,8 @@ public class CreatePostActivity extends AppCompatActivity {
     }
     
     private void createPostWithData(String token, String content, List<String> imageUrls) {
+        // If sharing a post, include sharedPostId in the post data
+        // This will create a new post that references the original post
         try {
             JSONObject postData = new JSONObject();
             
@@ -593,6 +827,14 @@ public class CreatePostActivity extends AppCompatActivity {
                 postData.put("tags", tagsArray);
             }
             
+            // Add sharedPostId if sharing a post
+            if (sharedPostId != null && !sharedPostId.isEmpty()) {
+                postData.put("sharedPostId", sharedPostId);
+                Log.d(TAG, "Including sharedPostId in post data: " + sharedPostId);
+            }
+            
+            Log.d(TAG, "Creating post with data: " + postData.toString());
+            
             // Create post
             apiClient.createPost(token, postData, new Callback() {
                 @Override
@@ -609,41 +851,61 @@ public class CreatePostActivity extends AppCompatActivity {
                 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
+                    // Read response body on background thread BEFORE switching to UI thread
+                    String responseBody = null;
+                    try {
+                        if (response.body() != null) {
+                            responseBody = response.body().string();
+                        }
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error reading response body: " + e.getMessage());
+                    }
+                    
+                    final String finalResponseBody = responseBody;
+                    final boolean isSuccessful = response.isSuccessful();
+                    final int responseCode = response.code();
+                    
                     runOnUiThread(() -> {
                         if (progressDialog != null && progressDialog.isShowing()) {
                             progressDialog.dismiss();
                         }
                         
-                        if (response.isSuccessful()) {
+                        if (isSuccessful) {
                             try {
-                                String responseBody = response.body().string();
-                                JSONObject jsonResponse = new JSONObject(responseBody);
-                                
-                                if (jsonResponse.optBoolean("success", false)) {
+                                if (finalResponseBody != null) {
+                                    JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                    
+                                    if (jsonResponse.optBoolean("success", false)) {
+                                        Toast.makeText(CreatePostActivity.this, "Post published successfully", Toast.LENGTH_SHORT).show();
+                                        setResult(RESULT_OK);
+                                        finish();
+                                    } else {
+                                        String message = jsonResponse.optString("message", "Failed to publish post");
+                                        Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
+                                        btnPost.setEnabled(true);
+                                    }
+                                } else {
                                     Toast.makeText(CreatePostActivity.this, "Post published successfully", Toast.LENGTH_SHORT).show();
                                     setResult(RESULT_OK);
                                     finish();
-                                } else {
-                                    String message = jsonResponse.optString("message", "Failed to publish post");
-                                    Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
-                                    btnPost.setEnabled(true);
                                 }
                             } catch (JSONException e) {
                                 Log.e(TAG, "Error parsing post response: " + e.getMessage());
                                 Toast.makeText(CreatePostActivity.this, "Post published successfully", Toast.LENGTH_SHORT).show();
                                 setResult(RESULT_OK);
                                 finish();
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
                             }
                         } else {
                             try {
-                                String responseBody = response.body().string();
-                                JSONObject jsonResponse = new JSONObject(responseBody);
-                                String message = jsonResponse.optString("message", "Failed to publish post");
-                                Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
+                                if (finalResponseBody != null) {
+                                    JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                    String message = jsonResponse.optString("message", "Failed to publish post");
+                                    Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(CreatePostActivity.this, "Failed to publish post (Code: " + responseCode + ")", Toast.LENGTH_SHORT).show();
+                                }
                             } catch (Exception e) {
-                                Toast.makeText(CreatePostActivity.this, "Failed to publish post (Code: " + response.code() + ")", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(CreatePostActivity.this, "Failed to publish post (Code: " + responseCode + ")", Toast.LENGTH_SHORT).show();
                             }
                             btnPost.setEnabled(true);
                         }

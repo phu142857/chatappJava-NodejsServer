@@ -112,6 +112,16 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         private final TextView tvLikeText;
         private final LinearLayout llCommentButton;
         private final LinearLayout llShareButton;
+        private final View embeddedPostCard;
+        private final CircleImageView ivEmbeddedAvatar;
+        private final TextView tvEmbeddedUsername;
+        private final TextView tvEmbeddedContent;
+        private final FrameLayout flEmbeddedMedia;
+        private final ImageView ivEmbeddedImage;
+        private final FrameLayout flEmbeddedVideo;
+        private final ImageView ivEmbeddedVideoThumbnail;
+        private final ImageButton ivEmbeddedVideoPlay;
+        private final ImageView ivEmbeddedArrow;
         
         public PostViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -134,6 +144,25 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             tvLikeText = itemView.findViewById(R.id.tv_like_text);
             llCommentButton = itemView.findViewById(R.id.ll_comment_button);
             llShareButton = itemView.findViewById(R.id.ll_share_button);
+            
+            // Embedded post views
+            embeddedPostCard = itemView.findViewById(R.id.embedded_post_card);
+            ivEmbeddedAvatar = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.iv_embedded_avatar) : null;
+            tvEmbeddedUsername = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.tv_embedded_username) : null;
+            tvEmbeddedContent = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.tv_embedded_content) : null;
+            flEmbeddedMedia = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.fl_embedded_media) : null;
+            ivEmbeddedImage = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.iv_embedded_image) : null;
+            flEmbeddedVideo = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.fl_embedded_video) : null;
+            ivEmbeddedVideoThumbnail = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.iv_embedded_video_thumbnail) : null;
+            ivEmbeddedVideoPlay = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.iv_embedded_video_play) : null;
+            ivEmbeddedArrow = embeddedPostCard != null ? embeddedPostCard.findViewById(R.id.iv_embedded_arrow) : null;
+            
+            // Debug logging
+            if (llShareButton == null) {
+                android.util.Log.e("PostAdapter", "llShareButton is NULL! View not found.");
+            } else {
+                android.util.Log.d("PostAdapter", "llShareButton found successfully");
+            }
         }
         
         @SuppressLint("SetTextI18n")
@@ -218,6 +247,115 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
                 }
             }
             
+            // Handle embedded post (shared post)
+            if (embeddedPostCard != null) {
+                Post sharedPost = post.getSharedPost();
+                if (sharedPost != null && post.getSharedPostId() != null) {
+                    // Show embedded post
+                    embeddedPostCard.setVisibility(View.VISIBLE);
+                    
+                    // Set original author info
+                    if (tvEmbeddedUsername != null) {
+                        String username = sharedPost.getAuthorUsername();
+                        tvEmbeddedUsername.setText(username != null && !username.isEmpty() ? username : "Unknown User");
+                    }
+                    
+                    // Load original author avatar
+                    if (ivEmbeddedAvatar != null) {
+                        String embeddedAvatarUrl = sharedPost.getAuthorAvatar();
+                        if (avatarManager != null && embeddedAvatarUrl != null && !embeddedAvatarUrl.isEmpty()) {
+                            if (!embeddedAvatarUrl.startsWith("http")) {
+                                if (!embeddedAvatarUrl.startsWith("/")) {
+                                    embeddedAvatarUrl = "/" + embeddedAvatarUrl;
+                                }
+                                embeddedAvatarUrl = ServerConfig.getBaseUrl() + embeddedAvatarUrl;
+                            }
+                            avatarManager.loadAvatar(embeddedAvatarUrl, ivEmbeddedAvatar, R.drawable.ic_profile_placeholder);
+                        } else {
+                            ivEmbeddedAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                        }
+                    }
+                    
+                    // Set full content (not preview)
+                    if (tvEmbeddedContent != null) {
+                        String content = sharedPost.getContent();
+                        if (content != null && !content.isEmpty()) {
+                            tvEmbeddedContent.setText(content);
+                            tvEmbeddedContent.setVisibility(View.VISIBLE);
+                            // Remove maxLines restriction to show full content
+                            tvEmbeddedContent.setMaxLines(Integer.MAX_VALUE);
+                        } else {
+                            tvEmbeddedContent.setText("Shared a post");
+                            tvEmbeddedContent.setVisibility(View.VISIBLE);
+                        }
+                    }
+                    
+                    // Handle embedded media
+                    if (flEmbeddedMedia != null) {
+                        flEmbeddedMedia.setVisibility(View.GONE);
+                        ivEmbeddedImage.setVisibility(View.GONE);
+                        flEmbeddedVideo.setVisibility(View.GONE);
+                        
+                        if (sharedPost.getMediaUrls() != null && !sharedPost.getMediaUrls().isEmpty()) {
+                            flEmbeddedMedia.setVisibility(View.VISIBLE);
+                            String mediaType = sharedPost.getMediaType();
+                            
+                            if ("video".equals(mediaType)) {
+                                // Show video
+                                flEmbeddedVideo.setVisibility(View.VISIBLE);
+                                String videoUrl = sharedPost.getMediaUrls().get(0);
+                                if (videoUrl != null && !videoUrl.isEmpty()) {
+                                    // Load thumbnail if available
+                                    ivEmbeddedVideoThumbnail.setImageResource(R.drawable.ic_profile_placeholder);
+                                }
+                                if (ivEmbeddedVideoPlay != null) {
+                                    ivEmbeddedVideoPlay.setOnClickListener(v -> {
+                                        if (listener != null) {
+                                            listener.onMediaClick(sharedPost, 0);
+                                        }
+                                    });
+                                }
+                            } else if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                                // Show image
+                                ivEmbeddedImage.setVisibility(View.VISIBLE);
+                                String imageUrl = sharedPost.getMediaUrls().get(0);
+                                if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    Picasso.get()
+                                            .load(imageUrl)
+                                            .placeholder(R.drawable.ic_profile_placeholder)
+                                            .error(R.drawable.ic_profile_placeholder)
+                                            .into(ivEmbeddedImage);
+                                }
+                                ivEmbeddedImage.setOnClickListener(v -> {
+                                    if (listener != null) {
+                                        listener.onMediaClick(sharedPost, 0);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Make entire card clickable to view original post
+                    embeddedPostCard.setOnClickListener(v -> {
+                        if (listener != null) {
+                            listener.onPostClick(sharedPost);
+                        }
+                    });
+                    
+                    // Make arrow icon also clickable
+                    if (ivEmbeddedArrow != null) {
+                        ivEmbeddedArrow.setOnClickListener(v -> {
+                            if (listener != null) {
+                                listener.onPostClick(sharedPost);
+                            }
+                        });
+                    }
+                } else {
+                    // Hide embedded post
+                    embeddedPostCard.setVisibility(View.GONE);
+                }
+            }
+            
             // Set interaction counts
             tvLikesCount.setText(formatCount(post.getLikesCount()));
             tvCommentsCount.setText(formatCount(post.getCommentsCount()) + " comments");
@@ -271,11 +409,33 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
                 }
             });
             
-            llShareButton.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onShareClick(post);
-                }
-            });
+            if (llShareButton != null) {
+                llShareButton.setOnClickListener(v -> {
+                    try {
+                        android.util.Log.d("PostAdapter", "=== Share button clicked ===");
+                        android.util.Log.d("PostAdapter", "Post ID: " + (post != null ? post.getId() : "null"));
+                        android.util.Log.d("PostAdapter", "Listener: " + (listener != null ? "not null" : "NULL"));
+                        android.util.Log.d("PostAdapter", "Listener class: " + (listener != null ? listener.getClass().getName() : "null"));
+                        if (listener != null) {
+                            android.util.Log.d("PostAdapter", "Calling listener.onShareClick");
+                            try {
+                                listener.onShareClick(post);
+                                android.util.Log.d("PostAdapter", "listener.onShareClick returned successfully");
+                            } catch (Exception e) {
+                                android.util.Log.e("PostAdapter", "Exception in listener.onShareClick: " + e.getMessage(), e);
+                                e.printStackTrace();
+                            }
+                        } else {
+                            android.util.Log.e("PostAdapter", "ERROR: Listener is null!");
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("PostAdapter", "Exception in share button click: " + e.getMessage(), e);
+                        e.printStackTrace();
+                    }
+                });
+            } else {
+                android.util.Log.e("PostAdapter", "ERROR: llShareButton is null, cannot set click listener!");
+            }
             
             tvCommentsCount.setOnClickListener(v -> {
                 if (listener != null) {

@@ -35,6 +35,11 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  sharedPostId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    default: null
+  },
   likes: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -158,7 +163,7 @@ postSchema.methods.getTopLevelComments = function(page = 1, limit = 20, sortBy =
       const aScore = (a.reactions?.length || 0) + (this.comments.filter(c => c.parentCommentId?.toString() === a._id.toString()).length || 0);
       const bScore = (b.reactions?.length || 0) + (this.comments.filter(c => c.parentCommentId?.toString() === b._id.toString()).length || 0);
       return bScore - aScore;
-    });
+});
   }
   
   return topLevelComments.slice(skip, skip + limit);
@@ -254,6 +259,14 @@ postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
     .populate('likes.user', 'username avatar')
     .populate('comments.user', 'username avatar profile.firstName profile.lastName')
     .populate('shares.user', 'username avatar')
+    .populate({
+      path: 'sharedPostId',
+      select: 'userId content images createdAt',
+      populate: {
+        path: 'userId',
+        select: 'username avatar profile.firstName profile.lastName'
+      }
+    })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

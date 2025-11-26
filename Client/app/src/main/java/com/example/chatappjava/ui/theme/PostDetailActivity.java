@@ -210,8 +210,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
             // Scroll to input bar
         });
         llShareButton.setOnClickListener(v -> {
-            // TODO: Implement share
-            Toast.makeText(this, "Share feature coming soon", Toast.LENGTH_SHORT).show();
+            showShareDialog(post);
         });
 
         // Media attachment
@@ -318,7 +317,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         // Set interaction counts
         tvLikesCount.setText(formatCount(post.getLikesCount()));
         tvCommentsCount.setText(formatCount(post.getCommentsCount()) + " comments");
-        tvSharesCount.setText(formatCount(post.getSharesCount()) + " shares");
+        updateShareCountUI();
 
         // Update like button state
         if (post.isLiked()) {
@@ -877,6 +876,130 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
 
         dialog.show();
+    }
+
+    private void showShareDialog(Post post) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_share_post, null);
+        builder.setView(dialogView);
+        
+        android.app.AlertDialog dialog = builder.create();
+        
+        // Set dialog window properties
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // Initialize views
+        LinearLayout optionShareToFeed = dialogView.findViewById(R.id.option_share_to_feed);
+        LinearLayout optionSendAsMessage = dialogView.findViewById(R.id.option_send_as_message);
+        LinearLayout optionShareToStory = dialogView.findViewById(R.id.option_share_to_story);
+        LinearLayout optionShareToGroup = dialogView.findViewById(R.id.option_share_to_group);
+        LinearLayout optionCopyLink = dialogView.findViewById(R.id.option_copy_link);
+        LinearLayout optionShareExternal = dialogView.findViewById(R.id.option_share_external);
+        
+        // Share to Feed
+        optionShareToFeed.setOnClickListener(v -> {
+            dialog.dismiss();
+            shareToFeed(post);
+        });
+        
+        // Send as Message
+        optionSendAsMessage.setOnClickListener(v -> {
+            dialog.dismiss();
+            sendAsMessage(post);
+        });
+        
+        // Share to Story (hidden for now)
+        optionShareToStory.setOnClickListener(v -> {
+            dialog.dismiss();
+            Toast.makeText(this, "Share to Story coming soon", Toast.LENGTH_SHORT).show();
+        });
+        
+        // Share to Group (hidden for now)
+        optionShareToGroup.setOnClickListener(v -> {
+            dialog.dismiss();
+            Toast.makeText(this, "Share to Group coming soon", Toast.LENGTH_SHORT).show();
+        });
+        
+        // Copy Link
+        optionCopyLink.setOnClickListener(v -> {
+            dialog.dismiss();
+            copyPostLink(post);
+        });
+        
+        // Share to External Apps
+        optionShareExternal.setOnClickListener(v -> {
+            dialog.dismiss();
+            shareToExternalApps(post);
+        });
+        
+        dialog.show();
+    }
+    
+    private void shareToFeed(Post post) {
+        // Open CreatePostActivity with shared post data
+        Intent intent = new Intent(this, CreatePostActivity.class);
+        intent.putExtra("shared_post_id", post.getId());
+        intent.putExtra("shared_post_content", post.getContent());
+        intent.putExtra("shared_post_author", post.getAuthorUsername());
+        intent.putExtra("shared_post_author_id", post.getAuthorId());
+        if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+            intent.putExtra("shared_post_media", post.getMediaUrls().get(0));
+        }
+        startActivityForResult(intent, 1002);
+    }
+    
+    private void sendAsMessage(Post post) {
+        // Open chat selection to send post as message
+        Intent intent = new Intent(this, HomeActivity.class);
+        intent.putExtra("action", "share_post");
+        intent.putExtra("post_id", post.getId());
+        startActivity(intent);
+    }
+    
+    private void copyPostLink(Post post) {
+        // Generate post URL and copy to clipboard
+        String postUrl = ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        
+        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+        clipboard.setPrimaryClip(clip);
+        
+        Toast.makeText(this, "Link copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void shareToExternalApps(Post post) {
+        // Use Android Share Sheet
+        String postUrl = ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        String shareText = post.getContent() != null && !post.getContent().isEmpty() 
+            ? post.getContent() + "\n\n" + postUrl 
+            : postUrl;
+        
+        Intent shareIntent = new Intent(android.content.Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareText);
+        shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Check out this post");
+        
+        startActivity(Intent.createChooser(shareIntent, "Share post via"));
+        
+        // Update share count (optimistic update)
+        post.setSharesCount(post.getSharesCount() + 1);
+        updateShareCountUI();
+    }
+    
+    private void updateShareCountUI() {
+        tvSharesCount.setText(formatCount(post.getSharesCount()) + " shares");
+    }
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1002 && resultCode == RESULT_OK) {
+            // Post was shared successfully, reload post to get updated share count
+            loadFullPost();
+        }
     }
 
     private void showDeleteCommentDialog(Comment comment, int position) {

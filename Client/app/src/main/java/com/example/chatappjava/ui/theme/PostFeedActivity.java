@@ -381,8 +381,14 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     // PostAdapter.OnPostClickListener implementation
     @Override
     public void onPostClick(Post post) {
-        // TODO: Open post detail view
-        Toast.makeText(this, "Post clicked: " + post.getId(), Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(PostFeedActivity.this, PostDetailActivity.class);
+        try {
+            intent.putExtra("post", post.toJson().toString());
+            startActivity(intent);
+        } catch (JSONException e) {
+            Log.e(TAG, "Error passing post data: " + e.getMessage());
+            Toast.makeText(this, "Error opening post", Toast.LENGTH_SHORT).show();
+        }
     }
     
     @Override
@@ -481,8 +487,205 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     
     @Override
     public void onShareClick(Post post) {
-        // TODO: Open share dialog
-        Toast.makeText(this, "Share post: " + post.getId(), Toast.LENGTH_SHORT).show();
+        try {
+            Log.d(TAG, "=== onShareClick START ===");
+            Log.d(TAG, "onShareClick called for post: " + (post != null ? post.getId() : "null"));
+            if (post == null) {
+                Log.e(TAG, "Post is null!");
+                Toast.makeText(this, "Post data is missing", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Log.d(TAG, "Calling showShareDialog");
+            showShareDialog(post);
+            Log.d(TAG, "=== onShareClick END ===");
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onShareClick: " + e.getMessage(), e);
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showShareDialog(Post post) {
+        try {
+            Log.d(TAG, "showShareDialog called");
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_share_post, null);
+            builder.setView(dialogView);
+            
+            android.app.AlertDialog dialog = builder.create();
+            
+            // Set dialog window properties
+            android.view.Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawableResource(android.R.color.transparent);
+            }
+            
+            // Initialize views
+            LinearLayout optionShareToFeed = dialogView.findViewById(R.id.option_share_to_feed);
+            LinearLayout optionSendAsMessage = dialogView.findViewById(R.id.option_send_as_message);
+            LinearLayout optionShareToStory = dialogView.findViewById(R.id.option_share_to_story);
+            LinearLayout optionShareToGroup = dialogView.findViewById(R.id.option_share_to_group);
+            LinearLayout optionCopyLink = dialogView.findViewById(R.id.option_copy_link);
+            LinearLayout optionShareExternal = dialogView.findViewById(R.id.option_share_external);
+            
+            if (optionShareToFeed == null) {
+                Log.e(TAG, "option_share_to_feed view not found!");
+                Toast.makeText(this, "Error loading share dialog", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Share to Feed
+            optionShareToFeed.setOnClickListener(v -> {
+                Log.d(TAG, "Share to Feed clicked");
+                dialog.dismiss();
+                shareToFeed(post);
+            });
+            
+            // Send as Message
+            optionSendAsMessage.setOnClickListener(v -> {
+                Log.d(TAG, "Send as Message clicked");
+                dialog.dismiss();
+                sendAsMessage(post);
+            });
+            
+            // Share to Story (hidden for now)
+            optionShareToStory.setOnClickListener(v -> {
+                dialog.dismiss();
+                Toast.makeText(this, "Share to Story coming soon", Toast.LENGTH_SHORT).show();
+            });
+            
+            // Share to Group (hidden for now)
+            optionShareToGroup.setOnClickListener(v -> {
+                dialog.dismiss();
+                Toast.makeText(this, "Share to Group coming soon", Toast.LENGTH_SHORT).show();
+            });
+            
+            // Copy Link
+            optionCopyLink.setOnClickListener(v -> {
+                Log.d(TAG, "Copy Link clicked");
+                dialog.dismiss();
+                copyPostLink(post);
+            });
+            
+            // Share to External Apps
+            optionShareExternal.setOnClickListener(v -> {
+                Log.d(TAG, "Share to External Apps clicked");
+                dialog.dismiss();
+                shareToExternalApps(post);
+            });
+            
+            dialog.show();
+            Log.d(TAG, "Share dialog shown");
+        } catch (Exception e) {
+            Log.e(TAG, "Error showing share dialog: " + e.getMessage(), e);
+            Toast.makeText(this, "Error showing share options: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void shareToFeed(Post post) {
+        Log.d(TAG, "shareToFeed called for post: " + post.getId());
+        if (post == null || post.getId() == null) {
+            Toast.makeText(this, "Cannot share: Post data is invalid", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Open CreatePostActivity with shared post data
+        Intent intent = new Intent(this, CreatePostActivity.class);
+        intent.putExtra("shared_post_id", post.getId());
+        intent.putExtra("shared_post_content", post.getContent());
+        intent.putExtra("shared_post_author", post.getAuthorUsername());
+        intent.putExtra("shared_post_author_id", post.getAuthorId());
+        intent.putExtra("shared_post_author_avatar", post.getAuthorAvatar()); // Add avatar
+        if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+            intent.putExtra("shared_post_media", post.getMediaUrls().get(0));
+        }
+        Log.d(TAG, "Starting CreatePostActivity with shared_post_id: " + post.getId());
+        startActivityForResult(intent, 1002);
+    }
+    
+    private void sendAsMessage(Post post) {
+        // Open chat selection to send post as message
+        Intent intent = new Intent(this, HomeActivity.class);
+        intent.putExtra("action", "share_post");
+        intent.putExtra("post_id", post.getId());
+        startActivity(intent);
+    }
+    
+    private void copyPostLink(Post post) {
+        // Generate post URL and copy to clipboard
+        String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        
+        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+        clipboard.setPrimaryClip(clip);
+        
+        Toast.makeText(this, "Link copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void shareToExternalApps(Post post) {
+        // Use Android Share Sheet
+        String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+        String shareText = post.getContent() != null && !post.getContent().isEmpty() 
+            ? post.getContent() + "\n\n" + postUrl 
+            : postUrl;
+        
+        Intent shareIntent = new Intent(android.content.Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareText);
+        shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Check out this post");
+        
+        startActivity(Intent.createChooser(shareIntent, "Share post via"));
+        
+        // Update share count (optimistic update)
+        post.setSharesCount(post.getSharesCount() + 1);
+        int position = postList.indexOf(post);
+        if (position >= 0) {
+            postAdapter.updatePost(position, post);
+        }
+    }
+    
+    private void updateShareCount(Post post) {
+        // Call API to get updated share count
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        
+        // Find post in list and update share count
+        int position = postList.indexOf(post);
+        if (position >= 0) {
+            // Reload post to get updated share count
+            apiClient.getPostById(token, post.getId(), new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    // Silent fail
+                }
+                
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    if (response.isSuccessful()) {
+                        try {
+                            String responseBody = response.body().string();
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                JSONObject postJson = data.getJSONObject("post");
+                                Post updatedPost = Post.fromJson(postJson);
+                                
+                                runOnUiThread(() -> {
+                                    int pos = postList.indexOf(post);
+                                    if (pos >= 0) {
+                                        post.setSharesCount(updatedPost.getSharesCount());
+                                        postAdapter.updatePost(pos, post);
+                                    }
+                                });
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing post response: " + e.getMessage());
+                        }
+                    }
+                }
+            });
+        }
     }
     
     @Override
@@ -506,8 +709,8 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1001 && resultCode == RESULT_OK) {
-            // Post was created successfully, refresh the feed
+        if ((requestCode == 1001 || requestCode == 1002) && resultCode == RESULT_OK) {
+            // Post was created or shared successfully, refresh the feed
             loadPosts(true);
         }
     }

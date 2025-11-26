@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    android:background="@color/background_secondary"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Header: Avatar, Username, Arrow -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <!-- Avatar -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_embedded_avatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/border_light"
+            app:civ_border_width="1dp" />
+
+        <!-- Username -->
+        <TextView
+            android:id="@+id/tv_embedded_username"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="Original Author"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Arrow icon (clickable) -->
+        <ImageView
+            android:id="@+id/iv_embedded_arrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_arrow_right"
+            app:tint="@color/text_secondary"
+            android:contentDescription="View original post"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+
+    <!-- Full Content -->
+    <TextView
+        android:id="@+id/tv_embedded_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="This is the original post content..."
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:lineSpacingMultiplier="1.3"
+        android:paddingBottom="8dp" />
+
+    <!-- Media Container -->
+    <FrameLayout
+        android:id="@+id/fl_embedded_media"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="200dp"
+        android:visibility="gone">
+
+        <!-- Single Image -->
+        <ImageView
+            android:id="@+id/iv_embedded_image"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scaleType="centerCrop"
+            android:adjustViewBounds="true"
+            android:visibility="gone" />
+
+        <!-- Video Player -->
+        <FrameLayout
+            android:id="@+id/fl_embedded_video"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="300dp"
+            android:visibility="gone"
+            android:background="@android:color/black">
+
+            <ImageView
+                android:id="@+id/iv_embedded_video_thumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scaleType="centerCrop"
+                android:adjustViewBounds="true" />
+
+            <ImageButton
+                android:id="@+id/iv_embedded_video_play"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center"
+                android:background="@drawable/circle_background"
+                android:backgroundTint="#80000000"
+                android:src="@android:drawable/ic_media_play"
+                android:contentDescription="Play video"
+                app:tint="@android:color/white" />
+
+        </FrameLayout>
+
+    </FrameLayout>
+
+</LinearLayout>
+

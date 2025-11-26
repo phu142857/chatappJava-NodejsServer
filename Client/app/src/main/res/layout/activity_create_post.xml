@@ -115,6 +115,16 @@
                 android:scrollbars="vertical"
                 android:overScrollMode="always" />
 
+            <!-- Embedded Original Post Card (when sharing) -->
+            <include
+                android:id="@+id/embedded_post_card"
+                layout="@layout/item_embedded_post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
             <!-- Attached Media Preview -->
             <HorizontalScrollView
                 android:id="@+id/hsv_media_preview"

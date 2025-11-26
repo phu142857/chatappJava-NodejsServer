@@ -17,16 +17,38 @@ const createPost = async (req, res) => {
       });
     }
 
-    const { content, images = [], privacySetting = 'public', location = null, tags = [] } = req.body;
+    const { content, images = [], privacySetting = 'public', location = null, tags = [], sharedPostId = null } = req.body;
     const userId = req.user.id;
 
-    // Validate business rules
-    if (!content && (!images || images.length === 0)) {
+    // If sharing a post, validate that the original post exists
+    if (sharedPostId) {
+      const originalPost = await Post.findById(sharedPostId);
+      if (!originalPost || !originalPost.isActive || originalPost.isDeleted) {
+        return res.status(404).json({
+          success: false,
+          message: 'Original post not found'
+        });
+      }
+      
+      // Check if user already shared this post (prevent duplicate shares)
+      const existingShare = originalPost.shares.find(share => share.user.toString() === userId);
+      if (!existingShare) {
+        // Increment share count on original post
+        originalPost.shares.push({ user: userId });
+        await originalPost.save();
+      }
+    }
+
+    // Validate business rules (relaxed for shared posts - they can have no content)
+    if (!sharedPostId && !content && (!images || images.length === 0)) {
       return res.status(400).json({
         success: false,
         message: 'Post must contain at least text content OR at least 1 image'
       });
     }
+    
+    // For shared posts, allow empty content (user might just want to share without comment)
+    // But ensure we have at least the sharedPostId reference
 
     if (images && images.length > 5) {
       return res.status(400).json({
@@ -53,7 +75,8 @@ const createPost = async (req, res) => {
       images,
       privacySetting,
       location,
-      tags
+      tags,
+      sharedPostId: sharedPostId || null
     });
 
     await post.save();
@@ -195,7 +218,7 @@ const getPostById = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: 'Access denied to this post'
-      });
+        });
       }
     }
 

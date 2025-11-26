@@ -326,7 +326,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         postAdapter = new com.example.chatappjava.adapters.PostAdapter(this, postList, new com.example.chatappjava.adapters.PostAdapter.OnPostClickListener() {
             @Override
             public void onPostClick(com.example.chatappjava.models.Post post) {
-                // TODO: Open post detail view
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.PostDetailActivity.class);
+                try {
+                    intent.putExtra("post", post.toJson().toString());
+                    startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    android.util.Log.e(TAG, "Error passing post data: " + e.getMessage());
+                    android.widget.Toast.makeText(HomeActivity.this, "Error opening post", android.widget.Toast.LENGTH_SHORT).show();
+                }
             }
             
             @Override
@@ -420,7 +427,147 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             
             @Override
             public void onShareClick(com.example.chatappjava.models.Post post) {
-                // TODO: Open share dialog
+                android.util.Log.d(TAG, "HomeActivity.onShareClick called for post: " + (post != null ? post.getId() : "null"));
+                showShareDialog(post);
+            }
+            
+            private void showShareDialog(com.example.chatappjava.models.Post post) {
+                try {
+                    android.util.Log.d(TAG, "HomeActivity.showShareDialog called");
+                    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                    android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_share_post, null);
+                    builder.setView(dialogView);
+                    
+                    android.app.AlertDialog dialog = builder.create();
+                    
+                    // Set dialog window properties
+                    android.view.Window window = dialog.getWindow();
+                    if (window != null) {
+                        window.setBackgroundDrawableResource(android.R.color.transparent);
+                    }
+                    
+                    // Initialize views
+                    android.widget.LinearLayout optionShareToFeed = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_feed);
+                    android.widget.LinearLayout optionSendAsMessage = dialogView.findViewById(com.example.chatappjava.R.id.option_send_as_message);
+                    android.widget.LinearLayout optionShareToStory = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_story);
+                    android.widget.LinearLayout optionShareToGroup = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_group);
+                    android.widget.LinearLayout optionCopyLink = dialogView.findViewById(com.example.chatappjava.R.id.option_copy_link);
+                    android.widget.LinearLayout optionShareExternal = dialogView.findViewById(com.example.chatappjava.R.id.option_share_external);
+                    
+                    if (optionShareToFeed == null) {
+                        android.util.Log.e(TAG, "option_share_to_feed view not found!");
+                        android.widget.Toast.makeText(HomeActivity.this, "Error loading share dialog", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    // Share to Feed
+                    optionShareToFeed.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Share to Feed clicked");
+                        dialog.dismiss();
+                        shareToFeed(post);
+                    });
+                    
+                    // Send as Message
+                    optionSendAsMessage.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Send as Message clicked");
+                        dialog.dismiss();
+                        sendAsMessage(post);
+                    });
+                    
+                    // Share to Story (hidden for now)
+                    optionShareToStory.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(HomeActivity.this, "Share to Story coming soon", android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Share to Group (hidden for now)
+                    optionShareToGroup.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(HomeActivity.this, "Share to Group coming soon", android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Copy Link
+                    optionCopyLink.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Copy Link clicked");
+                        dialog.dismiss();
+                        copyPostLink(post);
+                    });
+                    
+                    // Share to External Apps
+                    optionShareExternal.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Share to External Apps clicked");
+                        dialog.dismiss();
+                        shareToExternalApps(post);
+                    });
+                    
+                    dialog.show();
+                    android.util.Log.d(TAG, "Share dialog shown");
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "Error showing share dialog: " + e.getMessage(), e);
+                    android.widget.Toast.makeText(HomeActivity.this, "Error showing share options: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            private void shareToFeed(com.example.chatappjava.models.Post post) {
+                android.util.Log.d(TAG, "shareToFeed called for post: " + post.getId());
+                if (post == null || post.getId() == null) {
+                    android.widget.Toast.makeText(HomeActivity.this, "Cannot share: Post data is invalid", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Open CreatePostActivity with shared post data
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.CreatePostActivity.class);
+                intent.putExtra("shared_post_id", post.getId());
+                intent.putExtra("shared_post_content", post.getContent());
+                intent.putExtra("shared_post_author", post.getAuthorUsername());
+                intent.putExtra("shared_post_author_id", post.getAuthorId());
+                intent.putExtra("shared_post_author_avatar", post.getAuthorAvatar()); // Add avatar
+                if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+                    intent.putExtra("shared_post_media", post.getMediaUrls().get(0));
+                }
+                android.util.Log.d(TAG, "Starting CreatePostActivity with shared_post_id: " + post.getId() + ", author: " + post.getAuthorUsername() + ", avatar: " + post.getAuthorAvatar());
+                startActivityForResult(intent, 1002);
+            }
+            
+            private void sendAsMessage(com.example.chatappjava.models.Post post) {
+                // Open chat selection to send post as message
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, HomeActivity.class);
+                intent.putExtra("action", "share_post");
+                intent.putExtra("post_id", post.getId());
+                startActivity(intent);
+            }
+            
+            private void copyPostLink(com.example.chatappjava.models.Post post) {
+                // Generate post URL and copy to clipboard
+                String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+                
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", postUrl);
+                clipboard.setPrimaryClip(clip);
+                
+                android.widget.Toast.makeText(HomeActivity.this, "Link copied to clipboard", android.widget.Toast.LENGTH_SHORT).show();
+            }
+            
+            private void shareToExternalApps(com.example.chatappjava.models.Post post) {
+                // Use Android Share Sheet
+                String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+                String shareText = post.getContent() != null && !post.getContent().isEmpty() 
+                    ? post.getContent() + "\n\n" + postUrl 
+                    : postUrl;
+                
+                android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareText);
+                shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Check out this post");
+                
+                startActivity(android.content.Intent.createChooser(shareIntent, "Share post via"));
+                
+                // Update share count (optimistic update)
+                post.setSharesCount(post.getSharesCount() + 1);
+                int position = postList.indexOf(post);
+                if (position >= 0) {
+                    postAdapter.updatePost(position, post);
+                }
             }
             
             @Override
@@ -589,7 +736,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_create_post_bar, ConstraintSet.BOTTOM, 8);
                 } else {
                     // Other tabs: connect to friend requests
-                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
+                constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
                 }
                 constraintSet.clear(R.id.chat_list_card, ConstraintSet.BOTTOM);
                 constraintSet.connect(R.id.chat_list_card, ConstraintSet.BOTTOM, R.id.tab_container, ConstraintSet.TOP, 8);
@@ -857,7 +1004,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         });
     }
-    
+
     private void reloadHome() {
         // Refresh both chats and friend requests
         loadFriendRequestCount();

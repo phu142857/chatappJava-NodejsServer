@@ -1256,10 +1256,10 @@ public class ApiClient {
     }
     
     /**
-     * Share post
+     * Share post to feed
      */
-    public void sharePost(String token, String postId, Callback callback) {
+    public void sharePost(String token, String postId, JSONObject shareData, Callback callback) {
         String endpoint = "/api/posts/" + postId + "/share";
-        authenticatedPost(endpoint, token, new JSONObject(), callback);
+        authenticatedPost(endpoint, token, shareData, callback);
     }
 }

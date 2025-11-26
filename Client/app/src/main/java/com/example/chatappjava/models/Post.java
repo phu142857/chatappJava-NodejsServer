@@ -23,6 +23,8 @@ public class Post {
     private int sharesCount;
     private boolean isLiked;
     private String reactionType; // "like", "love", "wow", "sad", "angry", null
+    private String sharedPostId; // ID of the original post if this is a share
+    private Post sharedPost; // The original post object (populated from backend)
     
     // Constructors
     public Post() {
@@ -171,6 +173,21 @@ public class Post {
             post.mediaType = "none";
         }
         
+        // Handle sharedPostId
+        if (json.has("sharedPostId")) {
+            Object sharedPostIdObj = json.get("sharedPostId");
+            if (sharedPostIdObj instanceof String) {
+                post.sharedPostId = (String) sharedPostIdObj;
+            } else if (sharedPostIdObj instanceof org.json.JSONObject) {
+                // If populated, parse the original post
+                org.json.JSONObject sharedPostJson = (org.json.JSONObject) sharedPostIdObj;
+                post.sharedPostId = sharedPostJson.optString("_id", sharedPostJson.optString("id", ""));
+                post.sharedPost = Post.fromJson(sharedPostJson);
+            } else {
+                post.sharedPostId = json.optString("sharedPostId", null);
+            }
+        }
+        
         return post;
     }
     
@@ -306,6 +323,22 @@ public class Post {
     
     public void setReactionType(String reactionType) {
         this.reactionType = reactionType;
+    }
+    
+    public String getSharedPostId() {
+        return sharedPostId;
+    }
+    
+    public void setSharedPostId(String sharedPostId) {
+        this.sharedPostId = sharedPostId;
+    }
+    
+    public Post getSharedPost() {
+        return sharedPost;
+    }
+    
+    public void setSharedPost(Post sharedPost) {
+        this.sharedPost = sharedPost;
     }
     
     // Helper methods
