@@ -205,8 +205,8 @@
                 android:focusable="true">
 
                 <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@android:drawable/btn_star_big_on"
                     app:tint="@color/icon_like" />
 
@@ -275,8 +275,8 @@
 
                 <ImageView
                     android:id="@+id/iv_like_icon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@android:drawable/btn_star_big_off"
                     app:tint="@color/icon_like" />
 
@@ -305,8 +305,8 @@
                 android:background="?attr/selectableItemBackground">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@android:drawable/ic_menu_recent_history"
                     app:tint="@color/icon_comment" />
 
@@ -334,8 +334,8 @@
                 android:background="?attr/selectableItemBackground">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@android:drawable/ic_menu_share"
                     app:tint="@color/icon_share" />
 

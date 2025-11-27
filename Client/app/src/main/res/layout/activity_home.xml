@@ -38,7 +38,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/guideline_top_actions"
         app:layout_constraintBottom_toBottomOf="@id/guideline_top_actions"
-        app:tint="@color/text_primary"
+        app:tint="@color/icon_utility"
         android:contentDescription="Settings" />
 
     <ImageView
@@ -48,11 +48,11 @@
         android:layout_marginEnd="8dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:padding="6dp"
-        android:src="@android:drawable/ic_menu_search"
+        android:src="@drawable/ic_search"
         app:layout_constraintBottom_toBottomOf="@+id/iv_more_vert"
         app:layout_constraintEnd_toStartOf="@+id/iv_more_vert"
         app:layout_constraintTop_toTopOf="@+id/iv_more_vert"
-        app:tint="@color/text_primary"
+        app:tint="@color/icon_utility"
         android:contentDescription="Search" />
 
     <LinearLayout
@@ -376,8 +376,8 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="8dp"
-            android:src="@android:drawable/ic_menu_more"
-            app:tint="@android:color/darker_gray"
+            android:src="@drawable/ic_more"
+            app:tint="@color/icon_utility"
             android:contentDescription="More Options" />
 
     </LinearLayout>
@@ -424,10 +424,10 @@
         android:visibility="gone"
         android:background="@drawable/bg_create_group_gradient"
         android:contentDescription="@string/create_group_description"
-        android:src="@android:drawable/ic_input_add"
+        android:src="@drawable/ic_add"
         android:padding="12dp"
         android:scaleType="centerInside"
-        app:tint="@android:color/white"
+        app:tint="@color/icon_white"
         app:layout_constraintBottom_toTopOf="@id/tab_container"
         app:layout_constraintEnd_toEndOf="parent" />
 

@@ -45,8 +45,10 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:padding="12dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:src="@drawable/ic_back"
-                app:tint="@color/black" />
+                app:tint="@color/icon_utility" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -131,8 +133,10 @@
                             android:layout_width="16dp"
                             android:layout_height="14dp"
                             android:layout_marginEnd="12dp"
-                            android:src="@android:drawable/ic_menu_myplaces"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_tag"
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -145,8 +149,10 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_more"
+                            app:tint="@color/icon_utility" />
 
                     </LinearLayout>
 
@@ -164,9 +170,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_manage"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_setting"
                             android:layout_marginEnd="12dp"
-                            app:tint="@color/black" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -179,8 +187,10 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_more"
+                            app:tint="@color/icon_utility" />
 
                     </LinearLayout>
 
@@ -197,9 +207,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_close"
                             android:layout_marginEnd="12dp"
-                            app:tint="#FF6B6B" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -256,9 +268,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_close"
                             android:layout_marginEnd="12dp"
-                            app:tint="#FF6B6B" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -271,8 +285,10 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_more"
+                            app:tint="@color/icon_utility" />
 
                     </LinearLayout>
 
@@ -289,9 +305,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_delete"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_delete"
                             android:layout_marginEnd="12dp"
-                            app:tint="#E53935" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -498,9 +516,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_preferences"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_preferences"
                             android:layout_marginEnd="12dp"
-                            app:tint="@color/black" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -513,8 +533,10 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_more"
+                            app:tint="@color/icon_utility" />
 
                     </LinearLayout>
 
@@ -531,9 +553,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_revert"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_restore"
                             android:layout_marginEnd="12dp"
-                            app:tint="#FF6B6B" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -589,9 +613,11 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_info_details"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_info"
                             android:layout_marginEnd="12dp"
-                            app:tint="@color/black" />
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -625,8 +651,10 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_marginEnd="12dp"
-                            android:src="@android:drawable/ic_menu_help"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_help"
+                            app:tint="@color/icon_utility" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -639,8 +667,10 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@android:drawable/ic_menu_more"
-                            app:tint="@color/black" />
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_more"
+                            app:tint="@color/icon_utility" />
 
                     </LinearLayout>
 

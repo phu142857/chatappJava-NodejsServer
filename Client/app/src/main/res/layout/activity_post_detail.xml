@@ -30,13 +30,12 @@
             <!-- Back Button -->
             <ImageButton
                 android:id="@+id/iv_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_back"
                 android:contentDescription="Back"
-                android:padding="8dp"
-                app:tint="@color/text_primary" />
+                app:tint="@color/icon_utility" />
 
             <!-- Title -->
             <TextView
@@ -163,9 +162,10 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:background="?attr/selectableItemBackgroundBorderless"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:src="@drawable/ic_more"
                             android:contentDescription="Post options"
-                            android:padding="8dp"
                             app:tint="@color/icon_utility" />
 
                     </LinearLayout>
@@ -235,9 +235,11 @@
                                     android:layout_gravity="center"
                                     android:background="@drawable/circle_background"
                                     android:backgroundTint="#80000000"
-                                    android:src="@android:drawable/ic_media_play"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_play"
                                     android:contentDescription="Play video"
-                                    app:tint="@android:color/white" />
+                                    app:tint="@color/icon_white" />
 
                             </FrameLayout>
 
@@ -266,8 +268,8 @@
                             android:focusable="true">
 
                             <ImageView
-                                android:layout_width="16dp"
-                                android:layout_height="16dp"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@android:drawable/btn_star_big_on"
                                 app:tint="@color/icon_like" />
 
@@ -336,8 +338,8 @@
 
                             <ImageView
                                 android:id="@+id/iv_like_icon"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@android:drawable/btn_star_big_off"
                                 app:tint="@color/icon_like" />
 
@@ -366,8 +368,8 @@
                             android:background="?attr/selectableItemBackground">
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@android:drawable/ic_menu_recent_history"
                                 app:tint="@color/icon_comment" />
 
@@ -395,8 +397,8 @@
                             android:background="?attr/selectableItemBackground">
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
                                 android:src="@android:drawable/ic_menu_share"
                                 app:tint="@color/icon_share" />
 
@@ -458,8 +460,10 @@
                     <ImageView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:src="@android:drawable/ic_menu_recent_history"
-                        app:tint="@color/text_tertiary" />
+                        app:tint="@color/icon_utility" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -554,13 +558,12 @@
 
         <ImageButton
             android:id="@+id/iv_cancel_reply"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_close"
             android:contentDescription="Cancel reply"
-            android:padding="6dp"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/icon_utility" />
 
     </LinearLayout>
 
@@ -613,15 +616,14 @@
         <!-- Attachment Button (Camera/Photo) -->
         <ImageButton
             android:id="@+id/iv_attach_media"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginEnd="4dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_camera"
+            android:src="@drawable/ic_camera"
             android:contentDescription="Attach media"
-            android:padding="8dp"
             android:visibility="visible"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/icon_utility" />
 
         <!-- Send Button -->
         <ImageButton
@@ -629,11 +631,11 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="@drawable/bg_send_circle_gradient"
-            android:src="@android:drawable/ic_menu_send"
+            android:src="@drawable/ic_send"
             android:contentDescription="Send comment"
             android:padding="8dp"
             android:enabled="false"
-            app:tint="@android:color/white" />
+            app:tint="@color/icon_white" />
 
     </LinearLayout>
 

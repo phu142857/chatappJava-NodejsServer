@@ -49,11 +49,11 @@
                 android:focusable="true">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_edit"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_edit"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_primary_action" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -80,11 +80,11 @@
                 android:focusable="true">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_send"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_send"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_primary_action" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -112,11 +112,11 @@
                 android:visibility="gone">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_camera"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_story"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_live" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -144,11 +144,11 @@
                 android:visibility="gone">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_agenda"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_group_icon"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_primary_action" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -190,11 +190,11 @@
                 android:focusable="true">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_share"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_link"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_utility" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -221,11 +221,11 @@
                 android:focusable="true">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_share"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_link"
                     android:layout_marginEnd="12dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/icon_utility" />
 
                 <TextView
                     android:layout_width="0dp"

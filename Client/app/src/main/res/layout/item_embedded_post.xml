@@ -45,8 +45,10 @@
             android:id="@+id/iv_embedded_arrow"
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:src="@drawable/ic_arrow_right"
-            app:tint="@color/text_secondary"
+            app:tint="@color/icon_utility"
             android:contentDescription="View original post"
             android:clickable="true"
             android:focusable="true" />
@@ -104,9 +106,11 @@
                 android:layout_gravity="center"
                 android:background="@drawable/circle_background"
                 android:backgroundTint="#80000000"
-                android:src="@android:drawable/ic_media_play"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_play"
                 android:contentDescription="Play video"
-                app:tint="@android:color/white" />
+                app:tint="@color/icon_white" />
 
         </FrameLayout>
 

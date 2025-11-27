@@ -218,14 +218,13 @@
                 <!-- Three-dot Menu -->
                 <ImageButton
                     android:id="@+id/iv_comment_menu"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_marginStart="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_more"
                     android:contentDescription="Comment options"
-                    android:padding="6dp"
-                    app:tint="@color/text_secondary"
+                    app:tint="@color/icon_utility"
                     android:visibility="gone" />
 
             </LinearLayout>

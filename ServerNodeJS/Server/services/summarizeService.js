@@ -353,7 +353,7 @@ Please provide the summary in the exact format above:`;
         console.log(`   Status: ${errorStatus || 'N/A'}`);
         if (error.response) {
           console.log(`   Response: ${JSON.stringify(error.response).substring(0, 200)}`);
-        }
+        }6
       }
       
       // If this is a 404 (model not found), try next model

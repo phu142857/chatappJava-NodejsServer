@@ -26,13 +26,12 @@
         <!-- Close/Cancel Icon -->
         <ImageButton
             android:id="@+id/iv_close"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_close"
             android:contentDescription="Close"
-            android:padding="8dp"
-            app:tint="@color/text_primary" />
+            app:tint="@color/icon_utility" />
 
         <!-- User Profile Info (Center) -->
         <LinearLayout
@@ -161,10 +160,10 @@
                 android:background="?attr/selectableItemBackground">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_view"
-                    app:tint="@color/text_secondary" />
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_privacy"
+                    app:tint="@color/icon_utility" />
 
                 <TextView
                     android:id="@+id/tv_privacy"
@@ -179,8 +178,8 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@android:drawable/arrow_down_float"
-                    app:tint="@color/text_secondary" />
+                    android:src="@drawable/ic_arrow_down"
+                    app:tint="@color/icon_utility" />
 
             </LinearLayout>
 
@@ -207,7 +206,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@android:drawable/ic_menu_mylocation"
+                        android:src="@drawable/ic_location"
                         app:tint="@color/icon_location" />
 
                     <TextView
@@ -222,13 +221,12 @@
 
                     <ImageButton
                         android:id="@+id/iv_remove_location"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:src="@drawable/ic_close"
                         android:contentDescription="Remove location"
-                        android:padding="6dp"
-                        app:tint="@color/text_secondary" />
+                        app:tint="@color/icon_utility" />
 
                 </LinearLayout>
 
@@ -245,7 +243,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@android:drawable/ic_menu_myplaces"
+                        android:src="@drawable/ic_tag"
                         app:tint="@color/icon_tag" />
 
                     <TextView
@@ -260,13 +258,12 @@
 
                     <ImageButton
                         android:id="@+id/iv_remove_tags"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:src="@drawable/ic_close"
                         android:contentDescription="Remove tags"
-                        android:padding="6dp"
-                        app:tint="@color/text_secondary" />
+                        app:tint="@color/icon_utility" />
 
                 </LinearLayout>
 
@@ -294,36 +291,33 @@
         <!-- Photo/Video Picker -->
         <ImageButton
             android:id="@+id/iv_photo_video"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_gallery"
+            android:src="@drawable/ic_image"
             android:contentDescription="Add photo or video"
-            android:padding="12dp"
             app:tint="@color/icon_photo" />
 
         <!-- Tag People -->
         <ImageButton
             android:id="@+id/iv_tag_people"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_myplaces"
+            android:src="@drawable/ic_tag"
             android:contentDescription="Tag people"
-            android:padding="12dp"
             app:tint="@color/icon_tag" />
 
         <!-- Location -->
         <ImageButton
             android:id="@+id/iv_location"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_mylocation"
+            android:src="@drawable/ic_location"
             android:contentDescription="Add location"
-            android:padding="12dp"
             app:tint="@color/icon_location" />
 
         <!-- Emoji/Sticker -->
@@ -333,10 +327,11 @@
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:src="@drawable/ic_emoji_smile"
             android:contentDescription="Add emoji"
-            android:padding="12dp"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/icon_utility" />
 
         <!-- More Options -->
         <ImageButton
@@ -345,10 +340,11 @@
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:src="@drawable/ic_more"
             android:contentDescription="More options"
-            android:padding="12dp"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/icon_utility" />
 
     </LinearLayout>
 
