@@ -187,7 +187,8 @@ router.get('/feed', [
     .withMessage('Limit must be between 1 and 100')
 ], getFeedPosts);
 
-// Get user's posts
+// Get user's posts - MUST be before /:id to avoid route conflict
+// Express matches routes in order, so specific routes must come before generic ones
 router.get('/user/:userId', userIdValidation, [
   query('page')
     .optional()
@@ -199,7 +200,7 @@ router.get('/user/:userId', userIdValidation, [
     .withMessage('Limit must be between 1 and 100')
 ], getUserPosts);
 
-// Get post by ID (with comment pagination)
+// Get post by ID (with comment pagination) - MUST be after /user/:userId
 router.get('/:id', [
   postIdValidation,
   query('page')
