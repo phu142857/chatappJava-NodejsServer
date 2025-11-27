@@ -306,10 +306,10 @@ const updatePost = async (req, res) => {
       });
     }
 
-    if (newImages && newImages.length > 5) {
+    if (newImages && newImages.length > 20) {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 5 images allowed per post'
+        message: 'Maximum 20 images allowed per post'
       });
     }
 
