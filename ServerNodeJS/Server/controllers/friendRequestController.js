@@ -329,6 +329,11 @@ const createPrivateChat = async (userId1, userId2) => {
   try {
     console.log(`💬 Creating private chat between ${userId1} and ${userId2}`);
     
+    // Prevent creating a chat with the same user
+    if (userId1.toString() === userId2.toString()) {
+      throw new Error('Cannot create a private chat with the same user');
+    }
+    
     // Check if chat already exists (including inactive participants)
     let existingChat = await Chat.findOne({
       type: 'private',

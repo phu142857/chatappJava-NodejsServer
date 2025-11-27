@@ -208,6 +208,14 @@ const createPrivateChat = async (req, res) => {
 
     const { participantId } = req.body;
 
+    // Prevent creating a chat with yourself
+    if (req.user.id === participantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create a private chat with yourself'
+      });
+    }
+
     // Check if participant exists
     const participant = await User.findById(participantId);
     if (!participant || !participant.isActive) {
@@ -298,8 +306,8 @@ const createPrivateChat = async (req, res) => {
     const chat = new Chat({
       type: 'private',
       participants: [
-        { user: req.user.id, role: 'member' },
-        { user: participantId, role: 'member' }
+        { user: req.user.id, role: 'member', isActive: true },
+        { user: participantId, role: 'member', isActive: true }
       ],
       createdBy: req.user.id
     });

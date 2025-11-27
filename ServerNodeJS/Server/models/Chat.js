@@ -153,12 +153,18 @@ chatSchema.pre('save', function(next) {
       return !p.isActive && p.leftAt;
     });
     
-    // Allow 0 active participants if someone has left (deletion scenario)
+    // For new private chats, require exactly 2 distinct active participants
+    if (this.isNew && activeParticipants.length !== 2) {
+      return next(new Error('Private chat must have exactly 2 active participants'));
+    }
+    
+    // For existing chats, allow 0 active participants if someone has left (deletion scenario)
     // This allows the chat to be saved when a user deletes it
     // Otherwise require 1-2 active participants
-    if (!hasLeftAt && (activeParticipants.length < 1 || activeParticipants.length > 2)) {
+    if (!this.isNew && !hasLeftAt && (activeParticipants.length < 1 || activeParticipants.length > 2)) {
       return next(new Error('Private chat must have 1-2 active participants'));
     }
+    
     // Private chats don't need names (use participants' names)
     this.name = undefined;
   }
