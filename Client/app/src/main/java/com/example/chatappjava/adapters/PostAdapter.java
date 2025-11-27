@@ -373,9 +373,10 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         ivPostImage.setVisibility(View.GONE);
                         
                         // Setup gallery adapter
+                        // Determine grid columns: 2 columns for 2-3 images, 3 columns for 4-6 images
+                        int columns = (mediaUrls.size() <= 3) ? 2 : 3;
                         androidx.recyclerview.widget.GridLayoutManager layoutManager = 
-                            new androidx.recyclerview.widget.GridLayoutManager(context, 
-                                mediaUrls.size() == 2 ? 2 : (mediaUrls.size() == 3 ? 2 : 3));
+                            new androidx.recyclerview.widget.GridLayoutManager(context, columns);
                         rvPostGallery.setLayoutManager(layoutManager);
                         
                         PostGalleryAdapter galleryAdapter = new PostGalleryAdapter(context, mediaUrls);

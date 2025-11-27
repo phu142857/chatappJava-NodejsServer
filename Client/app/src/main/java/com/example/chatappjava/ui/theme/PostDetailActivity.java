@@ -1185,7 +1185,13 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
 
         ivSendComment.setEnabled(false);
 
-        apiClient.addComment(token, post.getId(), finalContent, parentCommentId, new Callback() {
+        // Prepare tagged user IDs list
+        List<String> taggedUserIds = null;
+        if (taggedUserIdsForComment != null && !taggedUserIdsForComment.isEmpty()) {
+            taggedUserIds = new ArrayList<>(taggedUserIdsForComment);
+        }
+
+        apiClient.addComment(token, post.getId(), finalContent, parentCommentId, taggedUserIds, new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 runOnUiThread(() -> {

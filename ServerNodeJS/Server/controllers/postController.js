@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 
 // @desc    Create a new post
@@ -82,6 +83,55 @@ const createPost = async (req, res) => {
     await post.save();
     await post.populate('userId', 'username avatar profile.firstName profile.lastName');
     await post.populate('tags', 'username avatar profile.firstName profile.lastName');
+
+    // Create notifications for tagged users
+    if (tags && tags.length > 0) {
+      const postPreviewImage = images && images.length > 0 ? images[0] : null;
+      for (const taggedUserId of tags) {
+        try {
+          await Notification.createNotification(
+            taggedUserId,
+            'tagged_in_post',
+            userId,
+            post._id,
+            null,
+            postPreviewImage
+          );
+        } catch (error) {
+          console.error(`Error creating notification for tagged user ${taggedUserId}:`, error);
+        }
+      }
+    }
+
+    // Create notifications for friends when post is public or friends-only
+    if (privacySetting === 'public' || privacySetting === 'friends') {
+      try {
+        const author = await User.findById(userId).select('friends');
+        if (author && author.friends && author.friends.length > 0) {
+          const postPreviewImage = images && images.length > 0 ? images[0] : null;
+          for (const friendId of author.friends) {
+            // Skip if friend is already tagged (they already got a notification)
+            if (tags && tags.some(tagId => tagId.toString() === friendId.toString())) {
+              continue;
+            }
+            try {
+              await Notification.createNotification(
+                friendId,
+                'friend_posted',
+                userId,
+                post._id,
+                null,
+                postPreviewImage
+              );
+            } catch (error) {
+              console.error(`Error creating notification for friend ${friendId}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error creating friend notifications:', error);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -521,7 +571,7 @@ const addComment = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { content, parentCommentId = null, mediaUrl = null } = req.body;
+    const { content, parentCommentId = null, mediaUrl = null, taggedUserIds = [] } = req.body;
     const userId = req.user.id;
 
     const post = await Post.findById(id);
@@ -559,6 +609,25 @@ const addComment = async (req, res) => {
     // Populate user info for the new comment
     const savedComment = post.comments[post.comments.length - 1];
     await post.populate('comments.user', 'username avatar profile.firstName profile.lastName');
+
+    // Create notifications for tagged users in comment
+    if (taggedUserIds && taggedUserIds.length > 0) {
+      const postPreviewImage = post.images && post.images.length > 0 ? post.images[0] : null;
+      for (const taggedUserId of taggedUserIds) {
+        try {
+          await Notification.createNotification(
+            taggedUserId,
+            'tagged_in_comment',
+            userId,
+            post._id,
+            savedComment._id,
+            postPreviewImage
+          );
+        } catch (error) {
+          console.error(`Error creating notification for tagged user ${taggedUserId} in comment:`, error);
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -852,6 +921,34 @@ const sharePost = async (req, res) => {
 
     post.shares.push({ user: userId });
     await post.save();
+
+    // Create notifications for friends when post is shared
+    try {
+      const sharer = await User.findById(userId).select('friends');
+      if (sharer && sharer.friends && sharer.friends.length > 0) {
+        const postPreviewImage = post.images && post.images.length > 0 ? post.images[0] : null;
+        for (const friendId of sharer.friends) {
+          // Don't notify the original post author if they're a friend
+          if (post.userId.toString() === friendId.toString()) {
+            continue;
+          }
+          try {
+            await Notification.createNotification(
+              friendId,
+              'friend_shared',
+              userId,
+              post._id,
+              null,
+              postPreviewImage
+            );
+          } catch (error) {
+            console.error(`Error creating notification for friend ${friendId}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error creating friend notifications for shared post:', error);
+    }
 
     res.json({
       success: true,

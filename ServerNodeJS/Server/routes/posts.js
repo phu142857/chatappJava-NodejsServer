@@ -132,7 +132,15 @@ const addCommentValidation = [
   body('mediaUrl')
     .optional()
     .isString()
-    .withMessage('Media URL must be a string')
+    .withMessage('Media URL must be a string'),
+  body('taggedUserIds')
+    .optional()
+    .isArray()
+    .withMessage('Tagged user IDs must be an array'),
+  body('taggedUserIds.*')
+    .optional()
+    .isMongoId()
+    .withMessage('Each tagged user ID must be a valid user ID')
 ];
 
 const editCommentValidation = [

@@ -1,10 +1,12 @@
 package com.example.chatappjava.network;
 
 import com.example.chatappjava.config.ServerConfig;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -1251,11 +1253,25 @@ public class ApiClient {
      * Add comment to post (with optional parentCommentId for replies)
      */
     public void addComment(String token, String postId, String content, String parentCommentId, Callback callback) {
+        addComment(token, postId, content, parentCommentId, null, callback);
+    }
+    
+    /**
+     * Add comment to post (with optional parentCommentId and taggedUserIds)
+     */
+    public void addComment(String token, String postId, String content, String parentCommentId, List<String> taggedUserIds, Callback callback) {
         try {
             JSONObject body = new JSONObject();
             body.put("content", content);
             if (parentCommentId != null && !parentCommentId.isEmpty()) {
                 body.put("parentCommentId", parentCommentId);
+            }
+            if (taggedUserIds != null && !taggedUserIds.isEmpty()) {
+                JSONArray taggedArray = new JSONArray();
+                for (String userId : taggedUserIds) {
+                    taggedArray.put(userId);
+                }
+                body.put("taggedUserIds", taggedArray);
             }
             String endpoint = "/api/posts/" + postId + "/comments";
             authenticatedPost(endpoint, token, body, callback);

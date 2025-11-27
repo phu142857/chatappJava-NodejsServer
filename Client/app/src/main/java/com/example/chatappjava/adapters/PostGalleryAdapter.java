@@ -48,7 +48,11 @@ public class PostGalleryAdapter extends RecyclerView.Adapter<PostGalleryAdapter.
     
     @Override
     public int getItemCount() {
-        return imageUrls != null ? imageUrls.size() : 0;
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return 0;
+        }
+        // Show only first 6 images
+        return Math.min(6, imageUrls.size());
     }
     
     class GalleryViewHolder extends RecyclerView.ViewHolder {
@@ -90,13 +94,13 @@ public class PostGalleryAdapter extends RecyclerView.Adapter<PostGalleryAdapter.
                 ivGalleryImage.setImageResource(R.drawable.ic_profile_placeholder);
             }
             
-            // Show overlay with count if more than 4 images and this is the 4th
-            if (imageUrls.size() > 4 && position == 3) {
+            // Show overlay with count if more than 6 images and this is the 6th (position 5)
+            if (imageUrls.size() > 6 && position == 5) {
                 if (overlay != null) {
                     overlay.setVisibility(View.VISIBLE);
                     android.widget.TextView tvCount = overlay.findViewById(R.id.tv_more_count);
                     if (tvCount != null) {
-                        tvCount.setText("+" + (imageUrls.size() - 4));
+                        tvCount.setText("+" + (imageUrls.size() - 6));
                     }
                 }
             } else {
