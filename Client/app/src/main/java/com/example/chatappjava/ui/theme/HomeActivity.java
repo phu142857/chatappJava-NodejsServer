@@ -17,6 +17,11 @@ import android.os.Looper;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import android.app.Dialog;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -53,13 +58,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ImageView ivSearch, ivMoreVert;
     private View btnNewGroupAction;
     private View efabNewGroup;
-    private TextView tvChats, tvGroups, tvCalls, tvPosts;
+    private ImageView ivChats, ivGroups, ivCalls, ivPosts, ivSettings;
     private RecyclerView rvChatList;
     private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout llFriendRequests;
     private TextView tvFriendRequestCount;
     private TextView tvFriendRequestsTitle;
-    private View userProfileSection; // Top bar with user profile
+    private View userProfileSection; // Top bar with user profile (hidden)
+    private LinearLayout searchBarHome; // Search bar replacing top bar
     
     // Posts Tab - Create Post Bar
     private LinearLayout llCreatePostBar;
@@ -83,6 +89,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
     private com.example.chatappjava.adapters.PostAdapter postAdapter;
+    private com.example.chatappjava.adapters.SettingsAdapter settingsAdapter;
     private List<Chat> chatList;
     private List<Call> callList;
     private List<com.example.chatappjava.models.Post> postList;
@@ -164,10 +171,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         ivSearch = findViewById(R.id.iv_search);
         ivMoreVert = findViewById(R.id.iv_more_vert);
         userProfileSection = findViewById(R.id.user_profile_section);
-        tvChats = findViewById(R.id.tv_chats);
-        tvGroups = findViewById(R.id.tv_groups);
-        tvCalls = findViewById(R.id.tv_calls);
-        tvPosts = findViewById(R.id.tv_posts);
+        searchBarHome = findViewById(R.id.search_bar_home);
+        ivChats = findViewById(R.id.iv_chats);
+        ivGroups = findViewById(R.id.iv_groups);
+        ivCalls = findViewById(R.id.iv_calls);
+        ivPosts = findViewById(R.id.iv_posts);
+        ivSettings = findViewById(R.id.iv_settings);
+        
         rvChatList = findViewById(R.id.rv_chat_list);
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
@@ -211,25 +221,27 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void setupClickListeners() {
-        // Search functionality
-        ivSearch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(HomeActivity.this, SearchActivity.class);
-                startActivity(intent);
-            }
-        });
+        // Hide old top bar elements
+        if (ivSearch != null) {
+            ivSearch.setVisibility(View.GONE);
+        }
+        if (ivMoreVert != null) {
+            ivMoreVert.setVisibility(View.GONE);
+        }
+        if (userProfileSection != null) {
+            userProfileSection.setVisibility(View.GONE);
+        }
         
-        // Title removed - no click listener needed
-        
-        // More button: go directly to Settings
-        ivMoreVert.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent settingsIntent = new Intent(HomeActivity.this, SettingsActivity.class);
-                startActivity(settingsIntent);
-            }
-        });
+        // Search bar click - open SearchActivity
+        if (searchBarHome != null) {
+            searchBarHome.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, SearchActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
 
         // Friend requests
         llFriendRequests.setOnClickListener(new View.OnClickListener() {
@@ -241,7 +253,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         });
         
         // Tab navigation
-        tvChats.setOnClickListener(new View.OnClickListener() {
+        ivChats.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 switchTab(0);
@@ -250,24 +262,31 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         });
         
-        tvGroups.setOnClickListener(new View.OnClickListener() {
+        ivGroups.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 switchTab(1);
             }
         });
         
-        tvCalls.setOnClickListener(new View.OnClickListener() {
+        ivCalls.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 switchTab(2);
             }
         });
         
-        tvPosts.setOnClickListener(new View.OnClickListener() {
+        ivPosts.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 switchTab(3);
+            }
+        });
+        
+        ivSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(4);
             }
         });
         
@@ -361,6 +380,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 } else {
                     post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
                 }
+                // updatePost automatically adjusts position for create post bar
                 postAdapter.updatePost(position, post);
                 
                 // Make API call to like/unlike post
@@ -375,7 +395,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             } else {
                                 post.setLikesCount(post.getLikesCount() + 1);
                             }
-                            postAdapter.updatePost(position, post);
+                            // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
                         });
                     }
                     
@@ -394,7 +415,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                         runOnUiThread(() -> {
                                             post.setLiked(liked);
                                             post.setLikesCount(likesCount);
-                                            postAdapter.updatePost(position, post);
+                                            // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
                                         });
                                     }
                                 }
@@ -410,7 +432,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                 } else {
                                     post.setLikesCount(post.getLikesCount() + 1);
                                 }
-                                postAdapter.updatePost(position, post);
+                                // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
                                 
                                 if (response.code() == 401) {
                                     databaseManager.clearLoginInfo();
@@ -577,7 +600,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 post.setSharesCount(post.getSharesCount() + 1);
                 int position = postList.indexOf(post);
                 if (position >= 0) {
-                    postAdapter.updatePost(position, post);
+                    // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
                 }
             }
             
@@ -605,18 +629,27 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 }
                 
                 // Initialize views
+                android.widget.LinearLayout optionEditPost = dialogView.findViewById(com.example.chatappjava.R.id.option_edit_post);
                 android.widget.LinearLayout optionDeletePost = dialogView.findViewById(com.example.chatappjava.R.id.option_delete_post);
                 android.widget.LinearLayout optionHidePost = dialogView.findViewById(com.example.chatappjava.R.id.option_hide_post);
                 android.widget.LinearLayout optionCancel = dialogView.findViewById(com.example.chatappjava.R.id.option_cancel);
                 
                 // Show appropriate options based on ownership
                 if (isOwnPost) {
+                    optionEditPost.setVisibility(android.view.View.VISIBLE);
                     optionDeletePost.setVisibility(android.view.View.VISIBLE);
                     optionHidePost.setVisibility(android.view.View.GONE);
                 } else {
+                    optionEditPost.setVisibility(android.view.View.GONE);
                     optionDeletePost.setVisibility(android.view.View.GONE);
                     optionHidePost.setVisibility(android.view.View.VISIBLE);
                 }
+                
+                // Edit Post
+                optionEditPost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showEditPostDialog(post);
+                });
                 
                 // Delete Post
                 optionDeletePost.setOnClickListener(v -> {
@@ -723,6 +756,145 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 });
             }
             
+            private void showEditPostDialog(com.example.chatappjava.models.Post post) {
+                if (post == null) return;
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_edit_post, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                
+                // Set dialog window properties
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                // Initialize views
+                android.widget.EditText etEditContent = dialogView.findViewById(com.example.chatappjava.R.id.et_edit_content);
+                android.widget.TextView tvEditPrivacy = dialogView.findViewById(com.example.chatappjava.R.id.tv_edit_privacy);
+                android.widget.LinearLayout llEditPrivacySettings = dialogView.findViewById(com.example.chatappjava.R.id.ll_edit_privacy_settings);
+                android.widget.LinearLayout btnSave = dialogView.findViewById(com.example.chatappjava.R.id.btn_save);
+                android.widget.LinearLayout btnCancel = dialogView.findViewById(com.example.chatappjava.R.id.btn_cancel);
+                
+                // Set current content
+                if (etEditContent != null && post.getContent() != null) {
+                    etEditContent.setText(post.getContent());
+                }
+                
+                // Get current privacy setting (default to Public)
+                final String[] currentPrivacy = {"Public"};
+                if (tvEditPrivacy != null) {
+                    tvEditPrivacy.setText(currentPrivacy[0]);
+                }
+                
+                // Privacy settings click
+                if (llEditPrivacySettings != null) {
+                    llEditPrivacySettings.setOnClickListener(v -> {
+                        String[] privacyOptions = {"Public", "Friends", "Only Me"};
+                        int currentSelection = 0;
+                        for (int i = 0; i < privacyOptions.length; i++) {
+                            if (privacyOptions[i].equals(currentPrivacy[0])) {
+                                currentSelection = i;
+                                break;
+                            }
+                        }
+                        
+                        new android.app.AlertDialog.Builder(HomeActivity.this)
+                            .setTitle("Privacy")
+                            .setSingleChoiceItems(privacyOptions, currentSelection, (d, which) -> {
+                                currentPrivacy[0] = privacyOptions[which];
+                                if (tvEditPrivacy != null) {
+                                    tvEditPrivacy.setText(currentPrivacy[0]);
+                                }
+                                d.dismiss();
+                            })
+                            .show();
+                    });
+                }
+                
+                // Save button
+                if (btnSave != null) {
+                    btnSave.setOnClickListener(v -> {
+                        String newContent = etEditContent != null ? etEditContent.getText().toString().trim() : "";
+                        if (newContent.isEmpty()) {
+                            android.widget.Toast.makeText(HomeActivity.this, "Content cannot be empty", android.widget.Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        
+                        dialog.dismiss();
+                        updatePost(post, newContent, currentPrivacy[0]);
+                    });
+                }
+                
+                // Cancel button
+                if (btnCancel != null) {
+                    btnCancel.setOnClickListener(v -> dialog.dismiss());
+                }
+                
+                dialog.show();
+            }
+            
+            private void updatePost(com.example.chatappjava.models.Post post, String newContent, String privacySetting) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    android.widget.Toast.makeText(HomeActivity.this, "Please login again", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                try {
+                    org.json.JSONObject postData = new org.json.JSONObject();
+                    postData.put("content", newContent);
+                    
+                    // Convert privacy setting to backend format
+                    String backendPrivacy = "public";
+                    if ("Friends".equals(privacySetting)) {
+                        backendPrivacy = "friends";
+                    } else if ("Only Me".equals(privacySetting)) {
+                        backendPrivacy = "only_me";
+                    }
+                    postData.put("privacySetting", backendPrivacy);
+                    
+                    apiClient.updatePost(token, post.getId(), postData, new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> {
+                                android.widget.Toast.makeText(HomeActivity.this, "Failed to update post: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            final String responseBody = response.body().string();
+                            runOnUiThread(() -> {
+                                try {
+                                    org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                    if (jsonResponse.getBoolean("success")) {
+                                        // Update local post object
+                                        post.setContent(newContent);
+                                        
+                                        // Reload posts to refresh UI
+                                        if (currentTab == 3) {
+                                            loadPosts(true);
+                                        }
+                                        
+                                        android.widget.Toast.makeText(HomeActivity.this, "Post updated successfully", android.widget.Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        String message = jsonResponse.optString("message", "Failed to update post");
+                                        android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (org.json.JSONException e) {
+                                    android.widget.Toast.makeText(HomeActivity.this, "Error processing response", android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                } catch (org.json.JSONException e) {
+                    android.widget.Toast.makeText(HomeActivity.this, "Error preparing update", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            
             @Override
             public void onAuthorClick(com.example.chatappjava.models.Post post) {
                 // TODO: Open author profile
@@ -730,7 +902,20 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             
             @Override
             public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
-                // TODO: Open media viewer
+                // Show image viewer for images
+                if (post.getMediaUrls() != null && mediaIndex < post.getMediaUrls().size()) {
+                    String mediaType = post.getMediaType();
+                    if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                        String imageUrl = post.getMediaUrls().get(mediaIndex);
+                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                            // Construct full URL if needed
+                            if (!imageUrl.startsWith("http")) {
+                                imageUrl = ServerConfig.getBaseUrl() + (imageUrl.startsWith("/") ? imageUrl : "/" + imageUrl);
+                            }
+                            showImageZoomDialog(imageUrl, null);
+                        }
+                    }
+                }
             }
             
             @Override
@@ -789,6 +974,29 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 btnClose.setOnClickListener(v -> dialog.dismiss());
                 
                 dialog.show();
+            }
+        }, new com.example.chatappjava.adapters.PostAdapter.OnCreatePostBarClickListener() {
+            @Override
+            public void onCreatePostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
+            }
+            
+            @Override
+            public void onLivePostClick() {
+                Toast.makeText(HomeActivity.this, "Live streaming coming soon", Toast.LENGTH_SHORT).show();
+            }
+            
+            @Override
+            public void onPhotoPostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
+            }
+            
+            @Override
+            public void onVideoPostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
             }
         });
         
@@ -906,10 +1114,11 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         currentTab = tabIndex;
         
         // Reset all tab states
-        tvChats.setSelected(false);
-        tvGroups.setSelected(false);
-        tvCalls.setSelected(false);
-        tvPosts.setSelected(false);
+        ivChats.setSelected(false);
+        ivGroups.setSelected(false);
+        ivCalls.setSelected(false);
+        ivPosts.setSelected(false);
+        ivSettings.setSelected(false);
         
         // Show title only on Chats tab
         if (tvFriendRequestsTitle != null) {
@@ -919,24 +1128,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (llFriendRequests != null) {
             llFriendRequests.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
         }
-        // Show Create Post Bar only on Posts tab
+        // Hide Create Post Bar (now in RecyclerView)
         if (llCreatePostBar != null) {
-            llCreatePostBar.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
+            llCreatePostBar.setVisibility(View.GONE);
         }
         
-        // Hide top bar (user profile, search, settings) on Posts tab
-        boolean isPostsTab = (tabIndex == 3);
-        if (userProfileSection != null) {
-            userProfileSection.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
-        }
-        if (ivSearch != null) {
-            ivSearch.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
-        }
-        if (ivMoreVert != null) {
-            ivMoreVert.setVisibility(isPostsTab ? View.GONE : View.VISIBLE);
-        }
-        
-        // Toggle New Group Extended FAB visibility: only on Groups tab
+        // Toggle New Group Extended FAB visibility: only on Search & Groups tab
         if (efabNewGroup != null) {
             efabNewGroup.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
         }
@@ -958,20 +1155,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 ConstraintSet constraintSet = new ConstraintSet();
                 constraintSet.clone(rootLayout);
                 
-                // For Posts tab, connect RecyclerView to create post bar (or top if no create post bar)
-                // For other tabs, connect RecyclerView to bottom of friend requests
+                // Connect RecyclerView to friend requests (or search bar if friend requests hidden)
                 constraintSet.clear(R.id.chat_list_card, ConstraintSet.TOP);
-                if (tabIndex == 3) {
-                    // Posts tab: connect to create post bar, or top if create post bar is hidden
-                    if (llCreatePostBar != null && llCreatePostBar.getVisibility() == View.VISIBLE) {
-                        constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_create_post_bar, ConstraintSet.BOTTOM, 8);
-                    } else {
-                        // If create post bar is hidden, connect to top of parent
-                        constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 8);
-                    }
+                if (llFriendRequests != null && llFriendRequests.getVisibility() == View.VISIBLE) {
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
                 } else {
-                    // Other tabs: connect to friend requests
-                constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
+                    // If friend requests hidden, connect to search bar
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.search_bar_home, ConstraintSet.BOTTOM, 8);
                 }
                 constraintSet.clear(R.id.chat_list_card, ConstraintSet.BOTTOM);
                 constraintSet.connect(R.id.chat_list_card, ConstraintSet.BOTTOM, R.id.tab_container, ConstraintSet.TOP, 8);
@@ -994,33 +1184,45 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         }
         
-        // SwipeRefreshLayout is enabled for all tabs
+        // Enable/Disable SwipeRefreshLayout based on tab
+        if (swipeRefreshLayout != null) {
+            // Disable pull to reload for Settings tab
+            swipeRefreshLayout.setEnabled(tabIndex != 4);
+        }
         
-        // Highlight selected tab (color will be handled by tab_text_selector)
+        // Highlight selected tab (color will be handled by tab_icon_selector)
         switch (tabIndex) {
             case 0:
-                tvChats.setSelected(true);
+                ivChats.setSelected(true);
                 // Switch to chat adapter and show only private chats
                 rvChatList.setAdapter(chatAdapter);
                 applyChatsFilter();
                 break;
             case 1:
-                tvGroups.setSelected(true);
+                ivGroups.setSelected(true);
                 // Switch to chat adapter and filter to show only group chats
                 rvChatList.setAdapter(chatAdapter);
                 applyGroupsFilter();
                 break;
             case 2:
-                tvCalls.setSelected(true);
+                ivCalls.setSelected(true);
                 // Switch to call adapter and load call history
                 rvChatList.setAdapter(callAdapter);
                 loadCallHistory();
                 break;
             case 3:
-                tvPosts.setSelected(true);
+                ivPosts.setSelected(true);
                 // Switch to post adapter and load posts
                 rvChatList.setAdapter(postAdapter);
                 loadPosts();
+                break;
+            case 4:
+                ivSettings.setSelected(true);
+                // Switch to settings adapter
+                if (settingsAdapter == null) {
+                    settingsAdapter = new com.example.chatappjava.adapters.SettingsAdapter(this);
+                }
+                rvChatList.setAdapter(settingsAdapter);
                 break;
         }
     }
@@ -2718,5 +2920,43 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
     }
     
+    private void showImageZoomDialog(String imageUrl, String localImageUri) {
+        // Create custom dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_image_zoom);
+        
+        // Make dialog full screen
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
+        
+        // Get views
+        com.github.chrisbanes.photoview.PhotoView ivZoomImage = dialog.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialog.findViewById(R.id.iv_close);
+        
+        if (ivZoomImage != null) {
+            // Load image with Picasso - prefer local URI if available
+            String imageToLoad = (localImageUri != null && !localImageUri.isEmpty()) ? localImageUri : imageUrl;
+            
+            Picasso.get()
+                .load(imageToLoad)
+                .placeholder(R.drawable.ic_profile_placeholder)
+                .error(R.drawable.ic_profile_placeholder)
+                .into(ivZoomImage);
+        }
+        
+        // Close button click
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // Click outside to close
+        dialog.findViewById(R.id.dialog_container).setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
+    }
 
 }

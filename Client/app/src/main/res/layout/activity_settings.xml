@@ -39,14 +39,14 @@
 
             <ImageView
                 android:id="@+id/iv_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Back"
-                android:padding="12dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_back"
-                app:tint="@color/icon_utility" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="12dp"
+                app:tint="@color/black"
+                android:contentDescription="Back"
+                android:layout_marginEnd="16dp" />
 
             <LinearLayout
                 android:layout_width="0dp"

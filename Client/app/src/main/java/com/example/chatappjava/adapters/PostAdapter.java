@@ -25,7 +25,10 @@ import java.util.List;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder> {
+public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    
+    private static final int VIEW_TYPE_CREATE_POST_BAR = 0;
+    private static final int VIEW_TYPE_POST = 1;
     
     public interface OnPostClickListener {
         void onPostClick(Post post);
@@ -38,16 +41,30 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         void onTaggedUsersClick(Post post);
     }
     
+    public interface OnCreatePostBarClickListener {
+        void onCreatePostClick();
+        void onLivePostClick();
+        void onPhotoPostClick();
+        void onVideoPostClick();
+    }
+    
     private final List<Post> posts;
     private final OnPostClickListener listener;
+    private final OnCreatePostBarClickListener createPostBarListener;
     private final Context context;
     private static AvatarManager avatarManager;
     
-    public PostAdapter(Context context, List<Post> posts, OnPostClickListener listener) {
+    public PostAdapter(Context context, List<Post> posts, OnPostClickListener listener, OnCreatePostBarClickListener createPostBarListener) {
         this.context = context;
         this.posts = posts != null ? new ArrayList<>(posts) : new ArrayList<>();
         this.listener = listener;
+        this.createPostBarListener = createPostBarListener;
         avatarManager = AvatarManager.getInstance(context);
+    }
+    
+    // Constructor overload for backward compatibility (without create post bar)
+    public PostAdapter(Context context, List<Post> posts, OnPostClickListener listener) {
+        this(context, posts, listener, null);
     }
     
     public void setPosts(List<Post> newPosts) {
@@ -69,28 +86,108 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     public void updatePost(int position, Post post) {
         if (position >= 0 && position < posts.size()) {
             posts.set(position, post);
-            notifyItemChanged(position);
+            // Adjust position for RecyclerView: +1 if create post bar exists
+            int recyclerViewPosition = position + (createPostBarListener != null ? 1 : 0);
+            notifyItemChanged(recyclerViewPosition);
         }
+    }
+    
+    @Override
+    public int getItemViewType(int position) {
+        // Only show create post bar at position 0 if listener is not null
+        if (position == 0 && createPostBarListener != null) {
+            return VIEW_TYPE_CREATE_POST_BAR;
+        }
+        return VIEW_TYPE_POST;
     }
     
     @NonNull
     @Override
-    public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_post, parent, false);
-        return new PostViewHolder(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == VIEW_TYPE_CREATE_POST_BAR) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_create_post_bar, parent, false);
+            return new CreatePostBarViewHolder(view);
+        } else {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_post, parent, false);
+            return new PostViewHolder(view);
+        }
     }
     
     @SuppressLint("SetTextI18n")
     @Override
-    public void onBindViewHolder(@NonNull PostViewHolder holder, int position) {
-        Post post = posts.get(position);
-        holder.bind(post, listener, context);
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof CreatePostBarViewHolder) {
+            ((CreatePostBarViewHolder) holder).bind(createPostBarListener, context);
+        } else if (holder instanceof PostViewHolder) {
+            // Adjust position: if create post bar exists, position 0 is create post bar, so posts start at position 1
+            int postPosition = (createPostBarListener != null) ? position - 1 : position;
+            if (postPosition >= 0 && postPosition < posts.size()) {
+                Post post = posts.get(postPosition);
+                ((PostViewHolder) holder).bind(post, listener, context);
+            }
+        }
     }
     
     @Override
     public int getItemCount() {
-        return posts.size();
+        // +1 for create post bar if listener is not null
+        return posts.size() + (createPostBarListener != null ? 1 : 0);
+    }
+    
+    public static class CreatePostBarViewHolder extends RecyclerView.ViewHolder {
+        private final de.hdodenhof.circleimageview.CircleImageView ivPostProfileThumbnail;
+        private final LinearLayout llCreatePostInput;
+        private final LinearLayout llLivePost;
+        private final LinearLayout llPhotoPost;
+        private final LinearLayout llVideoPost;
+        
+        public CreatePostBarViewHolder(@NonNull View itemView) {
+            super(itemView);
+            ivPostProfileThumbnail = itemView.findViewById(R.id.iv_post_profile_thumbnail);
+            llCreatePostInput = itemView.findViewById(R.id.ll_create_post_input);
+            llLivePost = itemView.findViewById(R.id.ll_live_post);
+            llPhotoPost = itemView.findViewById(R.id.ll_photo_post);
+            llVideoPost = itemView.findViewById(R.id.ll_video_post);
+        }
+        
+        public void bind(OnCreatePostBarClickListener listener, Context context) {
+            // Load user avatar
+            if (avatarManager != null) {
+                com.example.chatappjava.utils.DatabaseManager dbManager = new com.example.chatappjava.utils.DatabaseManager(context);
+                String avatarUrl = dbManager.getUserAvatar();
+                if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                    // Construct full URL if needed
+                    String fullAvatarUrl = avatarUrl;
+                    if (!avatarUrl.startsWith("http")) {
+                        fullAvatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + avatarUrl;
+                    }
+                    avatarManager.loadAvatar(fullAvatarUrl, ivPostProfileThumbnail, R.drawable.ic_profile_placeholder);
+                } else {
+                    ivPostProfileThumbnail.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            } else {
+                ivPostProfileThumbnail.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+            
+            // Set click listeners
+            if (llCreatePostInput != null && listener != null) {
+                llCreatePostInput.setOnClickListener(v -> listener.onCreatePostClick());
+            }
+            
+            if (llLivePost != null && listener != null) {
+                llLivePost.setOnClickListener(v -> listener.onLivePostClick());
+            }
+            
+            if (llPhotoPost != null && listener != null) {
+                llPhotoPost.setOnClickListener(v -> listener.onPhotoPostClick());
+            }
+            
+            if (llVideoPost != null && listener != null) {
+                llVideoPost.setOnClickListener(v -> listener.onVideoPostClick());
+            }
+        }
     }
     
     public static class PostViewHolder extends RecyclerView.ViewHolder {

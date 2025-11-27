@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/background_secondary"
+    android:padding="12dp"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Profile Picture and Input Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <!-- Profile Picture Thumbnail -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_post_profile_thumbnail"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/border_light"
+            app:civ_border_width="2dp" />
+
+        <!-- What's on your mind? Input -->
+        <LinearLayout
+            android:id="@+id/ll_create_post_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/rounded_container"
+            android:backgroundTint="@color/surface_secondary"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tv_create_post_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="What's on your mind?"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Separator Line -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_light"
+        android:layout_marginVertical="8dp" />
+
+    <!-- Quick Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Live Button -->
+        <LinearLayout
+            android:id="@+id/ll_live_post"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_menu_camera"
+                app:tint="@color/icon_live" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Live"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <!-- Photo Button -->
+        <LinearLayout
+            android:id="@+id/ll_photo_post"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_menu_gallery"
+                app:tint="@color/icon_photo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Photo"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <!-- Video Button -->
+        <LinearLayout
+            android:id="@+id/ll_video_post"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_video_call"
+                app:tint="@color/icon_video" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Video"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
+

@@ -8,6 +8,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.app.Dialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -21,6 +24,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import android.app.Dialog;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -585,11 +593,21 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                 ivPostImage.setVisibility(View.VISIBLE);
                 String imageUrl = post.getMediaUrls().get(0);
                 if (imageUrl != null && !imageUrl.isEmpty()) {
+                    // Construct full URL if needed
+                    if (!imageUrl.startsWith("http")) {
+                        imageUrl = ServerConfig.getBaseUrl() + (imageUrl.startsWith("/") ? imageUrl : "/" + imageUrl);
+                    }
+                    final String finalImageUrl = imageUrl; // Create final variable for lambda
                     Picasso.get()
-                            .load(imageUrl)
+                            .load(finalImageUrl)
                             .placeholder(R.drawable.ic_profile_placeholder)
                             .error(R.drawable.ic_profile_placeholder)
                             .into(ivPostImage);
+                    
+                    // Add click listener to show image in full screen
+                    ivPostImage.setOnClickListener(v -> {
+                        showImageZoomDialog(finalImageUrl, null);
+                    });
                 }
             }
         }
@@ -629,18 +647,27 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
         
         // Initialize views
+        LinearLayout optionEditPost = dialogView.findViewById(R.id.option_edit_post);
         LinearLayout optionDeletePost = dialogView.findViewById(R.id.option_delete_post);
         LinearLayout optionHidePost = dialogView.findViewById(R.id.option_hide_post);
         LinearLayout optionCancel = dialogView.findViewById(R.id.option_cancel);
         
         // Show appropriate options based on ownership
         if (isOwnPost) {
+            optionEditPost.setVisibility(View.VISIBLE);
             optionDeletePost.setVisibility(View.VISIBLE);
             optionHidePost.setVisibility(View.GONE);
         } else {
+            optionEditPost.setVisibility(View.GONE);
             optionDeletePost.setVisibility(View.GONE);
             optionHidePost.setVisibility(View.VISIBLE);
         }
+        
+        // Edit Post
+        optionEditPost.setOnClickListener(v -> {
+            dialog.dismiss();
+            showEditPostDialog(post);
+        });
         
         // Delete Post
         optionDeletePost.setOnClickListener(v -> {
@@ -739,6 +766,144 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                 });
             }
         });
+    }
+    
+    private void showEditPostDialog(Post post) {
+        if (post == null) return;
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_post, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        
+        // Set dialog window properties
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        // Initialize views
+        EditText etEditContent = dialogView.findViewById(R.id.et_edit_content);
+        TextView tvEditPrivacy = dialogView.findViewById(R.id.tv_edit_privacy);
+        LinearLayout llEditPrivacySettings = dialogView.findViewById(R.id.ll_edit_privacy_settings);
+        LinearLayout btnSave = dialogView.findViewById(R.id.btn_save);
+        LinearLayout btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        
+        // Set current content
+        if (etEditContent != null && post.getContent() != null) {
+            etEditContent.setText(post.getContent());
+        }
+        
+        // Get current privacy setting from post (need to check backend response)
+        // For now, default to "Public" - we'll need to add privacy field to Post model if not exists
+        final String[] currentPrivacy = {"Public"}; // Default, should be retrieved from post if available
+        if (tvEditPrivacy != null) {
+            tvEditPrivacy.setText(currentPrivacy[0]);
+        }
+        
+        // Privacy settings click
+        if (llEditPrivacySettings != null) {
+            llEditPrivacySettings.setOnClickListener(v -> {
+                String[] privacyOptions = {"Public", "Friends", "Only Me"};
+                int currentSelection = 0;
+                for (int i = 0; i < privacyOptions.length; i++) {
+                    if (privacyOptions[i].equals(currentPrivacy[0])) {
+                        currentSelection = i;
+                        break;
+                    }
+                }
+                
+                new AlertDialog.Builder(PostDetailActivity.this)
+                    .setTitle("Privacy")
+                    .setSingleChoiceItems(privacyOptions, currentSelection, (d, which) -> {
+                        currentPrivacy[0] = privacyOptions[which];
+                        if (tvEditPrivacy != null) {
+                            tvEditPrivacy.setText(currentPrivacy[0]);
+                        }
+                        d.dismiss();
+                    })
+                    .show();
+            });
+        }
+        
+        // Save button
+        if (btnSave != null) {
+            btnSave.setOnClickListener(v -> {
+                String newContent = etEditContent != null ? etEditContent.getText().toString().trim() : "";
+                if (newContent.isEmpty()) {
+                    Toast.makeText(PostDetailActivity.this, "Content cannot be empty", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                dialog.dismiss();
+                updatePost(post, newContent, currentPrivacy[0]);
+            });
+        }
+        
+        // Cancel button
+        if (btnCancel != null) {
+            btnCancel.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        dialog.show();
+    }
+    
+    private void updatePost(Post post, String newContent, String privacySetting) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        try {
+            JSONObject postData = new JSONObject();
+            postData.put("content", newContent);
+            
+            // Convert privacy setting to backend format
+            String backendPrivacy = "public";
+            if ("Friends".equals(privacySetting)) {
+                backendPrivacy = "friends";
+            } else if ("Only Me".equals(privacySetting)) {
+                backendPrivacy = "only_me";
+            }
+            postData.put("privacySetting", backendPrivacy);
+            
+            apiClient.updatePost(token, post.getId(), postData, new Callback() {
+                @Override
+                public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(PostDetailActivity.this, "Failed to update post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                    final String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.getBoolean("success")) {
+                                // Update local post object
+                                post.setContent(newContent);
+                                
+                                // Reload post to get updated data
+                                loadFullPost();
+                                
+                                Toast.makeText(PostDetailActivity.this, "Post updated successfully", Toast.LENGTH_SHORT).show();
+                            } else {
+                                String message = jsonResponse.optString("message", "Failed to update post");
+                                Toast.makeText(PostDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            Toast.makeText(PostDetailActivity.this, "Error processing response", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            Toast.makeText(this, "Error preparing update", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private String formatCount(int count) {
@@ -979,12 +1144,16 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
             parentCommentId = replyingToComment.getId();
         }
         
-        // Add tagged users mentions to content
+        // Add tagged users mentions to content only if they're not already in the content
+        // (When user types @ and selects, mention is already inserted into EditText)
         if (taggedUsersForComment != null && !taggedUsersForComment.isEmpty()) {
             StringBuilder mentions = new StringBuilder();
             for (User taggedUser : taggedUsersForComment) {
-                if (!mentions.toString().contains("@" + taggedUser.getUsername())) {
-                    mentions.append("@").append(taggedUser.getUsername()).append(" ");
+                String mentionText = "@" + taggedUser.getUsername();
+                // Check if mention is already in the content
+                if (!finalContent.contains(mentionText + " ") && !finalContent.contains(mentionText + "\n") && 
+                    !finalContent.endsWith(mentionText)) {
+                    mentions.append(mentionText).append(" ");
                 }
             }
             if (mentions.length() > 0) {
@@ -1048,6 +1217,15 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
 
                                 etCommentInput.setText("");
                                 cancelReply();
+                                
+                                // Clear tagged users for next comment
+                                if (taggedUsersForComment != null) {
+                                    taggedUsersForComment.clear();
+                                }
+                                if (taggedUserIdsForComment != null) {
+                                    taggedUserIdsForComment.clear();
+                                }
+                                
                                 llEmptyState.setVisibility(View.GONE);
                                 rvComments.setVisibility(View.VISIBLE);
 
@@ -1934,6 +2112,45 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
         
         hideMentionPopup();
+    }
+    
+    private void showImageZoomDialog(String imageUrl, String localImageUri) {
+        // Create custom dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_image_zoom);
+        
+        // Make dialog full screen
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
+        
+        // Get views
+        com.github.chrisbanes.photoview.PhotoView ivZoomImage = dialog.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialog.findViewById(R.id.iv_close);
+        
+        if (ivZoomImage != null) {
+            // Load image with Picasso - prefer local URI if available
+            String imageToLoad = (localImageUri != null && !localImageUri.isEmpty()) ? localImageUri : imageUrl;
+            
+            Picasso.get()
+                .load(imageToLoad)
+                .placeholder(R.drawable.ic_profile_placeholder)
+                .error(R.drawable.ic_profile_placeholder)
+                .into(ivZoomImage);
+        }
+        
+        // Close button click
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // Click outside to close
+        dialog.findViewById(R.id.dialog_container).setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
     }
 }
 
