@@ -509,19 +509,54 @@ public class PrivateChatActivity extends BaseChatActivity {
                         android.util.Log.d("PrivateChatActivity", "loadOtherUserData response body: " + responseBody);
                         
                         org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
-                        org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data == null) {
+                            android.util.Log.e("PrivateChatActivity", "Response data is null");
+                            return;
+                        }
                         
+                        org.json.JSONObject userData = null;
+                        // Try to get user from different formats
+                        if (data.has("user")) {
+                            userData = data.optJSONObject("user");
+                        } else if (data.has("users")) {
+                            // Response has users array (from search API)
+                            org.json.JSONArray usersArray = data.optJSONArray("users");
+                            if (usersArray != null && usersArray.length() > 0) {
+                                userData = usersArray.getJSONObject(0);
+                            }
+                        } else {
+                            // Data might be the user object directly
+                            userData = data;
+                        }
+                        
+                        if (userData == null) {
+                            android.util.Log.e("PrivateChatActivity", "Cannot find user data in response");
+                            return;
+                        }
+                        
+                        org.json.JSONObject finalUserData = userData;
                         runOnUiThread(() -> {
                             try {
-                                otherUser = User.fromJson(userData);
-                                android.util.Log.d("PrivateChatActivity", "Updated otherUser data");
+                                otherUser = User.fromJson(finalUserData);
+                                android.util.Log.d("PrivateChatActivity", "Updated otherUser data: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                
+                                // If still no ID, try to get from _id field directly
+                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                    String userId = finalUserData.optString("_id", finalUserData.optString("id", ""));
+                                    if (!userId.isEmpty()) {
+                                        otherUser.setId(userId);
+                                        android.util.Log.d("PrivateChatActivity", "Set userId manually: " + userId);
+                                    }
+                                }
+                                
                                 updateUI(); // Refresh the UI with updated data
                             } catch (JSONException e) {
-                                throw new RuntimeException(e);
+                                android.util.Log.e("PrivateChatActivity", "Error parsing user from JSON: " + e.getMessage(), e);
                             }
                         });
                     } catch (Exception e) {
-                        android.util.Log.e("PrivateChatActivity", "Error parsing other user data: " + e.getMessage());
+                        android.util.Log.e("PrivateChatActivity", "Error parsing other user data: " + e.getMessage(), e);
                     }
                 } else {
                     android.util.Log.e("PrivateChatActivity", "Failed to load other user data: " + response.code());
