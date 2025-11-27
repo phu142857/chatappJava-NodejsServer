@@ -176,6 +176,20 @@
             android:contentDescription="Posts" />
 
         <ImageView
+            android:id="@+id/iv_notifications"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector"
+            android:src="@drawable/ic_notification"
+            app:tint="@color/tab_icon_selector"
+            android:clickable="true"
+            android:focusable="true"
+            android:scaleType="centerInside"
+            android:padding="12dp"
+            android:contentDescription="Notifications" />
+
+        <ImageView
             android:id="@+id/iv_settings"
             android:layout_width="0dp"
             android:layout_height="48dp"

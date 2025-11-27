@@ -44,6 +44,7 @@ public class ApiClient {
     private static final String UPLOAD_AVATAR_ENDPOINT = "/api/auth/upload-avatar";
     private static final String UPLOAD_CHAT_IMAGE_ENDPOINT = "/api/upload/chat";
     private static final String UPLOAD_CHAT_FILE_ENDPOINT = "/api/upload/chat";
+    private static final String UPLOAD_POST_IMAGE_ENDPOINT = "/api/upload/posts/image";
     private static final String BLOCK_USER_ENDPOINT = "/api/users/%s/block"; // PUT { action: 'block'|'unblock' }
     private static final String BLOCKED_USERS_ENDPOINT = "/api/users/blocked";
     private static final String REPORTS_ENDPOINT = "/api/reports";
@@ -676,18 +677,28 @@ public class ApiClient {
      */
     public void uploadPostImage(String token, File imageFile, String userId, Callback callback) {
         try {
-            // Use chat upload endpoint with userId as chatId to organize by user
-            String url = getBaseUrl() + UPLOAD_CHAT_IMAGE_ENDPOINT + "/" + userId + "/image";
+            String url = getBaseUrl() + UPLOAD_POST_IMAGE_ENDPOINT;
+            android.util.Log.d("ApiClient", "uploadPostImage: URL=" + url + ", file=" + imageFile.getName() + ", size=" + imageFile.length());
+            
+            // Determine MIME type from file extension
+            String mimeType = "image/jpeg"; // default
+            String fileName = imageFile.getName().toLowerCase();
+            if (fileName.endsWith(".png")) {
+                mimeType = "image/png";
+            } else if (fileName.endsWith(".gif")) {
+                mimeType = "image/gif";
+            } else if (fileName.endsWith(".webp")) {
+                mimeType = "image/webp";
+            }
             
             RequestBody fileBody = RequestBody.create(
-                MediaType.parse("image/*"), 
+                MediaType.parse(mimeType), 
                 imageFile
             );
             
             RequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("image", imageFile.getName(), fileBody)
-                .addFormDataPart("chatId", userId)
                 .build();
             
             Request request = new Request.Builder()
@@ -1291,5 +1302,20 @@ public class ApiClient {
     public void sharePost(String token, String postId, JSONObject shareData, Callback callback) {
         String endpoint = "/api/posts/" + postId + "/share";
         authenticatedPost(endpoint, token, shareData, callback);
+    }
+    
+    /**
+     * Get notifications
+     */
+    public void getNotifications(String token, Callback callback) {
+        authenticatedGet("/api/notifications", token, callback);
+    }
+    
+    /**
+     * Mark notification as read
+     */
+    public void markNotificationAsRead(String token, String notificationId, Callback callback) {
+        String endpoint = "/api/notifications/" + notificationId + "/read";
+        authenticatedPut(endpoint, token, new JSONObject(), callback);
     }
 }

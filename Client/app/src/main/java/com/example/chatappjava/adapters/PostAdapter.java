@@ -199,6 +199,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private final TextView tvPostContent;
         private final FrameLayout flPostMedia;
         private final ImageView ivPostImage;
+        private final RecyclerView rvPostGallery;
         private final FrameLayout flPostVideo;
         private final ImageView ivPostVideoThumbnail;
         private final ImageButton ivPostVideoPlay;
@@ -232,6 +233,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvPostContent = itemView.findViewById(R.id.tv_post_content);
             flPostMedia = itemView.findViewById(R.id.fl_post_media);
             ivPostImage = itemView.findViewById(R.id.iv_post_image);
+            rvPostGallery = itemView.findViewById(R.id.rv_post_gallery);
             flPostVideo = itemView.findViewById(R.id.fl_post_video);
             ivPostVideoThumbnail = itemView.findViewById(R.id.iv_post_video_thumbnail);
             ivPostVideoPlay = itemView.findViewById(R.id.iv_post_video_play);
@@ -341,16 +343,18 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             // Handle media
             flPostMedia.setVisibility(View.GONE);
             ivPostImage.setVisibility(View.GONE);
+            rvPostGallery.setVisibility(View.GONE);
             flPostVideo.setVisibility(View.GONE);
             
             if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
                 flPostMedia.setVisibility(View.VISIBLE);
                 String mediaType = post.getMediaType();
+                List<String> mediaUrls = post.getMediaUrls();
                 
                 if ("video".equals(mediaType)) {
                     // Show video
                     flPostVideo.setVisibility(View.VISIBLE);
-                    String videoUrl = post.getMediaUrls().get(0);
+                    String videoUrl = mediaUrls.get(0);
                     // Load thumbnail if available (you might need to extract thumbnail URL)
                     if (videoUrl != null && !videoUrl.isEmpty()) {
                         // For now, just show a placeholder
@@ -362,21 +366,43 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         }
                     });
                 } else if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
-                    // Show image(s)
-                    ivPostImage.setVisibility(View.VISIBLE);
-                    String imageUrl = post.getMediaUrls().get(0);
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
-                        Picasso.get()
-                                .load(imageUrl)
-                                .placeholder(R.drawable.ic_profile_placeholder)
-                                .error(R.drawable.ic_profile_placeholder)
-                                .into(ivPostImage);
-                    }
-                    ivPostImage.setOnClickListener(v -> {
-                        if (listener != null) {
-                            listener.onMediaClick(post, 0);
+                    // Check if multiple images (gallery)
+                    if (mediaUrls.size() > 1) {
+                        // Show gallery
+                        rvPostGallery.setVisibility(View.VISIBLE);
+                        ivPostImage.setVisibility(View.GONE);
+                        
+                        // Setup gallery adapter
+                        androidx.recyclerview.widget.GridLayoutManager layoutManager = 
+                            new androidx.recyclerview.widget.GridLayoutManager(context, 
+                                mediaUrls.size() == 2 ? 2 : (mediaUrls.size() == 3 ? 2 : 3));
+                        rvPostGallery.setLayoutManager(layoutManager);
+                        
+                        PostGalleryAdapter galleryAdapter = new PostGalleryAdapter(context, mediaUrls);
+                        galleryAdapter.setOnImageClickListener((position, imageUrl) -> {
+                            if (listener != null) {
+                                listener.onMediaClick(post, position);
+                            }
+                        });
+                        rvPostGallery.setAdapter(galleryAdapter);
+                    } else {
+                        // Show single image
+                        ivPostImage.setVisibility(View.VISIBLE);
+                        rvPostGallery.setVisibility(View.GONE);
+                        String imageUrl = mediaUrls.get(0);
+                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                            Picasso.get()
+                                    .load(imageUrl)
+                                    .placeholder(R.drawable.ic_profile_placeholder)
+                                    .error(R.drawable.ic_profile_placeholder)
+                                    .into(ivPostImage);
                         }
-                    });
+                        ivPostImage.setOnClickListener(v -> {
+                            if (listener != null) {
+                                listener.onMediaClick(post, 0);
+                            }
+                        });
+                    }
                 }
             }
             

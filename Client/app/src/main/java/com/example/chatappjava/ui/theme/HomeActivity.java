@@ -58,7 +58,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ImageView ivSearch, ivMoreVert;
     private View btnNewGroupAction;
     private View efabNewGroup;
-    private ImageView ivChats, ivGroups, ivCalls, ivPosts, ivSettings;
+    private ImageView ivChats, ivGroups, ivCalls, ivPosts, ivNotifications, ivSettings;
     private RecyclerView rvChatList;
     private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout llFriendRequests;
@@ -89,10 +89,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
     private com.example.chatappjava.adapters.PostAdapter postAdapter;
+    private com.example.chatappjava.adapters.NotificationAdapter notificationAdapter;
     private com.example.chatappjava.adapters.SettingsAdapter settingsAdapter;
     private List<Chat> chatList;
     private List<Call> callList;
     private List<com.example.chatappjava.models.Post> postList;
+    private List<com.example.chatappjava.models.Notification> notificationList;
     private AvatarManager avatarManager;
     private boolean isLoadingChats = false;
     private boolean isLoadingCalls = false;
@@ -176,6 +178,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         ivGroups = findViewById(R.id.iv_groups);
         ivCalls = findViewById(R.id.iv_calls);
         ivPosts = findViewById(R.id.iv_posts);
+        ivNotifications = findViewById(R.id.iv_notifications);
         ivSettings = findViewById(R.id.iv_settings);
         
         rvChatList = findViewById(R.id.rv_chat_list);
@@ -210,6 +213,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         chatList = new ArrayList<>();
         callList = new ArrayList<>();
         postList = new ArrayList<>();
+        notificationList = new ArrayList<>();
         avatarManager = AvatarManager.getInstance(this);
         avatarManager.initialize(); // Initialize avatar manager with scheduled refresh
 
@@ -283,10 +287,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         });
         
-        ivSettings.setOnClickListener(new View.OnClickListener() {
+        ivNotifications.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 switchTab(4);
+            }
+        });
+        
+        ivSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(5);
             }
         });
         
@@ -1186,11 +1197,19 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         // Enable/Disable SwipeRefreshLayout based on tab
         if (swipeRefreshLayout != null) {
-            // Disable pull to reload for Settings tab
-            swipeRefreshLayout.setEnabled(tabIndex != 4);
+            // Disable pull to reload for Settings tab (index 5)
+            swipeRefreshLayout.setEnabled(tabIndex != 5);
         }
         
         // Highlight selected tab (color will be handled by tab_icon_selector)
+        // Reset all tabs first
+        ivChats.setSelected(false);
+        ivGroups.setSelected(false);
+        ivCalls.setSelected(false);
+        ivPosts.setSelected(false);
+        ivNotifications.setSelected(false);
+        ivSettings.setSelected(false);
+        
         switch (tabIndex) {
             case 0:
                 ivChats.setSelected(true);
@@ -1217,6 +1236,26 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 loadPosts();
                 break;
             case 4:
+                ivNotifications.setSelected(true);
+                // Switch to notification adapter and load notifications
+                if (notificationAdapter == null) {
+                    notificationAdapter = new com.example.chatappjava.adapters.NotificationAdapter(this);
+                    notificationAdapter.setOnNotificationClickListener(new com.example.chatappjava.adapters.NotificationAdapter.OnNotificationClickListener() {
+                        @Override
+                        public void onNotificationClick(com.example.chatappjava.models.Notification notification) {
+                            // Navigate to post detail when notification is clicked
+                            if (notification.getPostId() != null && !notification.getPostId().isEmpty()) {
+                                Intent intent = new Intent(HomeActivity.this, PostDetailActivity.class);
+                                intent.putExtra("postId", notification.getPostId());
+                                startActivity(intent);
+                            }
+                        }
+                    });
+                }
+                rvChatList.setAdapter(notificationAdapter);
+                loadNotifications();
+                break;
+            case 5:
                 ivSettings.setSelected(true);
                 // Switch to settings adapter
                 if (settingsAdapter == null) {
@@ -1405,6 +1444,84 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         loadPosts(false);
     }
     
+    private void loadNotifications() {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        apiClient.getNotifications(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e(TAG, "Failed to load notifications: " + e.getMessage());
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleNotificationsResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleNotificationsResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    org.json.JSONArray notificationsArray = jsonResponse.optJSONArray("data");
+                    if (notificationsArray == null) {
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data != null) {
+                            notificationsArray = data.optJSONArray("notifications");
+                        }
+                    }
+                    
+                    if (notificationsArray != null) {
+                        List<com.example.chatappjava.models.Notification> notifications = new ArrayList<>();
+                        for (int i = 0; i < notificationsArray.length(); i++) {
+                            try {
+                                org.json.JSONObject notificationJson = notificationsArray.getJSONObject(i);
+                                com.example.chatappjava.models.Notification notification = 
+                                    com.example.chatappjava.models.Notification.fromJson(notificationJson);
+                                notifications.add(notification);
+                            } catch (Exception e) {
+                                android.util.Log.e(TAG, "Error parsing notification " + i + ": " + e.getMessage());
+                            }
+                        }
+                        
+                        notificationList = notifications;
+                        if (notificationAdapter != null) {
+                            notificationAdapter.updateNotifications(notifications);
+                        }
+                    }
+                }
+            } else if (statusCode == 401) {
+                databaseManager.clearLoginInfo();
+                redirectToLogin();
+            }
+            
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        } catch (org.json.JSONException e) {
+            android.util.Log.e(TAG, "Error parsing notifications response: " + e.getMessage());
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+    }
+    
     /**
      * Refresh current tab based on which tab is active
      */
@@ -1421,6 +1538,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 break;
             case 3: // Posts tab
                 refreshPosts();
+                break;
+            case 4: // Notifications tab
+                loadNotifications();
                 break;
             default:
                 if (swipeRefreshLayout != null) {

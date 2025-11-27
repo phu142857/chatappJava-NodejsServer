@@ -222,8 +222,21 @@ public class CreatePostActivity extends AppCompatActivity {
                 if (result.getResultCode() == RESULT_OK) {
                     Intent data = result.getData();
                     if (data != null) {
-                        Uri uri = data.getData();
-                        if (uri != null) {
+                        // Check if multiple images selected
+                        if (data.getClipData() != null) {
+                            // Multiple images selected
+                            android.content.ClipData clipData = data.getClipData();
+                            int count = clipData.getItemCount();
+                            for (int i = 0; i < count; i++) {
+                                Uri uri = clipData.getItemAt(i).getUri();
+                                if (uri != null) {
+                                    addMediaItem(uri, "image");
+                                }
+                            }
+                            Toast.makeText(this, count + " images selected", Toast.LENGTH_SHORT).show();
+                        } else if (data.getData() != null) {
+                            // Single image selected
+                            Uri uri = data.getData();
                             addMediaItem(uri, "image");
                         }
                     }
@@ -528,14 +541,29 @@ public class CreatePostActivity extends AppCompatActivity {
     }
     
     private void openImagePicker() {
-        ImagePicker.with(this)
-            .crop()
-            .compress(1024)
-            .maxResultSize(1080, 1080)
-            .createIntent(intent -> {
+        // Show dialog to choose single or multiple images
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("Select Images");
+        builder.setItems(new String[]{"Select Single Image", "Select Multiple Images"}, (dialog, which) -> {
+            if (which == 0) {
+                // Single image with crop
+                ImagePicker.with(this)
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(1080, 1080)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            } else {
+                // Multiple images
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/*");
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 imagePickerLauncher.launch(intent);
-                return null;
-            });
+            }
+        });
+        builder.show();
     }
     
     private void addMediaItem(Uri uri, String type) {
@@ -883,29 +911,46 @@ public class CreatePostActivity extends AppCompatActivity {
                     
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
+                        String responseBody = response.body().string();
                         if (response.isSuccessful()) {
                             try {
-                                String responseBody = response.body().string();
                                 JSONObject jsonResponse = new JSONObject(responseBody);
+                                Log.d(TAG, "Upload response for image " + index + ": " + jsonResponse.toString());
                                 
                                 if (jsonResponse.optBoolean("success", false)) {
                                     String imageUrl = jsonResponse.optString("imageUrl", "");
                                     if (!imageUrl.isEmpty()) {
                                         uploadedImageUrls.add(imageUrl);
+                                        Log.d(TAG, "Image " + index + " uploaded successfully: " + imageUrl);
+                                    } else {
+                                        Log.e(TAG, "Image " + index + " upload response missing imageUrl");
                                     }
+                                } else {
+                                    String message = jsonResponse.optString("message", "Unknown error");
+                                    Log.e(TAG, "Image " + index + " upload failed: " + message);
                                 }
                                 
                                 uploadCount[0]++;
+                                Log.d(TAG, "Upload progress: " + uploadCount[0] + "/" + totalMedia);
                                 
                                 // If all uploads are done, create post
                                 if (uploadCount[0] == totalMedia) {
+                                    Log.d(TAG, "All uploads completed. Total images: " + uploadedImageUrls.size());
                                     runOnUiThread(() -> {
-                                        createPostWithData(token, content, uploadedImageUrls);
+                                        if (uploadedImageUrls.isEmpty()) {
+                                            if (progressDialog != null && progressDialog.isShowing()) {
+                                                progressDialog.dismiss();
+                                            }
+                                            Toast.makeText(CreatePostActivity.this, "Failed to upload images", Toast.LENGTH_SHORT).show();
+                                            btnPost.setEnabled(true);
+                                        } else {
+                                            createPostWithData(token, content, uploadedImageUrls);
+                                        }
                                     });
                                 }
                                 
                             } catch (JSONException e) {
-                                Log.e(TAG, "Error parsing upload response: " + e.getMessage());
+                                Log.e(TAG, "Error parsing upload response: " + e.getMessage() + ", body: " + responseBody);
                                 runOnUiThread(() -> {
                                     if (progressDialog != null && progressDialog.isShowing()) {
                                         progressDialog.dismiss();
@@ -915,12 +960,12 @@ public class CreatePostActivity extends AppCompatActivity {
                                 });
                             }
                         } else {
+                            Log.e(TAG, "Upload failed with code: " + response.code() + ", body: " + responseBody);
                             runOnUiThread(() -> {
                                 if (progressDialog != null && progressDialog.isShowing()) {
                                     progressDialog.dismiss();
                                 }
-                                Log.e(TAG, "Upload failed with code: " + response.code());
-                                Toast.makeText(CreatePostActivity.this, "Failed to upload image", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(CreatePostActivity.this, "Failed to upload image (Code: " + response.code() + ")", Toast.LENGTH_SHORT).show();
                                 btnPost.setEnabled(true);
                             });
                         }
@@ -952,13 +997,17 @@ public class CreatePostActivity extends AppCompatActivity {
                 postData.put("content", content);
             }
             
-            // Add images array
+            // Add images array (limit to 5 images)
             if (!imageUrls.isEmpty()) {
                 JSONArray imagesArray = new JSONArray();
-                for (String url : imageUrls) {
-                    imagesArray.put(url);
+                int maxImages = Math.min(imageUrls.size(), 5);
+                for (int i = 0; i < maxImages; i++) {
+                    imagesArray.put(imageUrls.get(i));
                 }
                 postData.put("images", imagesArray);
+                if (imageUrls.size() > 5) {
+                    Log.w(TAG, "Limiting images to 5 (had " + imageUrls.size() + " images)");
+                }
             }
             
             // Add privacy setting (convert to backend format)
@@ -991,6 +1040,7 @@ public class CreatePostActivity extends AppCompatActivity {
             }
             
             Log.d(TAG, "Creating post with data: " + postData.toString());
+            Log.d(TAG, "Number of images: " + (imageUrls != null ? imageUrls.size() : 0));
             
             // Create post
             apiClient.createPost(token, postData, new Callback() {
@@ -1038,6 +1088,7 @@ public class CreatePostActivity extends AppCompatActivity {
                                         finish();
                                     } else {
                                         String message = jsonResponse.optString("message", "Failed to publish post");
+                                        Log.e(TAG, "Post creation failed: " + message);
                                         Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
                                         btnPost.setEnabled(true);
                                     }
@@ -1057,11 +1108,27 @@ public class CreatePostActivity extends AppCompatActivity {
                                 if (finalResponseBody != null) {
                                     JSONObject jsonResponse = new JSONObject(finalResponseBody);
                                     String message = jsonResponse.optString("message", "Failed to publish post");
-                                    Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
+                                    JSONArray errors = jsonResponse.optJSONArray("errors");
+                                    if (errors != null && errors.length() > 0) {
+                                        StringBuilder errorMsg = new StringBuilder(message);
+                                        errorMsg.append("\n");
+                                        for (int i = 0; i < errors.length(); i++) {
+                                            JSONObject error = errors.getJSONObject(i);
+                                            errorMsg.append(error.optString("msg", ""));
+                                            if (i < errors.length() - 1) errorMsg.append("\n");
+                                        }
+                                        Log.e(TAG, "Post creation validation errors: " + errorMsg.toString());
+                                        Toast.makeText(CreatePostActivity.this, errorMsg.toString(), Toast.LENGTH_LONG).show();
+                                    } else {
+                                        Log.e(TAG, "Post creation failed: " + message + ", body: " + finalResponseBody);
+                                        Toast.makeText(CreatePostActivity.this, message, Toast.LENGTH_SHORT).show();
+                                    }
                                 } else {
+                                    Log.e(TAG, "Post creation failed with code: " + responseCode + ", no response body");
                                     Toast.makeText(CreatePostActivity.this, "Failed to publish post (Code: " + responseCode + ")", Toast.LENGTH_SHORT).show();
                                 }
                             } catch (Exception e) {
+                                Log.e(TAG, "Error parsing error response: " + e.getMessage() + ", body: " + finalResponseBody);
                                 Toast.makeText(CreatePostActivity.this, "Failed to publish post (Code: " + responseCode + ")", Toast.LENGTH_SHORT).show();
                             }
                             btnPost.setEnabled(true);

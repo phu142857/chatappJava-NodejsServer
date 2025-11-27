@@ -31,8 +31,14 @@ const createPostValidation = [
     .withMessage('Post content cannot exceed 5000 characters'),
   body('images')
     .optional()
-    .isArray({ max: 5 })
-    .withMessage('Maximum 5 images allowed per post'),
+    .isArray()
+    .withMessage('Images must be an array')
+    .custom((images) => {
+      if (images && images.length > 5) {
+        throw new Error('Maximum 5 images allowed per post');
+      }
+      return true;
+    }),
   body('images.*')
     .optional()
     .isString()
@@ -66,8 +72,14 @@ const updatePostValidation = [
     .withMessage('Post content cannot exceed 5000 characters'),
   body('images')
     .optional()
-    .isArray({ max: 5 })
-    .withMessage('Maximum 5 images allowed per post'),
+    .isArray()
+    .withMessage('Images must be an array')
+    .custom((images) => {
+      if (images && images.length > 5) {
+        throw new Error('Maximum 5 images allowed per post');
+      }
+      return true;
+    }),
   body('images.*')
     .optional()
     .isString()
