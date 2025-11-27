@@ -157,6 +157,14 @@ const getUserPosts = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const viewerId = req.user.id;
 
+    // Validate userId is provided and is a valid ObjectId
+    if (!userId || !require('mongoose').Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
@@ -229,6 +237,22 @@ const getPostById = async (req, res) => {
     const { id } = req.params;
     const { page = 1, limit = 20, sortBy = 'recent' } = req.query;
     const userId = req.user.id;
+
+    // Validate that id is a valid ObjectId
+    if (!id || !require('mongoose').Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+
+    // Also check if id is not "user" or "feed" to avoid route conflicts
+    if (id === 'user' || id === 'feed') {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
 
     const post = await Post.findOne({
       _id: id,
