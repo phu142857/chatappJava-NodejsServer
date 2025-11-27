@@ -149,6 +149,12 @@ postSchema.virtual('commentsCount').get(function() {
   return this.comments.filter(c => !c.isDeleted && !c.parentCommentId).length;
 });
 
+// Virtual for total comments count (including replies)
+postSchema.virtual('totalCommentsCount').get(function() {
+  if (!this.comments) return 0;
+  return this.comments.filter(c => !c.isDeleted).length;
+});
+
 // Method to get top-level comments with pagination
 postSchema.methods.getTopLevelComments = function(page = 1, limit = 20, sortBy = 'recent') {
   const skip = (page - 1) * limit;

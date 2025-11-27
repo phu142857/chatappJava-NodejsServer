@@ -605,6 +605,9 @@ const addComment = async (req, res) => {
     // Populate user info for the new comment
     const savedComment = post.comments[post.comments.length - 1];
     await post.populate('comments.user', 'username avatar profile.firstName profile.lastName');
+    
+    // If this is a reply, update the parent comment's repliesCount is handled by virtual
+    // But we need to ensure the parent comment exists and is accessible
 
     // Create notifications for tagged users in comment
     if (taggedUserIds && taggedUserIds.length > 0) {
@@ -625,12 +628,25 @@ const addComment = async (req, res) => {
       }
     }
 
+    // Calculate repliesCount for parent comment if this is a reply
+    let parentRepliesCount = null;
+    if (parentCommentId) {
+      const parentComment = post.comments.id(parentCommentId);
+      if (parentComment) {
+        parentRepliesCount = post.comments.filter(c => 
+          !c.isDeleted && c.parentCommentId && c.parentCommentId.toString() === parentCommentId
+        ).length;
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Comment added successfully',
       data: {
         comment: savedComment,
-        commentsCount: post.commentsCount
+        commentsCount: post.commentsCount,
+        totalCommentsCount: post.totalCommentsCount || post.comments.filter(c => !c.isDeleted).length,
+        parentRepliesCount: parentRepliesCount
       }
     });
 
