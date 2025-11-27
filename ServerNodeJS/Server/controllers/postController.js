@@ -791,7 +791,14 @@ const addReactionToComment = async (req, res) => {
       });
     }
 
-    const comment = post.comments.id(commentId);
+    // Find comment by ID - works for both top-level comments and replies
+    // Try using .id() first, if that fails, search manually
+    let comment = post.comments.id(commentId);
+    if (!comment) {
+      // If .id() doesn't work (e.g., for replies), find by _id directly
+      comment = post.comments.find(c => c._id && c._id.toString() === commentId);
+    }
+    
     if (!comment || comment.isDeleted) {
       return res.status(404).json({
         success: false,
@@ -848,7 +855,14 @@ const removeReactionFromComment = async (req, res) => {
       });
     }
 
-    const comment = post.comments.id(commentId);
+    // Find comment by ID - works for both top-level comments and replies
+    // Try using .id() first, if that fails, search manually
+    let comment = post.comments.id(commentId);
+    if (!comment) {
+      // If .id() doesn't work (e.g., for replies), find by _id directly
+      comment = post.comments.find(c => c._id && c._id.toString() === commentId);
+    }
+    
     if (!comment || comment.isDeleted) {
       return res.status(404).json({
         success: false,
