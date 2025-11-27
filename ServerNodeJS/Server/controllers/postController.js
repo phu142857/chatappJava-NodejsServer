@@ -31,13 +31,9 @@ const createPost = async (req, res) => {
         });
       }
       
-      // Check if user already shared this post (prevent duplicate shares)
-      const existingShare = originalPost.shares.find(share => share.user.toString() === userId);
-      if (!existingShare) {
-        // Increment share count on original post
-        originalPost.shares.push({ user: userId });
-        await originalPost.save();
-      }
+      // Allow multiple shares from the same user - each share counts
+      originalPost.shares.push({ user: userId });
+      await originalPost.save();
     }
 
     // Validate business rules (relaxed for shared posts - they can have no content)
@@ -909,16 +905,7 @@ const sharePost = async (req, res) => {
       });
     }
 
-    // Check if user already shared
-    const shareIndex = post.shares.findIndex(share => share.user.toString() === userId);
-    
-    if (shareIndex > -1) {
-      return res.status(400).json({
-        success: false,
-        message: 'Post already shared'
-      });
-    }
-
+    // Allow multiple shares from the same user - each share counts
     post.shares.push({ user: userId });
     await post.save();
 

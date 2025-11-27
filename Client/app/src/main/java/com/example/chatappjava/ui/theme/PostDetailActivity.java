@@ -153,10 +153,19 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         Log.d(TAG, "onCreate - Intent data: " + (data != null ? data.toString() : "null"));
         Log.d(TAG, "onCreate - Intent action: " + intent.getAction());
         
+        // Check for postId from Intent (e.g., from notification click)
+        String postId = intent.getStringExtra("postId");
+        if (postId != null && !postId.isEmpty()) {
+            Log.d(TAG, "Post ID from Intent: " + postId);
+            // Load post by ID from API
+            loadPostById(postId);
+            return;
+        }
+        
         if (data != null) {
             // Deep link: chatapp://post/:id or https://domain.com/post/:id
-            String postId = extractPostIdFromUri(data);
-            Log.d(TAG, "Extracted post ID: " + postId);
+            postId = extractPostIdFromUri(data);
+            Log.d(TAG, "Extracted post ID from deep link: " + postId);
             if (postId != null && !postId.isEmpty()) {
                 // Load post by ID from API
                 loadPostById(postId);
@@ -169,7 +178,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
             }
         }
 
-        // Get post from intent (normal navigation)
+        // Get post from intent (normal navigation with full post object)
         String postJson = intent.getStringExtra("post");
         if (postJson == null) {
             Toast.makeText(this, "Post data not found", Toast.LENGTH_SHORT).show();

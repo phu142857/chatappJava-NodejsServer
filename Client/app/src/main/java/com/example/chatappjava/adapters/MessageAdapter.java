@@ -1025,22 +1025,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
         android.text.SpannableString spannable = new android.text.SpannableString(content);
+        boolean hasMentions = false;
         
         // Apply mention styling
         Matcher mentionMatcher = MENTION_PATTERN.matcher(content);
         while (mentionMatcher.find()) {
+            hasMentions = true;
             int start = mentionMatcher.start();
             int end = mentionMatcher.end();
+            // Only apply bold style, no background highlight
             android.text.style.StyleSpan styleSpan = new android.text.style.StyleSpan(android.graphics.Typeface.BOLD);
-            if (isSent) {
-                // On sent bubble (usually colored background with white text), use a semi-transparent highlight
-                android.text.style.BackgroundColorSpan bgSpan = new android.text.style.BackgroundColorSpan(0x66FFC107); // amber 40%
-                spannable.setSpan(bgSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            } else {
-                // On received bubble (light background, dark text), use blue foreground
-                android.text.style.ForegroundColorSpan colorSpan = new android.text.style.ForegroundColorSpan(0xFF1E88E5);
-                spannable.setSpan(colorSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
             spannable.setSpan(styleSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             // Clickable span to open profile
@@ -1075,8 +1069,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             spannable.setSpan(clickableSpan, start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         
+        // Set text and enable link movement
         textView.setText(spannable);
         textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+        // Ensure TextView is clickable and focusable for links to work
+        textView.setLinksClickable(true);
+        textView.setClickable(true);
+        textView.setFocusable(true);
     }
 
     @NonNull
