@@ -115,7 +115,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected MessageAdapter messageAdapter;
     protected DatabaseManager databaseManager;
     protected MessageRepository messageRepository;
-    protected OfflineMessageSyncManager syncManager;
+    protected OfflineMessageSyncManager syncManager; // For offline message sync
+    protected com.example.chatappjava.utils.SyncManager backgroundSyncManager; // For background delta sync
     protected ApiClient apiClient;
     protected AvatarManager avatarManager;
     protected AlertDialog emojiDialog;
@@ -1521,11 +1522,32 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void initData() {
         databaseManager = new DatabaseManager(this);
         messageRepository = new MessageRepository(this);
-        syncManager = new OfflineMessageSyncManager(this);
+        syncManager = new OfflineMessageSyncManager(this); // For offline message sync
+        backgroundSyncManager = com.example.chatappjava.utils.SyncManager.getInstance(this); // For background delta sync
         apiClient = new ApiClient();
         avatarManager = AvatarManager.getInstance(this);
         socketManager = ChatApplication.getInstance().getSocketManager();
         messages = new ArrayList<>();
+        
+        // Setup sync listener to update UI when sync completes
+        backgroundSyncManager.addSyncListener(new com.example.chatappjava.utils.SyncManager.SyncListener() {
+            @Override
+            public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
+                if (success && itemsUpdated > 0 && "messages".equals(resourceType)) {
+                    runOnUiThread(() -> {
+                        // Reload messages from cache after sync
+                        if (currentChat != null) {
+                            loadMessagesFromDatabase();
+                        }
+                    });
+                }
+            }
+            
+            @Override
+            public void onSyncError(String resourceType, String error) {
+                Log.e("BaseChatActivity", "Sync error for " + resourceType + ": " + error);
+            }
+        });
 
         // Initialize chat data from intent
         Intent intent = getIntent();
@@ -1802,17 +1824,29 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Clear messages list first to avoid duplicates
         messages.clear();
         
-        // First, try to load from local database (works offline)
+        // First, load from cache for instant UI
         loadMessagesFromDatabase();
         
-        // Then try to load from server if network is available
+        // Then sync deltas from server if network is available
         if (isNetworkAvailable()) {
             String token = databaseManager.getToken();
+            if (token == null || token.isEmpty()) {
+                return;
+            }
+            
             boolean isRefresh = !isInitialLoad; // polling refresh vs first load
             if (!isRefresh) {
                 currentPage = 1;
                 hasMore = true;
             }
+            
+            // Use sync deltas for refresh, full API call for initial load
+            if (isRefresh && backgroundSyncManager != null && backgroundSyncManager.shouldSyncForeground()) {
+                backgroundSyncManager.syncMessages(token, false);
+                return;
+            }
+            
+            // Initial load: use full API call
             apiClient.getMessages(token, currentChat.getId(), 1, pageSize, new Callback() {
             @SuppressLint("NotifyDataSetChanged")
             @Override
@@ -2331,6 +2365,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Restart auto-hide timer if summarize indicator is visible
         if (summarizeIndicator != null && summarizeIndicator.getVisibility() == View.VISIBLE) {
             startAutoHideSummarizeTimer();
+        }
+        
+        // Sync foreground when app becomes active
+        String token = databaseManager.getToken();
+        if (token != null && !token.isEmpty() && backgroundSyncManager != null) {
+            backgroundSyncManager.syncForeground(token);
         }
         
         // Update offline indicator

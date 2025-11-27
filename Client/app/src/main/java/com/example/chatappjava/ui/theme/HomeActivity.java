@@ -85,6 +85,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private ConversationRepository conversationRepository;
     private com.example.chatappjava.utils.CallRepository callRepository;
     private com.example.chatappjava.utils.PostRepository postRepository;
+    private com.example.chatappjava.utils.SyncManager syncManager;
     private ApiClient apiClient;
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
@@ -209,6 +210,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         conversationRepository = new ConversationRepository(this);
         callRepository = new com.example.chatappjava.utils.CallRepository(this);
         postRepository = new com.example.chatappjava.utils.PostRepository(this);
+        syncManager = com.example.chatappjava.utils.SyncManager.getInstance(this);
         apiClient = new ApiClient();
         chatList = new ArrayList<>();
         callList = new ArrayList<>();
@@ -222,6 +224,35 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             redirectToLogin();
             return;
         }
+        
+        // Setup sync listener to update UI when sync completes
+        syncManager.addSyncListener(new com.example.chatappjava.utils.SyncManager.SyncListener() {
+            @Override
+            public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
+                if (success && itemsUpdated > 0) {
+                    runOnUiThread(() -> {
+                        switch (resourceType) {
+                            case "posts":
+                                // Reload posts from cache after sync
+                                loadPostsFromCache();
+                                break;
+                            case "conversations":
+                                // Reload chats from cache after sync
+                                loadChatsFromDatabase();
+                                break;
+                            case "messages":
+                                // Messages are handled by chat activities
+                                break;
+                        }
+                    });
+                }
+            }
+            
+            @Override
+            public void onSyncError(String resourceType, String error) {
+                Log.e(TAG, "Sync error for " + resourceType + ": " + error);
+            }
+        });
     }
     
     private void setupClickListeners() {
@@ -1755,25 +1786,20 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             postList.clear();
         }
         
-        // First, try to load from local database
-        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
-        if (!cachedPosts.isEmpty() && !forceReload) {
-            postList = cachedPosts;
-            postAdapter.setPosts(postList);
-            System.out.println("HomeActivity: Loaded " + cachedPosts.size() + " posts from database");
-            isLoadingPosts = false;
-        }
+        // First, load from cache for instant UI
+        loadPostsFromCache();
         
+        // Then sync deltas from server (if not forcing reload, use sync; otherwise full reload)
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             isLoadingPosts = false;
             return;
         }
         
-        String currentUserId = databaseManager.getUserId();
-        
-        // Call API to get feed posts
-        apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
+        if (forceReload) {
+            // Force reload: use full API call
+            String currentUserId = databaseManager.getUserId();
+            apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
@@ -1862,8 +1888,30 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 });
             }
         });
+        } else {
+            // Normal load: use sync deltas
+            if (syncManager != null && syncManager.shouldSyncForeground()) {
+                syncManager.syncPosts(token, false);
+            }
+            isLoadingPosts = false;
+        }
     }
 
+    /**
+     * Load posts from cache for instant UI display
+     */
+    private void loadPostsFromCache() {
+        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
+        if (!cachedPosts.isEmpty()) {
+            postList.clear();
+            postList.addAll(cachedPosts);
+            if (postAdapter != null) {
+                postAdapter.setPosts(postList);
+            }
+            System.out.println("HomeActivity: Loaded " + cachedPosts.size() + " posts from cache");
+        }
+    }
+    
     private void reloadHome() {
         // Refresh both chats and friend requests
         loadFriendRequestCount();
@@ -1986,6 +2034,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             loadUserProfile();
             // Refresh friend request count when returning to activity
             loadFriendRequestCount();
+            
+            // Sync foreground when app becomes active
+            String token = databaseManager.getToken();
+            if (token != null && !token.isEmpty() && syncManager != null) {
+                syncManager.syncForeground(token);
+            }
+            
             // Refresh blocked users and then chats
             loadBlockedUsers();
             // Also refresh chat list to keep it up to date
@@ -2249,6 +2304,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             return;
         }
         
+        // Use sync deltas instead of full API call
+        if (syncManager != null && syncManager.shouldSyncForeground()) {
+            syncManager.syncConversations(token, false);
+            isLoadingChats = false;
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Fallback to full API call if sync is not needed yet
         apiClient.getChats(token, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {

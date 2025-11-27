@@ -78,6 +78,8 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     
     // Data and Services
     private DatabaseManager databaseManager;
+    private com.example.chatappjava.utils.PostRepository postRepository;
+    private com.example.chatappjava.utils.SyncManager syncManager;
     private ApiClient apiClient;
     private AvatarManager avatarManager;
     private boolean isLoading = false;
@@ -131,7 +133,27 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     private void initializeServices() {
         apiClient = new ApiClient();
         avatarManager = AvatarManager.getInstance(this);
+        postRepository = new com.example.chatappjava.utils.PostRepository(this);
+        syncManager = com.example.chatappjava.utils.SyncManager.getInstance(this);
         postList = new ArrayList<>();
+        
+        // Setup sync listener to update UI when sync completes
+        syncManager.addSyncListener(new com.example.chatappjava.utils.SyncManager.SyncListener() {
+            @Override
+            public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
+                if (success && itemsUpdated > 0 && "posts".equals(resourceType)) {
+                    runOnUiThread(() -> {
+                        // Reload posts from cache after sync
+                        loadPostsFromCache();
+                    });
+                }
+            }
+            
+            @Override
+            public void onSyncError(String resourceType, String error) {
+                Log.e(TAG, "Sync error for " + resourceType + ": " + error);
+            }
+        });
     }
     
     private void setupClickListeners() {
@@ -255,6 +277,9 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
             currentPage = 0;
             hasMorePosts = true;
             swipeRefresh.setRefreshing(true);
+        } else {
+            // Load from cache first for instant UI
+            loadPostsFromCache();
         }
         
         String token = databaseManager.getToken();
@@ -264,8 +289,9 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
             return;
         }
         
-        // Call API to get feed posts
-        apiClient.getFeedPosts(token, currentPage + 1, 20, new okhttp3.Callback() {
+        if (refresh) {
+            // Force refresh: use full API call
+            apiClient.getFeedPosts(token, currentPage + 1, 20, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
@@ -337,6 +363,11 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
                                 }
                                 
                                 currentPage++;
+                                
+                                // Save posts to cache
+                                if (!newPosts.isEmpty()) {
+                                    postRepository.savePosts(newPosts);
+                                }
                             } else {
                                 String message = jsonResponse.optString("message", "Failed to load posts");
                                 Toast.makeText(PostFeedActivity.this, message, Toast.LENGTH_SHORT).show();
@@ -357,6 +388,40 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
                 });
             }
         });
+        } else {
+            // Normal load: use sync deltas
+            if (syncManager != null && syncManager.shouldSyncForeground()) {
+                syncManager.syncPosts(token, false);
+            }
+            isLoading = false;
+            swipeRefresh.setRefreshing(false);
+        }
+    }
+    
+    /**
+     * Load posts from cache for instant UI display
+     */
+    private void loadPostsFromCache() {
+        List<Post> cachedPosts = postRepository.getAllPosts();
+        if (!cachedPosts.isEmpty()) {
+            postList.clear();
+            postList.addAll(cachedPosts);
+            if (postAdapter != null) {
+                postAdapter.setPosts(postList);
+            }
+            Log.d(TAG, "Loaded " + cachedPosts.size() + " posts from cache");
+        }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Sync foreground when app becomes active
+        String token = databaseManager.getToken();
+        if (token != null && !token.isEmpty() && syncManager != null) {
+            syncManager.syncForeground(token);
+        }
     }
     
     private List<Post> generateMockPosts() {
