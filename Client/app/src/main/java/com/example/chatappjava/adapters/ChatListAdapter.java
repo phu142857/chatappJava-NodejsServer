@@ -102,7 +102,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
                 tvUnreadCount.setVisibility(View.GONE);
             }
 
-            // Load chat avatar - AvatarManager will handle preventing reload if URL unchanged
+            // Load chat avatar - using same approach as CallListAdapter
             String avatarUrl = null;
             if (chat.isGroupChat()) {
                 // For group chats, load group avatar if available
@@ -115,25 +115,33 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
                     avatarUrl = chat.getOtherParticipant().getAvatar();
                 }
             }
-            
-            // Construct full URL if needed (exactly like CallListAdapter)
-            if (avatarUrl != null && !avatarUrl.isEmpty() && !avatarUrl.startsWith("http")) {
-                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
-            }
-            
-            // Use appropriate placeholder based on chat type
-            int placeholderResId = chat.isGroupChat() 
-                ? R.drawable.ic_group_avatar 
-                : R.drawable.ic_profile_placeholder;
-            
-            // Load avatar - AvatarManager will check if already loaded to prevent flickering
+
             if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                avatarManager.loadAvatar(avatarUrl, ivChatAvatar, placeholderResId);
+                android.util.Log.d("ChatListAdapter", "Loading chat avatar: " + avatarUrl);
+
+                if (!avatarUrl.startsWith("http")) {
+                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                    android.util.Log.d("ChatListAdapter", "Constructed full URL: " + avatarUrl);
+                }
+                
+                // Use appropriate placeholder based on chat type
+                int placeholderResId = chat.isGroupChat() 
+                    ? R.drawable.ic_group_avatar 
+                    : R.drawable.ic_profile_placeholder;
+                
+                avatarManager.loadAvatar(
+                    avatarUrl, 
+                    ivChatAvatar, 
+                    placeholderResId
+                );
             } else {
-                // No avatar URL, use default placeholder
+                android.util.Log.d("ChatListAdapter", "No avatar URL, using default");
+                // Use appropriate placeholder based on chat type
+                int placeholderResId = chat.isGroupChat() 
+                    ? R.drawable.ic_group_avatar 
+                    : R.drawable.ic_profile_placeholder;
                 ivChatAvatar.setImageResource(placeholderResId);
-                ivChatAvatar.setTag(null); // Clear tag
             }
             
             // Set click listeners

@@ -8,7 +8,7 @@ import android.util.Log;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
     private static final String DATABASE_NAME = "ChatApp.db";
-    private static final int DATABASE_VERSION = 3; // Incremented for offline chat feature
+    private static final int DATABASE_VERSION = 4; // Incremented for calls and posts caching
 
     // ===== Table: app_settings =====
     public static final String TABLE_APP_SETTINGS = "app_settings";
@@ -128,6 +128,85 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String CREATE_INDEX_MESSAGES_CLIENT_NONCE = 
         "CREATE INDEX IF NOT EXISTS idx_messages_client_nonce ON " + TABLE_MESSAGES + "(" + COL_MSG_CLIENT_NONCE + ")";
 
+    // ===== Table: calls =====
+    public static final String TABLE_CALLS = "calls";
+    public static final String COL_CALL_ID = "call_id";
+    public static final String COL_CALL_TYPE = "type"; // "audio" or "video"
+    public static final String COL_CALL_CHAT_ID = "chat_id";
+    public static final String COL_CALL_CHAT_NAME = "chat_name";
+    public static final String COL_CALL_CHAT_TYPE = "chat_type"; // "private" or "group"
+    public static final String COL_CALL_STATUS = "status"; // "initiated", "ringing", "active", "ended", "declined", "missed", "cancelled"
+    public static final String COL_CALL_STARTED_AT = "started_at";
+    public static final String COL_CALL_ENDED_AT = "ended_at";
+    public static final String COL_CALL_DURATION = "duration"; // in seconds
+    public static final String COL_CALL_IS_GROUP_CALL = "is_group_call";
+    public static final String COL_CALL_CALLER_ID = "caller_id";
+    public static final String COL_CALL_CALLER_NAME = "caller_name";
+    public static final String COL_CALL_CALLER_AVATAR = "caller_avatar";
+    public static final String COL_CALL_PARTICIPANTS = "participants"; // JSON array
+
+    // ===== Table: posts =====
+    public static final String TABLE_POSTS = "posts";
+    public static final String COL_POST_ID = "id";
+    public static final String COL_POST_AUTHOR_ID = "author_id";
+    public static final String COL_POST_AUTHOR_USERNAME = "author_username";
+    public static final String COL_POST_AUTHOR_AVATAR = "author_avatar";
+    public static final String COL_POST_CONTENT = "content";
+    public static final String COL_POST_MEDIA_URLS = "media_urls"; // JSON array
+    public static final String COL_POST_MEDIA_TYPE = "media_type"; // "image", "video", "gallery", "none"
+    public static final String COL_POST_TIMESTAMP = "timestamp";
+    public static final String COL_POST_LIKES_COUNT = "likes_count";
+    public static final String COL_POST_COMMENTS_COUNT = "comments_count";
+    public static final String COL_POST_SHARES_COUNT = "shares_count";
+    public static final String COL_POST_IS_LIKED = "is_liked";
+    public static final String COL_POST_REACTION_TYPE = "reaction_type";
+    public static final String COL_POST_SHARED_POST_ID = "shared_post_id";
+    public static final String COL_POST_TAGGED_USERS = "tagged_users"; // JSON array
+
+    private static final String CREATE_TABLE_CALLS = 
+        "CREATE TABLE " + TABLE_CALLS + " (" +
+        COL_CALL_ID + " TEXT PRIMARY KEY, " +
+        COL_CALL_TYPE + " TEXT DEFAULT 'video', " +
+        COL_CALL_CHAT_ID + " TEXT, " +
+        COL_CALL_CHAT_NAME + " TEXT, " +
+        COL_CALL_CHAT_TYPE + " TEXT DEFAULT 'private', " +
+        COL_CALL_STATUS + " TEXT DEFAULT 'initiated', " +
+        COL_CALL_STARTED_AT + " INTEGER NOT NULL, " +
+        COL_CALL_ENDED_AT + " INTEGER DEFAULT 0, " +
+        COL_CALL_DURATION + " INTEGER DEFAULT 0, " +
+        COL_CALL_IS_GROUP_CALL + " INTEGER DEFAULT 0, " +
+        COL_CALL_CALLER_ID + " TEXT, " +
+        COL_CALL_CALLER_NAME + " TEXT, " +
+        COL_CALL_CALLER_AVATAR + " TEXT, " +
+        COL_CALL_PARTICIPANTS + " TEXT" + // JSON array
+        ")";
+
+    private static final String CREATE_TABLE_POSTS = 
+        "CREATE TABLE " + TABLE_POSTS + " (" +
+        COL_POST_ID + " TEXT PRIMARY KEY, " +
+        COL_POST_AUTHOR_ID + " TEXT NOT NULL, " +
+        COL_POST_AUTHOR_USERNAME + " TEXT, " +
+        COL_POST_AUTHOR_AVATAR + " TEXT, " +
+        COL_POST_CONTENT + " TEXT, " +
+        COL_POST_MEDIA_URLS + " TEXT, " + // JSON array
+        COL_POST_MEDIA_TYPE + " TEXT DEFAULT 'none', " +
+        COL_POST_TIMESTAMP + " INTEGER NOT NULL, " +
+        COL_POST_LIKES_COUNT + " INTEGER DEFAULT 0, " +
+        COL_POST_COMMENTS_COUNT + " INTEGER DEFAULT 0, " +
+        COL_POST_SHARES_COUNT + " INTEGER DEFAULT 0, " +
+        COL_POST_IS_LIKED + " INTEGER DEFAULT 0, " +
+        COL_POST_REACTION_TYPE + " TEXT, " +
+        COL_POST_SHARED_POST_ID + " TEXT, " +
+        COL_POST_TAGGED_USERS + " TEXT" + // JSON array
+        ")";
+
+    // Indexes for calls and posts
+    private static final String CREATE_INDEX_CALLS_STARTED_AT = 
+        "CREATE INDEX IF NOT EXISTS idx_calls_started_at ON " + TABLE_CALLS + "(" + COL_CALL_STARTED_AT + ")";
+    
+    private static final String CREATE_INDEX_POSTS_TIMESTAMP = 
+        "CREATE INDEX IF NOT EXISTS idx_posts_timestamp ON " + TABLE_POSTS + "(" + COL_POST_TIMESTAMP + ")";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -137,14 +216,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_TABLE_APP_SETTINGS);
         db.execSQL(CREATE_TABLE_CONVERSATIONS);
         db.execSQL(CREATE_TABLE_MESSAGES);
+        db.execSQL(CREATE_TABLE_CALLS);
+        db.execSQL(CREATE_TABLE_POSTS);
         
         // Create indexes
         db.execSQL(CREATE_INDEX_MESSAGES_CHAT_ID);
         db.execSQL(CREATE_INDEX_MESSAGES_TIMESTAMP);
         db.execSQL(CREATE_INDEX_MESSAGES_SYNC_STATUS);
         db.execSQL(CREATE_INDEX_MESSAGES_CLIENT_NONCE);
+        db.execSQL(CREATE_INDEX_CALLS_STARTED_AT);
+        db.execSQL(CREATE_INDEX_POSTS_TIMESTAMP);
         
-        Log.d(TAG, "Database created successfully with offline chat tables");
+        Log.d(TAG, "Database created successfully with offline chat, calls, and posts tables");
     }
 
     @Override
@@ -160,6 +243,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL(CREATE_INDEX_MESSAGES_SYNC_STATUS);
             db.execSQL(CREATE_INDEX_MESSAGES_CLIENT_NONCE);
             Log.d(TAG, "Added offline chat tables");
+        }
+        
+        if (oldVersion < 4) {
+            // Add calls and posts tables
+            db.execSQL(CREATE_TABLE_CALLS);
+            db.execSQL(CREATE_TABLE_POSTS);
+            db.execSQL(CREATE_INDEX_CALLS_STARTED_AT);
+            db.execSQL(CREATE_INDEX_POSTS_TIMESTAMP);
+            Log.d(TAG, "Added calls and posts tables");
         }
     }
 }

@@ -6,6 +6,8 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 import com.example.chatappjava.models.Chat;
+import com.example.chatappjava.models.User;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import java.util.ArrayList;
@@ -38,7 +40,17 @@ public class ConversationRepository {
             values.put(DatabaseHelper.COL_CONV_TYPE, chat.getType());
             values.put(DatabaseHelper.COL_CONV_NAME, chat.getName());
             values.put(DatabaseHelper.COL_CONV_DESCRIPTION, chat.getDescription());
-            values.put(DatabaseHelper.COL_CONV_AVATAR, chat.getAvatar());
+            
+            // For private chats, save other participant's avatar (like calls save caller avatar)
+            // For group chats, save group avatar
+            String avatarToSave = chat.getAvatar();
+            if (chat.isPrivateChat() && chat.getOtherParticipant() != null && 
+                chat.getOtherParticipant().getAvatar() != null && 
+                !chat.getOtherParticipant().getAvatar().isEmpty()) {
+                avatarToSave = chat.getOtherParticipant().getAvatar();
+                Log.d(TAG, "Saving other participant avatar for private chat: " + avatarToSave);
+            }
+            values.put(DatabaseHelper.COL_CONV_AVATAR, avatarToSave);
             values.put(DatabaseHelper.COL_CONV_LAST_MESSAGE, chat.getLastMessage());
             values.put(DatabaseHelper.COL_CONV_LAST_MESSAGE_TIME, chat.getLastMessageTime());
             values.put(DatabaseHelper.COL_CONV_UNREAD_COUNT, chat.getUnreadCount());
@@ -243,7 +255,38 @@ public class ConversationRepository {
             if (typeIndex >= 0) chat.setType(cursor.getString(typeIndex));
             if (nameIndex >= 0) chat.setName(cursor.getString(nameIndex));
             if (descriptionIndex >= 0) chat.setDescription(cursor.getString(descriptionIndex));
-            if (avatarIndex >= 0) chat.setAvatar(cursor.getString(avatarIndex));
+            
+            // Set avatar - for private chats, this is the other participant's avatar
+            if (avatarIndex >= 0) {
+                String avatar = cursor.getString(avatarIndex);
+                chat.setAvatar(avatar);
+                
+                // For private chats, also set avatar to otherParticipant if it exists
+                // This ensures avatar is available when loading from database
+                if (chat.isPrivateChat() && avatar != null && !avatar.isEmpty()) {
+                    try {
+                        java.lang.reflect.Field otherParticipantField = Chat.class.getDeclaredField("otherParticipant");
+                        otherParticipantField.setAccessible(true);
+                        User otherParticipant = (User) otherParticipantField.get(chat);
+                        
+                        // If otherParticipant doesn't exist, create a minimal one with avatar
+                        if (otherParticipant == null) {
+                            otherParticipant = new User();
+                            otherParticipant.setAvatar(avatar);
+                            otherParticipantField.set(chat, otherParticipant);
+                            Log.d(TAG, "Created otherParticipant with avatar from database: " + avatar);
+                        } else {
+                            // If otherParticipant exists but has no avatar, set it
+                            if (otherParticipant.getAvatar() == null || otherParticipant.getAvatar().isEmpty()) {
+                                otherParticipant.setAvatar(avatar);
+                                Log.d(TAG, "Set avatar to existing otherParticipant: " + avatar);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Could not set otherParticipant avatar: " + e.getMessage());
+                    }
+                }
+            }
             
             if (lastMessageIndex >= 0) {
                 try {
@@ -350,4 +393,11 @@ public class ConversationRepository {
         Log.d(TAG, "All conversations cleared");
     }
 }
+
+
+
+
+
+
+
 

@@ -77,6 +77,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     // Data and Services
     private DatabaseManager databaseManager;
     private ConversationRepository conversationRepository;
+    private com.example.chatappjava.utils.CallRepository callRepository;
+    private com.example.chatappjava.utils.PostRepository postRepository;
     private ApiClient apiClient;
     private ChatListAdapter chatAdapter;
     private CallListAdapter callAdapter;
@@ -192,6 +194,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private void initializeServices() {
         databaseManager = new DatabaseManager(this);
         conversationRepository = new ConversationRepository(this);
+        callRepository = new com.example.chatappjava.utils.CallRepository(this);
+        postRepository = new com.example.chatappjava.utils.PostRepository(this);
         apiClient = new ApiClient();
         chatList = new ArrayList<>();
         callList = new ArrayList<>();
@@ -1054,6 +1058,20 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
         isLoadingCalls = true;
         
+        // First, try to load from local database
+        List<Call> cachedCalls = callRepository.getAllCalls(0); // 0 = no limit
+        if (!cachedCalls.isEmpty()) {
+            this.callList = cachedCalls;
+            if (callAdapter != null) {
+                callAdapter.updateCalls(cachedCalls);
+                System.out.println("HomeActivity: Loaded " + cachedCalls.size() + " calls from database");
+            }
+            // Stop refresh spinner if we have cached data
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+        
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             isLoadingCalls = false;
@@ -1071,6 +1089,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     System.out.println("HomeActivity: Failed to load call history: " + e.getMessage());
+                    // If we have cached calls, keep showing them
+                    if (callList.isEmpty()) {
+                        // Try to load from database again if we don't have any calls
+                        List<Call> cachedCalls = callRepository.getAllCalls(0);
+                        if (!cachedCalls.isEmpty()) {
+                            callList = cachedCalls;
+                            if (callAdapter != null) {
+                                callAdapter.updateCalls(cachedCalls);
+                            }
+                        }
+                    }
                     isLoadingCalls = false;
                     // Stop refresh spinner on error
                     if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
@@ -1117,6 +1146,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                             System.out.println("HomeActivity: Error parsing call " + i + ": " + e.getMessage());
                             e.printStackTrace();
                         }
+                    }
+                    
+                    // Save calls to database
+                    if (!calls.isEmpty()) {
+                        callRepository.saveCalls(calls);
+                        System.out.println("HomeActivity: Saved " + calls.size() + " calls to database");
                     }
                     
                     // Update call list and adapter
@@ -1337,6 +1372,11 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                 // Insert new posts at the top
                                 if (!newPosts.isEmpty()) {
                                     postList.addAll(0, newPosts);
+                                    
+                                    // Save new posts to database
+                                    postRepository.savePosts(newPosts);
+                                    System.out.println("HomeActivity: Saved " + newPosts.size() + " new posts to database");
+                                    
                                     postAdapter.setPosts(postList);
                                     
                                     // Show notification
@@ -1384,6 +1424,15 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             postList.clear();
         }
         
+        // First, try to load from local database
+        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
+        if (!cachedPosts.isEmpty() && !forceReload) {
+            postList = cachedPosts;
+            postAdapter.setPosts(postList);
+            System.out.println("HomeActivity: Loaded " + cachedPosts.size() + " posts from database");
+            isLoadingPosts = false;
+        }
+        
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             isLoadingPosts = false;
@@ -1398,6 +1447,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
                     Log.e(TAG, "Failed to load posts: " + e.getMessage());
+                    // If we have cached posts, keep showing them
+                    if (postList.isEmpty()) {
+                        // Try to load from database again if we don't have any posts
+                        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
+                        if (!cachedPosts.isEmpty()) {
+                            postList = cachedPosts;
+                            if (postAdapter != null) {
+                                postAdapter.setPosts(postList);
+                            }
+                        }
+                    }
                     isLoadingPosts = false;
                 });
             }
@@ -1450,6 +1510,13 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                     postList.clear();
                                 }
                                 postList.addAll(newPosts);
+                                
+                                // Save posts to database (limit to 50 most recent)
+                                if (!newPosts.isEmpty()) {
+                                    postRepository.savePosts(newPosts);
+                                    System.out.println("HomeActivity: Saved " + newPosts.size() + " posts to database");
+                                }
+                                
                                 postAdapter.setPosts(postList);
                             }
                         } else if (response.code() == 401) {

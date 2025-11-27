@@ -40,27 +40,19 @@ public class AvatarManager {
     }
     
     /**
-     * Load avatar for a user with caching and scheduled refresh
+     * Load avatar for a user with asynchronous loading and placeholder
+     * Avatar is loaded in background thread to prevent UI blocking
+     * Placeholder is shown immediately while image is loading
      */
     public void loadAvatar(String avatarUrl, ImageView imageView, int placeholderResId) {
         android.util.Log.d("AvatarManager", "loadAvatar called with URL: " + avatarUrl);
         
         if (avatarUrl == null || avatarUrl.isEmpty()) {
-            android.util.Log.d("AvatarManager", "Avatar URL is null or empty, using placeholder");
+            android.util.Log.d("AvatarManager", "Avatar URL is null or empty, showing placeholder");
             imageView.setImageResource(placeholderResId);
+            imageView.setTag(null); // Clear tag
             return;
         }
-        
-        // Use avatarUrl directly (should already be full URL from model)
-        android.util.Log.d("AvatarManager", "AvatarManager.loadAvatar() called with: " + avatarUrl);
-        
-        // Check if we need to refresh avatars (at midnight daily)
-        if (shouldRefreshAvatars()) {
-            clearAvatarCache();
-            scheduleNextRefresh();
-        }
-        
-        android.util.Log.d("AvatarManager", "Loading avatar with Picasso: " + avatarUrl);
         
         // Check if imageView already has this URL loaded (prevent flickering)
         // Use a simple tag key to store the current avatar URL
@@ -73,28 +65,48 @@ public class AvatarManager {
             return;
         }
         
+        // Show placeholder immediately to provide instant feedback
+        // This ensures user sees something while image loads in background
+        imageView.setImageResource(placeholderResId);
+        
+        // Use avatarUrl directly (should already be full URL from model)
+        android.util.Log.d("AvatarManager", "AvatarManager.loadAvatar() called with: " + avatarUrl);
+        
+        // Check if we need to refresh avatars (at midnight daily)
+        if (shouldRefreshAvatars()) {
+            clearAvatarCache();
+            scheduleNextRefresh();
+        }
+        
+        android.util.Log.d("AvatarManager", "Loading avatar with Picasso (async): " + avatarUrl);
+        
         // Cancel any pending request for this ImageView to prevent conflicts
         Picasso.get().cancelRequest(imageView);
         
         // Save URL to tag for future checks
         imageView.setTag(avatarUrl);
         
-        // Load avatar with Picasso - use noFade() to prevent flickering
-        // and let it use memory cache automatically
+        // Load avatar asynchronously with Picasso
+        // Picasso automatically loads images in background thread, so UI won't be blocked
+        // User can scroll and interact while images are loading
         Picasso.get()
                 .load(avatarUrl)
+                .placeholder(placeholderResId) // Show placeholder while loading (already set above for immediate display)
+                .error(placeholderResId) // Show placeholder on error
+                .fit() // Resize to fit ImageView dimensions (reduces memory usage)
+                .centerCrop() // Crop to center (maintains aspect ratio)
                 .noFade() // Prevent fade animation that causes flickering
-                .placeholder(placeholderResId)
-                .error(placeholderResId)
+                .priority(com.squareup.picasso.Picasso.Priority.NORMAL) // Normal priority (won't block other images)
                 .into(imageView, new com.squareup.picasso.Callback() {
                     @Override
                     public void onSuccess() {
-                        android.util.Log.d("AvatarManager", "Avatar loaded successfully: " + avatarUrl);
+                        android.util.Log.d("AvatarManager", "Avatar loaded successfully (async): " + avatarUrl);
                     }
                     
                     @Override
                     public void onError(Exception e) {
-                        android.util.Log.e("AvatarManager", "Failed to load avatar: " + avatarUrl, e);
+                        android.util.Log.e("AvatarManager", "Failed to load avatar (async): " + avatarUrl, e);
+                        // Placeholder is already shown via error() configuration
                     }
                 });
         
