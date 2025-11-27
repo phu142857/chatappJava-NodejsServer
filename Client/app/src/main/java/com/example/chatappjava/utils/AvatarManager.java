@@ -62,9 +62,28 @@ public class AvatarManager {
         
         android.util.Log.d("AvatarManager", "Loading avatar with Picasso: " + avatarUrl);
         
-        // Load avatar with Picasso
+        // Check if imageView already has this URL loaded (prevent flickering)
+        // Use a simple tag key to store the current avatar URL
+        Object tag = imageView.getTag();
+        String currentUrl = (tag instanceof String) ? (String) tag : null;
+        
+        if (avatarUrl.equals(currentUrl) && imageView.getDrawable() != null) {
+            // Already loaded with same URL, skip reload to prevent flickering
+            android.util.Log.d("AvatarManager", "Avatar already loaded, skipping reload: " + avatarUrl);
+            return;
+        }
+        
+        // Cancel any pending request for this ImageView to prevent conflicts
+        Picasso.get().cancelRequest(imageView);
+        
+        // Save URL to tag for future checks
+        imageView.setTag(avatarUrl);
+        
+        // Load avatar with Picasso - use noFade() to prevent flickering
+        // and let it use memory cache automatically
         Picasso.get()
                 .load(avatarUrl)
+                .noFade() // Prevent fade animation that causes flickering
                 .placeholder(placeholderResId)
                 .error(placeholderResId)
                 .into(imageView, new com.squareup.picasso.Callback() {

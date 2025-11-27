@@ -21,6 +21,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.ChatListAdapter;
 import com.example.chatappjava.models.Chat;
@@ -54,6 +55,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private View efabNewGroup;
     private TextView tvChats, tvGroups, tvCalls, tvPosts;
     private RecyclerView rvChatList;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout llFriendRequests;
     private TextView tvFriendRequestCount;
     private TextView tvFriendRequestsTitle;
@@ -89,7 +91,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     private boolean isPolling = false;
     private AlertDialog currentDialog;
     private final java.util.Set<String> blockedUserIds = new java.util.HashSet<>();
-    private static final long HOME_POLL_INTERVAL_MS = 2000L;
+    private static final long HOME_POLL_INTERVAL_MS = 300000L;
     private final Handler homePollHandler = new Handler(Looper.getMainLooper());
     private final Runnable homePollRunnable = new Runnable() {
         @Override
@@ -165,6 +167,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         tvCalls = findViewById(R.id.tv_calls);
         tvPosts = findViewById(R.id.tv_posts);
         rvChatList = findViewById(R.id.rv_chat_list);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
         llFriendRequests = findViewById(R.id.ll_friend_requests);
         tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
         // Initialize friend requests title (different layout ids possible)
@@ -787,6 +790,17 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         
         rvChatList.setLayoutManager(new LinearLayoutManager(this));
         rvChatList.setAdapter(chatAdapter);
+        
+        // Setup SwipeRefreshLayout
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setEnabled(true); // Enable for all tabs
+            swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+                @Override
+                public void onRefresh() {
+                    refreshCurrentTab();
+                }
+            });
+        }
     }
     
     private void loadUserData() {
@@ -976,6 +990,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
             }
         }
         
+        // SwipeRefreshLayout is enabled for all tabs
+        
         // Highlight selected tab (color will be handled by tab_text_selector)
         switch (tabIndex) {
             case 0:
@@ -1041,6 +1057,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
             isLoadingCalls = false;
+            // Stop refresh spinner if no token
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
             return;
         }
         
@@ -1052,6 +1072,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 runOnUiThread(() -> {
                     System.out.println("HomeActivity: Failed to load call history: " + e.getMessage());
                     isLoadingCalls = false;
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 });
             }
             
@@ -1104,24 +1128,244 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         System.out.println("HomeActivity: Call adapter is null, cannot update calls");
                     }
                     
+                    // Stop refresh spinner
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 } else {
                     System.out.println("HomeActivity: Failed to load call history: " + jsonResponse.optString("message", "Unknown error"));
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 }
             } else if (statusCode == 401) {
                 System.out.println("HomeActivity: Session expired while loading call history");
                 databaseManager.clearLoginInfo();
+                // Stop refresh spinner
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
                 redirectToLogin();
             } else {
                 System.out.println("HomeActivity: Failed to load call history with status: " + statusCode);
+                // Stop refresh spinner on error
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
             }
         } catch (org.json.JSONException e) {
             e.printStackTrace();
             System.out.println("HomeActivity: Error parsing call history response: " + e.getMessage());
+            // Stop refresh spinner on error
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
         }
     }
 
     private void loadPosts() {
         loadPosts(false);
+    }
+    
+    /**
+     * Refresh current tab based on which tab is active
+     */
+    private void refreshCurrentTab() {
+        switch (currentTab) {
+            case 0: // Chats tab
+                refreshChats();
+                break;
+            case 1: // Groups tab
+                refreshGroups();
+                break;
+            case 2: // Calls tab
+                refreshCalls();
+                break;
+            case 3: // Posts tab
+                refreshPosts();
+                break;
+            default:
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Refresh chats list
+     */
+    private void refreshChats() {
+        if (isLoadingChats) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload chats from server with force refresh avatars (manual refresh)
+        loadChats(true);
+        
+        // Note: loadChats() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh groups list
+     */
+    private void refreshGroups() {
+        if (isLoadingChats) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload chats (which includes groups) from server with force refresh avatars (manual refresh)
+        loadChats(true);
+        
+        // Note: loadChats() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh calls list
+     */
+    private void refreshCalls() {
+        if (isLoadingCalls) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload call history
+        loadCallHistory();
+        
+        // Note: loadCallHistory() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh posts by loading new posts and inserting them at the top
+     */
+    private void refreshPosts() {
+        if (isLoadingPosts || postAdapter == null || postList.isEmpty()) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        isLoadingPosts = true;
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            isLoadingPosts = false;
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        String currentUserId = databaseManager.getUserId();
+        
+        // Get the ID of the first (newest) post to find posts newer than it
+        String newestPostId = postList.get(0).getId();
+        
+        // Call API to get feed posts (page 1 should have newest posts)
+        apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to refresh posts: " + e.getMessage());
+                    isLoadingPosts = false;
+                    if (swipeRefreshLayout != null) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                JSONArray postsArray = data.getJSONArray("posts");
+                                
+                                List<com.example.chatappjava.models.Post> newPosts = new ArrayList<>();
+                                for (int i = 0; i < postsArray.length(); i++) {
+                                    try {
+                                        JSONObject postJson = postsArray.getJSONObject(i);
+                                        String postId = postJson.optString("_id", "");
+                                        
+                                        // Stop if we reach a post that's already in our list
+                                        if (postId.equals(newestPostId)) {
+                                            break;
+                                        }
+                                        
+                                        // Check if current user liked this post
+                                        JSONArray likesArray = postJson.optJSONArray("likes");
+                                        if (likesArray != null && currentUserId != null) {
+                                            boolean isLiked = false;
+                                            for (int j = 0; j < likesArray.length(); j++) {
+                                                JSONObject likeObj = likesArray.optJSONObject(j);
+                                                if (likeObj != null) {
+                                                    JSONObject userObj = likeObj.optJSONObject("user");
+                                                    if (userObj != null) {
+                                                        String likeUserId = userObj.optString("_id", "");
+                                                        if (currentUserId.equals(likeUserId)) {
+                                                            isLiked = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            postJson.put("isLiked", isLiked);
+                                        }
+                                        
+                                        com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                        newPosts.add(post);
+                                    } catch (JSONException e) {
+                                        Log.e(TAG, "Error parsing post: " + e.getMessage());
+                                    }
+                                }
+                                
+                                // Insert new posts at the top
+                                if (!newPosts.isEmpty()) {
+                                    postList.addAll(0, newPosts);
+                                    postAdapter.setPosts(postList);
+                                    
+                                    // Show notification
+                                    String message = newPosts.size() == 1 
+                                        ? "1 bài viết mới" 
+                                        : newPosts.size() + " bài viết mới";
+                                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                                    
+                                    // Smooth scroll to show new content
+                                    if (rvChatList.getLayoutManager() != null) {
+                                        rvChatList.smoothScrollToPosition(0);
+                                    }
+                                }
+                            }
+                        } else if (response.code() == 401) {
+                            databaseManager.clearLoginInfo();
+                            redirectToLogin();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing posts response: " + e.getMessage());
+                    } finally {
+                        isLoadingPosts = false;
+                        if (swipeRefreshLayout != null) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
+                    }
+                });
+            }
+        });
     }
     
     private void loadPosts(boolean forceReload) {
@@ -1567,6 +1811,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
     
     private void loadChats() {
+        loadChats(false);
+    }
+    
+    private void loadChats(boolean forceRefreshAvatars) {
         if (isLoadingChats) {
             return;
         }
@@ -1576,13 +1824,19 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         // First, try to load from local database (works offline)
         loadChatsFromDatabase();
         
-        // Force refresh avatars on reload
-        avatarManager.forceRefreshAvatars();
+        // Only force refresh avatars on manual refresh, not on polling
+        if (forceRefreshAvatars) {
+            avatarManager.forceRefreshAvatars();
+        }
         
         // Then try to load from server if network is available
         if (!isNetworkAvailable()) {
             System.out.println("HomeActivity: No network, showing chats from database");
             isLoadingChats = false;
+            // Stop refresh spinner if no network
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
             return;
         }
         
@@ -1590,6 +1844,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         if (token == null || token.isEmpty()) {
             System.out.println("HomeActivity: No token available for loading chats");
             isLoadingChats = false;
+            // Stop refresh spinner if no token
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
             return;
         }
         
@@ -1603,6 +1861,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         loadChatsFromDatabase();
                     }
                     isLoadingChats = false;
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 });
             }
             
@@ -1619,6 +1881,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     
     /**
      * Load chats from local database
+     * Only updates adapter if chatList is empty (to show data immediately while loading from server)
      */
     private void loadChatsFromDatabase() {
         if (conversationRepository == null) return;
@@ -1626,14 +1889,18 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         List<Chat> dbChats = conversationRepository.getAllConversations();
         if (!dbChats.isEmpty()) {
             this.chatList = dbChats;
-            if (chatAdapter != null) {
+            // Only update adapter if list is empty (to show cached data immediately)
+            // Otherwise, wait for server response to avoid double update and flickering
+            if (chatAdapter != null && (chatList.isEmpty() || chatAdapter.getItemCount() == 0)) {
                 if (currentTab == 1) {
                     applyGroupsFilter();
                 } else {
                     applyChatsFilter();
                 }
+                System.out.println("HomeActivity: Loaded " + dbChats.size() + " chats from database and updated adapter");
+            } else {
+                System.out.println("HomeActivity: Loaded " + dbChats.size() + " chats from database (skipped adapter update to prevent flickering)");
             }
-            System.out.println("HomeActivity: Loaded " + dbChats.size() + " chats from database");
         }
     }
     
@@ -1770,22 +2037,42 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         System.out.println("HomeActivity: Adapter is null, cannot update chats");
                     }
                     
+                    // Stop refresh spinner
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 } else {
                     System.out.println("HomeActivity: Failed to load chats: " + jsonResponse.optString("message", "Unknown error"));
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 }
             } else if (statusCode == 401) {
                 System.out.println("HomeActivity: Session expired while loading chats");
                 databaseManager.clearLoginInfo();
+                // Stop refresh spinner
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
                 // Redirect to login
                 Intent intent = new Intent(HomeActivity.this, com.example.chatappjava.ui.theme.LoginActivity.class);
                 startActivity(intent);
                 finish();
             } else {
                 System.out.println("HomeActivity: Failed to load chats with status: " + statusCode);
+                // Stop refresh spinner on error
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
             }
         } catch (org.json.JSONException e) {
             e.printStackTrace();
             System.out.println("HomeActivity: Error parsing chats response: " + e.getMessage());
+            // Stop refresh spinner on error
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
         }
     }
     

@@ -23,6 +23,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.CommentAdapter;
@@ -73,6 +74,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     private LinearLayout llLikesSummary, llLikeButton, llCommentButton, llShareButton;
     private ImageView ivLikeIcon;
     private TextView tvLikeText;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     // UI Components - Comments
     private TextView tvCommentsHeader;
@@ -278,6 +280,10 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                     progressLoading.setVisibility(View.GONE);
                     llEmptyState.setVisibility(View.VISIBLE);
                     Toast.makeText(PostDetailActivity.this, "Failed to load post: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    // Stop refresh on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 });
             }
             
@@ -334,6 +340,7 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         llShareButton = findViewById(R.id.ll_share_button);
         ivLikeIcon = findViewById(R.id.iv_like_icon);
         tvLikeText = findViewById(R.id.tv_like_text);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
 
         // Comments views
         tvCommentsHeader = findViewById(R.id.tv_comments_header);
@@ -403,6 +410,16 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         if (tvLoadMoreComments != null) {
             tvLoadMoreComments.setOnClickListener(v -> loadMoreComments());
         }
+        
+        // Setup SwipeRefreshLayout
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+                @Override
+                public void onRefresh() {
+                    refreshPostAndComments();
+                }
+            });
+        }
     }
 
     private void setupTextWatcher() {
@@ -471,6 +488,24 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         }
     }
 
+    /**
+     * Refresh post and comments when user pulls down
+     */
+    private void refreshPostAndComments() {
+        if (post == null || post.getId() == null) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload post to get updated data (likes, shares, comments count)
+        loadFullPost();
+        
+        // Reload comments to get latest comments
+        loadComments(true);
+    }
+    
     private void loadFullPost() {
         // Set author info
         tvPostUsername.setText(post.getAuthorUsername());
@@ -799,6 +834,10 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                         rvComments.setVisibility(View.GONE);
                     }
                     isLoadingMore = false;
+                    // Stop refresh on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 });
             }
 
@@ -816,6 +855,18 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                             if (jsonResponse.optBoolean("success", false)) {
                                 JSONObject data = jsonResponse.getJSONObject("data");
                                 JSONObject postData = data.getJSONObject("post");
+                                
+                                // Update post data (for share count, likes count, etc.)
+                                Post updatedPost = Post.fromJson(postData);
+                                if (updatedPost != null) {
+                                    post.setSharesCount(updatedPost.getSharesCount());
+                                    post.setLikesCount(updatedPost.getLikesCount());
+                                    post.setCommentsCount(updatedPost.getCommentsCount());
+                                    post.setLiked(updatedPost.isLiked());
+                                    updateShareCountUI();
+                                    updateLikeButton();
+                                    tvCommentsCount.setText(formatCount(post.getCommentsCount()) + " comments");
+                                }
 
                                 // Parse comments
                                 JSONArray commentsArray = postData.optJSONArray("comments");
@@ -857,12 +908,21 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                                     }
                                     if (tvLoadMoreComments != null) tvLoadMoreComments.setVisibility(View.GONE);
                                 }
+                                
+                                // Stop refresh if this was triggered by pull-to-refresh
+                                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                                    swipeRefreshLayout.setRefreshing(false);
+                                }
                             } else {
                                 String message = jsonResponse.optString("message", "Unknown error");
                                 Toast.makeText(PostDetailActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
                                 if (isInitialLoad) {
                                     llEmptyState.setVisibility(View.VISIBLE);
                                     rvComments.setVisibility(View.GONE);
+                                }
+                                // Stop refresh on error
+                                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                                    swipeRefreshLayout.setRefreshing(false);
                                 }
                             }
                         } else {
@@ -1374,9 +1434,8 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         
         startActivity(Intent.createChooser(shareIntent, "Share post via"));
         
-        // Update share count (optimistic update)
-        post.setSharesCount(post.getSharesCount() + 1);
-        updateShareCountUI();
+        // Reload post to get updated share count from server
+        loadFullPost();
     }
     
     private void updateShareCountUI() {

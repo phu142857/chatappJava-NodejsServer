@@ -17,9 +17,10 @@ import java.util.List;
 
 public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatViewHolder> {
     
+    private final Context context;
     private List<Chat> chats;
     private final OnChatClickListener listener;
-    private static AvatarManager avatarManager;
+    private final AvatarManager avatarManager;
     
     public interface OnChatClickListener {
         void onChatClick(Chat chat);
@@ -27,9 +28,10 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
     }
     
     public ChatListAdapter(Context context, List<Chat> chats, OnChatClickListener listener) {
+        this.context = context;
         this.chats = chats;
         this.listener = listener;
-        avatarManager = AvatarManager.getInstance(context);
+        this.avatarManager = AvatarManager.getInstance(context);
     }
     
     @NonNull
@@ -51,7 +53,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
         return chats.size();
     }
     
-    public static class ChatViewHolder extends RecyclerView.ViewHolder {
+    class ChatViewHolder extends RecyclerView.ViewHolder {
         private final CircleImageView ivChatAvatar;
         private final TextView tvChatName;
         private final TextView tvLastMessage;
@@ -100,42 +102,38 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
                 tvUnreadCount.setVisibility(View.GONE);
             }
 
-            // Load chat avatar
+            // Load chat avatar - AvatarManager will handle preventing reload if URL unchanged
+            String avatarUrl = null;
             if (chat.isGroupChat()) {
                 // For group chats, load group avatar if available
-                String avatarUrl = chat.getFullAvatarUrl();
-                android.util.Log.d("ChatListAdapter", "Group chat avatar URL: " + avatarUrl);
-                if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                    avatarManager.loadAvatar(avatarUrl, ivChatAvatar, R.drawable.ic_group_avatar);
-                } else {
-                    android.util.Log.d("ChatListAdapter", "No group chat avatar, using placeholder");
-                    ivChatAvatar.setImageResource(R.drawable.ic_group_avatar);
-                }
+                avatarUrl = chat.getFullAvatarUrl();
             } else {
                 // For private chats, load the other participant's avatar
                 if (chat.getOtherParticipant() != null && 
                     chat.getOtherParticipant().getAvatar() != null && 
                     !chat.getOtherParticipant().getAvatar().isEmpty()) {
-                    
-                    String avatarUrl = chat.getOtherParticipant().getAvatar();
-                    android.util.Log.d("ChatListAdapter", "Loading private chat avatar: " + avatarUrl);
-                    
-                    // Construct full URL if needed (like private chat logic)
-                    if (!avatarUrl.startsWith("http")) {
-                        avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                                   ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
-                        android.util.Log.d("ChatListAdapter", "Constructed full URL: " + avatarUrl);
-                    }
-                    
-                    avatarManager.loadAvatar(
-                        avatarUrl, 
-                        ivChatAvatar, 
-                        R.drawable.ic_profile_placeholder
-                    );
-                } else {
-                    android.util.Log.d("ChatListAdapter", "No private chat avatar, using placeholder");
-                    ivChatAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                    avatarUrl = chat.getOtherParticipant().getAvatar();
                 }
+            }
+            
+            // Construct full URL if needed (exactly like CallListAdapter)
+            if (avatarUrl != null && !avatarUrl.isEmpty() && !avatarUrl.startsWith("http")) {
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+            }
+            
+            // Use appropriate placeholder based on chat type
+            int placeholderResId = chat.isGroupChat() 
+                ? R.drawable.ic_group_avatar 
+                : R.drawable.ic_profile_placeholder;
+            
+            // Load avatar - AvatarManager will check if already loaded to prevent flickering
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                avatarManager.loadAvatar(avatarUrl, ivChatAvatar, placeholderResId);
+            } else {
+                // No avatar URL, use default placeholder
+                ivChatAvatar.setImageResource(placeholderResId);
+                ivChatAvatar.setTag(null); // Clear tag
             }
             
             // Set click listeners
@@ -157,7 +155,28 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVi
     
     @SuppressLint("NotifyDataSetChanged")
     public void updateChats(List<Chat> newChats) {
-        this.chats = newChats;
-        notifyDataSetChanged();
+        // Only update if data actually changed (size or content) to prevent unnecessary reloads
+        boolean shouldUpdate = false;
+        
+        if (chats == null || chats.size() != newChats.size()) {
+            shouldUpdate = true;
+        } else {
+            // Compare by IDs to check if content changed
+            for (int i = 0; i < chats.size(); i++) {
+                if (i >= newChats.size() || 
+                    !chats.get(i).getId().equals(newChats.get(i).getId())) {
+                    shouldUpdate = true;
+                    break;
+                }
+            }
+        }
+        
+        if (shouldUpdate) {
+            this.chats = newChats;
+            notifyDataSetChanged();
+        } else {
+            // Data unchanged, skip update to prevent flickering
+            android.util.Log.d("ChatListAdapter", "Chat list unchanged, skipping update");
+        }
     }
 }
