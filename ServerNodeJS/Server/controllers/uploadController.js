@@ -173,6 +173,7 @@ const fileUpload = multer({
 // @route   POST /api/upload/chat/:chatId/image
 // @access  Private
 const uploadChatImage = async (req, res) => {
+  console.log('uploadChatImage called - URL:', req.originalUrl, 'Method:', req.method, 'chatId:', req.params.chatId);
   try {
     // Use multer middleware to handle file upload
     imageUpload.single('image')(req, res, async (err) => {
@@ -219,6 +220,7 @@ const uploadChatImage = async (req, res) => {
 // @route   POST /api/upload/chat/:chatId/file
 // @access  Private
 const uploadChatFile = async (req, res) => {
+  console.log('uploadChatFile called - URL:', req.originalUrl, 'Method:', req.method, 'chatId:', req.params.chatId);
   try {
     // Use multer middleware to handle file upload
     fileUpload.single('file')(req, res, async (err) => {

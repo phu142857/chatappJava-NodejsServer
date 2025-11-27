@@ -619,9 +619,21 @@ public class ApiClient {
     public void uploadChatImage(String token, File imageFile, String chatId, Callback callback) {
         try {
             String url = getBaseUrl() + UPLOAD_CHAT_IMAGE_ENDPOINT + "/" + chatId + "/image";
+            android.util.Log.d("ApiClient", "uploadChatImage: URL=" + url + ", file=" + imageFile.getName() + ", size=" + imageFile.length());
+            
+            // Determine MIME type from file extension
+            String mimeType = "image/jpeg"; // default
+            String fileName = imageFile.getName().toLowerCase();
+            if (fileName.endsWith(".png")) {
+                mimeType = "image/png";
+            } else if (fileName.endsWith(".gif")) {
+                mimeType = "image/gif";
+            } else if (fileName.endsWith(".webp")) {
+                mimeType = "image/webp";
+            }
             
             RequestBody fileBody = RequestBody.create(
-                MediaType.parse("image/*"), 
+                MediaType.parse(mimeType), 
                 imageFile
             );
             
@@ -631,15 +643,24 @@ public class ApiClient {
                 .addFormDataPart("chatId", chatId)
                 .build();
             
+            // Verify URL contains /image not /file
+            if (!url.contains("/image")) {
+                android.util.Log.e("ApiClient", "ERROR: URL does not contain /image! URL: " + url);
+                callback.onFailure(null, new IOException("Invalid URL for image upload: " + url));
+                return;
+            }
+            
             Request request = new Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer " + token)
                 .post(requestBody)
                 .build();
             
+            android.util.Log.d("ApiClient", "uploadChatImage: Sending POST request to " + url + " with MIME type: " + mimeType);
             client.newCall(request).enqueue(callback);
             
         } catch (Exception e) {
+            android.util.Log.e("ApiClient", "uploadChatImage: Exception: " + e.getMessage(), e);
             e.printStackTrace();
             // Create a failed callback
             callback.onFailure(null, new IOException("Failed to prepare chat image upload: " + e.getMessage()));

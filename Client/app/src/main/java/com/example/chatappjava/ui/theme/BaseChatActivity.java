@@ -641,19 +641,26 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     // No MIME white-listing; we accept all files. Keep helper to guess MIME when missing.
 
     protected void uploadImageToServer(java.io.File imageFile, android.net.Uri localUri) {
+        android.util.Log.d("BaseChatActivity", "uploadImageToServer: Called with file: " + imageFile.getAbsolutePath() + ", size: " + imageFile.length());
+        
         if (currentChat == null) {
+            android.util.Log.e("BaseChatActivity", "uploadImageToServer: currentChat is null");
             Toast.makeText(this, "Chat not available", Toast.LENGTH_SHORT).show();
             return;
         }
         
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
+            android.util.Log.e("BaseChatActivity", "uploadImageToServer: token is null or empty");
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
         }
         
+        String chatId = currentChat.getId();
+        android.util.Log.d("BaseChatActivity", "uploadImageToServer: Calling uploadChatImage with chatId: " + chatId);
+        
         // Upload image to server
-        apiClient.uploadChatImage(token, imageFile, currentChat.getId(), new okhttp3.Callback() {
+        apiClient.uploadChatImage(token, imageFile, chatId, new okhttp3.Callback() {
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 String responseBody = response.body().string();
