@@ -225,14 +225,40 @@ public class ProfileViewActivity extends AppCompatActivity {
         Intent intent = getIntent();
         if (intent.hasExtra("user")) {
             try {
-                String userJson = intent.getStringExtra("user");
-                JSONObject userJsonObj = new JSONObject(userJson);
-                otherUser = User.fromJson(userJsonObj);
+                String userExtra = intent.getStringExtra("user");
+                android.util.Log.d("ProfileViewActivity", "Loading user from Intent: " + userExtra);
+                
+                // Check if it's a JSON string or just a userId string
+                if (userExtra != null && (userExtra.startsWith("{") || userExtra.startsWith("["))) {
+                    // It's a JSON string
+                    JSONObject userJsonObj = new JSONObject(userExtra);
+                    otherUser = User.fromJson(userJsonObj);
+                    android.util.Log.d("ProfileViewActivity", "User loaded from Intent JSON: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                    
+                    // If user doesn't have ID, fetch from server
+                    if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                        android.util.Log.w("ProfileViewActivity", "User from Intent has no ID, cannot load posts");
+                        // Still allow viewing profile, but posts won't load
+                    }
+                } else {
+                    // It's a userId string - fetch user from server
+                    android.util.Log.d("ProfileViewActivity", "Intent has userId string, fetching from server: " + userExtra);
+                    fetchUserById(userExtra);
+                    return; // Don't call loadUserData() yet, wait for fetchUserById to complete
+                }
             } catch (JSONException e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Error loading user data", Toast.LENGTH_SHORT).show();
-                finish();
-                return;
+                // If parsing fails, treat it as userId and fetch from server
+                String userExtra = intent.getStringExtra("user");
+                android.util.Log.d("ProfileViewActivity", "Failed to parse as JSON, treating as userId: " + userExtra);
+                if (userExtra != null && !userExtra.isEmpty()) {
+                    fetchUserById(userExtra);
+                    return;
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Error loading user from Intent: " + e.getMessage(), e);
+                    Toast.makeText(this, "Error loading user data", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
             }
         } else if (intent.hasExtra("username")) {
             // Fallback: fetch by username from server
@@ -351,11 +377,28 @@ public class ProfileViewActivity extends AppCompatActivity {
     }
     
     private void loadPosts() {
-        if (rvPosts == null || otherUser == null) return;
+        if (rvPosts == null || otherUser == null) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: rvPosts=" + rvPosts + ", otherUser=" + otherUser);
+            return;
+        }
         String token = databaseManager.getToken();
-        if (token == null || token.isEmpty()) return;
+        if (token == null || token.isEmpty()) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: token is null or empty");
+            return;
+        }
         
-        apiClient.getUserPosts(token, otherUser.getId(), 1, 20, new okhttp3.Callback() {
+        String userId = otherUser.getId();
+        if (userId == null || userId.isEmpty()) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: userId is null or empty");
+            if (tvNoPosts != null) {
+                tvNoPosts.setVisibility(View.VISIBLE);
+                tvNoPosts.setText("User ID not available");
+            }
+            return;
+        }
+        
+        android.util.Log.d("ProfileViewActivity", "Loading posts for userId: " + userId);
+        apiClient.getUserPosts(token, userId, 1, 20, new okhttp3.Callback() {
             @Override
             public void onFailure(okhttp3.Call call, java.io.IOException e) {
                 runOnUiThread(() -> {
@@ -1008,6 +1051,102 @@ public class ProfileViewActivity extends AppCompatActivity {
         }
     }
     
+    private void fetchUserById(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            Toast.makeText(this, "Invalid user ID", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        apiClient.authenticatedGet("/api/users/" + userId, token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, "Failed to load user", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        android.util.Log.d("ProfileViewActivity", "Fetch user by ID response: " + responseBody);
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data == null) {
+                            android.util.Log.e("ProfileViewActivity", "Response data is null");
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                                finish();
+                            });
+                            return;
+                        }
+                        
+                        org.json.JSONObject userData = data.optJSONObject("user");
+                        if (userData == null) {
+                            // Try alternative format: data might be the user object directly
+                            userData = data;
+                        }
+                        
+                        if (userData == null) {
+                            android.util.Log.e("ProfileViewActivity", "Cannot find user data in response");
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                                finish();
+                            });
+                            return;
+                        }
+                        
+                        JSONObject finalUserData = userData;
+                        runOnUiThread(() -> {
+                            try {
+                                otherUser = User.fromJson(finalUserData);
+                                android.util.Log.d("ProfileViewActivity", "User fetched by ID: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                
+                                // If still no ID, try to get from _id field directly
+                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                    String userIdFromJson = finalUserData.optString("_id", finalUserData.optString("id", ""));
+                                    if (!userIdFromJson.isEmpty()) {
+                                        otherUser.setId(userIdFromJson);
+                                        android.util.Log.d("ProfileViewActivity", "Set userId manually: " + userIdFromJson);
+                                    }
+                                }
+                                
+                                loadUserData(); // Load UI with user data
+                            } catch (JSONException e) {
+                                android.util.Log.e("ProfileViewActivity", "Error parsing user from JSON: " + e.getMessage(), e);
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProfileViewActivity.this, "Error parsing user data", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                });
+                            }
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage(), e);
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, "Error loading user", Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    }
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Failed to fetch user by ID: " + response.code());
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                }
+            }
+        });
+    }
+    
     private void loadOtherUserData() {
         if (otherUser == null) return;
         
@@ -1027,20 +1166,59 @@ public class ProfileViewActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
                     try {
                         String responseBody = response.body().string();
+                        android.util.Log.d("ProfileViewActivity", "User data response: " + responseBody);
                         org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
-                        org.json.JSONObject userData = jsonResponse.getJSONObject("data").getJSONObject("user");
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data == null) {
+                            android.util.Log.e("ProfileViewActivity", "Response data is null");
+                            return;
+                        }
                         
+                        org.json.JSONObject userData = null;
+                        // Try to get user from different formats
+                        if (data.has("user")) {
+                            userData = data.optJSONObject("user");
+                        } else if (data.has("users")) {
+                            // Response has users array (from search API)
+                            org.json.JSONArray usersArray = data.optJSONArray("users");
+                            if (usersArray != null && usersArray.length() > 0) {
+                                userData = usersArray.getJSONObject(0);
+                            }
+                        } else {
+                            // Data might be the user object directly
+                            userData = data;
+                        }
+                        
+                        if (userData == null) {
+                            android.util.Log.e("ProfileViewActivity", "Cannot find user data in response");
+                            return;
+                        }
+ 
+                        JSONObject finalUserData = userData;
                         runOnUiThread(() -> {
                             try {
-                                otherUser = User.fromJson(userData);
+                                otherUser = User.fromJson(finalUserData);
+                                android.util.Log.d("ProfileViewActivity", "User loaded: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                
+                                // If still no ID, try to get from _id field directly
+                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                    String userId = finalUserData.optString("_id", finalUserData.optString("id", ""));
+                                    if (!userId.isEmpty()) {
+                                        otherUser.setId(userId);
+                                        android.util.Log.d("ProfileViewActivity", "Set userId manually: " + userId);
+                                    }
+                                }
+                                
+                                loadUserData(); // Refresh the UI with updated data
                             } catch (JSONException e) {
-                                throw new RuntimeException(e);
+                                android.util.Log.e("ProfileViewActivity", "Error parsing user from JSON: " + e.getMessage(), e);
                             }
-                            loadUserData(); // Refresh the UI with updated data
                         });
                     } catch (Exception e) {
-                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage());
+                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage(), e);
                     }
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Failed to load user data: " + response.code());
                 }
             }
         });
