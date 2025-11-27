@@ -8,7 +8,7 @@ import android.util.Log;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
     private static final String DATABASE_NAME = "ChatApp.db";
-    private static final int DATABASE_VERSION = 4; // Incremented for calls and posts caching
+    private static final int DATABASE_VERSION = 5; // Incremented for sync metadata
 
     // ===== Table: app_settings =====
     public static final String TABLE_APP_SETTINGS = "app_settings";
@@ -207,6 +207,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String CREATE_INDEX_POSTS_TIMESTAMP = 
         "CREATE INDEX IF NOT EXISTS idx_posts_timestamp ON " + TABLE_POSTS + "(" + COL_POST_TIMESTAMP + ")";
 
+    // ===== Table: sync_metadata =====
+    public static final String TABLE_SYNC_METADATA = "sync_metadata";
+    public static final String COL_SYNC_RESOURCE_TYPE = "resource_type"; // "messages", "posts", "users", "conversations"
+    public static final String COL_SYNC_LAST_SYNC_TIMESTAMP = "last_sync_timestamp"; // Unix timestamp in milliseconds
+    public static final String COL_SYNC_LAST_SYNC_SUCCESS = "last_sync_success"; // 1 if success, 0 if failed
+    public static final String COL_SYNC_LAST_SYNC_ERROR = "last_sync_error"; // Error message if failed
+
+    private static final String CREATE_TABLE_SYNC_METADATA = 
+        "CREATE TABLE " + TABLE_SYNC_METADATA + " (" +
+        COL_SYNC_RESOURCE_TYPE + " TEXT PRIMARY KEY, " +
+        COL_SYNC_LAST_SYNC_TIMESTAMP + " INTEGER DEFAULT 0, " +
+        COL_SYNC_LAST_SYNC_SUCCESS + " INTEGER DEFAULT 0, " +
+        COL_SYNC_LAST_SYNC_ERROR + " TEXT" +
+        ")";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -218,6 +233,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_TABLE_MESSAGES);
         db.execSQL(CREATE_TABLE_CALLS);
         db.execSQL(CREATE_TABLE_POSTS);
+        db.execSQL(CREATE_TABLE_SYNC_METADATA);
         
         // Create indexes
         db.execSQL(CREATE_INDEX_MESSAGES_CHAT_ID);
@@ -252,6 +268,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL(CREATE_INDEX_CALLS_STARTED_AT);
             db.execSQL(CREATE_INDEX_POSTS_TIMESTAMP);
             Log.d(TAG, "Added calls and posts tables");
+        }
+        
+        if (oldVersion < 5) {
+            // Add sync metadata table
+            db.execSQL(CREATE_TABLE_SYNC_METADATA);
+            Log.d(TAG, "Added sync metadata table");
         }
     }
 }

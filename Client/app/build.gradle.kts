@@ -55,5 +55,6 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("org.webrtc:google-webrtc:1.0.30039@aar")
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
-    implementation("io.socket:socket.io-client:2.1.0") 
+    implementation("io.socket:socket.io-client:2.1.0")
+    implementation("androidx.work:work-runtime:2.9.0") 
 }

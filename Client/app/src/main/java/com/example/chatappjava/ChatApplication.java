@@ -48,7 +48,7 @@ public class ChatApplication extends Application {
         String userId = databaseManager.getUserId();
         
         if (token != null && userId != null) {
-            socketManager.connect(token, userId);
+            socketManager.connect(token, userId, getApplicationContext());
             
             // Set up global incoming call listener
             socketManager.setIncomingCallListener((callId, caller, chatId, callType) -> {

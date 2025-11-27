@@ -22,6 +22,7 @@ public class SocketManager {
     private boolean isConnected = false;
     private String currentToken;
     private String currentUserId;
+    private android.content.Context appContext; // Store context for sync operations
     // Active call guard to prevent duplicate ringing/offer handling across screens
     private String activeCallId;
     
@@ -60,6 +61,14 @@ public class SocketManager {
         void onReactionUpdated(org.json.JSONObject reactionJson);
     }
     
+    // Realtime sync event listeners
+    public interface RealtimeSyncListener {
+        void onNewPost(org.json.JSONObject postJson);
+        void onAvatarChanged(String userId, String newAvatarUrl);
+    }
+    
+    private RealtimeSyncListener realtimeSyncListener;
+    
     private IncomingCallListener incomingCallListener;
     private CallStatusListener callStatusListener;
     private WebRTCListener webrtcListener;
@@ -84,7 +93,7 @@ public class SocketManager {
     /**
      * Connect to Socket.io server
      */
-    public void connect(String token, String userId) {
+    public void connect(String token, String userId, android.content.Context context) {
         if (isConnected && token.equals(currentToken)) {
             Log.d(TAG, "Already connected with same token");
             return;
@@ -94,6 +103,9 @@ public class SocketManager {
         
         currentToken = token;
         currentUserId = userId;
+        if (context != null) {
+            this.appContext = context.getApplicationContext();
+        }
         
         try {
             IO.Options options = new IO.Options();
@@ -522,6 +534,70 @@ public class SocketManager {
                 }
             }
         });
+        
+        // Realtime sync events
+        socket.on("new_post", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    org.json.JSONObject postJson = (org.json.JSONObject) args[0];
+                    Log.d(TAG, "Received new_post event");
+                    
+                    // Update local cache via SyncManager
+                    if (appContext != null) {
+                        try {
+                            com.example.chatappjava.models.Post post = 
+                                com.example.chatappjava.models.Post.fromJson(postJson);
+                            com.example.chatappjava.utils.PostRepository postRepo = 
+                                new com.example.chatappjava.utils.PostRepository(appContext);
+                            postRepo.savePost(post);
+                        } catch (org.json.JSONException e) {
+                            Log.e(TAG, "Error parsing post from new_post event", e);
+                        }
+                    }
+                    
+                    // Notify listener
+                    if (realtimeSyncListener != null) {
+                        realtimeSyncListener.onNewPost(postJson);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error handling new_post event", e);
+                }
+            }
+        });
+        
+        socket.on("avatar_changed", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                try {
+                    org.json.JSONObject data = (org.json.JSONObject) args[0];
+                    String userId = data.getString("userId");
+                    String newAvatarUrl = data.getString("avatar");
+                    Log.d(TAG, "Received avatar_changed event for user: " + userId);
+                    
+                    // Notify listener to update UI
+                    if (realtimeSyncListener != null) {
+                        realtimeSyncListener.onAvatarChanged(userId, newAvatarUrl);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error handling avatar_changed event", e);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Set realtime sync listener
+     */
+    public void setRealtimeSyncListener(RealtimeSyncListener listener) {
+        this.realtimeSyncListener = listener;
+    }
+    
+    /**
+     * Remove realtime sync listener
+     */
+    public void removeRealtimeSyncListener() {
+        this.realtimeSyncListener = null;
     }
     
     /**

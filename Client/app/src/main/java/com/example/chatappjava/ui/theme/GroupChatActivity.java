@@ -73,7 +73,7 @@ public class GroupChatActivity extends BaseChatActivity {
                 String userId = databaseManager.getUserId();
                 
                 if (token != null && !token.isEmpty() && userId != null && !userId.isEmpty()) {
-                    socketManager.connect(token, userId);
+                    socketManager.connect(token, userId, GroupChatActivity.this);
                     
                     // Give it a moment to connect
                     new android.os.Handler().postDelayed(() -> {
