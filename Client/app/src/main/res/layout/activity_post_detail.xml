@@ -159,11 +159,9 @@
                         <!-- Three-dot Menu -->
                         <ImageButton
                             android:id="@+id/iv_post_menu"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="?attr/selectableItemBackgroundBorderless"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
                             android:src="@drawable/ic_more"
                             android:contentDescription="Post options"
                             app:tint="@color/icon_utility" />
@@ -235,8 +233,6 @@
                                     android:layout_gravity="center"
                                     android:background="@drawable/circle_background"
                                     android:backgroundTint="#80000000"
-                                    android:layout_width="20dp"
-                                    android:layout_height="20dp"
                                     android:src="@drawable/ic_play"
                                     android:contentDescription="Play video"
                                     app:tint="@color/icon_white" />
@@ -460,8 +456,6 @@
                     <ImageView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
                         android:src="@android:drawable/ic_menu_recent_history"
                         app:tint="@color/icon_utility" />
 

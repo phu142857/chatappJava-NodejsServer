@@ -323,12 +323,10 @@
         <!-- Emoji/Sticker -->
         <ImageButton
             android:id="@+id/iv_emoji"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:layout_width="20dp"
             android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_emoji_smile"
             android:contentDescription="Add emoji"
             app:tint="@color/icon_utility" />
@@ -336,12 +334,10 @@
         <!-- More Options -->
         <ImageButton
             android:id="@+id/iv_more_options"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:layout_width="20dp"
             android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_more"
             android:contentDescription="More options"
             app:tint="@color/icon_utility" />

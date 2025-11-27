@@ -39,14 +39,12 @@
 
             <ImageView
                 android:id="@+id/iv_back"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_marginEnd="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:padding="12dp"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@drawable/ic_back"
                 app:tint="@color/icon_utility" />
 
@@ -130,11 +128,9 @@
                         android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="14dp"
-                            android:layout_marginEnd="12dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
+                            android:layout_marginEnd="12dp"
                             android:src="@drawable/ic_tag"
                             app:tint="@color/icon_utility" />
 
@@ -147,8 +143,6 @@
                             android:textColor="@color/black" />
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_more"
@@ -168,8 +162,6 @@
                         android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_setting"
@@ -185,8 +177,6 @@
                             android:textColor="@color/black" />
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_more"
@@ -205,8 +195,6 @@
                         android:background="@drawable/rounded_container">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_close"
@@ -266,8 +254,6 @@
                         android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_close"
@@ -283,8 +269,6 @@
                             android:textColor="@color/black" />
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_more"
@@ -303,8 +287,6 @@
                         android:background="@drawable/rounded_container">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_delete"
@@ -514,8 +496,6 @@
                         android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_preferences"
@@ -531,8 +511,6 @@
                             android:textColor="@color/black" />
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_more"
@@ -551,8 +529,6 @@
                         android:background="@drawable/rounded_container">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_restore"
@@ -611,8 +587,6 @@
                         android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_info"
@@ -648,11 +622,9 @@
                         android:padding="12dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginEnd="12dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
+                            android:layout_marginEnd="12dp"
                             android:src="@drawable/ic_help"
                             app:tint="@color/icon_utility" />
 
@@ -665,8 +637,6 @@
                             android:textSize="16sp" />
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_more"

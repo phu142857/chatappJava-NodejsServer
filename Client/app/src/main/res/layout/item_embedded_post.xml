@@ -43,8 +43,6 @@
         <!-- Arrow icon (clickable) -->
         <ImageView
             android:id="@+id/iv_embedded_arrow"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/ic_arrow_right"
@@ -106,8 +104,6 @@
                 android:layout_gravity="center"
                 android:background="@drawable/circle_background"
                 android:backgroundTint="#80000000"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@drawable/ic_play"
                 android:contentDescription="Play video"
                 app:tint="@color/icon_white" />

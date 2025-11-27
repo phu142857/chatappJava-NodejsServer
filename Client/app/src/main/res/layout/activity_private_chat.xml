@@ -42,13 +42,10 @@
             <!-- Back Button -->
             <ImageView
                 android:id="@+id/iv_back"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="@color/icon_utility"
                 app:tint="@color/black"
                 android:contentDescription="@string/back_button_description"
                 android:layout_marginEnd="16dp" />
@@ -330,12 +327,10 @@
 
         <ImageButton
             android:id="@+id/iv_reply_close"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Close reply"
             android:layout_width="20dp"
             android:layout_height="20dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close reply"
             android:src="@drawable/ic_close"
             app:tint="@color/icon_utility" />
 
@@ -362,12 +357,10 @@
             <!-- Attach Button -->
             <ImageButton
                 android:id="@+id/iv_attach"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/attach_file_description"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@android:drawable/ic_menu_gallery"
                 app:tint="@color/icon_photo" />
 
@@ -393,36 +386,30 @@
             <!-- Sticker Button -->
             <ImageButton
                 android:id="@+id/iv_sticker"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/send_sticker_description"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@drawable/ic_emoji_smile"
                 app:tint="@color/icon_utility" />
 
             <!-- Record Audio Button -->
             <ImageButton
                 android:id="@+id/record_audio_button"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/record_audio_description"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@drawable/ic_mic_voice"
                 app:tint="@color/icon_utility" />
 
             <!-- Send Button -->
             <ImageButton
                 android:id="@+id/iv_send"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="@drawable/bg_send_circle_gradient"
                 android:contentDescription="@string/send_message_description"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
                 android:src="@drawable/ic_send"
                 app:tint="@color/icon_white" />
 
