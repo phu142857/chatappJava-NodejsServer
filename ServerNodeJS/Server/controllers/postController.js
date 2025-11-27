@@ -177,14 +177,16 @@ const getUserPosts = async (req, res) => {
     // Get posts
     const posts = await Post.getUserPosts(userId, parseInt(page), parseInt(limit), viewerId);
 
+    console.log(`Get user posts: userId=${userId}, viewerId=${viewerId}, postsCount=${posts.length}`);
+
     res.json({
       success: true,
       data: {
-        posts,
+        posts: posts || [],
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: posts.length
+          total: posts ? posts.length : 0
         }
       }
     });

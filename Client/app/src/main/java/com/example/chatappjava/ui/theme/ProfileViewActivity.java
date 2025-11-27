@@ -370,6 +370,7 @@ public class ProfileViewActivity extends AppCompatActivity {
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 try {
                     String body = response.body() != null ? response.body().string() : "";
+                    android.util.Log.d("ProfileViewActivity", "Get user posts response: " + response.code() + " - " + body);
                     if (!response.isSuccessful()) {
                         runOnUiThread(() -> {
                             if (tvNoPosts != null) {
@@ -382,25 +383,49 @@ public class ProfileViewActivity extends AppCompatActivity {
                     org.json.JSONObject json = new org.json.JSONObject(body);
                     if (json.optBoolean("success", false)) {
                         org.json.JSONObject data = json.getJSONObject("data");
-                        org.json.JSONArray postsArray = data.getJSONArray("posts");
+                        org.json.JSONArray postsArray = data.optJSONArray("posts");
+                        if (postsArray == null) {
+                            android.util.Log.e("ProfileViewActivity", "Posts array is null in response");
+                            runOnUiThread(() -> {
+                                if (tvNoPosts != null) {
+                                    tvNoPosts.setVisibility(View.VISIBLE);
+                                    tvNoPosts.setText("No posts to show");
+                                }
+                            });
+                            return;
+                        }
                         java.util.List<com.example.chatappjava.models.Post> list = new java.util.ArrayList<>();
                         for (int i = 0; i < postsArray.length(); i++) {
-                            org.json.JSONObject postJson = postsArray.getJSONObject(i);
-                            com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
-                            list.add(post);
+                            try {
+                                org.json.JSONObject postJson = postsArray.getJSONObject(i);
+                                com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                list.add(post);
+                            } catch (Exception e) {
+                                android.util.Log.e("ProfileViewActivity", "Error parsing post " + i + ": " + e.getMessage());
+                            }
                         }
+                        android.util.Log.d("ProfileViewActivity", "Loaded " + list.size() + " posts");
                         runOnUiThread(() -> {
                             postsList.clear();
                             postsList.addAll(list);
                             if (postAdapter != null) postAdapter.setPosts(list);
                             if (tvNoPosts != null) tvNoPosts.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
                         });
+                    } else {
+                        android.util.Log.e("ProfileViewActivity", "Response success is false: " + json.optString("message", "Unknown error"));
+                        runOnUiThread(() -> {
+                            if (tvNoPosts != null) {
+                                tvNoPosts.setVisibility(View.VISIBLE);
+                                tvNoPosts.setText("No posts to show");
+                            }
+                        });
                     }
                 } catch (Exception e) {
+                    android.util.Log.e("ProfileViewActivity", "Error loading posts: " + e.getMessage(), e);
                     runOnUiThread(() -> {
                         if (tvNoPosts != null) {
                             tvNoPosts.setVisibility(View.VISIBLE);
-                            tvNoPosts.setText("Failed to parse posts");
+                            tvNoPosts.setText("Failed to parse posts: " + e.getMessage());
                         }
                     });
                 }
