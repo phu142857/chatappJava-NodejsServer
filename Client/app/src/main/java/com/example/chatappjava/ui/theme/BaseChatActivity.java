@@ -3220,6 +3220,31 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (currentDialog != null) currentDialog.dismiss();
         });
         
+        // View Info - Show sender's profile
+        View optionViewInfo = dialogView.findViewById(R.id.option_view_info);
+        if (optionViewInfo != null) {
+            optionViewInfo.setVisibility(View.VISIBLE);
+            optionViewInfo.setOnClickListener(v -> {
+                // Get sender ID from message
+                String senderId = message.getSenderId();
+                String currentUserId = databaseManager.getUserId();
+                
+                android.util.Log.d("BaseChatActivity", "View Info clicked - senderId: " + senderId + ", currentUserId: " + currentUserId);
+                
+                if (senderId != null && !senderId.isEmpty()) {
+                    // Always open ProfileViewActivity with sender's ID (even if it's current user)
+                    // ProfileViewActivity will handle displaying the correct profile
+                    Intent intent = new Intent(this, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                    intent.putExtra("user", senderId); // Pass userId as string
+                    android.util.Log.d("BaseChatActivity", "Opening ProfileViewActivity with senderId: " + senderId);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, "Sender information not available", Toast.LENGTH_SHORT).show();
+                }
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+        }
+        
         builder.setView(dialogView);
         currentDialog = builder.create();
         if (currentDialog.getWindow() != null) {

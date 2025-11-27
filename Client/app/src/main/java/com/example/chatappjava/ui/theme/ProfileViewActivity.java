@@ -223,6 +223,9 @@ public class ProfileViewActivity extends AppCompatActivity {
         apiClient = new ApiClient();
         
         Intent intent = getIntent();
+        String currentUserId = databaseManager.getUserId();
+        android.util.Log.d("ProfileViewActivity", "initData - currentUserId: " + currentUserId);
+        
         if (intent.hasExtra("user")) {
             try {
                 String userExtra = intent.getStringExtra("user");
@@ -243,6 +246,9 @@ public class ProfileViewActivity extends AppCompatActivity {
                 } else {
                     // It's a userId string - fetch user from server
                     android.util.Log.d("ProfileViewActivity", "Intent has userId string, fetching from server: " + userExtra);
+                    android.util.Log.d("ProfileViewActivity", "Comparing - userExtra: " + userExtra + ", currentUserId: " + currentUserId);
+                    // Always fetch from server, even if userId matches currentUserId
+                    // This ensures we get the latest user data
                     fetchUserById(userExtra);
                     return; // Don't call loadUserData() yet, wait for fetchUserById to complete
                 }
