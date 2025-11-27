@@ -606,7 +606,29 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
                     
                     // Add click listener to show image in full screen
                     ivPostImage.setOnClickListener(v -> {
-                        showImageZoomDialog(finalImageUrl, null);
+                        // Get all image URLs for gallery
+                        List<String> imageUrls = post.getMediaUrls();
+                        if (imageUrls != null && imageUrls.size() > 1) {
+                            // Construct full URLs for all images
+                            List<String> fullImageUrls = new ArrayList<>();
+                            int currentIndex = 0;
+                            for (int i = 0; i < imageUrls.size(); i++) {
+                                String url = imageUrls.get(i);
+                                if (url != null && !url.isEmpty()) {
+                                    if (!url.startsWith("http")) {
+                                        url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + 
+                                              (url.startsWith("/") ? url : "/" + url);
+                                    }
+                                    fullImageUrls.add(url);
+                                    if (url.equals(finalImageUrl)) {
+                                        currentIndex = fullImageUrls.size() - 1;
+                                    }
+                                }
+                            }
+                            showImageZoomDialog(finalImageUrl, null, fullImageUrls, currentIndex);
+                        } else {
+                            showImageZoomDialog(finalImageUrl, null);
+                        }
                     });
                 }
             }
@@ -2115,6 +2137,17 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
     }
     
     private void showImageZoomDialog(String imageUrl, String localImageUri) {
+        showImageZoomDialog(imageUrl, localImageUri, null, 0);
+    }
+    
+    private void showImageZoomDialog(String imageUrl, String localImageUri, List<String> imageUrls, int currentIndex) {
+        // If multiple images, use gallery dialog
+        if (imageUrls != null && imageUrls.size() > 1) {
+            showImageGalleryDialog(imageUrls, currentIndex);
+            return;
+        }
+        
+        // Single image - use original dialog
         // Create custom dialog
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -2151,6 +2184,78 @@ public class PostDetailActivity extends AppCompatActivity implements CommentAdap
         dialog.findViewById(R.id.dialog_container).setOnClickListener(v -> dialog.dismiss());
         
         dialog.show();
+    }
+    
+    private void showImageGalleryDialog(List<String> imageUrls, int currentIndex) {
+        // Create custom dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_image_gallery);
+        
+        // Make dialog full screen
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
+        
+        // Get views
+        androidx.viewpager2.widget.ViewPager2 viewPager = dialog.findViewById(R.id.viewpager_images);
+        ImageView ivClose = dialog.findViewById(R.id.iv_close);
+        TextView tvImageCounter = dialog.findViewById(R.id.tv_image_counter);
+        
+        // Setup ViewPager2
+        if (viewPager != null && imageUrls != null && !imageUrls.isEmpty()) {
+            com.example.chatappjava.adapters.ImagePagerAdapter adapter = 
+                new com.example.chatappjava.adapters.ImagePagerAdapter(imageUrls);
+            viewPager.setAdapter(adapter);
+            
+            // Set initial position
+            if (currentIndex >= 0 && currentIndex < imageUrls.size()) {
+                viewPager.setCurrentItem(currentIndex, false);
+            }
+            
+            // Show counter if more than 1 image
+            if (imageUrls.size() > 1 && tvImageCounter != null) {
+                tvImageCounter.setVisibility(View.VISIBLE);
+                updateImageCounter(tvImageCounter, currentIndex + 1, imageUrls.size());
+                
+                // Update counter when page changes
+                viewPager.registerOnPageChangeCallback(new androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                    @Override
+                    public void onPageSelected(int position) {
+                        super.onPageSelected(position);
+                        updateImageCounter(tvImageCounter, position + 1, imageUrls.size());
+                    }
+                });
+            } else if (tvImageCounter != null) {
+                tvImageCounter.setVisibility(View.GONE);
+            }
+        }
+        
+        // Close button click
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // Click outside to close (but not on ViewPager)
+        View container = dialog.findViewById(R.id.dialog_container);
+        if (container != null) {
+            container.setOnClickListener(v -> {
+                // Only dismiss if click is not on ViewPager
+                if (viewPager != null && viewPager.getParent() != v) {
+                    dialog.dismiss();
+                }
+            });
+        }
+        
+        dialog.show();
+    }
+    
+    private void updateImageCounter(TextView tvCounter, int current, int total) {
+        if (tvCounter != null) {
+            tvCounter.setText(current + " / " + total);
+        }
     }
 }
 

@@ -44,6 +44,8 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 import okhttp3.Call;
@@ -203,7 +205,39 @@ public class ProfileActivity extends AppCompatActivity {
                 
                 @Override
                 public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
-                    Toast.makeText(ProfileActivity.this, "Media viewer", Toast.LENGTH_SHORT).show();
+                    // Navigate to post detail when media is clicked
+                    if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+                        String mediaType = post.getMediaType();
+                        if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                            // Show image viewer for images
+                            if (post.getMediaUrls() != null && mediaIndex < post.getMediaUrls().size()) {
+                                List<String> imageUrls = post.getMediaUrls();
+                                String imageUrl = imageUrls.get(mediaIndex);
+                                if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    // Construct full URLs for all images
+                                    List<String> fullImageUrls = new ArrayList<>();
+                                    for (String url : imageUrls) {
+                                        if (url != null && !url.isEmpty()) {
+                                            if (!url.startsWith("http")) {
+                                                url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + 
+                                                      (url.startsWith("/") ? url : "/" + url);
+                                            }
+                                            fullImageUrls.add(url);
+                                        }
+                                    }
+                                    
+                                    // Open PostDetailActivity to view images
+                                    Intent intent = new Intent(ProfileActivity.this, PostDetailActivity.class);
+                                    try {
+                                        intent.putExtra("post", post.toJson().toString());
+                                        startActivity(intent);
+                                    } catch (JSONException e) {
+                                        Toast.makeText(ProfileActivity.this, "Error opening post", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 @Override

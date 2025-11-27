@@ -50,10 +50,10 @@ const createPost = async (req, res) => {
     // For shared posts, allow empty content (user might just want to share without comment)
     // But ensure we have at least the sharedPostId reference
 
-    if (images && images.length > 5) {
+    if (images && images.length > 20) {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 5 images allowed per post'
+        message: 'Maximum 20 images allowed per post'
       });
     }
 

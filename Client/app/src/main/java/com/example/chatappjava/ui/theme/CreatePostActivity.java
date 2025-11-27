@@ -56,6 +56,7 @@ import okhttp3.Response;
 public class CreatePostActivity extends AppCompatActivity {
     
     private static final String TAG = "CreatePostActivity";
+    private static final int MAX_IMAGES = 20;
     
     // UI Components - Top Action Bar
     private ImageButton ivClose;
@@ -67,6 +68,7 @@ public class CreatePostActivity extends AppCompatActivity {
     private EditText etPostContent;
     private HorizontalScrollView hsvMediaPreview;
     private LinearLayout llMediaContainer;
+    private TextView tvImageCount;
     private TextView tvPrivacy;
     private LinearLayout llPrivacySettings;
     private LinearLayout llLocationTags;
@@ -167,6 +169,7 @@ public class CreatePostActivity extends AppCompatActivity {
         etPostContent = findViewById(R.id.et_post_content);
         hsvMediaPreview = findViewById(R.id.hsv_media_preview);
         llMediaContainer = findViewById(R.id.ll_media_container);
+        tvImageCount = findViewById(R.id.tv_image_count);
         tvPrivacy = findViewById(R.id.tv_privacy);
         llPrivacySettings = findViewById(R.id.ll_privacy_settings);
         llLocationTags = findViewById(R.id.ll_location_tags);
@@ -227,17 +230,42 @@ public class CreatePostActivity extends AppCompatActivity {
                             // Multiple images selected
                             android.content.ClipData clipData = data.getClipData();
                             int count = clipData.getItemCount();
+                            int addedCount = 0;
+                            int skippedCount = 0;
+                            
                             for (int i = 0; i < count; i++) {
+                                // Check if we've reached the limit
+                                if (selectedMedia.size() >= MAX_IMAGES) {
+                                    skippedCount = count - i;
+                                    break;
+                                }
+                                
                                 Uri uri = clipData.getItemAt(i).getUri();
                                 if (uri != null) {
-                                    addMediaItem(uri, "image");
+                                    if (addMediaItem(uri, "image")) {
+                                        addedCount++;
+                                    }
                                 }
                             }
-                            Toast.makeText(this, count + " images selected", Toast.LENGTH_SHORT).show();
+                            
+                            // Show appropriate message
+                            if (skippedCount > 0) {
+                                Toast.makeText(this, 
+                                    addedCount + " images added. Maximum " + MAX_IMAGES + " images allowed. " + 
+                                    skippedCount + " images skipped.", 
+                                    Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(this, addedCount + " images selected", Toast.LENGTH_SHORT).show();
+                            }
                         } else if (data.getData() != null) {
                             // Single image selected
                             Uri uri = data.getData();
-                            addMediaItem(uri, "image");
+                            if (selectedMedia.size() >= MAX_IMAGES) {
+                                Toast.makeText(this, "Maximum " + MAX_IMAGES + " images allowed. Please remove some images first.", 
+                                    Toast.LENGTH_LONG).show();
+                            } else {
+                                addMediaItem(uri, "image");
+                            }
                         }
                     }
                 } else if (result.getResultCode() == ImagePicker.RESULT_ERROR) {
@@ -566,7 +594,12 @@ public class CreatePostActivity extends AppCompatActivity {
         builder.show();
     }
     
-    private void addMediaItem(Uri uri, String type) {
+    private boolean addMediaItem(Uri uri, String type) {
+        // Check limit
+        if (selectedMedia.size() >= MAX_IMAGES) {
+            return false;
+        }
+        
         File file = new File(uri.getPath());
         MediaItem item = new MediaItem(uri, type, file);
         selectedMedia.add(item);
@@ -602,13 +635,32 @@ public class CreatePostActivity extends AppCompatActivity {
         llMediaContainer.addView(mediaView);
         updateMediaPreviewVisibility();
         checkContentAndUpdateButton();
+        return true;
     }
     
     private void updateMediaPreviewVisibility() {
+        LinearLayout llMediaPreviewContainer = findViewById(R.id.ll_media_preview_container);
         if (selectedMedia.isEmpty()) {
-            hsvMediaPreview.setVisibility(View.GONE);
+            if (llMediaPreviewContainer != null) {
+                llMediaPreviewContainer.setVisibility(View.GONE);
+            } else if (hsvMediaPreview != null) {
+                hsvMediaPreview.setVisibility(View.GONE);
+            }
         } else {
-            hsvMediaPreview.setVisibility(View.VISIBLE);
+            if (llMediaPreviewContainer != null) {
+                llMediaPreviewContainer.setVisibility(View.VISIBLE);
+            } else if (hsvMediaPreview != null) {
+                hsvMediaPreview.setVisibility(View.VISIBLE);
+            }
+            // Update image count
+            if (tvImageCount != null) {
+                tvImageCount.setText(selectedMedia.size() + " / " + MAX_IMAGES + " images");
+                if (selectedMedia.size() >= MAX_IMAGES) {
+                    tvImageCount.setTextColor(getResources().getColor(R.color.icon_like));
+                } else {
+                    tvImageCount.setTextColor(getResources().getColor(R.color.text_secondary));
+                }
+            }
         }
     }
     
@@ -997,16 +1049,16 @@ public class CreatePostActivity extends AppCompatActivity {
                 postData.put("content", content);
             }
             
-            // Add images array (limit to 5 images)
+            // Add images array (limit to MAX_IMAGES)
             if (!imageUrls.isEmpty()) {
                 JSONArray imagesArray = new JSONArray();
-                int maxImages = Math.min(imageUrls.size(), 5);
+                int maxImages = Math.min(imageUrls.size(), MAX_IMAGES);
                 for (int i = 0; i < maxImages; i++) {
                     imagesArray.put(imageUrls.get(i));
                 }
                 postData.put("images", imagesArray);
-                if (imageUrls.size() > 5) {
-                    Log.w(TAG, "Limiting images to 5 (had " + imageUrls.size() + " images)");
+                if (imageUrls.size() > MAX_IMAGES) {
+                    Log.w(TAG, "Limiting images to " + MAX_IMAGES + " (had " + imageUrls.size() + " images)");
                 }
             }
             

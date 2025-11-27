@@ -849,8 +849,39 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
     
     @Override
     public void onMediaClick(Post post, int mediaIndex) {
-        // TODO: Open media viewer
-        Toast.makeText(this, "Media clicked: " + mediaIndex, Toast.LENGTH_SHORT).show();
+        // Navigate to post detail when media is clicked
+        if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+            String mediaType = post.getMediaType();
+            if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                // Show image viewer for images
+                if (post.getMediaUrls() != null && mediaIndex < post.getMediaUrls().size()) {
+                    List<String> imageUrls = post.getMediaUrls();
+                    String imageUrl = imageUrls.get(mediaIndex);
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        // Construct full URLs for all images
+                        List<String> fullImageUrls = new ArrayList<>();
+                        for (String url : imageUrls) {
+                            if (url != null && !url.isEmpty()) {
+                                if (!url.startsWith("http")) {
+                                    url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + 
+                                          (url.startsWith("/") ? url : "/" + url);
+                                }
+                                fullImageUrls.add(url);
+                            }
+                        }
+                        
+                        // Open PostDetailActivity to view images
+                        Intent intent = new Intent(PostFeedActivity.this, PostDetailActivity.class);
+                        try {
+                            intent.putExtra("post", post.toJson().toString());
+                            startActivity(intent);
+                        } catch (JSONException e) {
+                            Toast.makeText(PostFeedActivity.this, "Error opening post", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            }
+        }
     }
     
     @Override

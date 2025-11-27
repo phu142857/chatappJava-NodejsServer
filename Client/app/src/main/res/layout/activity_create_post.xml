@@ -125,27 +125,45 @@
                 android:layout_marginBottom="8dp" />
 
             <!-- Attached Media Preview -->
-            <HorizontalScrollView
-                android:id="@+id/hsv_media_preview"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:visibility="gone"
-                android:scrollbars="horizontal"
-                android:paddingHorizontal="16dp"
-                android:paddingBottom="16dp">
-
-                <LinearLayout
-                    android:id="@+id/ll_media_container"
+                android:id="@+id/ll_media_preview_container">
+                
+                <!-- Image count indicator -->
+                <TextView
+                    android:id="@+id/tv_image_count"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="0 / 5 images"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
 
-                    <!-- Media items will be added dynamically -->
+                <HorizontalScrollView
+                    android:id="@+id/hsv_media_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp">
 
-                </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/ll_media_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-            </HorizontalScrollView>
+                        <!-- Media items will be added dynamically -->
+
+                    </LinearLayout>
+
+                </HorizontalScrollView>
+            </LinearLayout>
 
             <!-- Privacy Settings Selector -->
             <LinearLayout

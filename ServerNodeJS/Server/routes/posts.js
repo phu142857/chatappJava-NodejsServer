@@ -34,8 +34,8 @@ const createPostValidation = [
     .isArray()
     .withMessage('Images must be an array')
     .custom((images) => {
-      if (images && images.length > 5) {
-        throw new Error('Maximum 5 images allowed per post');
+      if (images && images.length > 20) {
+        throw new Error('Maximum 20 images allowed per post');
       }
       return true;
     }),
@@ -75,8 +75,8 @@ const updatePostValidation = [
     .isArray()
     .withMessage('Images must be an array')
     .custom((images) => {
-      if (images && images.length > 5) {
-        throw new Error('Maximum 5 images allowed per post');
+      if (images && images.length > 20) {
+        throw new Error('Maximum 20 images allowed per post');
       }
       return true;
     }),

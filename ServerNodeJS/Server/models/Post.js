@@ -187,8 +187,8 @@ postSchema.pre('validate', function(next) {
   if (!this.content && (!this.images || this.images.length === 0)) {
     return next(new Error('Post must contain at least text content OR at least 1 image'));
   }
-  if (this.images && this.images.length > 5) {
-    return next(new Error('Maximum 5 images allowed per post'));
+  if (this.images && this.images.length > 20) {
+    return next(new Error('Maximum 20 images allowed per post'));
   }
   next();
 });
