@@ -40,14 +40,16 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private ProgressBar progressBar;
     private LinearLayout tvNoResults, tvSearchHint;
     private TextView tvNoResultsTitle;
-    private TextView tabUsers, tabGroups, tabDiscover;
+    private TextView tabUsers, tabGroups, tabDiscover, tabPosts;
     
     private ApiClient apiClient;
     private DatabaseManager sharedPrefsManager;
     private UserSearchAdapter userAdapter;
     private GroupSearchAdapter groupAdapter;
+    private com.example.chatappjava.adapters.PostSearchAdapter postSearchAdapter;
     private List<User> searchResults;
     private List<Chat> groupResults;
+    private List<com.example.chatappjava.models.Post> postResults;
     
     private String mode; // "add_members", "forward" or null for normal search
     private String forwardContent; // for forward mode (text fallback)
@@ -56,8 +58,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private List<String> currentGroupMemberIds; // Track current group members
     private boolean isSearchingGroups = false; // Track current search mode
     private boolean isDiscoverGroups = false; // Discover public groups user not in
+    private boolean isSearchingPosts = false; // Track if searching posts
     
-    private static final int SEARCH_DELAY_MS = 500; // Delay before making API call
+    private static final int SEARCH_DELAY_MS = 300; // Debounce delay for posts search
     private Runnable searchRunnable;
 
     @Override
@@ -87,6 +90,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         tabUsers = findViewById(R.id.tab_users);
         tabGroups = findViewById(R.id.tab_groups);
         tabDiscover = findViewById(R.id.tab_discover);
+        tabPosts = findViewById(R.id.tab_posts);
     }
     
     private void initializeServices() {
@@ -94,7 +98,36 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         sharedPrefsManager = new DatabaseManager(this);
         searchResults = new ArrayList<>();
         groupResults = new ArrayList<>();
+        postResults = new ArrayList<>();
         currentGroupMemberIds = new ArrayList<>();
+        
+        // Initialize post search adapter
+        postSearchAdapter = new com.example.chatappjava.adapters.PostSearchAdapter(
+            this, 
+            postResults, 
+            new com.example.chatappjava.adapters.PostSearchAdapter.OnPostSearchClickListener() {
+                @Override
+                public void onPostClick(com.example.chatappjava.models.Post post) {
+                    // Open post detail
+                    Intent intent = new Intent(SearchActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(SearchActivity.this, "Error opening post", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onAuthorClick(String authorId, String authorName) {
+                    // Open author profile
+                    Intent intent = new Intent(SearchActivity.this, ProfileViewActivity.class);
+                    intent.putExtra("user", authorId);
+                    startActivity(intent);
+                }
+            }
+        );
         
         // Get mode and chat data from intent
         Intent intent = getIntent();
@@ -261,6 +294,16 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
                     return;
                 }
                 
+                // For posts: debounce with shorter delay
+                if (isSearchingPosts) {
+                    if (searchRunnable != null) {
+                        etSearch.removeCallbacks(searchRunnable);
+                    }
+                    searchRunnable = () -> performSearch(s.toString().trim());
+                    etSearch.postDelayed(searchRunnable, SEARCH_DELAY_MS);
+                    return;
+                }
+                
                 if (s.length() == 0) {
                     clearSearchResults();
                     return;
@@ -309,6 +352,10 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             tabDiscover.setOnClickListener(v -> switchToDiscoverGroups());
         }
         
+        if (tabPosts != null) {
+            tabPosts.setOnClickListener(v -> switchToPostSearch());
+        }
+        
         // Focus on search field when activity starts
         etSearch.requestFocus();
     }
@@ -316,9 +363,11 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private void switchToUserSearch() {
         isSearchingGroups = false;
         isDiscoverGroups = false;
+        isSearchingPosts = false;
         tabUsers.setSelected(true);
         tabGroups.setSelected(false);
         if (tabDiscover != null) tabDiscover.setSelected(false);
+        if (tabPosts != null) tabPosts.setSelected(false);
         rvSearchResults.setAdapter(userAdapter);
         clearSearchResults();
         etSearch.setHint("Search users...");
@@ -341,9 +390,11 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private void switchToDiscoverGroups() {
         isSearchingGroups = true;
         isDiscoverGroups = true;
+        isSearchingPosts = false;
         tabUsers.setSelected(false);
         tabGroups.setSelected(false);
         if (tabDiscover != null) tabDiscover.setSelected(true);
+        if (tabPosts != null) tabPosts.setSelected(false);
         rvSearchResults.setAdapter(groupAdapter);
         groupAdapter.setDiscoverMode(true);
         groupAdapter.setForwardMode(false);
@@ -352,6 +403,19 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         groupResults.clear();
         groupAdapter.updateGroups(groupResults);
         updateResultsVisibility();
+    }
+    
+    private void switchToPostSearch() {
+        isSearchingGroups = false;
+        isDiscoverGroups = false;
+        isSearchingPosts = true;
+        tabUsers.setSelected(false);
+        tabGroups.setSelected(false);
+        if (tabDiscover != null) tabDiscover.setSelected(false);
+        if (tabPosts != null) tabPosts.setSelected(true);
+        rvSearchResults.setAdapter(postSearchAdapter);
+        clearSearchResults();
+        etSearch.setHint("Search posts, captions, hashtags...");
     }
 
     private String getCurrentQuery() {
@@ -402,6 +466,23 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             } else {
                 applyGroupFilterWithCurrentQuery();
             }
+            return;
+        }
+        
+        if (isSearchingPosts) {
+            // Search posts
+            if (query.length() < 2) {
+                clearSearchResults();
+                return;
+            }
+            showLoading(true);
+            String token = sharedPrefsManager.getToken();
+            if (token == null) {
+                Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+            searchPosts(token, query);
             return;
         }
         
@@ -645,17 +726,6 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         Toast.makeText(this, "Profile: " + user.getDisplayName() + "\nEmail: " + user.getEmail(), Toast.LENGTH_LONG).show();
     }
     
-    @SuppressLint("NotifyDataSetChanged")
-    private void clearSearchResults() {
-        if (isSearchingGroups) {
-            groupResults.clear();
-            groupAdapter.notifyDataSetChanged();
-        } else {
-            searchResults.clear();
-            userAdapter.notifyDataSetChanged();
-        }
-        updateResultsVisibility();
-    }
     
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
@@ -684,7 +754,7 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             } else {
                 tvSearchHint.setVisibility(View.GONE);
                 tvNoResults.setVisibility(View.VISIBLE);
-                String searchType = isSearchingGroups ? (isDiscoverGroups ? "public groups" : "your groups") : "users";
+                String searchType = isSearchingPosts ? "posts" : (isSearchingGroups ? (isDiscoverGroups ? "public groups" : "your groups") : "users");
                 tvNoResultsTitle.setText("No " + searchType + " found for \"" + searchQuery + "\"");
             }
             rvSearchResults.setVisibility(View.GONE);
@@ -1174,6 +1244,108 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(this, "Error opening group chat", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void searchPosts(String token, String query) {
+        apiClient.searchPosts(token, query, 1, 20, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, "Search failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    handlePostSearchResponse(response.code(), responseBody, query);
+                });
+            }
+        });
+    }
+    
+    @SuppressLint("NotifyDataSetChanged")
+    private void handlePostSearchResponse(int statusCode, String responseBody, String query) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray postsArray = data.getJSONArray("posts");
+                    
+                    postResults.clear();
+                    
+                    for (int i = 0; i < postsArray.length(); i++) {
+                        try {
+                            JSONObject postJson = postsArray.getJSONObject(i);
+                            
+                            // Map search response fields to Post format
+                            JSONObject mappedJson = new JSONObject();
+                            mappedJson.put("_id", postJson.optString("_id", ""));
+                            mappedJson.put("content", postJson.optString("post_text", postJson.optString("post_text_highlighted", "")));
+                            mappedJson.put("createdAt", postJson.optString("created_at", ""));
+                            
+                            // Map author info
+                            JSONObject userIdObj = new JSONObject();
+                            userIdObj.put("_id", postJson.optString("author_id", ""));
+                            userIdObj.put("username", postJson.optString("author_name", ""));
+                            userIdObj.put("avatar", postJson.optString("avatar_url", ""));
+                            mappedJson.put("userId", userIdObj);
+                            
+                            // Map images
+                            JSONArray imagesArray = new JSONArray();
+                            if (postJson.has("image_or_video_url") && !postJson.isNull("image_or_video_url")) {
+                                imagesArray.put(postJson.optString("image_or_video_url"));
+                            } else if (postJson.has("images")) {
+                                imagesArray = postJson.optJSONArray("images");
+                            }
+                            mappedJson.put("images", imagesArray);
+                            
+                            // Map engagement counts
+                            mappedJson.put("likesCount", postJson.optInt("like_count", 0));
+                            mappedJson.put("commentsCount", postJson.optInt("comment_count", 0));
+                            mappedJson.put("sharesCount", postJson.optInt("shares_count", 0));
+                            mappedJson.put("isLiked", postJson.optBoolean("is_liked", false));
+                            
+                            com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(mappedJson);
+                            postResults.add(post);
+                        } catch (JSONException e) {
+                            android.util.Log.e("SearchActivity", "Error parsing post: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    postSearchAdapter.setSearchQuery(query);
+                    postSearchAdapter.setPosts(postResults);
+                    updateResultsVisibility();
+                } else {
+                    String message = jsonResponse.optString("message", "Search failed");
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, "Session expired. Please login again.", Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            } else {
+                String message = "Search failed";
+                try {
+                    JSONObject jsonResponse = new JSONObject(responseBody);
+                    message = jsonResponse.optString("message", message);
+                } catch (JSONException e) {
+                    // Ignore
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error processing search results", Toast.LENGTH_SHORT).show();
         }
     }
     

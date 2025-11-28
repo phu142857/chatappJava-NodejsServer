@@ -1211,6 +1211,38 @@ public class ApiClient {
     }
     
     /**
+     * Search posts with full-text search
+     */
+    public void searchPosts(String token, String query, int page, int limit, Callback callback) {
+        searchPosts(token, query, page, limit, false, false, false, null, null, callback);
+    }
+    
+    /**
+     * Search posts with filters
+     */
+    public void searchPosts(String token, String query, int page, int limit, 
+                           boolean onlyFriends, boolean mediaOnly, boolean hashtagOnly,
+                           String dateFrom, String dateTo, Callback callback) {
+        try {
+            StringBuilder endpoint = new StringBuilder("/api/posts/search?q=");
+            endpoint.append(java.net.URLEncoder.encode(query, "UTF-8"));
+            endpoint.append("&page=").append(page);
+            endpoint.append("&limit=").append(limit);
+            
+            if (onlyFriends) endpoint.append("&onlyFriends=true");
+            if (mediaOnly) endpoint.append("&mediaOnly=true");
+            if (hashtagOnly) endpoint.append("&hashtagOnly=true");
+            if (dateFrom != null) endpoint.append("&dateFrom=").append(dateFrom);
+            if (dateTo != null) endpoint.append("&dateTo=").append(dateTo);
+            
+            authenticatedGet(endpoint.toString(), token, callback);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFailure(null, new IOException("Failed to build search URL: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Update post
      */
     public void updatePost(String token, String postId, JSONObject postData, Callback callback) {

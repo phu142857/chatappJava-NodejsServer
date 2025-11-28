@@ -1010,6 +1010,228 @@ const sharePost = async (req, res) => {
   }
 };
 
+// Simple in-memory cache for search queries
+const searchCache = new Map();
+const CACHE_TTL = 60 * 1000; // 60 seconds
+
+// @desc    Search posts with full-text search
+// @route   GET /api/posts/search
+// @access  Private
+const searchPosts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      q = '', 
+      page = 1, 
+      limit = 20, 
+      cursor = null,
+      onlyFriends = false,
+      mediaOnly = false,
+      hashtagOnly = false,
+      dateFrom = null,
+      dateTo = null
+    } = req.query;
+
+    // Validate query
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters'
+      });
+    }
+
+    const queryKey = JSON.stringify({ q, page, limit, onlyFriends, mediaOnly, hashtagOnly, dateFrom, dateTo });
+    
+    // Check cache
+    const cached = searchCache.get(queryKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return res.json(cached.data);
+    }
+
+    const searchQuery = q.trim();
+    const pageNum = parseInt(page);
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    const skip = cursor ? parseInt(cursor) : (pageNum - 1) * limitNum;
+
+    // Get user's friends for filtering
+    const user = await User.findById(userId).select('friends hiddenPosts');
+    const friendIds = user.friends || [];
+    const hiddenPostIds = user.hiddenPosts || [];
+
+    // Build base query
+    const baseQuery = {
+      isActive: true,
+      isDeleted: false,
+      _id: { $nin: hiddenPostIds }
+    };
+
+    // Privacy filter
+    if (onlyFriends) {
+      baseQuery.$or = [
+        { userId: { $in: [userId, ...friendIds] } },
+        { privacySetting: 'public' }
+      ];
+    } else {
+      baseQuery.$or = [
+        { privacySetting: 'public' },
+        {
+          privacySetting: 'friends',
+          userId: { $in: [userId, ...friendIds] }
+        },
+        { userId: userId }
+      ];
+    }
+
+    // Media only filter
+    if (mediaOnly) {
+      baseQuery.images = { $exists: true, $ne: [] };
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      baseQuery.createdAt = {};
+      if (dateFrom) {
+        baseQuery.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        baseQuery.createdAt.$lte = new Date(dateTo);
+      }
+    }
+
+    // Full-text search using MongoDB text index
+    let posts;
+    let totalCount = 0;
+
+    if (hashtagOnly) {
+      // Search for hashtags (words starting with #)
+      const hashtagPattern = searchQuery.startsWith('#') ? searchQuery : `#${searchQuery}`;
+      baseQuery.content = { $regex: hashtagPattern, $options: 'i' };
+      
+      posts = await Post.find(baseQuery)
+        .populate('userId', 'username avatar profile.firstName profile.lastName')
+        .populate('tags', 'username avatar profile.firstName profile.lastName')
+        .populate('likes.user', 'username avatar')
+        .populate('comments.user', 'username avatar profile.firstName profile.lastName')
+        .populate('shares.user', 'username avatar')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+      
+      totalCount = await Post.countDocuments(baseQuery);
+    } else {
+      // Full-text search
+      const textSearchQuery = {
+        ...baseQuery,
+        $text: { $search: searchQuery }
+      };
+
+      // Calculate relevance score: text score + engagement + recency
+      posts = await Post.find(textSearchQuery, { score: { $meta: 'textScore' } })
+        .populate('userId', 'username avatar profile.firstName profile.lastName')
+        .populate('tags', 'username avatar profile.firstName profile.lastName')
+        .populate('likes.user', 'username avatar')
+        .populate('comments.user', 'username avatar profile.firstName profile.lastName')
+        .populate('shares.user', 'username avatar')
+        .sort({ 
+          score: { $meta: 'textScore' },
+          createdAt: -1 
+        })
+        .skip(skip)
+        .limit(limitNum);
+
+      totalCount = await Post.countDocuments(textSearchQuery);
+    }
+
+    // Calculate relevance scores and sort
+    const postsWithScores = posts.map(post => {
+      const textScore = post.score || 0;
+      const engagementScore = (post.likes?.length || 0) * 0.3 + 
+                             (post.comments?.length || 0) * 0.2 + 
+                             (post.shares?.length || 0) * 0.1;
+      const recencyScore = Math.max(0, 1 - (Date.now() - new Date(post.createdAt).getTime()) / (30 * 24 * 60 * 60 * 1000)); // 30 days
+      const friendBonus = friendIds.includes(post.userId._id.toString()) ? 0.5 : 0;
+      
+      const relevanceScore = textScore * 0.5 + engagementScore * 0.3 + recencyScore * 0.15 + friendBonus * 0.05;
+      
+      return {
+        post,
+        relevanceScore
+      };
+    });
+
+    // Sort by relevance score
+    postsWithScores.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    // Format response
+    const formattedPosts = postsWithScores.map(({ post, relevanceScore }) => {
+      const authorName = post.userId.profile?.firstName && post.userId.profile?.lastName
+        ? `${post.userId.profile.firstName} ${post.userId.profile.lastName}`
+        : post.userId.username;
+
+      // Highlight matched text in content
+      let highlightedContent = post.content || '';
+      if (highlightedContent && !hashtagOnly) {
+        const regex = new RegExp(`(${searchQuery})`, 'gi');
+        highlightedContent = highlightedContent.replace(regex, '<mark>$1</mark>');
+      }
+
+      return {
+        _id: post._id,
+        author_name: authorName,
+        author_id: post.userId._id,
+        avatar_url: post.userId.avatar,
+        post_text: post.content,
+        post_text_highlighted: highlightedContent,
+        image_or_video_url: post.images && post.images.length > 0 ? post.images[0] : null,
+        images: post.images || [],
+        like_count: post.likes?.length || 0,
+        comment_count: post.comments?.filter(c => !c.isDeleted).length || 0,
+        shares_count: post.shares?.length || 0,
+        created_at: post.createdAt,
+        relevance_score: relevanceScore,
+        location: post.location,
+        privacy_setting: post.privacySetting,
+        is_liked: post.likes?.some(like => like.user._id.toString() === userId.toString()) || false
+      };
+    });
+
+    const response = {
+      success: true,
+      data: {
+        posts: formattedPosts,
+        pagination: {
+          total: totalCount,
+          page: pageNum,
+          limit: limitNum,
+          hasMore: skip + limitNum < totalCount,
+          nextCursor: skip + limitNum < totalCount ? (skip + limitNum).toString() : null
+        }
+      }
+    };
+
+    // Cache the response
+    searchCache.set(queryKey, {
+      timestamp: Date.now(),
+      data: response
+    });
+
+    // Clean old cache entries (keep cache size reasonable)
+    if (searchCache.size > 100) {
+      const oldestKey = Array.from(searchCache.keys())[0];
+      searchCache.delete(oldestKey);
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Search posts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while searching posts'
+    });
+  }
+};
+
 module.exports = {
   createPost,
   getUserPosts,
@@ -1024,6 +1246,7 @@ module.exports = {
   deleteComment,
   addReactionToComment,
   removeReactionFromComment,
-  sharePost
+  sharePost,
+  searchPosts
 };
 

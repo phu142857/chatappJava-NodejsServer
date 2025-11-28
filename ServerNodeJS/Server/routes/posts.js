@@ -14,7 +14,8 @@ const {
   deleteComment,
   addReactionToComment,
   removeReactionFromComment,
-  sharePost
+  sharePost,
+  searchPosts
 } = require('../controllers/postController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
@@ -174,6 +175,47 @@ const reactionValidation = [
 
 // Create post
 router.post('/', createPostValidation, createPost);
+
+// Search posts - MUST be before /:id to avoid route conflict
+router.get('/search', [
+  query('q')
+    .notEmpty()
+    .withMessage('Search query is required')
+    .isLength({ min: 2 })
+    .withMessage('Search query must be at least 2 characters'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+  query('cursor')
+    .optional()
+    .isString()
+    .withMessage('Cursor must be a string'),
+  query('onlyFriends')
+    .optional()
+    .isBoolean()
+    .withMessage('onlyFriends must be a boolean'),
+  query('mediaOnly')
+    .optional()
+    .isBoolean()
+    .withMessage('mediaOnly must be a boolean'),
+  query('hashtagOnly')
+    .optional()
+    .isBoolean()
+    .withMessage('hashtagOnly must be a boolean'),
+  query('dateFrom')
+    .optional()
+    .isISO8601()
+    .withMessage('dateFrom must be a valid ISO 8601 date'),
+  query('dateTo')
+    .optional()
+    .isISO8601()
+    .withMessage('dateTo must be a valid ISO 8601 date')
+], searchPosts);
 
 // Get feed posts (public and friends' posts)
 router.get('/feed', [

@@ -128,6 +128,20 @@
             android:clickable="true"
             android:focusable="true" />
 
+        <TextView
+            android:id="@+id/tab_posts"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Posts"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:background="@drawable/tab_selector"
+            android:textColor="@color/tab_text_selector"
+            android:clickable="true"
+            android:focusable="true" />
+
     </LinearLayout>
 
     <LinearLayout android:id="@+id/content_card"

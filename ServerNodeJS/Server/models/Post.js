@@ -138,6 +138,20 @@ postSchema.index({ isActive: 1, isDeleted: 1 });
 postSchema.index({ 'likes.user': 1 });
 postSchema.index({ 'comments.user': 1 });
 
+// Full-text search index for content, location, and comments
+postSchema.index({ 
+  content: 'text', 
+  location: 'text',
+  'comments.content': 'text'
+}, {
+  weights: {
+    content: 10,
+    location: 5,
+    'comments.content': 3
+  },
+  name: 'post_text_search_index'
+});
+
 // Virtual for likes count
 postSchema.virtual('likesCount').get(function() {
   return this.likes ? this.likes.length : 0;
