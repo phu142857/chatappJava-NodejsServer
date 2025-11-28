@@ -7,6 +7,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -41,6 +42,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private LinearLayout tvNoResults, tvSearchHint;
     private TextView tvNoResultsTitle;
     private TextView tabUsers, tabGroups, tabDiscover, tabPosts;
+    private HorizontalScrollView filtersContainer;
+    private TextView filterFriends, filterMedia, filterHashtag, filterDate;
     
     private ApiClient apiClient;
     private DatabaseManager sharedPrefsManager;
@@ -60,6 +63,19 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     private boolean isDiscoverGroups = false; // Discover public groups user not in
     private boolean isSearchingPosts = false; // Track if searching posts
     
+    // Search filters
+    private boolean filterOnlyFriends = false;
+    private boolean filterMediaOnly = false;
+    private boolean filterHashtagOnly = false;
+    private String filterDateFrom = null;
+    private String filterDateTo = null;
+    
+    // Recent search history
+    private static final String PREF_RECENT_SEARCHES = "recent_searches";
+    private static final int MAX_RECENT_SEARCHES = 10;
+    private List<String> recentSearches = new ArrayList<>();
+    private List<String> trendingKeywords = new ArrayList<>();
+    
     private static final int SEARCH_DELAY_MS = 300; // Debounce delay for posts search
     private Runnable searchRunnable;
 
@@ -73,6 +89,9 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         setupSearchFunctionality();
         setupRecyclerView();
         setupClickListeners();
+        setupFilters();
+        loadRecentSearches();
+        loadTrendingKeywords();
         
         // Set default tab to users
         switchToUserSearch();
@@ -91,6 +110,13 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         tabGroups = findViewById(R.id.tab_groups);
         tabDiscover = findViewById(R.id.tab_discover);
         tabPosts = findViewById(R.id.tab_posts);
+        
+        // Filter views
+        filtersContainer = findViewById(R.id.filters_container);
+        filterFriends = findViewById(R.id.filter_friends);
+        filterMedia = findViewById(R.id.filter_media);
+        filterHashtag = findViewById(R.id.filter_hashtag);
+        filterDate = findViewById(R.id.filter_date);
     }
     
     private void initializeServices() {
@@ -356,8 +382,115 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             tabPosts.setOnClickListener(v -> switchToPostSearch());
         }
         
+        // Filter click listeners
+        if (filterFriends != null) {
+            filterFriends.setOnClickListener(v -> toggleFilterFriends());
+        }
+        if (filterMedia != null) {
+            filterMedia.setOnClickListener(v -> toggleFilterMedia());
+        }
+        if (filterHashtag != null) {
+            filterHashtag.setOnClickListener(v -> toggleFilterHashtag());
+        }
+        if (filterDate != null) {
+            filterDate.setOnClickListener(v -> showDateRangePicker());
+        }
+        
         // Focus on search field when activity starts
         etSearch.requestFocus();
+    }
+    
+    private void setupFilters() {
+        // Filters are only visible for Posts tab
+        updateFiltersVisibility();
+    }
+    
+    private void updateFiltersVisibility() {
+        if (filtersContainer != null) {
+            filtersContainer.setVisibility(isSearchingPosts ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    private void toggleFilterFriends() {
+        if (!isSearchingPosts) return;
+        filterOnlyFriends = !filterOnlyFriends;
+        if (filterFriends != null) {
+            filterFriends.setSelected(filterOnlyFriends);
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void toggleFilterMedia() {
+        if (!isSearchingPosts) return;
+        filterMediaOnly = !filterMediaOnly;
+        if (filterMedia != null) {
+            filterMedia.setSelected(filterMediaOnly);
+        }
+        // If media is selected, hashtag should be deselected
+        if (filterMediaOnly && filterHashtagOnly) {
+            filterHashtagOnly = false;
+            if (filterHashtag != null) {
+                filterHashtag.setSelected(false);
+            }
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void toggleFilterHashtag() {
+        if (!isSearchingPosts) return;
+        filterHashtagOnly = !filterHashtagOnly;
+        if (filterHashtag != null) {
+            filterHashtag.setSelected(filterHashtagOnly);
+        }
+        // If hashtag is selected, media should be deselected
+        if (filterHashtagOnly && filterMediaOnly) {
+            filterMediaOnly = false;
+            if (filterMedia != null) {
+                filterMedia.setSelected(false);
+            }
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void showDateRangePicker() {
+        if (!isSearchingPosts) return;
+        // Show date range picker dialog
+        android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(
+            this,
+            (view, year, month, dayOfMonth) -> {
+                java.util.Calendar calendar = java.util.Calendar.getInstance();
+                calendar.set(year, month, dayOfMonth);
+                filterDateFrom = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(calendar.getTime());
+                
+                // Show second date picker for end date
+                new android.app.DatePickerDialog(
+                    this,
+                    (view2, year2, month2, dayOfMonth2) -> {
+                        java.util.Calendar calendar2 = java.util.Calendar.getInstance();
+                        calendar2.set(year2, month2, dayOfMonth2);
+                        filterDateTo = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(calendar2.getTime());
+                        
+                        if (filterDate != null) {
+                            filterDate.setSelected(true);
+                            filterDate.setText("Date: " + filterDateFrom + " - " + filterDateTo);
+                        }
+                        performSearchWithCurrentQuery();
+                    },
+                    year, month, dayOfMonth
+                ).show();
+            },
+            java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
+            java.util.Calendar.getInstance().get(java.util.Calendar.MONTH),
+            java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
+    }
+    
+    private void performSearchWithCurrentQuery() {
+        String query = etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+        if (!query.isEmpty()) {
+            performSearch(query);
+        }
     }
     
     private void switchToUserSearch() {
@@ -371,6 +504,8 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         rvSearchResults.setAdapter(userAdapter);
         clearSearchResults();
         etSearch.setHint("Search users...");
+        updateFiltersVisibility();
+        resetFilters();
     }
     
     private void switchToGroupSearch() {
@@ -416,6 +551,94 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
         rvSearchResults.setAdapter(postSearchAdapter);
         clearSearchResults();
         etSearch.setHint("Search posts, captions, hashtags...");
+        updateFiltersVisibility();
+        showRecentSearchesOrTrending();
+    }
+    
+    private void resetFilters() {
+        filterOnlyFriends = false;
+        filterMediaOnly = false;
+        filterHashtagOnly = false;
+        filterDateFrom = null;
+        filterDateTo = null;
+        
+        if (filterFriends != null) filterFriends.setSelected(false);
+        if (filterMedia != null) filterMedia.setSelected(false);
+        if (filterHashtag != null) filterHashtag.setSelected(false);
+        if (filterDate != null) {
+            filterDate.setSelected(false);
+            filterDate.setText("Date Range");
+        }
+    }
+    
+    private void showRecentSearchesOrTrending() {
+        // Show recent searches or trending keywords when search field is empty
+        String query = etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+        if (query.isEmpty()) {
+            // Display recent searches or trending keywords
+            // This can be implemented as a RecyclerView with suggestions
+        }
+    }
+    
+    private void loadRecentSearches() {
+        android.content.SharedPreferences prefs = getSharedPreferences("SearchPrefs", MODE_PRIVATE);
+        String recentSearchesJson = prefs.getString(PREF_RECENT_SEARCHES, "[]");
+        try {
+            JSONArray array = new JSONArray(recentSearchesJson);
+            recentSearches.clear();
+            for (int i = 0; i < array.length(); i++) {
+                recentSearches.add(array.getString(i));
+            }
+        } catch (JSONException e) {
+            recentSearches.clear();
+        }
+    }
+    
+    private void saveRecentSearch(String query) {
+        if (query == null || query.trim().isEmpty() || !isSearchingPosts) {
+            return;
+        }
+        
+        String trimmedQuery = query.trim();
+        
+        // Remove if already exists
+        recentSearches.remove(trimmedQuery);
+        
+        // Add to front
+        recentSearches.add(0, trimmedQuery);
+        
+        // Keep only last MAX_RECENT_SEARCHES
+        if (recentSearches.size() > MAX_RECENT_SEARCHES) {
+            recentSearches = new ArrayList<>(recentSearches.subList(0, MAX_RECENT_SEARCHES));
+        }
+        
+        // Save to SharedPreferences
+        try {
+            JSONArray array = new JSONArray();
+            for (String search : recentSearches) {
+                array.put(search);
+            }
+            android.content.SharedPreferences prefs = getSharedPreferences("SearchPrefs", MODE_PRIVATE);
+            prefs.edit()
+                .putString(PREF_RECENT_SEARCHES, array.toString())
+                .apply();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void loadTrendingKeywords() {
+        // For now, use some default trending keywords
+        // In production, this could be fetched from server
+        trendingKeywords.clear();
+        trendingKeywords.add("coffee");
+        trendingKeywords.add("travel");
+        trendingKeywords.add("food");
+        trendingKeywords.add("music");
+        trendingKeywords.add("sports");
+        trendingKeywords.add("technology");
+        trendingKeywords.add("art");
+        trendingKeywords.add("nature");
     }
 
     private String getCurrentQuery() {
@@ -1263,7 +1486,13 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
     }
     
     private void searchPosts(String token, String query) {
-        apiClient.searchPosts(token, query, 1, 20, new Callback() {
+        // Save to recent searches
+        saveRecentSearch(query);
+        
+        // Call API with filters
+        apiClient.searchPosts(token, query, 1, 20, 
+            filterOnlyFriends, filterMediaOnly, filterHashtagOnly,
+            filterDateFrom, filterDateTo, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {

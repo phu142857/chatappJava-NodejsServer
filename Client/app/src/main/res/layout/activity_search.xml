@@ -158,13 +158,98 @@
 
     </LinearLayout>
 
+    <!-- Search Filters (only visible for Posts tab) -->
+    <HorizontalScrollView
+        android:id="@+id/filters_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="8dp"
+        android:visibility="gone"
+        android:scrollbars="none"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_tabs">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/filter_friends"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="@drawable/filter_chip_selector"
+                android:text="Friends Only"
+                android:textSize="12sp"
+                android:textColor="@color/filter_text_selector"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/filter_media"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="@drawable/filter_chip_selector"
+                android:text="Media Only"
+                android:textSize="12sp"
+                android:textColor="@color/filter_text_selector"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/filter_hashtag"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="@drawable/filter_chip_selector"
+                android:text="Hashtags"
+                android:textSize="12sp"
+                android:textColor="@color/filter_text_selector"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/filter_date"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="@drawable/filter_chip_selector"
+                android:text="Date Range"
+                android:textSize="12sp"
+                android:textColor="@color/filter_text_selector"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <LinearLayout android:id="@+id/content_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginHorizontal="8dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        app:layout_constraintTop_toBottomOf="@id/search_tabs"
+        app:layout_constraintTop_toBottomOf="@id/filters_container"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" android:orientation="vertical">
