@@ -70,6 +70,20 @@
                     android:textColorHint="@color/black"
                     android:textSize="16sp" />
 
+                <ImageButton
+                    android:id="@+id/iv_clear"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Clear search text"
+                    android:padding="4dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:visibility="gone"
+                    app:tint="#FF6B6B" />
+
             </RelativeLayout>
         </LinearLayout>
     </LinearLayout>
@@ -254,18 +268,5 @@
 
         </FrameLayout>
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/iv_clear"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Clear search text"
-        android:padding="4dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:visibility="gone"
-        app:tint="#FF6B6B"
-        tools:layout_editor_absoluteX="74dp"
-        tools:layout_editor_absoluteY="33dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

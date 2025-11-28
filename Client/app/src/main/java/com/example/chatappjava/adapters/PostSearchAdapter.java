@@ -136,8 +136,8 @@ public class PostSearchAdapter extends RecyclerView.Adapter<PostSearchAdapter.Po
             }
             Picasso.get()
                 .load(imageUrl)
-                .placeholder(R.drawable.ic_image_placeholder)
-                .error(R.drawable.ic_image_placeholder)
+                .placeholder(R.drawable.ic_image)
+                .error(R.drawable.ic_image)
                 .fit()
                 .centerCrop()
                 .into(holder.ivMedia);
@@ -145,10 +145,10 @@ public class PostSearchAdapter extends RecyclerView.Adapter<PostSearchAdapter.Po
             holder.ivMedia.setVisibility(View.GONE);
         }
         
-        // Engagement stats
-        holder.tvLikes.setText(String.valueOf(post.getLikesCount()));
-        holder.tvComments.setText(String.valueOf(post.getCommentsCount()));
-        holder.tvShares.setText(String.valueOf(post.getSharesCount()));
+        // Engagement stats with emoji/icons
+        holder.tvLikes.setText("❤ " + post.getLikesCount());
+        holder.tvComments.setText("💬 " + post.getCommentsCount());
+        holder.tvShares.setText("📤 " + post.getSharesCount());
         
         // Timestamp
         if (post.getTimestamp() > 0) {

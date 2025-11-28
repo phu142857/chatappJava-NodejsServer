@@ -764,6 +764,21 @@ public class SearchActivity extends AppCompatActivity implements UserSearchAdapt
             rvSearchResults.setVisibility(View.VISIBLE);
         }
     }
+    
+    @SuppressLint("NotifyDataSetChanged")
+    private void clearSearchResults() {
+        if (isSearchingPosts) {
+            postResults.clear();
+            if (postSearchAdapter != null) postSearchAdapter.notifyDataSetChanged();
+        } else if (isSearchingGroups) {
+            groupResults.clear();
+            if (groupAdapter != null) groupAdapter.notifyDataSetChanged();
+        } else {
+            searchResults.clear();
+            if (userAdapter != null) userAdapter.notifyDataSetChanged();
+        }
+        updateResultsVisibility();
+    }
 
     // UserSearchAdapter.OnUserClickListener implementations
     @Override

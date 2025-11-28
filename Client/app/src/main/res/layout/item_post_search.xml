@@ -89,8 +89,6 @@
             android:layout_height="wrap_content"
             android:textSize="12sp"
             android:textColor="#666666"
-            android:drawableStart="@android:drawable/btn_star_big_on"
-            android:drawablePadding="4dp"
             android:gravity="center_vertical" />
 
         <TextView
@@ -100,8 +98,6 @@
             android:textSize="12sp"
             android:textColor="#666666"
             android:layout_marginStart="16dp"
-            android:drawableStart="@android:drawable/ic_menu_comment"
-            android:drawablePadding="4dp"
             android:gravity="center_vertical" />
 
         <TextView
@@ -111,8 +107,6 @@
             android:textSize="12sp"
             android:textColor="#666666"
             android:layout_marginStart="16dp"
-            android:drawableStart="@android:drawable/ic_menu_share"
-            android:drawablePadding="4dp"
             android:gravity="center_vertical" />
     </LinearLayout>
 

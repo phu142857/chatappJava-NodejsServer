@@ -223,18 +223,24 @@ const getConversationsUpdates = async (req, res) => {
     // 2. Were created or updated after the 'since' timestamp
     // 3. Are active
     const conversations = await Chat.find({
-      $or: [
-        { 'participants.user': userId },
-        { creator: userId }
-      ],
-      $or: [
-        { createdAt: { $gt: new Date(since) } },
-        { updatedAt: { $gt: new Date(since) } }
+      $and: [
+        {
+          $or: [
+            { 'participants.user': userId },
+            { createdBy: userId }
+          ]
+        },
+        {
+          $or: [
+            { createdAt: { $gt: new Date(since) } },
+            { updatedAt: { $gt: new Date(since) } }
+          ]
+        }
       ],
       isActive: true
     })
       .populate('participants.user', 'username avatar profile.firstName profile.lastName')
-      .populate('creator', 'username avatar')
+      .populate('createdBy', 'username avatar')
       .sort({ updatedAt: -1 })
       .limit(50); // Limit to prevent huge responses
 
