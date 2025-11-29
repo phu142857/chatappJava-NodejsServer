@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Table, DatePicker, Select, Space, Typography, Progress, Avatar } from 'antd';
+import { Column, Line, Pie } from '@ant-design/charts';
 import { 
   UserOutlined, 
   MessageOutlined, 
@@ -420,6 +421,73 @@ export default function Statistics() {
           </Col>
         </Row>
       </Card>
+
+      {/* Charts Section */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Message Type Distribution">
+            {messageStats && (
+              <Pie
+                data={[
+                  { type: 'Text', value: messageStats.byType.text },
+                  { type: 'Image', value: messageStats.byType.image },
+                  { type: 'File', value: messageStats.byType.file },
+                  { type: 'Audio', value: messageStats.byType.audio },
+                  { type: 'Video', value: messageStats.byType.video },
+                ]}
+                angleField="value"
+                colorField="type"
+                radius={0.8}
+                label={{
+                  type: 'outer',
+                  content: '{name}: {percentage}',
+                }}
+                height={300}
+              />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Call Status Distribution">
+            {callStats && (
+              <Pie
+                data={[
+                  { status: 'Completed', value: callStats.byStatus.completed },
+                  { status: 'Failed', value: callStats.byStatus.failed },
+                  { status: 'Canceled', value: callStats.byStatus.canceled },
+                ]}
+                angleField="value"
+                colorField="status"
+                radius={0.8}
+                color={['#52c41a', '#ff4d4f', '#faad14']}
+                label={{
+                  type: 'outer',
+                  content: '{name}: {percentage}',
+                }}
+                height={300}
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Message Hourly Chart */}
+      {messageStats && messageStats.hourly && messageStats.hourly.length > 0 && (
+        <Card title="Messages by Hour" style={{ marginBottom: 24 }}>
+          <Line
+            data={messageStats.hourly.map(h => ({ hour: `${h.hour}:00`, count: h.count }))}
+            xField="hour"
+            yField="count"
+            point={{ size: 5, shape: 'circle' }}
+            label={{
+              style: {
+                fill: '#aaa',
+              },
+            }}
+            height={300}
+          />
+        </Card>
+      )}
 
       {/* Top Users */}
       <Card title="Top Active Users">

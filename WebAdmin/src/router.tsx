@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import Posts from './pages/Posts';
 import Chats from './pages/Chats';
 import Groups from './pages/Groups';
 import FriendRequests from './pages/FriendRequests';
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
         element: (
           <RequireAdmin>
             <Users />
+          </RequireAdmin>
+        ) 
+      },
+      { 
+        path: 'posts', 
+        element: (
+          <RequireAdmin>
+            <Posts />
           </RequireAdmin>
         ) 
       },

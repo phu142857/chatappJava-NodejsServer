@@ -23,14 +23,32 @@ Open the displayed URL (usually `http://localhost:5173`).
 Login with admin account (API: `POST /api/auth/login`).
 
 ## Main Features
-- Login, save token, automatically attach Bearer to requests.
-- Overview dashboard.
-- User management:
-  - List, search, pagination.
-  - Display online/offline/away status.
-  - Display `isActive` (activated/locked).
-  - Toggle activation (ban/unban) via `PUT /api/users/:id/active`.
-  - Filter to show locked users with "Show locked" toggle.
+- **Authentication**: Login, save token, automatically attach Bearer to requests.
+- **Dashboard**: 
+  - Real-time server statistics (CPU, Memory, Disk, Uptime)
+  - User, message, and call statistics
+  - Service status monitoring
+  - System health alerts
+  - Quick stats summary
+- **User Management**:
+  - List, search, pagination with advanced filtering
+  - Display online/offline/away status
+  - Display `isActive` (activated/locked)
+  - Toggle activation (ban/unban) via `PUT /api/users/:id/active`
+  - Filter to show locked users with "Show locked" toggle
+  - Bulk operations: Delete, Lock, Unlock multiple users
+  - Export users data to CSV/JSON
+  - Create, edit, delete users
+  - Change user roles (user/moderator/admin)
+  - Reset user passwords
+- **Posts Management** (NEW):
+  - Full-text search with filters (friends only, media only, hashtags, date range)
+  - View post details with images, engagement metrics
+  - Delete posts
+  - Export posts data to CSV
+  - Pagination and sorting
+- **Data Export**: Export users and posts to CSV or JSON format
+- **Bulk Operations**: Perform actions on multiple selected items
 
 ## Scripts
 - `npm run dev`: run Vite dev server.
@@ -39,11 +57,16 @@ Login with admin account (API: `POST /api/auth/login`).
 - `npm run lint`: run eslint.
 
 ## Main Structure
-- `src/api/client.ts`: axios client + token interceptor.
-- `src/router.tsx`: router + guard.
-- `src/layouts/AdminLayout.tsx`: admin layout.
-- `src/pages/Login.tsx`: login.
-- `src/pages/Users.tsx`: user management.
+- `src/api/client.ts`: axios client + token interceptor with role change detection.
+- `src/router.tsx`: router + guard with role-based access control.
+- `src/layouts/AdminLayout.tsx`: admin layout with navigation menu.
+- `src/pages/Login.tsx`: login page.
+- `src/pages/Dashboard.tsx`: dashboard with real-time statistics.
+- `src/pages/Users.tsx`: user management with bulk operations.
+- `src/pages/Posts.tsx`: posts management with search and moderation.
+- `src/utils/export.ts`: utility functions for CSV/JSON export.
+- `src/components/guards.tsx`: route guards for authentication and authorization.
+- `src/hooks/useRoleCheck.ts`: hook for checking user role changes.
 
 ## Notes
 - If there is role-based authorization, should add role checking in backend middleware for admin routes.

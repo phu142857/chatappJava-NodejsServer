@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Progress, Table, Tag, Space, Typography, Alert, Spin } from 'antd';
+import { Column, Pie } from '@ant-design/charts';
 import { 
   DesktopOutlined, 
   UserOutlined, 
@@ -301,6 +302,141 @@ export default function Dashboard() {
               </Card>
             </Col>
           ))}
+        </Row>
+      </Card>
+
+      {/* System Health Alerts */}
+      {stats && (
+        <Card title="System Health Alerts" style={{ marginBottom: 24 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {(stats.server.cpu > 80 || stats.server.memory > 80 || stats.server.disk > 80) && (
+              <Alert
+                message="High Resource Usage"
+                description={
+                  <Space direction="vertical" size="small">
+                    {stats.server.cpu > 80 && <Text>CPU usage is at {stats.server.cpu}%</Text>}
+                    {stats.server.memory > 80 && <Text>Memory usage is at {stats.server.memory}%</Text>}
+                    {stats.server.disk > 80 && <Text>Disk usage is at {stats.server.disk}%</Text>}
+                  </Space>
+                }
+                type="warning"
+                showIcon
+                closable
+              />
+            )}
+            {Object.values(stats.services).some(status => !status) && (
+              <Alert
+                message="Service Status"
+                description="Some services are offline. Please check server logs."
+                type="error"
+                showIcon
+                closable
+              />
+            )}
+            {stats.users.online === 0 && stats.users.total > 0 && (
+              <Alert
+                message="No Active Users"
+                description="There are currently no users online."
+                type="info"
+                showIcon
+                closable
+              />
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {/* Resource Usage Charts */}
+      {stats && (
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={12}>
+            <Card title="Resource Usage">
+              <Column
+                data={[
+                  { type: 'CPU', value: stats.server.cpu },
+                  { type: 'Memory', value: stats.server.memory },
+                  { type: 'Disk', value: stats.server.disk },
+                ]}
+                xField="type"
+                yField="value"
+                color={({ value }: { value: number }) => value > 80 ? '#ff4d4f' : value > 60 ? '#faad14' : '#52c41a'}
+                label={{
+                  position: 'top',
+                  formatter: (datum: { value: number }) => `${datum.value}%`,
+                }}
+                maxColumnWidth={100}
+                height={200}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="User Distribution">
+              <Pie
+                data={[
+                  { type: 'Active', value: stats.users.active },
+                  { type: 'Inactive', value: stats.users.total - stats.users.active },
+                ]}
+                angleField="value"
+                colorField="type"
+                radius={0.8}
+                label={{
+                  type: 'outer',
+                  content: '{name}: {percentage}',
+                }}
+                height={200}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Quick Stats Summary */}
+      <Card title="Quick Stats Summary" style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">User Growth</Text>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>
+                {stats ? ((stats.users.active / Math.max(stats.users.total, 1)) * 100).toFixed(1) : 0}%
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {stats?.users.active || 0} active of {stats?.users.total || 0} total
+              </Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Messages Today</Text>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>
+                {stats?.messages.today || 0}
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {stats?.messages.thisWeek || 0} this week
+              </Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Calls Today</Text>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#722ed1' }}>
+                {stats?.calls.today || 0}
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {stats?.calls.successful || 0} successful
+              </Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Online Users</Text>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#fa8c16' }}>
+                {stats?.users.online || 0}
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Currently active
+              </Text>
+            </Card>
+          </Col>
         </Row>
       </Card>
 

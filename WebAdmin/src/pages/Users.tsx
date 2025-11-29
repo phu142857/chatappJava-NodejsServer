@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Avatar, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Tooltip } from 'antd';
+import { App as AntdApp, Avatar, Button, Card, Dropdown, Form, Input, Modal, Select, Space, Table, Tag, Tooltip } from 'antd';
+import { ExportOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { API_BASE_URL } from '../config';
+import { exportToCSV, exportToJSON } from '../utils/export';
 
 type UserItem = {
   _id: string;
@@ -41,6 +43,7 @@ export default function Users() {
   const [roleOpen, setRoleOpen] = useState<null | UserItem>(null);
   const [resetPwOpen, setResetPwOpen] = useState<null | UserItem>(null);
   const [lockOpen, setLockOpen] = useState<null | UserItem>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [roleForm] = Form.useForm();
@@ -165,6 +168,26 @@ export default function Users() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleExport = (format: 'csv' | 'json') => {
+    const exportData = data.map(user => ({
+      ID: user._id,
+      Username: user.username,
+      Email: user.email,
+      'Full Name': `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim(),
+      Role: user.role || 'user',
+      'Is Active': user.isActive ? 'Yes' : 'No',
+      'Last Seen': user.lastSeen ? dayjs(user.lastSeen).format('YYYY-MM-DD HH:mm:ss') : '-',
+      'Report Count': user.reportCount || 0,
+    }));
+
+    if (format === 'csv') {
+      exportToCSV(exportData, 'users', Object.keys(exportData[0] || {}));
+    } else {
+      exportToJSON(exportData, 'users');
+    }
+    messageApi.success(`Users exported as ${format.toUpperCase()}`);
+  };
+
   return (
     <Card title="Users" extra={
       <Space>
@@ -174,11 +197,113 @@ export default function Users() {
             {includeInactive ? 'Hide Locked' : 'Show Locked'}
           </Button>
         </Tooltip>
+        {selectedRowKeys.length > 0 && (
+          <Space>
+            <Button 
+              danger
+              onClick={async () => {
+                (modal || Modal).confirm({
+                  title: `Delete ${selectedRowKeys.length} selected users?`,
+                  content: 'This action cannot be undone.',
+                  onOk: async () => {
+                    try {
+                      await Promise.all(
+                        selectedRowKeys.map(id => 
+                          apiClient.delete(`/users/${id}`).catch(err => {
+                            console.error(`Failed to delete user ${id}:`, err);
+                          })
+                        )
+                      );
+                      messageApi.success(`Deleted ${selectedRowKeys.length} users`);
+                      setSelectedRowKeys([]);
+                      fetchUsers(page, pageSize, search);
+                    } catch (e: any) {
+                      messageApi.error('Some deletions failed');
+                    }
+                  }
+                });
+              }}
+            >
+              Delete Selected ({selectedRowKeys.length})
+            </Button>
+            <Button 
+              onClick={async () => {
+                try {
+                  await Promise.all(
+                    selectedRowKeys.map(id => 
+                      apiClient.put(`/users/${id}/active`, { 
+                        isActive: true,
+                        reason: 'Bulk unlock by administrator'
+                      }).catch(err => {
+                        console.error(`Failed to unlock user ${id}:`, err);
+                      })
+                    )
+                  );
+                  messageApi.success(`Unlocked ${selectedRowKeys.length} users`);
+                  setSelectedRowKeys([]);
+                  fetchUsers(page, pageSize, search);
+                } catch (e: any) {
+                  messageApi.error('Some operations failed');
+                }
+              }}
+            >
+              Unlock Selected ({selectedRowKeys.length})
+            </Button>
+            <Button 
+              danger
+              onClick={async () => {
+                try {
+                  await Promise.all(
+                    selectedRowKeys.map(id => 
+                      apiClient.put(`/users/${id}/active`, { 
+                        isActive: false,
+                        reason: 'Bulk lock by administrator'
+                      }).catch(err => {
+                        console.error(`Failed to lock user ${id}:`, err);
+                      })
+                    )
+                  );
+                  messageApi.success(`Locked ${selectedRowKeys.length} users`);
+                  setSelectedRowKeys([]);
+                  fetchUsers(page, pageSize, search);
+                } catch (e: any) {
+                  messageApi.error('Some operations failed');
+                }
+              }}
+            >
+              Lock Selected ({selectedRowKeys.length})
+            </Button>
+          </Space>
+        )}
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'csv',
+                label: 'Export as CSV',
+                icon: <DownloadOutlined />,
+                onClick: () => handleExport('csv'),
+              },
+              {
+                key: 'json',
+                label: 'Export as JSON',
+                icon: <DownloadOutlined />,
+                onClick: () => handleExport('json'),
+              },
+            ],
+          }}
+        >
+          <Button icon={<ExportOutlined />}>Export</Button>
+        </Dropdown>
       </Space>
     }>
       <Table
         rowKey="_id"
         loading={loading}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         columns={[
           ...columns as any,
           {

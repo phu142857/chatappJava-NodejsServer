@@ -1,5 +1,5 @@
 import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Typography } from 'antd';
-import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, DashboardOutlined, LogoutOutlined, MessageOutlined, PhoneOutlined, TeamOutlined, UserAddOutlined, SecurityScanOutlined, BarChartOutlined, ProfileOutlined, ExclamationCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS, API_BASE_URL } from '../config';
 import { useState, useEffect } from 'react';
@@ -49,6 +49,7 @@ export default function AdminLayout() {
   const adminMenuItems = [
     { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Dashboard</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Users</Link> },
+    { key: '/posts', icon: <FileTextOutlined />, label: <Link to="/posts">Posts</Link> },
     { key: '/chats', icon: <MessageOutlined />, label: <Link to="/chats">Chats & Messages</Link> },
     { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Groups</Link> },
     { key: '/friend-requests', icon: <UserAddOutlined />, label: <Link to="/friend-requests">Friend Requests</Link> },
