@@ -447,6 +447,35 @@ async function runTests() {
     assertSuccess(response);
   });
 
+  await test('Search Posts', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&page=1&limit=20`, null, authToken);
+    assertSuccess(response);
+    assert(response.body.data || response.body.posts, 'Response should contain posts data');
+    console.log(`  Found ${(response.body.data || response.body.posts || []).length} posts`);
+  });
+
+  await test('Search Posts - Friends Only', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&onlyFriends=true&page=1&limit=20`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Search Posts - Media Only', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&mediaOnly=true&page=1&limit=20`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Search Posts - Hashtag Only', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=travel&hashtagOnly=true&page=1&limit=20`, null, authToken);
+    assertSuccess(response);
+  });
+
+  await test('Search Posts - Date Range', async () => {
+    const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days ago
+    const dateTo = new Date().toISOString(); // today
+    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&dateFrom=${dateFrom}&dateTo=${dateTo}&page=1&limit=20`, null, authToken);
+    assertSuccess(response);
+  });
+
   if (testUserId) {
     await test('Get User Posts', async () => {
       const response = await makeRequest('GET', `${API_BASE}/posts/user/${testUserId}?page=1&limit=10`, null, authToken);
@@ -484,13 +513,43 @@ async function runTests() {
       const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/share`, null, authToken);
       assertSuccess(response);
     });
+
+    await test('Hide Post', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/hide`, null, authToken);
+      assertSuccess(response);
+    });
   } else {
     skip('Get Post by ID (no post available)');
     skip('Like Post (no post available)');
     skip('Add Comment (no post available)');
     skip('Update Post (no post available)');
     skip('Share Post (no post available)');
+    skip('Hide Post (no post available)');
   }
+
+  // Updates Tests (Background Sync)
+  console.log('\n--- Updates Tests (Background Sync) ---');
+
+  await test('Get Messages Updates', async () => {
+    const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+    const response = await makeRequest('GET', `${API_BASE}/updates/messages?since=${since}`, null, authToken);
+    assertSuccess(response);
+    console.log(`  Found ${(response.body.data || response.body.messages || []).length} updated messages`);
+  });
+
+  await test('Get Posts Updates', async () => {
+    const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+    const response = await makeRequest('GET', `${API_BASE}/updates/posts?since=${since}`, null, authToken);
+    assertSuccess(response);
+    console.log(`  Found ${(response.body.data || response.body.posts || []).length} updated posts`);
+  });
+
+  await test('Get Conversations Updates', async () => {
+    const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+    const response = await makeRequest('GET', `${API_BASE}/updates/conversations?since=${since}`, null, authToken);
+    assertSuccess(response);
+    console.log(`  Found ${(response.body.data || response.body.conversations || []).length} updated conversations`);
+  });
 
   // Admin Tests (if admin credentials provided)
   if (ADMIN_EMAIL && ADMIN_PASSWORD) {

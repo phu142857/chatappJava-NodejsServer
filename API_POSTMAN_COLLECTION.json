@@ -2621,6 +2621,355 @@
               "path": ["api", "posts", "{{post_id}}", "share"]
             }
           }
+        },
+        {
+          "name": "Search Posts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/posts/search?q=test&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "test",
+                  "description": "Search query (required, min 2 characters)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (optional, default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Results per page (optional, default: 20, max: 100)"
+                },
+                {
+                  "key": "onlyFriends",
+                  "value": "false",
+                  "description": "Filter to friends' posts only (optional, boolean)"
+                },
+                {
+                  "key": "mediaOnly",
+                  "value": "false",
+                  "description": "Filter to posts with media only (optional, boolean)"
+                },
+                {
+                  "key": "hashtagOnly",
+                  "value": "false",
+                  "description": "Search hashtags only (optional, boolean)"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "",
+                  "description": "Start date (optional, ISO 8601 format)"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "",
+                  "description": "End date (optional, ISO 8601 format)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Posts with Filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/posts/search?q=coffee&onlyFriends=true&mediaOnly=true&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "coffee",
+                  "description": "Search query"
+                },
+                {
+                  "key": "onlyFriends",
+                  "value": "true",
+                  "description": "Friends only"
+                },
+                {
+                  "key": "mediaOnly",
+                  "value": "true",
+                  "description": "Media only"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Posts by Hashtag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/posts/search?q=travel&hashtagOnly=true&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "travel",
+                  "description": "Hashtag to search (with or without #)"
+                },
+                {
+                  "key": "hashtagOnly",
+                  "value": "true",
+                  "description": "Search hashtags only"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Posts by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/posts/search?q=test&dateFrom=2025-01-01T00:00:00Z&dateTo=2025-12-31T23:59:59Z&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "test",
+                  "description": "Search query"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-01-01T00:00:00Z",
+                  "description": "Start date (ISO 8601)"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2025-12-31T23:59:59Z",
+                  "description": "End date (ISO 8601)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Hide Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/hide",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "{{post_id}}", "hide"]
+            }
+          }
+        },
+        {
+          "name": "Edit Comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated comment content\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments/:commentId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "{{post_id}}", "comments", ":commentId"]
+            }
+          }
+        },
+        {
+          "name": "Add Reaction to Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emoji\": \"👍\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments/:commentId/reactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "{{post_id}}", "comments", ":commentId", "reactions"]
+            }
+          }
+        },
+        {
+          "name": "Remove Reaction from Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emoji\": \"👍\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/{{post_id}}/comments/:commentId/reactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "{{post_id}}", "comments", ":commentId", "reactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Updates",
+      "item": [
+        {
+          "name": "Get Messages Updates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/updates/messages?since=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "updates", "messages"],
+              "query": [
+                {
+                  "key": "since",
+                  "value": "0",
+                  "description": "Unix timestamp (milliseconds) - returns only messages updated/created after this time"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Posts Updates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/updates/posts?since=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "updates", "posts"],
+              "query": [
+                {
+                  "key": "since",
+                  "value": "0",
+                  "description": "Unix timestamp (milliseconds) - returns only posts updated/created after this time"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Conversations Updates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/updates/conversations?since=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "updates", "conversations"],
+              "query": [
+                {
+                  "key": "since",
+                  "value": "0",
+                  "description": "Unix timestamp (milliseconds) - returns only conversations updated after this time"
+                }
+              ]
+            }
+          }
         }
       ]
     }
