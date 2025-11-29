@@ -75,11 +75,11 @@ export default function Statistics() {
     dayjs().subtract(30, 'day'),
     dayjs()
   ]);
-  const [period, setPeriod] = useState('30d');
+  const [period, setPeriod] = useState<string>('30d');
 
   useEffect(() => {
     fetchStatistics();
-  }, [dateRange, period]);
+  }, [dateRange]);
 
   const fetchStatistics = async () => {
     try {
@@ -109,19 +109,51 @@ export default function Statistics() {
   const handlePeriodChange = (value: string) => {
     setPeriod(value);
     const now = dayjs();
+    let newDateRange: [dayjs.Dayjs, dayjs.Dayjs];
+    
     switch (value) {
       case '7d':
-        setDateRange([now.subtract(7, 'day'), now]);
+        newDateRange = [now.subtract(7, 'day'), now];
         break;
       case '30d':
-        setDateRange([now.subtract(30, 'day'), now]);
+        newDateRange = [now.subtract(30, 'day'), now];
         break;
       case '90d':
-        setDateRange([now.subtract(90, 'day'), now]);
+        newDateRange = [now.subtract(90, 'day'), now];
         break;
       case '1y':
-        setDateRange([now.subtract(1, 'year'), now]);
+        newDateRange = [now.subtract(1, 'year'), now];
         break;
+      default:
+        return; // Don't change date range for custom
+    }
+    
+    setDateRange(newDateRange);
+  };
+
+  const handleDateRangeChange = (dates: [dayjs.Dayjs, dayjs.Dayjs] | null) => {
+    if (dates && dates[0] && dates[1]) {
+      setDateRange(dates);
+      // Check if the selected range matches any preset period
+      const now = dayjs();
+      const daysDiff = now.diff(dates[0], 'day');
+      const isToday = dates[1].isSame(now, 'day');
+      
+      if (isToday) {
+        if (daysDiff === 7) {
+          setPeriod('7d');
+        } else if (daysDiff === 30) {
+          setPeriod('30d');
+        } else if (daysDiff === 90) {
+          setPeriod('90d');
+        } else if (daysDiff === 365 || daysDiff === 366) {
+          setPeriod('1y');
+        } else {
+          setPeriod('custom');
+        }
+      } else {
+        setPeriod('custom');
+      }
     }
   };
 
@@ -174,18 +206,20 @@ export default function Statistics() {
           <Col>
             <RangePicker
               value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
+              onChange={handleDateRangeChange}
+              format="YYYY-MM-DD"
             />
           </Col>
           <Col>
             <Text strong>Quick Select:</Text>
           </Col>
           <Col>
-            <Select value={period} onChange={handlePeriodChange} style={{ width: 120 }}>
+            <Select value={period} onChange={handlePeriodChange} style={{ width: 150 }}>
               <Option value="7d">Last 7 days</Option>
               <Option value="30d">Last 30 days</Option>
               <Option value="90d">Last 90 days</Option>
               <Option value="1y">Last year</Option>
+              <Option value="custom">Custom Range</Option>
             </Select>
           </Col>
         </Row>
