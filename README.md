@@ -163,6 +163,13 @@ GEMINI_API_KEY=your_gemini_api_key_here
 MEDIASOUP_LISTEN_IP=0.0.0.0
 MEDIASOUP_ANNOUNCED_IP=YOUR_PUBLIC_IP_OR_DOMAIN
 
+# ===== TURN Server Configuration (Optional - For WebRTC calls) =====
+# TURN server is needed when direct peer-to-peer connection fails (NAT/firewall issues)
+# Leave empty if not using TURN server (will use STUN only)
+TURN_URL=turn:YOUR_TURN_SERVER_IP:3478
+TURN_USERNAME=your_turn_username
+TURN_CREDENTIAL=your_turn_password
+
 # ===== Admin User (For seedAdmin script) =====
 ADMIN_EMAIL=admin@example.com
 ADMIN_USERNAME=admin
@@ -179,8 +186,132 @@ ADMIN_PASSWORD=your_admin_password
   - Generate one using: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - If not using email OTP, you can skip the SMTP section (but registration won't work)
 - `MEDIASOUP_ANNOUNCED_IP`: If server runs behind NAT/router, set public IP or domain. For local, can use local IP.
+- `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`: Optional TURN server for WebRTC calls. See TURN Server Setup section below.
 
-4. **Create Admin user (optional):**
+4. **Configure TURN Server (Optional):**
+
+TURN (Traversal Using Relays around NAT) server is used for WebRTC video/audio calls when direct peer-to-peer connections fail due to NAT or firewall restrictions.
+
+#### Option A: Self-hosted TURN Server (coturn)
+
+**Install coturn:**
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install coturn
+```
+
+**Linux (CentOS/RHEL):**
+```bash
+sudo yum install coturn
+```
+
+**Mac (Homebrew):**
+```bash
+brew install coturn
+```
+
+**Configure coturn:**
+
+1. Edit `/etc/turnserver.conf` (Linux) or `/opt/homebrew/etc/turnserver.conf` (Mac):
+```conf
+# Listening IP and port
+listening-ip=0.0.0.0
+listening-port=3478
+
+# Relay IP (your server's public IP)
+external-ip=YOUR_PUBLIC_IP
+
+# Realm (domain name)
+realm=yourdomain.com
+
+# User credentials (username:password)
+user=your_turn_username:your_turn_password
+
+# Enable STUN
+stun-only=no
+
+# Log file
+log-file=/var/log/turn.log
+
+# No authentication for local network (optional, for development)
+no-cli
+no-tls
+no-dtls
+```
+
+2. Start coturn:
+```bash
+# Linux
+sudo systemctl start coturn
+sudo systemctl enable coturn
+
+# Mac
+brew services start coturn
+
+# Or run manually
+turnserver -c /etc/turnserver.conf
+```
+
+3. Add to Server `.env`:
+```env
+TURN_URL=turn:YOUR_PUBLIC_IP:3478
+TURN_USERNAME=your_turn_username
+TURN_CREDENTIAL=your_turn_password
+```
+
+**Firewall Configuration:**
+- Open UDP ports: 3478 (TURN), 49152-65535 (RTP/RTCP range)
+- Open TCP port: 3478 (TURN)
+
+```bash
+# Linux (ufw)
+sudo ufw allow 3478/udp
+sudo ufw allow 3478/tcp
+sudo ufw allow 49152:65535/udp
+
+# Linux (iptables)
+sudo iptables -A INPUT -p udp --dport 3478 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3478 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 49152:65535 -j ACCEPT
+```
+
+#### Option B: Cloud TURN Services
+
+**Twilio STUN/TURN:**
+1. Sign up at [Twilio](https://www.twilio.com/)
+2. Get credentials from Twilio Console → Network Traversal Service
+3. Add to `.env`:
+```env
+TURN_URL=turn:global.turn.twilio.com:3478?transport=udp
+TURN_USERNAME=your_twilio_username
+TURN_CREDENTIAL=your_twilio_credential
+```
+
+**Xirsys:**
+1. Sign up at [Xirsys](https://xirsys.com/)
+2. Get credentials from dashboard
+3. Add to `.env`:
+```env
+TURN_URL=turn:YOUR_XIRSYS_URL:3478
+TURN_USERNAME=your_xirsys_username
+TURN_CREDENTIAL=your_xirsys_password
+```
+
+**Metered.ca (Free tier available):**
+1. Sign up at [Metered.ca](https://www.metered.ca/)
+2. Get free TURN server credentials
+3. Add to `.env`:
+```env
+TURN_URL=turn:a.relay.metered.ca:80
+TURN_USERNAME=your_metered_username
+TURN_CREDENTIAL=your_metered_password
+```
+
+**Note:** If TURN server is not configured, the app will use STUN servers (Google's public STUN) which may not work in all network environments (especially behind strict NAT/firewalls).
+
+5. **Create Admin user (optional):**
 
 Add to `.env` file:
 ```env
@@ -210,6 +341,16 @@ Server will run at: `http://0.0.0.0:49664`
 **Test the server:**
 - Open browser: `http://localhost:49664/api/server/health`
 - Or: `http://YOUR_SERVER_IP:49664/api/server/health`
+
+**Test TURN server (if configured):**
+```bash
+# Using stunclient (install: sudo apt-get install stun-client)
+stunclient YOUR_TURN_SERVER_IP 3478
+
+# Or use online tools:
+# https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
+# Add your TURN server credentials to test connectivity
+```
 
 ---
 
@@ -431,6 +572,20 @@ curl http://YOUR_SERVER_IP:49664/api/auth/me
 - Check username/password in connection string
 - Check if IP whitelist has added `0.0.0.0/0` (for development)
 - Check if database user has read/write permissions
+
+### Video/Audio calls not connecting
+
+**Error: ICE connection failed or calls not working**
+- Check if TURN server is configured correctly in `.env`
+- Verify TURN server is accessible: `stunclient YOUR_TURN_SERVER_IP 3478`
+- Check firewall allows UDP port 3478 and RTP range (49152-65535)
+- For self-hosted TURN: Ensure `external-ip` in coturn config matches your public IP
+- Test TURN server using [Trickle ICE tool](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
+- If using cloud TURN service, verify credentials are correct
+- Check server logs for TURN connection errors
+- Ensure `TURN_URL` format is correct: `turn:IP:PORT` or `turn:domain.com:PORT`
+
+**Note:** Without TURN server, calls may fail when users are behind symmetric NAT or strict firewalls. TURN server relays traffic when direct connection is not possible.
 
 ---
 
