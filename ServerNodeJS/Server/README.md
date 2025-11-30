@@ -223,7 +223,9 @@ curl http://localhost:49664/api/server/health
 
 ## API Endpoints
 
-### Authentication
+**Note:** All endpoints use `/api` prefix. This is a standard REST API structure, not an API Gateway pattern.
+
+### Authentication (`/api/auth/*`)
 - `POST /api/auth/register/request-otp` - Request registration OTP
 - `POST /api/auth/register/verify-otp` - Verify OTP and register
 - `POST /api/auth/login` - Login
@@ -231,23 +233,35 @@ curl http://localhost:49664/api/server/health
 - `PUT /api/auth/profile` - Update profile
 - `PUT /api/auth/change-password` - Change password
 
-### Chats
+### Chats (`/api/chats/*`)
 - `GET /api/chats` - Get user's chats
 - `POST /api/chats/private` - Create private chat
 - `POST /api/chats/group` - Create group chat
 
-### Messages
+### Messages (`/api/messages/*`)
 - `GET /api/messages/:chatId` - Get messages
 - `POST /api/messages` - Send message
 
-### Users
+### Users (`/api/users/*`)
 - `GET /api/users` - Search users
 - `GET /api/users/:id` - Get user profile
 
-### Posts
+### Posts (`/api/posts/*`)
 - `GET /api/posts` - Get posts
 - `POST /api/posts` - Create post
 - `GET /api/posts/search` - Search posts
+
+### Other Endpoints
+- `/api/friend-requests/*` - Friend request management
+- `/api/groups/*` - Group management
+- `/api/upload/*` - File uploads
+- `/api/calls/*` - Voice/video calls
+- `/api/statistics/*` - Statistics and analytics
+- `/api/reports/*` - User reports
+- `/api/notifications/*` - Notifications
+- `/api/updates/*` - Delta updates for sync
+
+**Base URL:** `http://YOUR_SERVER_IP:49664/api`
 
 See API documentation or Postman collection for complete list.
 

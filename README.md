@@ -62,13 +62,13 @@ Get the system running in 1-2 minutes:
 │                         Chat Application                         │
 └─────────────────────────────────────────────────────────────────┘
 
-┌──────────────┐         REST API          ┌──────────────┐
+┌──────────────┐      REST API (/api/*)    ┌──────────────┐
 │   Android    │ ─────────────────────────▶ │   Node.js    │
 │   Client     │                             │   Server    │
-│              │ ◀───────────────────────── │             │
+│              │ ◀───────────────────────── │  (Express)   │
 └──────────────┘      WebSocket/Socket.IO    └──────┬───────┘
                                                     │
-┌──────────────┐         REST API                  │
+┌──────────────┐      REST API (/api/*)             │
 │   WebAdmin   │ ────────────────────────────────▶ │
 │   (React)    │                                    │
 └──────────────┘                                    │
@@ -90,10 +90,15 @@ Get the system running in 1-2 minutes:
 ```
 
 **Data Flow:**
-- **Authentication**: Client/WebAdmin → REST API → MongoDB
+- **Authentication**: Client/WebAdmin → REST API (`/api/auth/*`) → MongoDB
 - **Real-time Messages**: Client ↔ Socket.IO ↔ Server → MongoDB
 - **Video Calls**: Client ↔ WebRTC (STUN/TURN) ↔ MediaSoup SFU
-- **File Uploads**: Client → REST API → Server Storage → MongoDB
+- **File Uploads**: Client → REST API (`/api/upload/*`) → Server Storage → MongoDB
+
+**API Structure:**
+- All REST endpoints use `/api` prefix (e.g., `/api/auth/login`, `/api/chats`, `/api/messages`)
+- No API Gateway pattern - direct Express.js routes
+- Socket.IO for real-time communication (separate from REST API)
 
 ---
 
