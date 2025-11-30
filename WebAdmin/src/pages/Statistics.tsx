@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Table, DatePicker, Select, Space, Typography, Progress, Avatar } from 'antd';
-import { Column, Line, Pie } from '@ant-design/charts';
+import { Line, Pie } from '@ant-design/charts';
 import { 
   UserOutlined, 
   MessageOutlined, 
@@ -21,6 +21,7 @@ interface UserStats {
   newToday: number;
   newThisWeek: number;
   newThisMonth: number;
+  newInRange?: number; // New users in selected date range
   byRole: {
     user: number;
     moderator: number;
@@ -33,6 +34,7 @@ interface MessageStats {
   today: number;
   thisWeek: number;
   thisMonth: number;
+  inRange?: number; // Messages in selected date range
   byType: {
     text: number;
     image: number;
@@ -48,6 +50,7 @@ interface CallStats {
   today: number;
   thisWeek: number;
   thisMonth: number;
+  inRange?: number; // Calls in selected date range
   byStatus: {
     completed: number;
     failed: number;
@@ -82,11 +85,23 @@ export default function Statistics() {
   }, [dateRange]);
 
   const fetchStatistics = async () => {
+    if (!dateRange || !dateRange[0] || !dateRange[1]) {
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      const startDate = dateRange[0].format('YYYY-MM-DD');
-      const endDate = dateRange[1].format('YYYY-MM-DD');
+      // Format dates to ensure full day coverage
+      const startDate = dateRange[0].startOf('day').toISOString().split('T')[0];
+      const endDate = dateRange[1].endOf('day').toISOString().split('T')[0];
+      
+      console.log('Fetching statistics for range:', { 
+        startDate, 
+        endDate,
+        startDateObj: dateRange[0].format('YYYY-MM-DD'),
+        endDateObj: dateRange[1].format('YYYY-MM-DD')
+      });
       
       const [usersRes, messagesRes, callsRes, topUsersRes] = await Promise.all([
         apiClient.get(`/statistics/users?startDate=${startDate}&endDate=${endDate}`),
@@ -95,12 +110,19 @@ export default function Statistics() {
         apiClient.get('/statistics/top-users')
       ]);
 
-      setUserStats(usersRes.data.data);
-      setMessageStats(messagesRes.data.data);
-      setCallStats(callsRes.data.data);
-      setTopUsers(topUsersRes.data.data);
-    } catch (error) {
+      console.log('Statistics response:', {
+        users: usersRes.data?.data,
+        messages: messagesRes.data?.data,
+        calls: callsRes.data?.data
+      });
+
+      if (usersRes.data?.data) setUserStats(usersRes.data.data);
+      if (messagesRes.data?.data) setMessageStats(messagesRes.data.data);
+      if (callsRes.data?.data) setCallStats(callsRes.data.data);
+      if (topUsersRes.data?.data) setTopUsers(topUsersRes.data.data);
+    } catch (error: any) {
       console.error('Failed to fetch statistics:', error);
+      console.error('Error details:', error?.response?.data || error?.message);
     } finally {
       setLoading(false);
     }
@@ -131,9 +153,10 @@ export default function Statistics() {
     setDateRange(newDateRange);
   };
 
-  const handleDateRangeChange = (dates: [dayjs.Dayjs, dayjs.Dayjs] | null) => {
+  const handleDateRangeChange = (dates: any) => {
     if (dates && dates[0] && dates[1]) {
-      setDateRange(dates);
+      const newRange: [dayjs.Dayjs, dayjs.Dayjs] = [dates[0], dates[1]];
+      setDateRange(newRange);
       // Check if the selected range matches any preset period
       const now = dayjs();
       const daysDiff = now.diff(dates[0], 'day');
@@ -245,8 +268,8 @@ export default function Statistics() {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic
-              title="New This Month"
-              value={userStats?.newThisMonth || 0}
+              title="New in Selected Range"
+              value={userStats?.newInRange || 0}
               prefix={<RiseOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -256,7 +279,7 @@ export default function Statistics() {
               title="New This Week"
               value={userStats?.newThisWeek || 0}
               prefix={<RiseOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#faad14' }}
             />
           </Col>
         </Row>
@@ -317,9 +340,10 @@ export default function Statistics() {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic
-              title="This Month"
-              value={messageStats?.thisMonth || 0}
+              title="In Selected Range"
+              value={messageStats?.inRange || 0}
               prefix={<MessageOutlined />}
+              valueStyle={{ color: '#1890ff' }}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -400,9 +424,10 @@ export default function Statistics() {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic
-              title="This Month"
-              value={callStats?.thisMonth || 0}
+              title="In Selected Range"
+              value={callStats?.inRange || 0}
               prefix={<PhoneOutlined />}
+              valueStyle={{ color: '#1890ff' }}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
