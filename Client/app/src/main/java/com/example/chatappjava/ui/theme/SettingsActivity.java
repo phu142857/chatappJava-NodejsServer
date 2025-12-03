@@ -29,6 +29,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Switch switchPushNotifications, switchSound, switchVibrate;
     
     private DatabaseManager databaseManager;
+    private android.os.CountDownTimer deleteOtpCountDownTimer;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -234,8 +235,10 @@ public class SettingsActivity extends AppCompatActivity {
     private void showDeleteOtpDialog() {
         android.view.LayoutInflater inflater = getLayoutInflater();
         android.view.View view = inflater.inflate(com.example.chatappjava.R.layout.dialog_otp, null);
-
+        
         EditText hiddenOtp = view.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+        TextView dialogTvTimer = view.findViewById(com.example.chatappjava.R.id.dialog_tv_timer);
+        TextView tvError = view.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
         android.view.View circlesContainer = view.findViewById(com.example.chatappjava.R.id.otp_circles_container);
         TextView c1 = view.findViewById(com.example.chatappjava.R.id.otp_c1);
         TextView c2 = view.findViewById(com.example.chatappjava.R.id.otp_c2);
@@ -243,47 +246,104 @@ public class SettingsActivity extends AppCompatActivity {
         TextView c4 = view.findViewById(com.example.chatappjava.R.id.otp_c4);
         TextView c5 = view.findViewById(com.example.chatappjava.R.id.otp_c5);
         TextView c6 = view.findViewById(com.example.chatappjava.R.id.otp_c6);
-        android.widget.TextView tvError = view.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
         android.widget.Button btnResend = view.findViewById(com.example.chatappjava.R.id.btn_resend_otp);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setView(view);
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this)
+                .setView(view)
+                .setCancelable(false);
+
         deleteOtpDialog = builder.create();
         if (deleteOtpDialog.getWindow() != null) {
             android.view.Window w = deleteOtpDialog.getWindow();
             w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
+        deleteOtpDialog.setOnDismissListener(d -> { 
+            if (deleteOtpCountDownTimer != null) deleteOtpCountDownTimer.cancel(); 
+        });
+
+        android.view.View.OnClickListener focusInput = v -> {
+            hiddenOtp.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        };
+        circlesContainer.setOnClickListener(focusInput);
+        view.setOnClickListener(focusInput);
 
         android.text.TextWatcher watcher = new android.text.TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                String code = s.toString().trim();
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                String code = s.toString();
                 updateOtpCircles(code.length(), c1, c2, c3, c4, c5, c6);
+                if (code.length() > 0) {
+                    tvError.setVisibility(android.view.View.GONE);
+                }
                 if (code.length() == 6) {
                     hiddenOtp.clearFocus();
                     confirmDeleteWithOtp(code);
-                    if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) deleteOtpDialog.dismiss();
-                } else if (tvError != null) {
-                    tvError.setVisibility(View.GONE);
                 }
             }
-            @Override public void afterTextChanged(android.text.Editable s) {}
         };
         hiddenOtp.addTextChangedListener(watcher);
 
         btnResend.setOnClickListener(v -> {
-            // request a new OTP
-            requestDeleteOtp();
-            hiddenOtp.setText("");
-            if (tvError != null) tvError.setVisibility(View.GONE);
+            String token = databaseManager.getToken();
+            if (token == null) {
+                Toast.makeText(SettingsActivity.this, "Not logged in", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            btnResend.setEnabled(false);
+            ApiClient api = new ApiClient();
+            api.requestDeleteAccountOTP(token, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        btnResend.setEnabled(true);
+                        Toast.makeText(SettingsActivity.this, "Failed to resend: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    runOnUiThread(() -> {
+                        btnResend.setEnabled(true);
+                        if (response.isSuccessful()) {
+                            hiddenOtp.setText("");
+                            tvError.setVisibility(android.view.View.GONE);
+                            startDeleteOtpTimer(dialogTvTimer);
+                            Toast.makeText(SettingsActivity.this, "OTP resent", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(SettingsActivity.this, "Failed to resend OTP", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
         });
 
+        startDeleteOtpTimer(dialogTvTimer);
         deleteOtpDialog.show();
+
         hiddenOtp.postDelayed(() -> {
             hiddenOtp.requestFocus();
             android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
             if (imm != null) imm.showSoftInput(hiddenOtp, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
         }, 150);
+    }
+
+    private void startDeleteOtpTimer(TextView tv) {
+        if (deleteOtpCountDownTimer != null) deleteOtpCountDownTimer.cancel();
+        tv.setText("01:00");
+        deleteOtpCountDownTimer = new android.os.CountDownTimer(60000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                long seconds = millisUntilFinished / 1000;
+                long mm = seconds / 60;
+                long ss = seconds % 60;
+                tv.setText(String.format("%02d:%02d", mm, ss));
+            }
+
+            @Override
+            public void onFinish() {
+                tv.setText("Expired. Please request again.");
+            }
+        }.start();
     }
 
     private void confirmDeleteWithOtp(String otp) {
@@ -293,13 +353,35 @@ public class SettingsActivity extends AppCompatActivity {
         android.app.ProgressDialog pd = android.app.ProgressDialog.show(this, null, "Deleting account...", true, false);
         api.confirmDeleteAccountWithOTP(token, otp, new okhttp3.Callback() {
             @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> { pd.dismiss(); Toast.makeText(SettingsActivity.this, "Network error", Toast.LENGTH_SHORT).show(); });
+                runOnUiThread(() -> {
+                    pd.dismiss();
+                    if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) {
+                        TextView err = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+                        EditText hid = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+                        if (err != null) { 
+                            err.setText("Network error. Please try again."); 
+                            err.setVisibility(android.view.View.VISIBLE); 
+                        }
+                        if (hid != null) { hid.setText(""); }
+                        updateOtpCircles(0, 
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c1),
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c2),
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c3),
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c4),
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c5),
+                            deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c6));
+                    } else {
+                        Toast.makeText(SettingsActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
             @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 String resp = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     pd.dismiss();
                     if (response.isSuccessful()) {
+                        if (deleteOtpCountDownTimer != null) deleteOtpCountDownTimer.cancel();
+                        if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) deleteOtpDialog.dismiss();
                         Toast.makeText(SettingsActivity.this, "Account deleted", Toast.LENGTH_LONG).show();
                         databaseManager.clearLoginInfo();
                         Intent i = new Intent(SettingsActivity.this, LoginActivity.class);
@@ -307,7 +389,41 @@ public class SettingsActivity extends AppCompatActivity {
                         startActivity(i);
                         finish();
                     } else {
-                        Toast.makeText(SettingsActivity.this, parseErrorMessage(resp), Toast.LENGTH_LONG).show();
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(resp);
+                            String message = json.optString("message", "Invalid OTP");
+                            if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) {
+                                TextView err = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+                                EditText hid = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+                                if (err != null) { err.setText("Invalid OTP"); err.setVisibility(android.view.View.VISIBLE); }
+                                if (hid != null) { hid.setText(""); }
+                                updateOtpCircles(0, 
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c1),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c2),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c3),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c4),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c5),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c6));
+                            } else {
+                                Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Exception ex) {
+                            if (deleteOtpDialog != null && deleteOtpDialog.isShowing()) {
+                                TextView err = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_tv_error);
+                                EditText hid = deleteOtpDialog.findViewById(com.example.chatappjava.R.id.dialog_et_hidden_otp);
+                                if (err != null) { err.setText("Invalid OTP"); err.setVisibility(android.view.View.VISIBLE); }
+                                if (hid != null) { hid.setText(""); }
+                                updateOtpCircles(0, 
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c1),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c2),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c3),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c4),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c5),
+                                    deleteOtpDialog.findViewById(com.example.chatappjava.R.id.otp_c6));
+                            } else {
+                                Toast.makeText(SettingsActivity.this, "Invalid OTP", Toast.LENGTH_SHORT).show();
+                            }
+                        }
                     }
                 });
             }
@@ -415,5 +531,11 @@ public class SettingsActivity extends AppCompatActivity {
                            "We're here to help!")
                 .setPositiveButton("OK", null)
                 .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (deleteOtpCountDownTimer != null) deleteOtpCountDownTimer.cancel();
+        super.onDestroy();
     }
 }
