@@ -327,12 +327,25 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
                 .createPeerConnectionFactory();
 
         // Initialize video views only if not already initialized
+        // Check if views are null (may happen if called before onCreate completes)
+        if (localVideoView == null) {
+            Log.e(TAG, "localVideoView is null, cannot initialize WebRTC");
+            return;
+        }
+        
+        if (remoteVideoView == null) {
+            Log.e(TAG, "remoteVideoView is null, cannot initialize WebRTC");
+            return;
+        }
+        
         try {
             localVideoView.init(eglBase.getEglBaseContext(), null);
             localVideoView.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FILL);
             localVideoView.setMirror(true);
         } catch (IllegalStateException e) {
             Log.d(TAG, "Local video view already initialized: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing local video view: " + e.getMessage(), e);
         }
 
         try {
@@ -340,6 +353,8 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
             remoteVideoView.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FILL);
         } catch (IllegalStateException e) {
             Log.d(TAG, "Remote video view already initialized: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing remote video view: " + e.getMessage(), e);
         }
 
         // Start local video capture
@@ -1369,8 +1384,25 @@ public class VideoCallActivity extends AppCompatActivity implements SocketManage
 
     @SuppressLint("SetTextI18n")
     private void connectCall() {
+        // Ensure views are initialized (may be null if called before onCreate completes)
+        if (localVideoView == null) {
+            localVideoView = findViewById(R.id.sv_local_video);
+        }
+        if (remoteVideoView == null) {
+            remoteVideoView = findViewById(R.id.sv_remote_video);
+        }
+        
+        // Check if views are still null (activity not ready)
+        if (localVideoView == null || remoteVideoView == null) {
+            Log.e(TAG, "Video views are null, cannot connect call. Retrying in 500ms...");
+            new Handler(Looper.getMainLooper()).postDelayed(this::connectCall, 500);
+            return;
+        }
+        
         isCallActive = true;
-        tvCallStatus.setText("Connected");
+        if (tvCallStatus != null) {
+            tvCallStatus.setText("Connected");
+        }
 
         // Start call duration timer
         startCallDurationTimer();

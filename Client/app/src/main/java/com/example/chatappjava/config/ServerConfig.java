@@ -10,10 +10,10 @@ public class ServerConfig {
     // Change these values to match your server setup
     
     // Server IP and Port (change this to your actual server IP)
-//    private static final String SERVER_IP = "103.75.183.125";
+    private static final String SERVER_IP = "103.75.183.125";
 
 //    private static final String SERVER_IP = "192.168.1.30";
-    private static final String SERVER_IP = "192.168.2.36";
+//    private static final String SERVER_IP = "192.168.2.36";
 //    private static final String SERVER_IP = "10.45.145.75";
     private static final int SERVER_PORT = 49664;
     
@@ -44,11 +44,18 @@ public class ServerConfig {
      * Get current server IP
      */
     public static String getServerIp() {
-        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
-        if (app != null) {
-            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
-            String override = prefs.getOverrideServerIp();
-            if (override != null && !override.isEmpty()) return override;
+        try {
+            com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+            if (app != null) {
+                com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
+                if (prefs != null) {
+                    String override = prefs.getOverrideServerIp();
+                    if (override != null && !override.isEmpty()) return override;
+                }
+            }
+        } catch (Exception e) {
+            // If database access fails, return default IP
+            android.util.Log.w("ServerConfig", "Failed to get server IP override, using default: " + e.getMessage());
         }
         return SERVER_IP;
     }
@@ -57,11 +64,18 @@ public class ServerConfig {
      * Get current server port
      */
     public static int getServerPort() {
-        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
-        if (app != null) {
-            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
-            int override = prefs.getOverrideServerPort();
-            if (override > 0) return override;
+        try {
+            com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+            if (app != null) {
+                com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
+                if (prefs != null) {
+                    int override = prefs.getOverrideServerPort();
+                    if (override > 0) return override;
+                }
+            }
+        } catch (Exception e) {
+            // If database access fails, return default port
+            android.util.Log.w("ServerConfig", "Failed to get server port override, using default: " + e.getMessage());
         }
         return SERVER_PORT;
     }
@@ -70,11 +84,18 @@ public class ServerConfig {
      * Check if using HTTPS
      */
     public static boolean isUsingHttps() {
-        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
-        if (app != null) {
-            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
-            Boolean override = prefs.getOverrideUseHttps();
-            if (override != null) return override;
+        try {
+            com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+            if (app != null) {
+                com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
+                if (prefs != null) {
+                    Boolean override = prefs.getOverrideUseHttps();
+                    if (override != null) return override;
+                }
+            }
+        } catch (Exception e) {
+            // If database access fails, return default
+            android.util.Log.w("ServerConfig", "Failed to get HTTPS override, using default: " + e.getMessage());
         }
         return USE_HTTPS;
     }
@@ -83,11 +104,18 @@ public class ServerConfig {
      * Check if using secure WebSocket
      */
     public static boolean isUsingWss() {
-        com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
-        if (app != null) {
-            com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
-            Boolean override = prefs.getOverrideUseWss();
-            if (override != null) return override;
+        try {
+            com.example.chatappjava.ChatApplication app = com.example.chatappjava.ChatApplication.getInstance();
+            if (app != null) {
+                com.example.chatappjava.utils.DatabaseManager prefs = app.getSharedPrefsManager();
+                if (prefs != null) {
+                    Boolean override = prefs.getOverrideUseWss();
+                    if (override != null) return override;
+                }
+            }
+        } catch (Exception e) {
+            // If database access fails, return default
+            android.util.Log.w("ServerConfig", "Failed to get WSS override, using default: " + e.getMessage());
         }
         return USE_WSS;
     }

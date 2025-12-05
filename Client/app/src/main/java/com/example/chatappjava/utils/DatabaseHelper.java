@@ -8,7 +8,7 @@ import android.util.Log;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
     private static final String DATABASE_NAME = "ChatApp.db";
-    private static final int DATABASE_VERSION = 5; // Incremented for sync metadata
+    private static final int DATABASE_VERSION = 6; // Incremented for shared post object storage
 
     // ===== Table: app_settings =====
     public static final String TABLE_APP_SETTINGS = "app_settings";
@@ -161,6 +161,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COL_POST_IS_LIKED = "is_liked";
     public static final String COL_POST_REACTION_TYPE = "reaction_type";
     public static final String COL_POST_SHARED_POST_ID = "shared_post_id";
+    public static final String COL_POST_SHARED_POST = "shared_post"; // JSON object for complete shared post
     public static final String COL_POST_TAGGED_USERS = "tagged_users"; // JSON array
 
     private static final String CREATE_TABLE_CALLS = 
@@ -197,6 +198,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         COL_POST_IS_LIKED + " INTEGER DEFAULT 0, " +
         COL_POST_REACTION_TYPE + " TEXT, " +
         COL_POST_SHARED_POST_ID + " TEXT, " +
+        COL_POST_SHARED_POST + " TEXT, " + // JSON object for complete shared post
         COL_POST_TAGGED_USERS + " TEXT" + // JSON array
         ")";
 
@@ -274,6 +276,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             // Add sync metadata table
             db.execSQL(CREATE_TABLE_SYNC_METADATA);
             Log.d(TAG, "Added sync metadata table");
+        }
+        
+        if (oldVersion < 6) {
+            // Add shared_post column to posts table
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_POSTS + " ADD COLUMN " + COL_POST_SHARED_POST + " TEXT");
+                Log.d(TAG, "Added shared_post column to posts table");
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding shared_post column: " + e.getMessage());
+            }
         }
     }
 }

@@ -38,11 +38,54 @@ public class PostRepository {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         
         try {
+            // Preserve existing author info and shared post if new values are empty
+            // Only preserve if server returned empty values AND existing post has valid values
+            // This prevents preserving null/empty values from cache when server has valid data
+            String authorUsername = post.getAuthorUsername();
+            String authorAvatar = post.getAuthorAvatar();
+            com.example.chatappjava.models.Post sharedPost = post.getSharedPost();
+            
+            // Only check database if new values are empty
+            boolean newPostHasEmptyUsername = (authorUsername == null || authorUsername.isEmpty());
+            boolean newPostHasEmptyAvatar = (authorAvatar == null || authorAvatar.isEmpty());
+            boolean newPostHasNoSharedPost = (sharedPost == null);
+            
+            if (newPostHasEmptyUsername || newPostHasEmptyAvatar || newPostHasNoSharedPost) {
+                Post existingPost = getPostById(post.getId(), db);
+                if (existingPost != null) {
+                    // Only preserve if new value is empty AND existing value is valid
+                    if (newPostHasEmptyUsername) {
+                        String existingUsername = existingPost.getAuthorUsername();
+                        if (existingUsername != null && !existingUsername.isEmpty()) {
+                            authorUsername = existingUsername;
+                        }
+                    }
+                    
+                    if (newPostHasEmptyAvatar) {
+                        String existingAvatar = existingPost.getAuthorAvatar();
+                        if (existingAvatar != null && !existingAvatar.isEmpty()) {
+                            authorAvatar = existingAvatar;
+                        }
+                    }
+                    
+                    // Preserve shared post if new post doesn't have it AND existing post has it
+                    if (newPostHasNoSharedPost && existingPost.getSharedPost() != null) {
+                        sharedPost = existingPost.getSharedPost();
+                        post.setSharedPost(sharedPost);
+                        // Also preserve sharedPostId if it's missing
+                        if ((post.getSharedPostId() == null || post.getSharedPostId().isEmpty()) &&
+                            (existingPost.getSharedPostId() != null && !existingPost.getSharedPostId().isEmpty())) {
+                            post.setSharedPostId(existingPost.getSharedPostId());
+                        }
+                    }
+                }
+            }
+            
             ContentValues values = new ContentValues();
             values.put(DatabaseHelper.COL_POST_ID, post.getId());
             values.put(DatabaseHelper.COL_POST_AUTHOR_ID, post.getAuthorId());
-            values.put(DatabaseHelper.COL_POST_AUTHOR_USERNAME, post.getAuthorUsername());
-            values.put(DatabaseHelper.COL_POST_AUTHOR_AVATAR, post.getAuthorAvatar());
+            values.put(DatabaseHelper.COL_POST_AUTHOR_USERNAME, authorUsername != null ? authorUsername : "");
+            values.put(DatabaseHelper.COL_POST_AUTHOR_AVATAR, authorAvatar != null ? authorAvatar : "");
             values.put(DatabaseHelper.COL_POST_CONTENT, post.getContent());
             values.put(DatabaseHelper.COL_POST_MEDIA_TYPE, post.getMediaType());
             values.put(DatabaseHelper.COL_POST_TIMESTAMP, post.getTimestamp());
@@ -52,6 +95,19 @@ public class PostRepository {
             values.put(DatabaseHelper.COL_POST_IS_LIKED, post.isLiked() ? 1 : 0);
             values.put(DatabaseHelper.COL_POST_REACTION_TYPE, post.getReactionType());
             values.put(DatabaseHelper.COL_POST_SHARED_POST_ID, post.getSharedPostId());
+            
+            // Serialize shared post to JSON if it exists (use the preserved sharedPost variable)
+            if (sharedPost != null) {
+                try {
+                    JSONObject sharedPostJson = sharedPost.toJson();
+                    values.put(DatabaseHelper.COL_POST_SHARED_POST, sharedPostJson.toString());
+                } catch (JSONException e) {
+                    Log.w(TAG, "Error serializing shared post: " + e.getMessage());
+                    values.putNull(DatabaseHelper.COL_POST_SHARED_POST);
+                }
+            } else {
+                values.putNull(DatabaseHelper.COL_POST_SHARED_POST);
+            }
             
             // Serialize media URLs to JSON
             if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
@@ -110,11 +166,54 @@ public class PostRepository {
             db.beginTransaction();
             
             for (Post post : posts) {
+                // Preserve existing author info and shared post if new values are empty
+                // Only preserve if server returned empty values AND existing post has valid values
+                // This prevents preserving null/empty values from cache when server has valid data
+                String authorUsername = post.getAuthorUsername();
+                String authorAvatar = post.getAuthorAvatar();
+                com.example.chatappjava.models.Post sharedPost = post.getSharedPost();
+                
+                // Only check database if new values are empty
+                boolean newPostHasEmptyUsername = (authorUsername == null || authorUsername.isEmpty());
+                boolean newPostHasEmptyAvatar = (authorAvatar == null || authorAvatar.isEmpty());
+                boolean newPostHasNoSharedPost = (sharedPost == null);
+                
+                if (newPostHasEmptyUsername || newPostHasEmptyAvatar || newPostHasNoSharedPost) {
+                    Post existingPost = getPostById(post.getId(), db);
+                    if (existingPost != null) {
+                        // Only preserve if new value is empty AND existing value is valid
+                        if (newPostHasEmptyUsername) {
+                            String existingUsername = existingPost.getAuthorUsername();
+                            if (existingUsername != null && !existingUsername.isEmpty()) {
+                                authorUsername = existingUsername;
+                            }
+                        }
+                        
+                        if (newPostHasEmptyAvatar) {
+                            String existingAvatar = existingPost.getAuthorAvatar();
+                            if (existingAvatar != null && !existingAvatar.isEmpty()) {
+                                authorAvatar = existingAvatar;
+                            }
+                        }
+                        
+                        // Preserve shared post if new post doesn't have it AND existing post has it
+                        if (newPostHasNoSharedPost && existingPost.getSharedPost() != null) {
+                            sharedPost = existingPost.getSharedPost();
+                            post.setSharedPost(sharedPost);
+                            // Also preserve sharedPostId if it's missing
+                            if ((post.getSharedPostId() == null || post.getSharedPostId().isEmpty()) &&
+                                (existingPost.getSharedPostId() != null && !existingPost.getSharedPostId().isEmpty())) {
+                                post.setSharedPostId(existingPost.getSharedPostId());
+                            }
+                        }
+                    }
+                }
+                
                 ContentValues values = new ContentValues();
                 values.put(DatabaseHelper.COL_POST_ID, post.getId());
                 values.put(DatabaseHelper.COL_POST_AUTHOR_ID, post.getAuthorId());
-                values.put(DatabaseHelper.COL_POST_AUTHOR_USERNAME, post.getAuthorUsername());
-                values.put(DatabaseHelper.COL_POST_AUTHOR_AVATAR, post.getAuthorAvatar());
+                values.put(DatabaseHelper.COL_POST_AUTHOR_USERNAME, authorUsername != null ? authorUsername : "");
+                values.put(DatabaseHelper.COL_POST_AUTHOR_AVATAR, authorAvatar != null ? authorAvatar : "");
                 values.put(DatabaseHelper.COL_POST_CONTENT, post.getContent());
                 values.put(DatabaseHelper.COL_POST_MEDIA_TYPE, post.getMediaType());
                 values.put(DatabaseHelper.COL_POST_TIMESTAMP, post.getTimestamp());
@@ -124,6 +223,19 @@ public class PostRepository {
                 values.put(DatabaseHelper.COL_POST_IS_LIKED, post.isLiked() ? 1 : 0);
                 values.put(DatabaseHelper.COL_POST_REACTION_TYPE, post.getReactionType());
                 values.put(DatabaseHelper.COL_POST_SHARED_POST_ID, post.getSharedPostId());
+                
+                // Serialize shared post to JSON if it exists (use the preserved sharedPost variable)
+                if (sharedPost != null) {
+                    try {
+                        JSONObject sharedPostJson = sharedPost.toJson();
+                        values.put(DatabaseHelper.COL_POST_SHARED_POST, sharedPostJson.toString());
+                    } catch (JSONException e) {
+                        Log.w(TAG, "Error serializing shared post: " + e.getMessage());
+                        values.putNull(DatabaseHelper.COL_POST_SHARED_POST);
+                    }
+                } else {
+                    values.putNull(DatabaseHelper.COL_POST_SHARED_POST);
+                }
                 
                 // Serialize media URLs to JSON
                 if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
@@ -214,6 +326,61 @@ public class PostRepository {
     }
     
     /**
+     * Get a post by ID from local database
+     * @param postId The post ID to retrieve
+     * @param db Optional existing database connection. If null, a new connection will be opened and closed.
+     */
+    public Post getPostById(String postId, SQLiteDatabase db) {
+        if (postId == null || postId.isEmpty()) {
+            return null;
+        }
+        
+        boolean shouldClose = false;
+        if (db == null) {
+            db = dbHelper.getReadableDatabase();
+            shouldClose = true;
+        }
+        
+        Post post = null;
+        
+        String selection = DatabaseHelper.COL_POST_ID + " = ?";
+        String[] selectionArgs = {postId};
+        
+        Cursor cursor = db.query(
+            DatabaseHelper.TABLE_POSTS,
+            null,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            null,
+            "1"
+        );
+        
+        if (cursor != null) {
+            try {
+                if (cursor.moveToFirst()) {
+                    post = cursorToPost(cursor);
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        
+        if (shouldClose) {
+            db.close();
+        }
+        return post;
+    }
+    
+    /**
+     * Get a post by ID from local database (opens and closes its own connection)
+     */
+    public Post getPostById(String postId) {
+        return getPostById(postId, null);
+    }
+    
+    /**
      * Delete all posts from database
      */
     public void deleteAllPosts() {
@@ -284,6 +451,7 @@ public class PostRepository {
             int isLikedIndex = cursor.getColumnIndex(DatabaseHelper.COL_POST_IS_LIKED);
             int reactionTypeIndex = cursor.getColumnIndex(DatabaseHelper.COL_POST_REACTION_TYPE);
             int sharedPostIdIndex = cursor.getColumnIndex(DatabaseHelper.COL_POST_SHARED_POST_ID);
+            int sharedPostIndex = cursor.getColumnIndex(DatabaseHelper.COL_POST_SHARED_POST);
             int taggedUsersIndex = cursor.getColumnIndex(DatabaseHelper.COL_POST_TAGGED_USERS);
             
             if (idIndex >= 0 && !cursor.isNull(idIndex)) {
@@ -321,7 +489,28 @@ public class PostRepository {
             if (reactionTypeIndex >= 0 && !cursor.isNull(reactionTypeIndex)) {
                 postJson.put("reactionType", cursor.getString(reactionTypeIndex));
             }
-            if (sharedPostIdIndex >= 0 && !cursor.isNull(sharedPostIdIndex)) {
+            // Handle shared post - prefer the complete object if available, otherwise use ID
+            if (sharedPostIndex >= 0 && !cursor.isNull(sharedPostIndex)) {
+                // Load complete shared post object from JSON
+                String sharedPostJsonStr = cursor.getString(sharedPostIndex);
+                if (sharedPostJsonStr != null && !sharedPostJsonStr.isEmpty()) {
+                    try {
+                        JSONObject sharedPostJsonObj = new JSONObject(sharedPostJsonStr);
+                        // Put as populated object (same format as backend)
+                        postJson.put("sharedPostId", sharedPostJsonObj);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing shared post JSON: " + e.getMessage());
+                        // Fallback to ID if JSON parsing fails
+                        if (sharedPostIdIndex >= 0 && !cursor.isNull(sharedPostIdIndex)) {
+                            postJson.put("sharedPostId", cursor.getString(sharedPostIdIndex));
+                        }
+                    }
+                } else if (sharedPostIdIndex >= 0 && !cursor.isNull(sharedPostIdIndex)) {
+                    // Fallback to ID if shared post JSON is empty
+                    postJson.put("sharedPostId", cursor.getString(sharedPostIdIndex));
+                }
+            } else if (sharedPostIdIndex >= 0 && !cursor.isNull(sharedPostIdIndex)) {
+                // Only ID available (old data)
                 postJson.put("sharedPostId", cursor.getString(sharedPostIdIndex));
             }
             

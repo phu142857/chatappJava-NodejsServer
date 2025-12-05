@@ -143,8 +143,11 @@ public class Post {
                     String url = (String) item;
                     // Convert relative URL to full URL if needed
                     if (!url.startsWith("http")) {
-                        url = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                              ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + url;
+                        // Ensure URL starts with /
+                        if (!url.startsWith("/")) {
+                            url = "/" + url;
+                        }
+                        url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + url;
                     }
                     post.mediaUrls.add(url);
                 } else if (item instanceof JSONObject) {
@@ -152,8 +155,11 @@ public class Post {
                     String url = mediaObj.optString("url", mediaObj.optString("path", ""));
                     if (!url.isEmpty()) {
                         if (!url.startsWith("http")) {
-                            url = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                                  ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + url;
+                            // Ensure URL starts with /
+                            if (!url.startsWith("/")) {
+                                url = "/" + url;
+                            }
+                            url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + url;
                         }
                         post.mediaUrls.add(url);
                     }

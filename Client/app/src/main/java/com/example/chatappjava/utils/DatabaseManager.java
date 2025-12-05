@@ -36,45 +36,62 @@ public class DatabaseManager {
      * Save a string value
      */
     private void putString(String key, String value) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(DatabaseHelper.COLUMN_KEY, key);
-        values.put(DatabaseHelper.COLUMN_VALUE, value);
-        
-        // Use INSERT OR REPLACE to handle both insert and update
-        db.insertWithOnConflict(
-            DatabaseHelper.TABLE_APP_SETTINGS,
-            null,
-            values,
-            SQLiteDatabase.CONFLICT_REPLACE
-        );
-        db.close();
+        try {
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            if (db == null) {
+                return;
+            }
+            
+            ContentValues values = new ContentValues();
+            values.put(DatabaseHelper.COLUMN_KEY, key);
+            values.put(DatabaseHelper.COLUMN_VALUE, value);
+            
+            // Use INSERT OR REPLACE to handle both insert and update
+            db.insertWithOnConflict(
+                DatabaseHelper.TABLE_APP_SETTINGS,
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_REPLACE
+            );
+            db.close();
+        } catch (Exception e) {
+            android.util.Log.w("DatabaseManager", "Error putting string for key " + key + ": " + e.getMessage());
+        }
     }
 
     /**
      * Get a string value
      */
     private String getString(String key, String defaultValue) {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        String value = defaultValue;
-        
-        Cursor cursor = db.query(
-            DatabaseHelper.TABLE_APP_SETTINGS,
-            new String[]{DatabaseHelper.COLUMN_VALUE},
-            DatabaseHelper.COLUMN_KEY + " = ?",
-            new String[]{key},
-            null, null, null
-        );
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            int columnIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_VALUE);
-            if (columnIndex >= 0) {
-                value = cursor.getString(columnIndex);
+        try {
+            SQLiteDatabase db = dbHelper.getReadableDatabase();
+            if (db == null) {
+                return defaultValue;
             }
-            cursor.close();
+            
+            String value = defaultValue;
+            
+            Cursor cursor = db.query(
+                DatabaseHelper.TABLE_APP_SETTINGS,
+                new String[]{DatabaseHelper.COLUMN_VALUE},
+                DatabaseHelper.COLUMN_KEY + " = ?",
+                new String[]{key},
+                null, null, null
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_VALUE);
+                if (columnIndex >= 0) {
+                    value = cursor.getString(columnIndex);
+                }
+                cursor.close();
+            }
+            db.close();
+            return value;
+        } catch (Exception e) {
+            android.util.Log.w("DatabaseManager", "Error getting string for key " + key + ": " + e.getMessage());
+            return defaultValue;
         }
-        db.close();
-        return value;
     }
 
     /**

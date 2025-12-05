@@ -120,6 +120,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     
     // Current tab tracking
     private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls, 3: Posts
+    private boolean postsLoadedFromServer = false; // Track if posts have been loaded from server
     // Hold reference to message listener for add/remove
     private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
     private android.content.BroadcastReceiver blockedChangedReceiver;
@@ -1273,7 +1274,12 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                 ivPosts.setSelected(true);
                 // Switch to post adapter and load posts
                 rvChatList.setAdapter(postAdapter);
-                loadPosts();
+                // Force reload from server on first load to ensure author info is loaded
+                if (!postsLoadedFromServer) {
+                    loadPosts(true); // Force reload from server
+                } else {
+                    loadPosts(); // Normal load (may use cache)
+                }
                 break;
             case 4:
                 ivNotifications.setSelected(true);
@@ -1645,10 +1651,19 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
      * Refresh posts by loading new posts and inserting them at the top
      */
     private void refreshPosts() {
-        if (isLoadingPosts || postAdapter == null || postList.isEmpty()) {
+        if (isLoadingPosts || postAdapter == null) {
             if (swipeRefreshLayout != null) {
                 swipeRefreshLayout.setRefreshing(false);
             }
+            return;
+        }
+        
+        // If postList is empty, use full reload instead of refresh
+        if (postList.isEmpty()) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            loadPosts(true); // Force reload from server
             return;
         }
         
@@ -1740,11 +1755,11 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                     System.out.println("HomeActivity: Saved " + newPosts.size() + " new posts to database");
                                     
                                     postAdapter.setPosts(postList);
-                                    
+
                                     // Show notification
-                                    String message = newPosts.size() == 1 
-                                        ? "1 bài viết mới" 
-                                        : newPosts.size() + " bài viết mới";
+                                    String message = newPosts.size() == 1
+                                            ? "1 new post"
+                                            : newPosts.size() + " new posts";
                                     Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
                                     
                                     // Smooth scroll to show new content
@@ -1863,6 +1878,46 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                     }
                                 }
                                 
+                                // Preserve existing author info and shared post for posts that already exist
+                                // Only preserve if server returned empty values AND existing post has valid values
+                                // This prevents preserving null/empty values from cache when server has valid data
+                                if (!forceReload && !postList.isEmpty()) {
+                                    for (com.example.chatappjava.models.Post newPost : newPosts) {
+                                        // Find existing post with same ID
+                                        for (com.example.chatappjava.models.Post existingPost : postList) {
+                                            if (existingPost.getId().equals(newPost.getId())) {
+                                                // Only preserve if new post from server has empty values
+                                                // AND existing post has valid non-empty values
+                                                // This ensures we don't overwrite valid server data with empty cache data
+                                                boolean newPostHasEmptyUsername = (newPost.getAuthorUsername() == null || newPost.getAuthorUsername().isEmpty());
+                                                boolean existingPostHasValidUsername = (existingPost.getAuthorUsername() != null && !existingPost.getAuthorUsername().isEmpty());
+                                                
+                                                if (newPostHasEmptyUsername && existingPostHasValidUsername) {
+                                                    newPost.setAuthorUsername(existingPost.getAuthorUsername());
+                                                }
+                                                
+                                                boolean newPostHasEmptyAvatar = (newPost.getAuthorAvatar() == null || newPost.getAuthorAvatar().isEmpty());
+                                                boolean existingPostHasValidAvatar = (existingPost.getAuthorAvatar() != null && !existingPost.getAuthorAvatar().isEmpty());
+                                                
+                                                if (newPostHasEmptyAvatar && existingPostHasValidAvatar) {
+                                                    newPost.setAuthorAvatar(existingPost.getAuthorAvatar());
+                                                }
+                                                
+                                                // Preserve shared post if new post doesn't have it
+                                                if (newPost.getSharedPost() == null && existingPost.getSharedPost() != null) {
+                                                    newPost.setSharedPost(existingPost.getSharedPost());
+                                                    // Also preserve sharedPostId if it's missing
+                                                    if ((newPost.getSharedPostId() == null || newPost.getSharedPostId().isEmpty()) &&
+                                                        (existingPost.getSharedPostId() != null && !existingPost.getSharedPostId().isEmpty())) {
+                                                        newPost.setSharedPostId(existingPost.getSharedPostId());
+                                                    }
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                
                                 if (forceReload) {
                                     postList.clear();
                                 }
@@ -1875,6 +1930,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                 }
                                 
                                 postAdapter.setPosts(postList);
+                                
+                                // Mark that posts have been loaded from server
+                                postsLoadedFromServer = true;
                             }
                         } else if (response.code() == 401) {
                             databaseManager.clearLoginInfo();
@@ -1884,6 +1942,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                         Log.e(TAG, "Error parsing posts response: " + e.getMessage());
                     } finally {
                         isLoadingPosts = false;
+                        // Stop swipe refresh if it's active
+                        if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
                     }
                 });
             }
@@ -1924,6 +1986,8 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     }
 
     private void redirectToLogin() {
+        // Reset flag when redirecting to login
+        postsLoadedFromServer = false;
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

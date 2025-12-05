@@ -125,7 +125,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             int postPosition = (createPostBarListener != null) ? position - 1 : position;
             if (postPosition >= 0 && postPosition < posts.size()) {
                 Post post = posts.get(postPosition);
-                ((PostViewHolder) holder).bind(post, listener, context);
+                ((PostViewHolder) holder).bind(post, listener, context, postPosition);
             }
         }
     }
@@ -222,6 +222,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private final ImageView ivEmbeddedVideoThumbnail;
         private final ImageButton ivEmbeddedVideoPlay;
         private final ImageView ivEmbeddedArrow;
+        private int postListPosition = -1; // Store the position in the posts list
         
         public PostViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -268,7 +269,10 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         
         @SuppressLint("SetTextI18n")
-        public void bind(Post post, OnPostClickListener listener, Context context) {
+        public void bind(Post post, OnPostClickListener listener, Context context, int postPosition) {
+            // Store the position in the posts list (not RecyclerView position)
+            this.postListPosition = postPosition;
+            
             // Set author info
             tvPostUsername.setText(post.getAuthorUsername());
             
@@ -552,8 +556,10 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             });
             
             llLikeButton.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onLikeClick(post, getAdapterPosition());
+                if (listener != null && postListPosition >= 0) {
+                    // Use the stored postListPosition instead of getAdapterPosition()
+                    // This ensures we use the correct position in the posts list, not the RecyclerView position
+                    listener.onLikeClick(post, postListPosition);
                 }
             });
             
