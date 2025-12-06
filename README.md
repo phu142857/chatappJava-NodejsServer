@@ -58,21 +58,21 @@ Get the system running in 1-2 minutes:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Chat Application                         │
+│                         Chat Application                        │
 └─────────────────────────────────────────────────────────────────┘
 
-┌──────────────┐      REST API (/api/*)    ┌──────────────┐
+┌──────────────┐      REST API (/api/*)     ┌──────────────┐
 │   Android    │ ─────────────────────────▶ │   Node.js    │
-│   Client     │                             │   Server    │
+│   Client     │                            │   Server     │
 │              │ ◀───────────────────────── │  (Express)   │
-└──────────────┘      WebSocket/Socket.IO    └──────┬───────┘
-                                                    │
-┌──────────────┐      REST API (/api/*)             │
+└──────────────┘      WebSocket/Socket.IO   └──────┬───────┘
+                                                   │
+┌──────────────┐      REST API (/api/*)            │
 │   WebAdmin   │ ────────────────────────────────▶ │
-│   (React)    │                                    │
-└──────────────┘                                    │
-                                                    │
-                                                    ▼
+│   (React)    │                                   │
+└──────────────┘                                   │
+                                                   │
+                                                   ▼
                                             ┌──────────────┐
                                             │   MongoDB    │
                                             │  Database    │
@@ -81,10 +81,10 @@ Get the system running in 1-2 minutes:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Optional Components                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  • TURN Server (coturn/Cloud) - For WebRTC video calls        │
-│  • MediaSoup SFU - For group video calls                       │
-│  • SMTP Server - For email OTP registration                    │
-│  • Gemini AI - For chat summarization                          │
+│  • TURN Server (coturn/Cloud) - For WebRTC video calls          │
+│  • MediaSoup SFU - For group video calls                        │
+│  • SMTP Server - For email OTP registration                     │
+│  • Gemini AI - For chat summarization                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
