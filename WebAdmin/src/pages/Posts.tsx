@@ -37,7 +37,6 @@ import { API_BASE_URL } from '../config';
 
 const { RangePicker } = DatePicker;
 const { Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
 type PostItem = {
   _id: string;
@@ -86,7 +85,6 @@ export default function Posts() {
     dateRange: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
   });
   const [viewModal, setViewModal] = useState<PostItem | null>(null);
-  const [deleteModal, setDeleteModal] = useState<PostItem | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const resolveAvatarUrl = (avatar?: string) => {
@@ -275,7 +273,6 @@ export default function Posts() {
     try {
       await apiClient.delete(`/posts/${post._id}`);
       messageApi.success('Post deleted successfully');
-      setDeleteModal(null);
       fetchPosts(page, pageSize, searchQuery);
     } catch (err: any) {
       messageApi.error(err?.response?.data?.message || 'Failed to delete post');

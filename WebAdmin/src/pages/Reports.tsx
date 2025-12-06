@@ -44,7 +44,7 @@ type Report = {
 };
 
 export default function Reports() {
-  const { message: messageApi, modal } = AntdApp.useApp();
+  const { message: messageApi } = AntdApp.useApp();
   const [reports, setReports] = useState<Report[]>([]);
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -350,7 +350,7 @@ export default function Reports() {
             value={typeFilter}
             onChange={handleTypeFilter}
             style={{ width: 150 }}
-            prefixIcon={<FilterOutlined />}
+            suffixIcon={<FilterOutlined />}
           >
             <Select.Option value="all">All Types</Select.Option>
             <Select.Option value="user">User</Select.Option>
