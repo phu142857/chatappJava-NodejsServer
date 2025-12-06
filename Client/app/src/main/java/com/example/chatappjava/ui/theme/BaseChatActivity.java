@@ -141,8 +141,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     // Pagination state
     private int currentPage = 1;
     private final int pageSize = 20;
+    private final int initialDbLoadLimit = 50; // Load only last 50 messages from DB for faster initial load
     private boolean isLoadingMore = false;
     private boolean hasMore = true;
+    private boolean hasMoreInDb = false; // Track if there are more messages in DB
     // Block state for private chats
     protected boolean isBlockedByMe = false;
     protected boolean hasBlockedMe = false;
@@ -1576,6 +1578,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 e.printStackTrace();
             }
         }
+        
+        // If otherUser is not set but currentChat has otherParticipant, use it
+        if (otherUser == null && currentChat != null && currentChat.isPrivateChat()) {
+            otherUser = currentChat.getOtherParticipant();
+            android.util.Log.d("BaseChatActivity", "Initialized otherUser from currentChat.getOtherParticipant(): " + 
+                (otherUser != null ? otherUser.getId() : "null"));
+        }
 
         // Forwarding: capture pending content to send when chat is ready
         if (intent.hasExtra("forward_content")) {
@@ -1729,6 +1738,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(messageAdapter);
         
+        // Performance optimizations for RecyclerView
+        rvMessages.setHasFixedSize(false); // Messages have variable sizes
+        rvMessages.setItemViewCacheSize(20); // Cache more views for smoother scrolling (default is 2)
+        // Reduce overdraw by enabling clipToPadding
+        rvMessages.setClipToPadding(false);
+        // Enable nested scrolling for better performance
+        rvMessages.setNestedScrollingEnabled(true);
+        
         // Add scroll listener to detect when user reaches bottom
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -1870,15 +1887,22 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         android.util.Log.d("BaseChatActivity", "Parsed message - chatType: " + message.getChatType() + 
                                                 ", senderUsername: " + message.getSenderUsername() + 
                                                 ", senderAvatar: " + message.getSenderAvatar());
-                                        // Save message to local database
-                                        messageRepository.saveMessage(message);
                                         pageOne.add(message);
                                     }
                                     hasMore = messagesArray.length() >= pageSize;
+                                    
+                                    // Batch save messages for better performance
+                                    if (!pageOne.isEmpty() && messageRepository != null) {
+                                        messageRepository.saveMessagesBatch(pageOne);
+                                    }
                                 }
                                 boolean addedNewAtEnd = false;
+                                int newMessagesCount = 0;
+                                int updatedMessagesCount = 0;
+                                
                                 if (!isRefresh) {
                                     // Initial load - clear and replace all messages
+                                    int oldSize = messages.size();
                                     messages.clear();
                                     // Deduplicate by ID before adding
                                     java.util.Set<String> seenIds = new java.util.HashSet<>();
@@ -1889,8 +1913,15 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                             seenIds.add(msgId);
                                         }
                                     }
+                                    // Use notifyItemRangeInserted for better performance
+                                    if (oldSize == 0 && !messages.isEmpty()) {
+                                        messageAdapter.notifyItemRangeInserted(0, messages.size());
+                                    } else if (!messages.isEmpty()) {
+                                        messageAdapter.notifyDataSetChanged(); // Only for initial load when list was not empty
+                                    }
                                 } else {
                                     // Refresh/polling - merge: upsert by id; if id not found, try replace local placeholder; else append
+                                    java.util.List<Integer> changedIndices = new java.util.ArrayList<>();
                                     for (Message m : pageOne) {
                                         String msgId = m.getId();
                                         if (msgId == null || msgId.isEmpty()) continue; // Skip messages without ID
@@ -1899,19 +1930,33 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         if (existingIdx >= 0) {
                                             // Update existing message
                                             messages.set(existingIdx, m);
-                                            messageAdapter.notifyItemChanged(existingIdx);
+                                            changedIndices.add(existingIdx);
+                                            updatedMessagesCount++;
                                         } else {
                                             // Check for local placeholder
                                             int localIdx = findLocalPlaceholderIndex(m);
                                             if (localIdx >= 0) {
                                                 // Replace local placeholder
                                                 messages.set(localIdx, m);
-                                                messageAdapter.notifyItemChanged(localIdx);
+                                                changedIndices.add(localIdx);
+                                                updatedMessagesCount++;
                                             } else {
                                                 // New message - add to end
                                                 messages.add(m);
                                                 addedNewAtEnd = true;
+                                                newMessagesCount++;
                                             }
+                                        }
+                                    }
+                                    
+                                    // Notify changes incrementally for better performance
+                                    if (newMessagesCount > 0) {
+                                        messageAdapter.notifyItemRangeInserted(messages.size() - newMessagesCount, newMessagesCount);
+                                    }
+                                    if (updatedMessagesCount > 0 && !changedIndices.isEmpty()) {
+                                        // Notify individual changes
+                                        for (int idx : changedIndices) {
+                                            messageAdapter.notifyItemChanged(idx);
                                         }
                                     }
                                 }
@@ -1929,8 +1974,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                         applyBlockUiState(false, false);
                                     }
                                 }
-
-                                messageAdapter.notifyDataSetChanged();
+                                
+                                // Only use notifyDataSetChanged if no incremental updates were made
+                                if (isRefresh && newMessagesCount == 0 && updatedMessagesCount == 0) {
+                                    // No changes, no need to notify
+                                }
                                 
                                 // Update summarize indicator
                                 updateSummarizeIndicator();
@@ -1980,20 +2028,37 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
     
     /**
-     * Load messages from local database
+     * Load messages from local database (optimized - only last N messages for fast initial load)
      */
     private void loadMessagesFromDatabase() {
         if (currentChat == null || messageRepository == null) return;
         
-        List<Message> dbMessages = messageRepository.getMessagesForChat(currentChat.getId(), 0);
-        if (!dbMessages.isEmpty()) {
-            messages.clear();
-            messages.addAll(dbMessages);
-            messageAdapter.notifyDataSetChanged();
-            updateSummarizeIndicator();
-            scrollToBottom();
-            android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + " messages from database");
-        }
+        // Load asynchronously to avoid blocking UI thread
+        new Thread(() -> {
+            List<Message> dbMessages = messageRepository.getMessagesForChat(
+                currentChat.getId(), 
+                initialDbLoadLimit
+            );
+            
+            // Check if there are more messages in DB
+            int totalCount = messageRepository.getMessagesCountForChat(currentChat.getId());
+            hasMoreInDb = totalCount > initialDbLoadLimit;
+            
+            if (!dbMessages.isEmpty()) {
+                runOnUiThread(() -> {
+                    messages.clear();
+                    messages.addAll(dbMessages);
+                    // Use notifyDataSetChanged only for initial load (empty list)
+                    if (messageAdapter != null) {
+                        messageAdapter.notifyDataSetChanged();
+                    }
+                    updateSummarizeIndicator();
+                    scrollToBottom();
+                    android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + 
+                        " messages from database (total: " + totalCount + ")");
+                });
+            }
+        }).start();
     }
     
     /**
@@ -2410,12 +2475,14 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             java.util.List<Message> older = new java.util.ArrayList<>();
                             for (int i = 0; i < arr.length(); i++) {
                                 Message m = Message.fromJson(arr.getJSONObject(i));
-                                // Save to database
-                                if (messageRepository != null) {
-                                    messageRepository.saveMessage(m);
-                                }
                                 older.add(m);
                             }
+                            
+                            // Batch save messages for better performance
+                            if (!older.isEmpty() && messageRepository != null) {
+                                messageRepository.saveMessagesBatch(older);
+                            }
+                            
                             messages.addAll(0, older);
                             currentPage += 1;
                             hasMore = arr.length() >= pageSize;
@@ -3994,3 +4061,4 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         return "application/octet-stream";
     }
 }
+

@@ -219,10 +219,28 @@ public class PrivateChatActivity extends BaseChatActivity {
         if (currentChat != null) {
             tvChatName.setText(currentChat.getDisplayName());
 
+            // Ensure otherUser is set from currentChat if not already set
+            if (otherUser == null && currentChat.isPrivateChat()) {
+                otherUser = currentChat.getOtherParticipant();
+                android.util.Log.d("PrivateChatActivity", "Set otherUser from currentChat: " + 
+                    (otherUser != null ? otherUser.getId() : "null"));
+            }
+
+            // Clean up avatar ImageView first to prevent showing wrong avatar
+            if (ivProfile != null) {
+                // Cancel any pending Picasso request
+                com.squareup.picasso.Picasso.get().cancelRequest(ivProfile);
+                // Clear the tag to reset state
+                ivProfile.setTag(null);
+                // Show placeholder immediately while loading
+                ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+
             // Load other user's avatar
             if (otherUser != null) {
                 String avatarUrl = otherUser.getAvatar();
-                android.util.Log.d("PrivateChatActivity", "User avatar URL: " + avatarUrl);
+                android.util.Log.d("PrivateChatActivity", "Loading avatar for user " + otherUser.getId() + 
+                    ", avatar URL: " + avatarUrl);
                 
                 if (avatarUrl != null && !avatarUrl.isEmpty()) {
                     // Construct full URL if needed
@@ -235,14 +253,23 @@ public class PrivateChatActivity extends BaseChatActivity {
                     avatarManager.loadAvatar(avatarUrl, ivProfile, R.drawable.ic_profile_placeholder);
                 } else {
                     android.util.Log.d("PrivateChatActivity", "No avatar URL, using placeholder");
-                    ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+                    if (ivProfile != null) {
+                        ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+                    }
                 }
             } else {
                 android.util.Log.d("PrivateChatActivity", "No otherUser, using placeholder");
-                ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+                if (ivProfile != null) {
+                    ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+                }
             }
         } else {
             android.util.Log.d("PrivateChatActivity", "No currentChat");
+            if (ivProfile != null) {
+                com.squareup.picasso.Picasso.get().cancelRequest(ivProfile);
+                ivProfile.setTag(null);
+                ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
+            }
         }
     }
 
@@ -351,19 +378,135 @@ public class PrivateChatActivity extends BaseChatActivity {
     }
     
     private void showChatInfo() {
-        if (otherUser != null) {
-            // For private chat, show other user's profile
-            Intent intent = new Intent(this, ProfileViewActivity.class);
+        String currentUserId = databaseManager.getUserId();
+        android.util.Log.d("PrivateChatActivity", "showChatInfo: currentUserId = " + currentUserId);
+        
+        if (currentChat == null || !currentChat.isPrivateChat()) {
+            Toast.makeText(this, "Chat không hợp lệ", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Always get the other participant ID from participantIds to ensure correctness
+        String otherUserId = null;
+        if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+            for (String participantId : currentChat.getParticipantIds()) {
+                if (participantId != null && !participantId.isEmpty() && !participantId.equals(currentUserId)) {
+                    otherUserId = participantId;
+                    android.util.Log.d("PrivateChatActivity", "showChatInfo: Found other participant ID from participantIds: " + otherUserId);
+                    break;
+                }
+            }
+        }
+        
+        // If not found in participantIds, try from otherParticipant
+        if (otherUserId == null && currentChat.getOtherParticipant() != null) {
+            String otherParticipantId = currentChat.getOtherParticipant().getId();
+            if (otherParticipantId != null && !otherParticipantId.isEmpty() && !otherParticipantId.equals(currentUserId)) {
+                otherUserId = otherParticipantId;
+                android.util.Log.d("PrivateChatActivity", "showChatInfo: Found other participant ID from otherParticipant: " + otherUserId);
+            }
+        }
+        
+        // If still not found, try from otherUser variable
+        if (otherUserId == null && otherUser != null && otherUser.getId() != null) {
+            String otherUserVarId = otherUser.getId();
+            if (!otherUserVarId.isEmpty() && !otherUserVarId.equals(currentUserId)) {
+                otherUserId = otherUserVarId;
+                android.util.Log.d("PrivateChatActivity", "showChatInfo: Found other participant ID from otherUser: " + otherUserId);
+            }
+        }
+        
+        if (otherUserId == null || otherUserId.equals(currentUserId)) {
+            android.util.Log.e("PrivateChatActivity", "showChatInfo: Cannot determine other user ID. currentUserId: " + 
+                currentUserId + ", participantIds: " + (currentChat.getParticipantIds() != null ? currentChat.getParticipantIds().toString() : "null"));
+            Toast.makeText(this, "Không thể xác định người dùng đối phương", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Verify otherUser object matches the ID before using it
+        if (otherUser != null && otherUser.getId() != null && otherUser.getId().equals(otherUserId) && !otherUserId.equals(currentUserId)) {
+            // Use existing otherUser object if it matches
             try {
+                android.util.Log.d("PrivateChatActivity", "showChatInfo: Using existing otherUser object for ID: " + otherUserId);
+                Intent intent = new Intent(this, ProfileViewActivity.class);
                 intent.putExtra("user", otherUser.toJson().toString());
                 startActivity(intent);
+                return;
             } catch (JSONException e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Error opening profile", Toast.LENGTH_SHORT).show();
+                android.util.Log.w("PrivateChatActivity", "showChatInfo: Failed to serialize otherUser, fetching from server: " + e.getMessage());
             }
-        } else {
-            Toast.makeText(this, "No user information available", Toast.LENGTH_SHORT).show();
         }
+        
+        // Fetch user profile from server to ensure we have correct data
+        android.util.Log.d("PrivateChatActivity", "showChatInfo: Fetching user profile from server for ID: " + otherUserId);
+        fetchAndShowUserProfile(otherUserId);
+    }
+    
+    private void fetchAndShowUserProfile(String userId) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        apiClient.authenticatedGet("/api/users/" + userId, token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("PrivateChatActivity", "Failed to fetch user profile: " + e.getMessage());
+                    Toast.makeText(PrivateChatActivity.this, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        org.json.JSONObject userData = null;
+                        
+                        if (data != null) {
+                            if (data.has("user")) {
+                                userData = data.optJSONObject("user");
+                            } else {
+                                userData = data;
+                            }
+                        }
+                        
+                        if (userData != null) {
+                            org.json.JSONObject finalUserData = userData;
+                            runOnUiThread(() -> {
+                                try {
+                                    Intent intent = new Intent(PrivateChatActivity.this, ProfileViewActivity.class);
+                                    intent.putExtra("user", finalUserData.toString());
+                                    android.util.Log.d("PrivateChatActivity", "Opening profile for fetched user: " + 
+                                        finalUserData.optString("_id", finalUserData.optString("id", "")));
+                                    startActivity(intent);
+                                } catch (Exception e) {
+                                    android.util.Log.e("PrivateChatActivity", "Error opening profile: " + e.getMessage());
+                                    Toast.makeText(PrivateChatActivity.this, "Lỗi mở profile", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        } else {
+                            runOnUiThread(() -> {
+                                Toast.makeText(PrivateChatActivity.this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("PrivateChatActivity", "Error parsing user data: " + e.getMessage());
+                        runOnUiThread(() -> {
+                            Toast.makeText(PrivateChatActivity.this, "Lỗi xử lý dữ liệu", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(PrivateChatActivity.this, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
     }
     
     private void confirmDeleteChat() {
@@ -468,11 +611,23 @@ public class PrivateChatActivity extends BaseChatActivity {
     protected void onResume() {
         super.onResume();
         
+        // Clean up avatar first to prevent showing wrong avatar
+        if (ivProfile != null) {
+            com.squareup.picasso.Picasso.get().cancelRequest(ivProfile);
+            ivProfile.setTag(null);
+        }
+        
         // Reload user data when returning to activity
         // This ensures profile changes are reflected immediately
         if (otherUser != null) {
             // Reload other user's data from server
             loadOtherUserData();
+        } else if (currentChat != null && currentChat.isPrivateChat()) {
+            // If otherUser is null, try to get it from currentChat
+            otherUser = currentChat.getOtherParticipant();
+            if (otherUser != null) {
+                updateUI();
+            }
         }
         
         // Also reload current user's data to ensure consistency

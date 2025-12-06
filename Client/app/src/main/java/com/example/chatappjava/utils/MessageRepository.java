@@ -110,7 +110,11 @@ public class MessageRepository {
         List<Message> messages = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         
-        String orderBy = DatabaseHelper.COL_MSG_TIMESTAMP + " ASC";
+        // For performance: if limit is specified, get latest messages first (DESC), then reverse
+        // This is faster than loading all messages and taking last N
+        String orderBy = limit > 0 
+            ? DatabaseHelper.COL_MSG_TIMESTAMP + " DESC"  // Get latest first when limiting
+            : DatabaseHelper.COL_MSG_TIMESTAMP + " ASC"; // Get all in chronological order when no limit
         String limitStr = limit > 0 ? String.valueOf(limit) : null;
         
         Cursor cursor = db.query(
@@ -138,8 +142,114 @@ public class MessageRepository {
         }
         
         db.close();
+        
+        // If we used DESC order (for limit), reverse to get chronological order
+        if (limit > 0) {
+            java.util.Collections.reverse(messages);
+        }
+        
         Log.d(TAG, "Retrieved " + messages.size() + " messages for chat: " + chatId);
         return messages;
+    }
+    
+    /**
+     * Get total count of messages for a chat (for pagination)
+     * 
+     * @param chatId Chat ID
+     * @return Total message count
+     */
+    public int getMessagesCountForChat(String chatId) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        int count = 0;
+        
+        Cursor cursor = db.query(
+            DatabaseHelper.TABLE_MESSAGES,
+            new String[]{"COUNT(*) as count"},
+            DatabaseHelper.COL_MSG_CHAT_ID + " = ? AND " + DatabaseHelper.COL_MSG_IS_DELETED + " = 0",
+            new String[]{chatId},
+            null,
+            null,
+            null
+        );
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            int countIndex = cursor.getColumnIndex("count");
+            if (countIndex >= 0) {
+                count = cursor.getInt(countIndex);
+            }
+            cursor.close();
+        }
+        
+        db.close();
+        return count;
+    }
+    
+    /**
+     * Batch save messages for better performance
+     * 
+     * @param messages List of messages to save
+     */
+    public void saveMessagesBatch(List<Message> messages) {
+        if (messages == null || messages.isEmpty()) return;
+        
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            db.beginTransaction();
+            try {
+                for (Message message : messages) {
+                    // Generate temporary ID if message doesn't have one
+                    String messageId = message.getId();
+                    String syncStatus = SYNC_STATUS_SYNCED;
+                    
+                    if (messageId == null || messageId.isEmpty()) {
+                        messageId = "temp_" + UUID.randomUUID().toString();
+                        syncStatus = SYNC_STATUS_PENDING;
+                        message.setId(messageId);
+                        message.setClientNonce(messageId);
+                    }
+                    
+                    ContentValues values = new ContentValues();
+                    values.put(DatabaseHelper.COL_MSG_ID, messageId);
+                    values.put(DatabaseHelper.COL_MSG_CHAT_ID, message.getChatId());
+                    values.put(DatabaseHelper.COL_MSG_SENDER_ID, message.getSenderId());
+                    values.put(DatabaseHelper.COL_MSG_SENDER_NAME, message.getSenderDisplayName());
+                    values.put(DatabaseHelper.COL_MSG_SENDER_AVATAR, message.getSenderAvatarUrl());
+                    values.put(DatabaseHelper.COL_MSG_CONTENT, message.getContent());
+                    values.put(DatabaseHelper.COL_MSG_TYPE, message.getType());
+                    values.put(DatabaseHelper.COL_MSG_CHAT_TYPE, message.getChatType());
+                    values.put(DatabaseHelper.COL_MSG_TIMESTAMP, message.getTimestamp());
+                    values.put(DatabaseHelper.COL_MSG_IS_READ, message.isRead() ? 1 : 0);
+                    values.put(DatabaseHelper.COL_MSG_IS_DELETED, message.isDeleted() ? 1 : 0);
+                    values.put(DatabaseHelper.COL_MSG_ATTACHMENTS, message.getAttachments());
+                    values.put(DatabaseHelper.COL_MSG_LOCAL_IMAGE_URI, message.getLocalImageUri());
+                    values.put(DatabaseHelper.COL_MSG_REPLY_TO_ID, message.getReplyToMessageId());
+                    values.put(DatabaseHelper.COL_MSG_REPLY_TO_CONTENT, message.getReplyToContent());
+                    values.put(DatabaseHelper.COL_MSG_REPLY_TO_SENDER, message.getReplyToSenderName());
+                    values.put(DatabaseHelper.COL_MSG_EDITED, message.isEdited() ? 1 : 0);
+                    values.put(DatabaseHelper.COL_MSG_EDITED_AT, message.getEditedAt());
+                    values.put(DatabaseHelper.COL_MSG_REACTIONS, message.getReactionsRaw());
+                    values.put(DatabaseHelper.COL_MSG_CLIENT_NONCE, message.getClientNonce());
+                    values.put(DatabaseHelper.COL_MSG_SYNC_STATUS, syncStatus);
+                    values.put(DatabaseHelper.COL_MSG_SYNC_ATTEMPTS, 0);
+                    values.putNull(DatabaseHelper.COL_MSG_SYNC_ERROR);
+                    
+                    db.insertWithOnConflict(
+                        DatabaseHelper.TABLE_MESSAGES,
+                        null,
+                        values,
+                        SQLiteDatabase.CONFLICT_REPLACE
+                    );
+                }
+                db.setTransactionSuccessful();
+                Log.d(TAG, "Batch saved " + messages.size() + " messages");
+            } finally {
+                db.endTransaction();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error batch saving messages: " + e.getMessage(), e);
+        } finally {
+            db.close();
+        }
     }
     
     /**

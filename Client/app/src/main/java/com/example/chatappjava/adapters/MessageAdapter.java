@@ -54,7 +54,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public MessageAdapter(List<Message> messages, String currentUserId) {
         this.messages = messages;
         this.currentUserId = currentUserId;
-        setHasStableIds(true);
+        setHasStableIds(true); // Enable stable IDs for better RecyclerView performance
     }
 
     public void setOnMessageClickListener(OnMessageClickListener listener) {

@@ -113,6 +113,14 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
         }
         
         public void bind(Call call) {
+            // Clean up avatar ImageView first to prevent showing wrong avatar from recycled ViewHolder
+            if (ivCallAvatar != null) {
+                com.squareup.picasso.Picasso.get().cancelRequest(ivCallAvatar);
+                ivCallAvatar.setTag(null);
+                // Show placeholder immediately while loading
+                ivCallAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+            
             tvCallName.setText(call.getDisplayName(currentUserId));
             tvCallTypeIcon.setText(call.getCallTypeIcon());
             tvCallStatus.setText(call.getStatusText());
@@ -136,20 +144,38 @@ public class CallListAdapter extends RecyclerView.Adapter<CallListAdapter.CallVi
             if (avatarUrl != null && !avatarUrl.isEmpty()) {
                 android.util.Log.d("CallListAdapter", "Loading call avatar: " + avatarUrl);
 
+                // Construct full URL if needed (same as ChatListAdapter)
                 if (!avatarUrl.startsWith("http")) {
+                    // Ensure avatar starts with / if it doesn't already
+                    String avatarPath = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
                     avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarPath;
                     android.util.Log.d("CallListAdapter", "Constructed full URL: " + avatarUrl);
                 }
                 
-                avatarManager.loadAvatar(
-                    avatarUrl, 
-                    ivCallAvatar, 
-                    R.drawable.ic_profile_placeholder
-                );
+                // Use AvatarManager to load avatar (same as ChatListAdapter)
+                if (avatarManager != null) {
+                    avatarManager.loadAvatar(
+                        avatarUrl, 
+                        ivCallAvatar, 
+                        R.drawable.ic_profile_placeholder
+                    );
+                } else {
+                    // Fallback to Picasso directly if AvatarManager is not available
+                    android.util.Log.w("CallListAdapter", "AvatarManager is null, using Picasso directly");
+                    com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .fit()
+                        .centerCrop()
+                        .into(ivCallAvatar);
+                }
             } else {
                 android.util.Log.d("CallListAdapter", "No avatar URL, using default");
-                ivCallAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                if (ivCallAvatar != null) {
+                    ivCallAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                }
             }
             
             // Set status color
