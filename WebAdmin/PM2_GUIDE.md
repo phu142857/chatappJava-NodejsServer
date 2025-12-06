@@ -27,7 +27,7 @@ Cette commande crée le dossier `dist/` avec les fichiers statiques optimisés.
 
 ```bash
 # Depuis le dossier WebAdmin
-pm2 start ecosystem.config.js --env production
+pm2 start ecosystem.config.cjs --env production
 ```
 
 ### 3. Vérifier le statut
@@ -44,7 +44,7 @@ L'application sera accessible sur `http://localhost:5173`
 Si vous voulez utiliser PM2 pour le mode développement (avec hot-reload):
 
 ```bash
-pm2 start ecosystem.config.js --only webadmin-dev --env development
+pm2 start ecosystem.config.cjs --only webadmin-dev --env development
 ```
 
 **Note:** Le mode développement utilise Vite directement, ce qui est moins optimal pour la production mais utile pour le développement.
@@ -141,7 +141,7 @@ pm2 monit
 
 ### Changer le port
 
-Modifier `ecosystem.config.js`:
+Modifier `ecosystem.config.cjs`:
 ```javascript
 env: {
   NODE_ENV: 'production',
@@ -162,7 +162,7 @@ Les logs sont sauvegardés dans:
 
 ## ⚙️ Configuration avancée
 
-Le fichier `ecosystem.config.js` contient plusieurs options:
+Le fichier `ecosystem.config.cjs` contient plusieurs options:
 
 - `max_memory_restart`: Redémarre si la mémoire dépasse 500M
 - `autorestart`: Redémarre automatiquement en cas de crash

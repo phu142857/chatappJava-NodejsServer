@@ -2,16 +2,8 @@
  * PM2 Ecosystem Configuration for WebAdmin
  * 
  * Usage:
- *   - Production: pm2 start ecosystem.config.js --env production
- *   - Development: pm2 start ecosystem.config.js --env development
- */
-
-/**
- * PM2 Ecosystem Configuration for WebAdmin
- * 
- * Usage:
- *   - Production: pm2 start ecosystem.config.js --env production
- *   - Development: pm2 start ecosystem.config.js --env development
+ *   - Production: pm2 start ecosystem.config.cjs --env production
+ *   - Development: pm2 start ecosystem.config.cjs --env development
  * 
  * Note: Make sure to run 'npm run build' before starting in production mode
  */

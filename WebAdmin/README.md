@@ -129,10 +129,10 @@ npm run build
 **Start with PM2:**
 ```bash
 # From WebAdmin directory
-pm2 start ecosystem.config.js --env production
+pm2 start ecosystem.config.cjs --env production
 
 # Or from project root
-pm2 start WebAdmin/ecosystem.config.js --env production
+pm2 start WebAdmin/ecosystem.config.cjs --env production
 ```
 
 **PM2 Commands:**
@@ -162,7 +162,7 @@ pm2 startup
 **Alternative: Development mode with PM2:**
 ```bash
 # Run Vite dev server with PM2 (not recommended for production)
-pm2 start ecosystem.config.js --only webadmin-dev --env development
+pm2 start ecosystem.config.cjs --only webadmin-dev --env development
 ```
 
 **Note:** For production, always use the `webadmin` app (serves built files). The `webadmin-dev` app is only for development purposes.
