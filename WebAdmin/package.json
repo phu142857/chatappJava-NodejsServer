@@ -8,7 +8,9 @@
     "dev:ip": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "serve": "vite preview --host 0.0.0.0 --port 5173",
+    "start": "serve -s dist -l 5173"
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.6",

@@ -114,6 +114,59 @@ npm install -g serve
 serve -s dist -l 5173
 ```
 
+### Serve with PM2 (Production - Recommended)
+
+**Prerequisites:**
+```bash
+npm install -g pm2 serve
+```
+
+**Build the application first:**
+```bash
+npm run build
+```
+
+**Start with PM2:**
+```bash
+# From WebAdmin directory
+pm2 start ecosystem.config.js --env production
+
+# Or from project root
+pm2 start WebAdmin/ecosystem.config.js --env production
+```
+
+**PM2 Commands:**
+```bash
+# View status
+pm2 status
+
+# View logs
+pm2 logs webadmin
+
+# Stop
+pm2 stop webadmin
+
+# Restart
+pm2 restart webadmin
+
+# Delete from PM2
+pm2 delete webadmin
+
+# Save PM2 process list
+pm2 save
+
+# Setup PM2 to start on system boot
+pm2 startup
+```
+
+**Alternative: Development mode with PM2:**
+```bash
+# Run Vite dev server with PM2 (not recommended for production)
+pm2 start ecosystem.config.js --only webadmin-dev --env development
+```
+
+**Note:** For production, always use the `webadmin` app (serves built files). The `webadmin-dev` app is only for development purposes.
+
 ---
 
 ## Features
