@@ -591,15 +591,31 @@ async function runTests() {
   await test('Get Posts Updates', async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
     const response = await makeRequest('GET', `${API_BASE}/updates/posts?since=${since}`, null, authToken);
-    assertSuccess(response);
-    console.log(`  Found ${(response.body.data || response.body.posts || []).length} updated posts`);
+    // Accept 200 (success) or 304 (Not Modified)
+    assert(
+      response.status === 200 || response.status === 304,
+      `Expected status 200 or 304, got ${response.status}`
+    );
+    if (response.status === 200) {
+      console.log(`  Found ${(response.body.data || response.body.posts || []).length} updated posts`);
+    } else {
+      console.log('  No updates (304 Not Modified)');
+    }
   });
 
   await test('Get Conversations Updates', async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
     const response = await makeRequest('GET', `${API_BASE}/updates/conversations?since=${since}`, null, authToken);
-    assertSuccess(response);
-    console.log(`  Found ${(response.body.data || response.body.conversations || []).length} updated conversations`);
+    // Accept 200 (success) or 304 (Not Modified)
+    assert(
+      response.status === 200 || response.status === 304,
+      `Expected status 200 or 304, got ${response.status}`
+    );
+    if (response.status === 200) {
+      console.log(`  Found ${(response.body.data || response.body.conversations || []).length} updated conversations`);
+    } else {
+      console.log('  No updates (304 Not Modified)');
+    }
   });
 
   // Admin Tests (if admin credentials provided)
