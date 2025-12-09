@@ -285,25 +285,39 @@ class SocketHandler {
       const roomName = `call_${callId}`;
       const roomSockets = this.io.sockets.adapter.rooms.get(roomName) || new Set();
 
-      // Emit to everyone currently in the room except the sender
-      senderSocket.to(roomName).emit(event, payload);
-
-      // Additionally, emit directly to user rooms for participants not currently in the call room
+      // Get call info to know all participants
       const callInfo = this.activeCalls.get(callId);
       if (!callInfo || !Array.isArray(callInfo.participants)) {
+        console.warn(`emitToCallParticipantsExceptSender: No callInfo for ${callId}`);
+        // Fallback: emit to room anyway
+        senderSocket.to(roomName).emit(event, payload);
         return;
       }
 
+      console.log(`emitToCallParticipantsExceptSender: Forwarding ${event} for call ${callId} to ${callInfo.participants.length} participants (excluding ${senderSocket.userId})`);
+
+      // Emit to everyone currently in the room except the sender
+      senderSocket.to(roomName).emit(event, payload);
+
+      // CRITICAL: Also emit directly to user rooms for ALL participants to ensure delivery
+      // This handles the case where a participant joins after frames start being sent
       for (const participantUserId of callInfo.participants) {
         if (participantUserId === senderSocket.userId) continue;
 
         const connected = this.connectedUsers.get(participantUserId);
-        if (!connected) continue;
+        if (!connected) {
+          console.log(`emitToCallParticipantsExceptSender: Participant ${participantUserId} not connected`);
+          continue;
+        }
 
         const participantSocketId = connected.socketId;
-        // If participant socket is not yet in the call room, deliver via their user room to avoid loss
+        // CRITICAL: Always send to user room as well to ensure delivery
+        // This ensures frames are delivered even if participant hasn't joined the call room yet
+        this.sendToUser(participantUserId, event, payload);
+        
+        // Also check if they're in the room - if not, log it
         if (!roomSockets.has(participantSocketId)) {
-          this.sendToUser(participantUserId, event, payload);
+          console.log(`emitToCallParticipantsExceptSender: Participant ${participantUserId} not in room ${roomName}, delivered via user room`);
         }
       }
     } catch (error) {
@@ -334,12 +348,23 @@ class SocketHandler {
         // Join socket room for call
         socket.join(`call_${callId}`);
         
-        // Store call info
+        // CRITICAL: Update activeCalls to include all current participants from database
+        // This ensures video frames are forwarded to all participants, even if they join later
+        const allParticipantIds = call.participants.map(p => {
+          if (p.userId && typeof p.userId === 'object' && p.userId._id) {
+            return p.userId._id.toString();
+          }
+          return p.userId.toString();
+        });
+        
+        // Store call info - always use latest participants from database
         this.activeCalls.set(callId, {
           callId: callId,
-          participants: call.participants.map(p => p.userId.toString()),
-          roomId: call.webrtcData.roomId
+          participants: allParticipantIds,
+          roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
         });
+        
+        console.log(`join_call_room: Updated activeCalls for ${callId} with ${allParticipantIds.length} participants:`, allParticipantIds);
 
         // Notify other participants
         socket.to(`call_${callId}`).emit('user_joined_call', {
@@ -349,11 +374,38 @@ class SocketHandler {
           avatar: socket.user.avatar
         });
 
-        // Send call info to user
+        // CRITICAL: Chỉ gửi những participants đã thực sự join call room (có trong socket room)
+        // Lấy danh sách sockets đang trong room
+        const roomName = `call_${callId}`;
+        const roomSockets = this.io.sockets.adapter.rooms.get(roomName) || new Set();
+        
+        // Lấy danh sách userIds đã join room
+        const joinedUserIds = new Set();
+        for (const socketId of roomSockets) {
+          const userId = this.socketToUserMap.get(socketId);
+          if (userId) {
+            joinedUserIds.add(userId);
+          }
+        }
+        
+        // Filter participants để chỉ lấy những người đã join room
+        const activeParticipants = call.participants.filter(p => {
+          let participantUserId;
+          if (p.userId && typeof p.userId === 'object' && p.userId._id) {
+            participantUserId = p.userId._id.toString();
+          } else {
+            participantUserId = p.userId.toString();
+          }
+          return joinedUserIds.has(participantUserId);
+        });
+        
+        console.log(`join_call_room: Sending ${activeParticipants.length} active participants (out of ${call.participants.length} total) to user ${socket.userId}`);
+
+        // Send call info to user với chỉ những participants đã join
         socket.emit('call_room_joined', {
           callId: callId,
           roomId: call.webrtcData.roomId,
-          participants: call.participants,
+          participants: activeParticipants,
           iceServers: call.webrtcData.iceServers
         });
 
@@ -436,6 +488,93 @@ class SocketHandler {
       this.emitToCallParticipantsExceptSender(callId, 'webrtc_ice_candidate', payload, socket);
 
       console.log(`Forwarded ICE candidate for call ${callId} from user ${socket.userId}`);
+    });
+
+    // Gérer les frames vidéo personnalisées (sans WebRTC)
+    socket.on('video_frame', async (data) => {
+      try {
+        const { callId, frame, timestamp } = data;
+        
+        if (!callId || !frame) {
+          console.error('video_frame: callId ou frame manquant');
+          return;
+        }
+
+        // Vérifier que l'utilisateur est dans la salle d'appel
+        const callInfo = this.activeCalls.get(callId);
+        if (!callInfo) {
+          console.error(`video_frame: Appel ${callId} non trouvé dans activeCalls`);
+          // Try to find call in database and add to activeCalls
+          Call.findOne({ callId: callId }).then(call => {
+            if (call) {
+              this.activeCalls.set(callId, {
+                callId: callId,
+                participants: call.participants.map(p => p.userId.toString()),
+                roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
+              });
+              console.log(`video_frame: Call ${callId} ajouté à activeCalls`);
+              
+              // Retry sending the frame
+              const payload = {
+                callId: callId,
+                userId: socket.userId,
+                frame: frame,
+                timestamp: timestamp || Date.now()
+              };
+              this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
+            }
+          }).catch(err => {
+            console.error(`video_frame: Erreur lors de la recherche de l'appel ${callId}:`, err);
+          });
+          return;
+        }
+
+        // Créer le payload avec les informations de l'expéditeur
+        const payload = {
+          callId: callId,
+          userId: socket.userId,
+          frame: frame,
+          timestamp: timestamp || Date.now()
+        };
+
+        // CRITICAL: Refresh participants from database synchronously before forwarding
+        // This ensures new participants receive frames immediately
+        try {
+          const call = await Call.findOne({ callId: callId });
+          if (call) {
+            const latestParticipantIds = call.participants.map(p => {
+              if (p.userId && typeof p.userId === 'object' && p.userId._id) {
+                return p.userId._id.toString();
+              }
+              return p.userId.toString();
+            });
+            
+            // Update activeCalls with latest participants immediately
+            this.activeCalls.set(callId, {
+              callId: callId,
+              participants: latestParticipantIds,
+              roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
+            });
+            
+            console.log(`video_frame: Forwarding frame from user ${socket.userId} for call ${callId} to ${latestParticipantIds.length} participants:`, latestParticipantIds);
+            
+            // Forward frame with updated participant list
+            this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
+          } else {
+            // Fallback: use existing callInfo
+            console.log(`video_frame: Call not found in DB, using existing callInfo`);
+            this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
+          }
+        } catch (err) {
+          console.error(`video_frame: Error refreshing participants:`, err);
+          // Fallback: use existing callInfo
+          this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
+        }
+
+      } catch (error) {
+        console.error('Erreur lors du traitement de video_frame:', error);
+        socket.emit('call_error', { message: 'Erreur lors de l\'envoi de la frame vidéo' });
+      }
     });
 
     // Call status updates

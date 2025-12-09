@@ -280,83 +280,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     
     // Video call handling - can be overridden by subclasses
     protected void handleVideoCall() {
-        if (currentChat == null) {
-            Toast.makeText(this, "Chat not available", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Show call type selection dialog
-        showCallTypeSelectionDialog();
-    }
-    
-    private void showCallTypeSelectionDialog() {
-        String[] options = {"Video Call", "Audio Call"};
-        
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Call Type")
-                .setItems(options, (dialog, which) -> {
-                    String callType = (which == 0) ? "video" : "audio";
-                    initiateCall(callType);
-                })
-                .setNegativeButton("Cancel", null);
-        AlertDialog dlg = builder.create();
-        if (dlg.getWindow() != null) {
-            android.view.Window w = dlg.getWindow();
-            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-        }
-        dlg.show();
-    }
-    
-    private void initiateCall(String callType) {
-        String token = databaseManager.getToken();
-        if (token == null || token.isEmpty()) {
-            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        Toast.makeText(this, "Initiating " + callType + " call...", Toast.LENGTH_SHORT).show();
-        
-        apiClient.initiateCall(token, currentChat.getId(), callType, new okhttp3.Callback() {
-            @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> Toast.makeText(BaseChatActivity.this, "Failed to initiate call: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-            }
-
-            @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        try {
-                            String responseBody = response.body().string();
-                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
-
-                            if (jsonResponse.optBoolean("success", false)) {
-                                org.json.JSONObject callData = jsonResponse.getJSONObject("data");
-                                String callId = callData.getString("callId");
-
-                                // Open ringing activity for outgoing call
-                                Intent intent = new Intent(BaseChatActivity.this, RingingActivity.class);
-                                intent.putExtra("chat", currentChat.toJson().toString());
-                                intent.putExtra("caller", getCurrentUser().toJson().toString());
-                                intent.putExtra("callId", callId);
-                                intent.putExtra("callType", callType);
-                                intent.putExtra("isIncomingCall", false);
-
-                                callLauncher.launch(intent);
-                            } else {
-                                String errorMsg = jsonResponse.optString("message", "Failed to initiate call");
-                                Toast.makeText(BaseChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(BaseChatActivity.this, "Error processing call response", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        Toast.makeText(BaseChatActivity.this, "Failed to initiate call: " + response.code(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
+        // Video call feature removed - only UI button remains
+        Toast.makeText(this, "Video call feature is not available", Toast.LENGTH_SHORT).show();
     }
     
     private User getCurrentUser() {

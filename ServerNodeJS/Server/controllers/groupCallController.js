@@ -199,6 +199,49 @@ const initiateGroupCall = async (req, res) => {
         }
         
         // STEP 2: No active call exists - create new one using atomic operation
+        // CRITICAL: Double-check one more time before creating (handle race condition)
+        // Add small random delay to reduce simultaneous requests
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 100)); // 0-100ms random delay
+        
+        // Double-check after delay
+        call = await Call.findOne({
+            chatId: chatId,
+            isGroupCall: true,
+            status: { $in: ['initiated', 'notified', 'ringing', 'active'] }
+        });
+        
+        if (call) {
+            // Call was created by another request during the delay
+            console.log(`[GroupCall] Found existing call after delay: callId=${call.callId}`);
+            const isParticipant = call.participants.some(
+                p => p.userId && p.userId.toString() === callerId
+            );
+            
+            if (!isParticipant) {
+                addParticipantUnique(call, callerId, caller.username, caller.avatar || '', {
+                    status: 'notified',
+                    isCaller: false,
+                    sessionId: uuidv4()
+                });
+                ensureSFUConfig(call);
+                await call.save();
+            }
+            
+            await call.populate([
+                { path: 'chatId', select: 'name type participants' },
+                { path: 'participants.userId', select: 'username avatar status' }
+            ]);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Group call already active',
+                callId: call.callId,
+                data: call,
+                isExisting: true
+            });
+        }
+        
+        // CRITICAL: Use deterministic callId based on chatId to ensure all users get same call
         // Check if there's an ended call - if so, use timestamp to create new callId
         // Otherwise, use deterministic callId for first call
         const endedCall = await Call.findOne({
@@ -208,9 +251,10 @@ const initiateGroupCall = async (req, res) => {
         }).sort({ endedAt: -1 }); // Get most recent ended call
         
         // Generate callId: use timestamp if there was a previous call, otherwise use deterministic ID
+        // CRITICAL: For same chat, always use same deterministic ID to ensure all users join same call
         const deterministicCallId = endedCall 
             ? `GC_${chatIdStr}_${Date.now()}` // New call after old one ended
-            : `GC_${chatIdStr}`; // First call for this chat
+            : `GC_${chatIdStr}`; // First call for this chat - SAME ID for all users
         
         console.log(`[GroupCall] Creating new call for chatId ${chatId}: callId=${deterministicCallId}, hadEndedCall=${!!endedCall}`);
         
@@ -272,6 +316,33 @@ const initiateGroupCall = async (req, res) => {
                     setDefaultsOnInsert: true
                 }
             );
+            
+            // CRITICAL: After creating, double-check to ensure we got the right call
+            // This handles the case where another request created the call between our check and create
+            if (call) {
+                // Wait a tiny bit to ensure database write is committed
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                const verifyCall = await Call.findOne({
+                    chatId: chatId,
+                    isGroupCall: true,
+                    status: { $in: ['initiated', 'notified', 'ringing', 'active'] }
+                });
+                
+                // If we got a different call (race condition), use that one instead
+                if (verifyCall && verifyCall.callId !== call.callId) {
+                    console.log(`[GroupCall] Race condition detected: created ${call.callId} but found ${verifyCall.callId}, using found call`);
+                    call = verifyCall;
+                } else if (!verifyCall) {
+                    // Call was created but not found - this shouldn't happen, but refetch
+                    console.log(`[GroupCall] Warning: Call created but not found in verification, refetching...`);
+                    call = await Call.findOne({
+                        chatId: chatId,
+                        isGroupCall: true,
+                        status: { $in: ['initiated', 'notified', 'ringing', 'active'] }
+                    });
+                }
+            }
         } catch (error) {
             // Handle unique constraint violation (race condition)
             if (error.code === 11000 || error.message.includes('duplicate key')) {
@@ -297,9 +368,14 @@ const initiateGroupCall = async (req, res) => {
                                           call.participants[0].userId.toString() === callerId &&
                                           call.participants[0].isCaller === true;
         
+        // Track if this is an existing call (for response)
+        let isExistingCall = false;
+        
         if (!wasJustCreatedByThisCaller) {
             // Another request created the call first (race condition) - add this caller as participant
             console.log(`[GroupCall] Call was created by another request (race condition), adding caller as participant. callId=${call.callId}, participants=${call.participants.length}`);
+            isExistingCall = true;
+            
             const isCallerParticipant = call.participants.some(
                 p => p.userId && p.userId.toString() === callerId
             );
@@ -332,6 +408,7 @@ const initiateGroupCall = async (req, res) => {
         
         // Call was just created by this caller - continue with normal flow
         console.log(`[GroupCall] Call created successfully by caller. callId=${call.callId}, roomId=${call.webrtcData?.roomId}`);
+        isExistingCall = false; // This is a new call
         
         // CRITICAL: Create SFU room for this call
         try {
@@ -593,12 +670,19 @@ const initiateGroupCall = async (req, res) => {
         console.log(`[GroupCall] Returning call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}, participants=${call.participants.length}`);
         
         // CRITICAL: Always return the actual callId from the database (not generated one)
+        // Check again if call was just created (may have changed during participant addition)
+        const finalWasJustCreated = call.participants.length >= 1 && 
+                                   call.participants.some(p => 
+                                       p.userId.toString() === callerId && 
+                                       p.isCaller === true
+                                   );
+        
         res.status(201).json({
             success: true,
             message: 'Group call initiated successfully',
             callId: call.callId, // Use actual callId from database
             data: call,
-            isExisting: !wasJustCreated, // Indicate if this was an existing call
+            isExisting: !finalWasJustCreated, // Indicate if this was an existing call (false = new call)
             // CRITICAL: Include call type in response to help client
             callType: call.type, // Explicitly include call type
             // CRITICAL: Include SFU info for immediate initialization

@@ -145,46 +145,55 @@ const initiateCall = async (req, res) => {
             { path: 'participants.userId', select: 'username avatar status' }
         ]);
 
-        // Send incoming call notification to other participants via Socket.io
-        const io = req.app.get('io');
-        if (io) {
-            // Convert callerId to string for comparison
-            const callerIdStr = callerId.toString();
-            
-            for (const participant of call.participants) {
-                // Handle both ObjectId and populated object cases
-                let participantUserId;
-                if (participant.userId && typeof participant.userId === 'object' && participant.userId._id) {
-                    // Populated object case
-                    participantUserId = participant.userId._id.toString();
-                } else {
-                    // ObjectId case
-                    participantUserId = participant.userId.toString();
-                }
+        // CRITICAL: Only send incoming_call for private calls, NOT for group calls
+        // Group calls use group_call_passive_alert instead
+        const isGroupCall = chat.type === 'group';
+        
+        if (!isGroupCall) {
+            // Send incoming call notification to other participants via Socket.io (private calls only)
+            const io = req.app.get('io');
+            if (io) {
+                // Convert callerId to string for comparison
+                const callerIdStr = callerId.toString();
                 
-                // Only send to participants who are NOT the caller
-                if (participantUserId !== callerIdStr) {
-                    const userRoom = `user_${participantUserId}`;
-                    const callData = {
-                        callId: call.callId,
-                        caller: {
-                            id: caller._id,
-                            username: caller.username,
-                            avatar: caller.avatar
-                        },
-                        chatId: chatId,
-                        callType: type,
-                        timestamp: new Date()
-                    };
+                for (const participant of call.participants) {
+                    // Handle both ObjectId and populated object cases
+                    let participantUserId;
+                    if (participant.userId && typeof participant.userId === 'object' && participant.userId._id) {
+                        // Populated object case
+                        participantUserId = participant.userId._id.toString();
+                    } else {
+                        // ObjectId case
+                        participantUserId = participant.userId.toString();
+                    }
                     
-                    // Only emit to specific user room (removed fallback emit to all)
-                    io.to(userRoom).emit('incoming_call', callData);
-                    
-                    console.log(`Sent incoming call notification to user ${participantUserId} in room ${userRoom} (caller: ${callerIdStr})`);
-                } else {
-                    console.log(`Skipped sending notification to caller: ${participantUserId}`);
+                    // Only send to participants who are NOT the caller
+                    if (participantUserId !== callerIdStr) {
+                        const userRoom = `user_${participantUserId}`;
+                        const callData = {
+                            callId: call.callId,
+                            caller: {
+                                id: caller._id,
+                                username: caller.username,
+                                avatar: caller.avatar
+                            },
+                            chatId: chatId,
+                            callType: type,
+                            isGroupCall: false, // Explicitly set to false
+                            timestamp: new Date()
+                        };
+                        
+                        // Only emit to specific user room (removed fallback emit to all)
+                        io.to(userRoom).emit('incoming_call', callData);
+                        
+                        console.log(`Sent incoming call notification to user ${participantUserId} in room ${userRoom} (caller: ${callerIdStr})`);
+                    } else {
+                        console.log(`Skipped sending notification to caller: ${participantUserId}`);
+                    }
                 }
             }
+        } else {
+            console.log(`Skipping incoming_call for group call (should use group_call_passive_alert instead)`);
         }
 
         res.status(201).json({

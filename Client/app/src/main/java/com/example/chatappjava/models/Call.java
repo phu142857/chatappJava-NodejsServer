@@ -142,23 +142,45 @@ public class Call {
     
     // Getters and Setters
     public String getCallId() { return callId; }
+    public void setCallId(String callId) { this.callId = callId; }
     
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
     
     public String getChatId() { return chatId; }
+    public void setChatId(String chatId) { this.chatId = chatId; }
+    
+    public String getChatName() { return chatName; }
+    public void setChatName(String chatName) { this.chatName = chatName; }
+    
+    public String getChatType() { return chatType; }
+    public void setChatType(String chatType) { this.chatType = chatType; }
     
     public String getStatus() { return status; }
-
     public void setStatus(String status) { this.status = status; }
 
-    public int getDuration() { return duration; }
+    public long getStartedAt() { return startedAt; }
+    public void setStartedAt(long startedAt) { this.startedAt = startedAt; }
+    
+    public long getEndedAt() { return endedAt; }
+    public void setEndedAt(long endedAt) { this.endedAt = endedAt; }
 
+    public int getDuration() { return duration; }
     public void setDuration(int duration) { this.duration = duration; }
     
     public boolean isGroupCall() { return isGroupCall; }
+    public void setIsGroupCall(boolean isGroupCall) { this.isGroupCall = isGroupCall; }
+    
+    public String getCallerId() { return callerId; }
+    public void setCallerId(String callerId) { this.callerId = callerId; }
+    
+    public String getCallerName() { return callerName; }
+    public void setCallerName(String callerName) { this.callerName = callerName; }
     
     public String getCallerAvatar() { return callerAvatar; }
+    public void setCallerAvatar(String callerAvatar) { this.callerAvatar = callerAvatar; }
+    
+    public List<CallParticipant> getParticipants() { return participants; }
     
     // Helper methods
     public boolean isVideoCall() {

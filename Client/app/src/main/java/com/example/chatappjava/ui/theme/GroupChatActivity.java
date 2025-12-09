@@ -14,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 
 import com.example.chatappjava.network.ApiClient;
-import com.example.chatappjava.ui.call.GroupVideoCallActivity;
 import com.github.dhaval2404.imagepicker.ImagePicker;
 
 import com.example.chatappjava.R;
@@ -98,23 +97,14 @@ public class GroupChatActivity extends BaseChatActivity {
     
     @Override
     protected void handleVideoCall() {
-        android.util.Log.d("GroupChatActivity", "handleVideoCall called");
-        
-        // Check if we have a valid chat
-        if (currentChat == null || currentChat.getId() == null) {
-            android.util.Log.e("GroupChatActivity", "Cannot start call: chat not loaded");
-            Toast.makeText(this, "Unable to start call: chat not loaded", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // CRITICAL FIX: Always check server for active call first (even if activeCallId is set)
-        // This ensures we join existing calls instead of creating new ones
-        // The activeCallId might be stale, or user might have missed the notification
-        android.util.Log.d("GroupChatActivity", "Always checking server for active call before proceeding...");
-        checkForActiveCallBeforeStarting();
+        checkForActiveCallBeforeStarting(0); // Start with retry count 0
     }
     
-    private void checkForActiveCallBeforeStarting() {
+    /**
+     * Check for active call before starting, with retry mechanism to handle race conditions
+     * @param retryCount Current retry attempt (max 2 retries)
+     */
+    private void checkForActiveCallBeforeStarting(int retryCount) {
         if (currentChat == null) {
             android.util.Log.e("GroupChatActivity", "Cannot check for active call: currentChat is null");
             startNewGroupCall();
@@ -128,16 +118,25 @@ public class GroupChatActivity extends BaseChatActivity {
             return;
         }
         
-        android.util.Log.d("GroupChatActivity", "Checking for active call in chat: " + currentChat.getId());
+        android.util.Log.d("GroupChatActivity", "Checking for active call in chat: " + currentChat.getId() + " (retry: " + retryCount + ")");
         
         apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 android.util.Log.e("GroupChatActivity", "Failed to check for active call", e);
                 runOnUiThread(() -> {
-                    // If check fails, start new call (better UX than blocking)
-                    android.util.Log.d("GroupChatActivity", "Check failed, starting new call");
-                    startNewGroupCall();
+                    // If check fails and we haven't retried, wait a bit and retry
+                    // This handles race conditions where call is being created
+                    if (retryCount < 2) {
+                        android.util.Log.d("GroupChatActivity", "Check failed, retrying in 500ms (retry " + (retryCount + 1) + ")");
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            checkForActiveCallBeforeStarting(retryCount + 1);
+                        }, 500);
+                    } else {
+                        // After retries, start new call
+                        android.util.Log.d("GroupChatActivity", "Check failed after retries, starting new call");
+                        startNewGroupCall();
+                    }
                 });
             }
 
@@ -179,9 +178,20 @@ public class GroupChatActivity extends BaseChatActivity {
                         }
                     }
                     
-                    // No active call found, start new one
-                    android.util.Log.d("GroupChatActivity", "No active call found, starting new call");
-                    startNewGroupCall();
+                    // No active call found
+                    // If we haven't retried, wait a bit and retry to handle race conditions
+                    if (retryCount < 3) {
+                        // Increase delay with each retry: 300ms, 600ms, 900ms
+                        int delay = 300 * (retryCount + 1);
+                        android.util.Log.d("GroupChatActivity", "No active call found, retrying in " + delay + "ms (retry " + (retryCount + 1) + ")");
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            checkForActiveCallBeforeStarting(retryCount + 1);
+                        }, delay);
+                    } else {
+                        // After retries, initiate call
+                        android.util.Log.d("GroupChatActivity", "No active call found after retries, initiating new call");
+                        initiateCallAfterDelay();
+                    }
                 });
             }
         });
@@ -195,21 +205,168 @@ public class GroupChatActivity extends BaseChatActivity {
             return;
         }
 
-        // Start a new group video call
-        Intent intent = new Intent(this, GroupVideoCallActivity.class);
-        intent.putExtra("chatId", currentChat.getId());
-        intent.putExtra("groupName", currentChat.getName());
-        intent.putExtra("isCaller", true); // Starting new call
-        intent.putExtra("callType", "video");
-        // Note: No callId - this will create a new call
-        
-        try {
-            startActivity(intent);
-            android.util.Log.d("GroupChatActivity", "Started new call activity");
-        } catch (Exception e) {
-            android.util.Log.e("GroupChatActivity", "Failed to start call activity", e);
-            Toast.makeText(this, "Failed to start call: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Authentication required", Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        // CRITICAL: Add small random delay before initiating call to reduce race conditions
+        // This helps when multiple users click video call button simultaneously
+        int randomDelay = (int)(Math.random() * 300); // 0-300ms random delay
+        android.util.Log.d("GroupChatActivity", "Adding random delay: " + randomDelay + "ms before initiating call");
+        
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // Double-check active call one more time before creating
+            checkForActiveCallBeforeStarting(0);
+        }, randomDelay);
+    }
+    
+    /**
+     * Actually initiate the call after delay and verification
+     */
+    private void initiateCallAfterDelay() {
+        if (currentChat == null || currentChat.getId() == null) {
+            return;
+        }
+
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+
+        // Initiate new group video call
+        apiClient.initiateCall(token, currentChat.getId(), "video", new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NonNull okhttp3.Call call, @NonNull java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("GroupChatActivity", "Failed to initiate call", e);
+                    Toast.makeText(GroupChatActivity.this, "Failed to start call", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.optBoolean("success", false)) {
+                            JSONObject data = jsonResponse.optJSONObject("data");
+                            if (data != null) {
+                                String callId = data.getString("callId");
+                                boolean isExisting = jsonResponse.optBoolean("isExisting", false);
+                                
+                                android.util.Log.d("GroupChatActivity", "Call initiated: callId=" + callId + ", isExisting=" + isExisting);
+                                
+                                // CRITICAL FIX: If this is an existing call (race condition), 
+                                // verify it's the same call by checking active call again
+                                if (isExisting) {
+                                    android.util.Log.d("GroupChatActivity", "Call already existed, verifying active call...");
+                                    // Double-check active call to ensure we join the correct one
+                                    verifyAndJoinCall(callId);
+                                } else {
+                                    activeCallId = callId;
+                                    
+                                    // Launch video call activity
+                                    Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                                    intent.putExtra("callId", callId);
+                                    intent.putExtra("chatId", currentChat.getId());
+                                    intent.putExtra("groupName", currentChat.getName());
+                                    intent.putExtra("isCaller", true);
+                                    startActivity(intent);
+                                }
+                            }
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to start call");
+                            // If call already exists, try to join it
+                            if (message.contains("already active") || message.contains("already exists")) {
+                                android.util.Log.d("GroupChatActivity", "Call already exists, checking active call...");
+                                checkForActiveCallBeforeStarting(0);
+                            } else {
+                                Toast.makeText(GroupChatActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    } catch (JSONException e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing call response", e);
+                        Toast.makeText(GroupChatActivity.this, "Error starting call", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * Verify and join call - double check active call to handle race conditions
+     */
+    private void verifyAndJoinCall(String expectedCallId) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Verifying active call, expected callId: " + expectedCallId);
+        
+        apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NonNull okhttp3.Call call, @NonNull java.io.IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to verify active call", e);
+                runOnUiThread(() -> {
+                    // Fallback: use the callId we got from initiate
+                    activeCallId = expectedCallId;
+                    Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                    intent.putExtra("callId", expectedCallId);
+                    intent.putExtra("chatId", currentChat.getId());
+                    intent.putExtra("groupName", currentChat.getName());
+                    intent.putExtra("isCaller", false);
+                    startActivity(intent);
+                });
+            }
+
+            @Override
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.optJSONObject("data");
+                                if (data != null && data.has("callId")) {
+                                    String activeCallId = data.getString("callId");
+                                    android.util.Log.d("GroupChatActivity", "Active call verified: " + activeCallId);
+                                    
+                                    // Use the active call ID (might be different due to race condition)
+                                    GroupChatActivity.this.activeCallId = activeCallId;
+                                    joinActiveGroupCall();
+                                    return;
+                                }
+                            }
+                        }
+                        
+                        // If verification fails, use the expected callId
+                        android.util.Log.w("GroupChatActivity", "Verification failed, using expected callId: " + expectedCallId);
+                        activeCallId = expectedCallId;
+                        Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                        intent.putExtra("callId", expectedCallId);
+                        intent.putExtra("chatId", currentChat.getId());
+                        intent.putExtra("groupName", currentChat.getName());
+                        intent.putExtra("isCaller", false);
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing verify response", e);
+                        // Fallback: use expected callId
+                        activeCallId = expectedCallId;
+                        Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                        intent.putExtra("callId", expectedCallId);
+                        intent.putExtra("chatId", currentChat.getId());
+                        intent.putExtra("groupName", currentChat.getName());
+                        intent.putExtra("isCaller", false);
+                        startActivity(intent);
+                    }
+                });
+            }
+        });
     }
     
     
@@ -959,23 +1116,46 @@ public class GroupChatActivity extends BaseChatActivity {
         android.util.Log.d("GroupChatActivity", "Group call socket listeners registered");
     }
     
+    // Throttle mechanism để tránh gọi API quá nhiều
+    private long lastActiveCallCheckTime = 0;
+    private static final long ACTIVE_CALL_CHECK_INTERVAL_MS = 5000; // Chỉ check mỗi 5 giây
+    private boolean isCheckingActiveCall = false;
+    
     private void checkForActiveGroupCall() {
         if (currentChat == null) return;
+        
+        // Throttle: Chỉ check nếu đã qua 5 giây kể từ lần check cuối
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastActiveCallCheckTime < ACTIVE_CALL_CHECK_INTERVAL_MS) {
+            android.util.Log.d("GroupChatActivity", "Skipping active call check - too soon (throttled)");
+            return;
+        }
+        
+        // Tránh gọi đồng thời nhiều request
+        if (isCheckingActiveCall) {
+            android.util.Log.d("GroupChatActivity", "Active call check already in progress, skipping");
+            return;
+        }
         
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) return;
         
         String currentUserId = databaseManager.getUserId();
         
+        isCheckingActiveCall = true;
+        lastActiveCallCheckTime = currentTime;
+        
         // Check for active group call via API
         apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 android.util.Log.e("GroupChatActivity", "Failed to check for active call", e);
+                isCheckingActiveCall = false;
             }
             
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+                isCheckingActiveCall = false;
                 String responseBody = response.body().string();
                 runOnUiThread(() -> {
                     try {
@@ -1039,6 +1219,8 @@ public class GroupChatActivity extends BaseChatActivity {
                     } catch (JSONException e) {
                         android.util.Log.e("GroupChatActivity", "Error parsing active call response", e);
                         hideGroupCallNotification();
+                    } finally {
+                        isCheckingActiveCall = false;
                     }
                 });
             }
@@ -1090,14 +1272,18 @@ public class GroupChatActivity extends BaseChatActivity {
     }
     
     private void hideGroupCallNotification() {
-        this.activeCallId = null;
+        android.util.Log.d("GroupChatActivity", "hideGroupCallNotification called");
+        // Don't clear activeCallId here - it might still be active when user joins
+        // this.activeCallId = null;
         if (groupCallNotification != null) {
-            // Animate out
-            groupCallNotification.animate()
-                    .alpha(0f)
-                    .setDuration(300)
-                    .withEndAction(() -> groupCallNotification.setVisibility(View.GONE))
-                    .start();
+            runOnUiThread(() -> {
+                // Animate out
+                groupCallNotification.animate()
+                        .alpha(0f)
+                        .setDuration(300)
+                        .withEndAction(() -> groupCallNotification.setVisibility(View.GONE))
+                        .start();
+            });
         }
         android.util.Log.d("GroupChatActivity", "Hiding group call notification");
     }
@@ -1106,6 +1292,9 @@ public class GroupChatActivity extends BaseChatActivity {
         android.util.Log.d("GroupChatActivity", "joinActiveGroupCall called");
         android.util.Log.d("GroupChatActivity", "currentChat: " + (currentChat != null ? currentChat.getId() : "null"));
         android.util.Log.d("GroupChatActivity", "activeCallId: " + activeCallId);
+        
+        // CRITICAL: Hide notification when user joins call
+        hideGroupCallNotification();
         
         if (currentChat == null) {
             android.util.Log.e("GroupChatActivity", "Cannot join: currentChat is null");
@@ -1117,7 +1306,7 @@ public class GroupChatActivity extends BaseChatActivity {
         if (activeCallId == null || activeCallId.isEmpty()) {
             android.util.Log.w("GroupChatActivity", "activeCallId not set, checking server for active call...");
             // Check server for active call and join it
-            checkForActiveCallBeforeStarting();
+            checkForActiveCallBeforeStarting(0);
             return;
         }
         
@@ -1127,21 +1316,13 @@ public class GroupChatActivity extends BaseChatActivity {
         android.util.Log.d("GroupChatActivity", "  callId: " + activeCallId);
         android.util.Log.d("GroupChatActivity", "  isCaller: false");
         
-        // Join the existing group call
-        Intent intent = new Intent(this, GroupVideoCallActivity.class);
+        // Lancer l'activité d'appel vidéo
+        Intent intent = new Intent(this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+        intent.putExtra("callId", activeCallId);
         intent.putExtra("chatId", currentChat.getId());
         intent.putExtra("groupName", currentChat.getName());
-        intent.putExtra("callId", activeCallId); // CRITICAL: Pass the activeCallId
-        intent.putExtra("isCaller", false); // Joining, not initiating
-        intent.putExtra("callType", "video");
-        
-        try {
-            startActivity(intent);
-            android.util.Log.d("GroupChatActivity", "GroupVideoCallActivity started successfully with callId: " + activeCallId);
-        } catch (Exception e) {
-            android.util.Log.e("GroupChatActivity", "Failed to start GroupVideoCallActivity", e);
-            Toast.makeText(this, "Failed to open call: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+        intent.putExtra("isCaller", false);
+        startActivity(intent);
     }
     
     private void fetchActualMemberCount() {

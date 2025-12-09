@@ -125,9 +125,9 @@
             android:label="Group Settings"
             android:theme="@style/Theme.ChatAppJava" />
         <activity
-            android:name=".ui.call.VideoCallActivity"
+            android:name=".ui.call.RingingActivity"
             android:exported="false"
-            android:label="Video Call"
+            android:label="Incoming Call"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ChatAppJava" />
         <activity
@@ -135,13 +135,8 @@
             android:exported="false"
             android:label="Group Video Call"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.ChatAppJava" />
-        <activity
-            android:name=".ui.call.RingingActivity"
-            android:exported="false"
-            android:label="Incoming Call"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.ChatAppJava" />
+            android:theme="@style/Theme.ChatAppJava"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity
             android:name=".ui.theme.SettingsActivity"
             android:exported="false"

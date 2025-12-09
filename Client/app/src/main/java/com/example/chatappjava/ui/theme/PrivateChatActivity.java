@@ -71,10 +71,10 @@ public class PrivateChatActivity extends BaseChatActivity {
                 public void onCallAccepted(String callId) {
                     runOnUiThread(() -> {
                         if (currentCallId != null && currentCallId.equals(callId) && !isJoiningCall) {
-                            android.util.Log.d("PrivateChatActivity", "Call accepted, joining video call");
-                            isJoiningCall = true; // Set flag to prevent race conditions
-                            // B accepted the call, now A can join
-                            joinCallAndStartVideo(callId);
+                            android.util.Log.d("PrivateChatActivity", "Call accepted");
+                            isJoiningCall = false;
+                            currentCallId = null;
+                            updateCallUI(false);
                         }
                     });
                 }
@@ -125,49 +125,6 @@ public class PrivateChatActivity extends BaseChatActivity {
         }
     }
     
-    private void joinCallAndStartVideo(String callId) {
-        String token = databaseManager.getToken();
-        apiClient.joinCall(token, callId, new okhttp3.Callback() {
-            @Override
-            public void onFailure(@NonNull okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> {
-                    android.util.Log.e("PrivateChatActivity", "Failed to join call", e);
-                    Toast.makeText(PrivateChatActivity.this, "Failed to join call", Toast.LENGTH_SHORT).show();
-                    isJoiningCall = false; // Reset flag on failure
-                });
-            }
-            
-            @Override
-            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        try {
-                            // Launch VideoCallActivity
-                            Intent intent = new Intent(PrivateChatActivity.this, com.example.chatappjava.ui.call.VideoCallActivity.class);
-                            intent.putExtra("chat", currentChat.toJson().toString());
-                            intent.putExtra("caller", otherUser.toJson().toString());
-                            intent.putExtra("callId", callId);
-                            intent.putExtra("callType", "video");
-                            intent.putExtra("isIncomingCall", false);
-                            
-                            startActivity(intent);
-                            currentCallId = null;
-                            isJoiningCall = false; // Reset flag
-                            updateCallUI(false); // Hide cancel button
-                        } catch (Exception e) {
-                            android.util.Log.e("PrivateChatActivity", "Error launching video call", e);
-                            Toast.makeText(PrivateChatActivity.this, "Error starting video call", Toast.LENGTH_SHORT).show();
-                            isJoiningCall = false; // Reset flag on error
-                        }
-                    } else {
-                        android.util.Log.e("PrivateChatActivity", "Failed to join call: " + response.code());
-                        Toast.makeText(PrivateChatActivity.this, "Failed to join call", Toast.LENGTH_SHORT).show();
-                        isJoiningCall = false; // Reset flag on error
-                    }
-                });
-            }
-        });
-    }
     
     private void updateCallUI(boolean isCalling) {
         if (ivVideoCall != null && ivCancelCall != null) {
@@ -320,61 +277,8 @@ public class PrivateChatActivity extends BaseChatActivity {
     
     @Override
     protected void handleVideoCall() {
-        if (otherUser == null) {
-            Toast.makeText(this, "Cannot perform video call", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Start video call immediately
-        initiateVideoCall();
-    }
-    
-    private void initiateVideoCall() {
-        Toast.makeText(this, "Calling...", Toast.LENGTH_SHORT).show();
-        
-        // Create call on server first
-        String token = databaseManager.getToken();
-        String chatId = currentChat.getId();
-        
-        apiClient.initiateCall(token, chatId, "video", new okhttp3.Callback() {
-            @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) {
-                runOnUiThread(() -> {
-                    android.util.Log.e("PrivateChatActivity", "Failed to initiate call", e);
-                    Toast.makeText(PrivateChatActivity.this, "Failed to start call", Toast.LENGTH_SHORT).show();
-                });
-            }
-            
-            @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
-                try {
-                    if (response.isSuccessful()) {
-                        String responseBody = response.body().string();
-                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
-                        String callId = jsonResponse.getString("callId");
-                        
-                        // Store callId for later use when B accepts
-                        currentCallId = callId;
-                        
-                        runOnUiThread(() -> {
-                            Toast.makeText(PrivateChatActivity.this, "Calling " + otherUser.getUsername() + "...", Toast.LENGTH_LONG).show();
-                            updateCallUI(true); // Show cancel button
-                        });
-                    } else {
-                        final int statusCode = response.code();
-                        runOnUiThread(() -> {
-                            android.util.Log.e("PrivateChatActivity", "Failed to initiate call: " + statusCode);
-                            Toast.makeText(PrivateChatActivity.this, "Failed to start call", Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("PrivateChatActivity", "Error parsing call response", e);
-                    runOnUiThread(() -> {
-                        Toast.makeText(PrivateChatActivity.this, "Error starting call", Toast.LENGTH_SHORT).show();
-                    });
-                }
-            }
-        });
+        // Video call feature removed - only UI button remains
+        Toast.makeText(this, "Video call feature is not available", Toast.LENGTH_SHORT).show();
     }
     
     private void showChatInfo() {

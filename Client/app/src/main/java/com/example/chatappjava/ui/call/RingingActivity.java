@@ -335,13 +335,8 @@ public class RingingActivity extends AppCompatActivity {
                 public void onCallAccepted(String callId) {
                     runOnUiThread(() -> {
                         if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
-                            Log.d(TAG, "Call accepted, starting video call");
-                            try {
-                                openVideoCallActivity();
-                            } catch (JSONException e) {
-                                Log.e(TAG, "Error opening video call activity", e);
-                                navigateToHome();
-                            }
+                            Log.d(TAG, "Call accepted");
+                            navigateToHome();
                         }
                     });
                 }
@@ -508,13 +503,8 @@ public class RingingActivity extends AppCompatActivity {
                     }
                     
                     if (response.isSuccessful()) {
-                        try {
-                            Log.d(TAG, "Call accepted successfully, opening video call");
-                            openVideoCallActivity();
-                        } catch (JSONException e) {
-                            Log.e(TAG, "Error opening video call activity", e);
-                            navigateToHome();
-                        }
+                        Log.d(TAG, "Call accepted successfully");
+                        navigateToHome();
                     } else {
                         Log.e(TAG, "Failed to accept call: " + response.code());
                         navigateToHome();
@@ -576,19 +566,6 @@ public class RingingActivity extends AppCompatActivity {
         });
     }
     
-    
-    
-    private void openVideoCallActivity() throws JSONException {
-        Intent intent = new Intent(this, VideoCallActivity.class);
-        intent.putExtra("chat", currentChat.toJson().toString());
-        intent.putExtra("caller", caller.toJson().toString());
-        intent.putExtra("callId", callId);
-        intent.putExtra("callType", callType);
-        intent.putExtra("isIncomingCall", isIncomingCall); // Keep the original call type
-        
-        startActivity(intent);
-        finish();
-    }
     
     private void stopRingingAnimations() {
         if (avatarPulseAnimation != null) {
