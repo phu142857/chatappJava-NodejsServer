@@ -1078,11 +1078,19 @@ const searchPosts = async (req, res) => {
     const hiddenPostObjectIds = hiddenPostIds
       .filter(id => id != null)
       .map(id => {
+        // hiddenPostIds from User model are already ObjectIds, but ensure they're properly formatted
         if (id instanceof mongoose.Types.ObjectId) {
           return id;
         }
-        return new mongoose.Types.ObjectId(id);
-      });
+        // Convert string ID to ObjectId if needed
+        try {
+          return new mongoose.Types.ObjectId(id);
+        } catch (error) {
+          // Skip invalid ObjectIds
+          return null;
+        }
+      })
+      .filter(id => id != null);
 
     // Build base query
     const baseQuery = {

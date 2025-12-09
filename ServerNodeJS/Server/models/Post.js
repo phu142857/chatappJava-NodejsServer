@@ -256,7 +256,6 @@ postSchema.statics.getUserPosts = async function(userId, page = 1, limit = 20, v
 postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
   const User = mongoose.model('User');
-  const mongoose = require('mongoose');
   
   const user = await User.findById(userId);
   const friendIds = user.friends || [];
