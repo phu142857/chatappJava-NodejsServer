@@ -256,15 +256,25 @@ postSchema.statics.getUserPosts = async function(userId, page = 1, limit = 20, v
 postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
   const User = mongoose.model('User');
+  const mongoose = require('mongoose');
   
   const user = await User.findById(userId);
   const friendIds = user.friends || [];
   const hiddenPostIds = user.hiddenPosts || [];
   
+  // Convert hiddenPostIds to ObjectIds to ensure proper comparison
+  const hiddenPostObjectIds = hiddenPostIds
+    .filter(id => id != null)
+    .map(id => {
+      if (id instanceof mongoose.Types.ObjectId) {
+        return id;
+      }
+      return new mongoose.Types.ObjectId(id);
+    });
+  
   const query = {
     isActive: true,
     isDeleted: false,
-    _id: { $nin: hiddenPostIds }, // Exclude hidden posts
     $or: [
       { privacySetting: 'public' },
       {
@@ -274,6 +284,11 @@ postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
       { userId: userId } // User's own posts regardless of privacy
     ]
   };
+  
+  // Only add $nin filter if there are hidden posts
+  if (hiddenPostObjectIds.length > 0) {
+    query._id = { $nin: hiddenPostObjectIds };
+  }
 
   return await this.find(query)
     .populate('userId', 'username avatar profile.firstName profile.lastName')

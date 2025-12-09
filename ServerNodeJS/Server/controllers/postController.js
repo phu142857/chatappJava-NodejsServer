@@ -468,6 +468,21 @@ const deletePost = async (req, res) => {
   }
 };
 
+// Simple in-memory cache for search queries (declared early for use in hidePost)
+const searchCache = new Map();
+const CACHE_TTL = 60 * 1000; // 60 seconds
+
+// Helper function to invalidate cache for a specific user
+const invalidateUserSearchCache = (userId) => {
+  const keysToDelete = [];
+  for (const [key, value] of searchCache.entries()) {
+    if (key.includes(userId)) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => searchCache.delete(key));
+};
+
 // @desc    Hide post from user's feed
 // @route   POST /api/posts/:id/hide
 // @access  Private
@@ -508,6 +523,9 @@ const hidePost = async (req, res) => {
 
     user.hiddenPosts.push(id);
     await user.save();
+
+    // Invalidate search cache for this user
+    invalidateUserSearchCache(userId);
 
     res.json({
       success: true,
@@ -1010,10 +1028,6 @@ const sharePost = async (req, res) => {
   }
 };
 
-// Simple in-memory cache for search queries
-const searchCache = new Map();
-const CACHE_TTL = 60 * 1000; // 60 seconds
-
 // @desc    Search posts with full-text search
 // @route   GET /api/posts/search
 // @access  Private
@@ -1040,7 +1054,8 @@ const searchPosts = async (req, res) => {
       });
     }
 
-    const queryKey = JSON.stringify({ q, page, limit, onlyFriends, mediaOnly, hashtagOnly, dateFrom, dateTo });
+    // Include userId in cache key to ensure user-specific caching
+    const queryKey = JSON.stringify({ userId, q, page, limit, onlyFriends, mediaOnly, hashtagOnly, dateFrom, dateTo });
     
     // Check cache
     const cached = searchCache.get(queryKey);
@@ -1058,12 +1073,27 @@ const searchPosts = async (req, res) => {
     const friendIds = user.friends || [];
     const hiddenPostIds = user.hiddenPosts || [];
 
+    // Convert hiddenPostIds to ObjectIds to ensure proper comparison
+    const mongoose = require('mongoose');
+    const hiddenPostObjectIds = hiddenPostIds
+      .filter(id => id != null)
+      .map(id => {
+        if (id instanceof mongoose.Types.ObjectId) {
+          return id;
+        }
+        return new mongoose.Types.ObjectId(id);
+      });
+
     // Build base query
     const baseQuery = {
       isActive: true,
-      isDeleted: false,
-      _id: { $nin: hiddenPostIds }
+      isDeleted: false
     };
+    
+    // Only add $nin filter if there are hidden posts
+    if (hiddenPostObjectIds.length > 0) {
+      baseQuery._id = { $nin: hiddenPostObjectIds };
+    }
 
     // Privacy filter
     if (onlyFriends) {
