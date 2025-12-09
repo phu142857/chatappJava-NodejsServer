@@ -781,6 +781,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                                 org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
                                 if (jsonResponse.getBoolean("success")) {
                                     android.widget.Toast.makeText(HomeActivity.this, "Post hidden successfully", android.widget.Toast.LENGTH_SHORT).show();
+                                    // Remove post from cache
+                                    if (postRepository != null) {
+                                        postRepository.deletePostById(post.getId());
+                                    }
                                     // Remove post from list
                                     int position = postList.indexOf(post);
                                     if (position >= 0) {

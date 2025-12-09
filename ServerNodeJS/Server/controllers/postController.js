@@ -513,15 +513,25 @@ const hidePost = async (req, res) => {
       user.hiddenPosts = [];
     }
     
-    // Check if already hidden
-    if (user.hiddenPosts.some(postId => postId.toString() === id)) {
+    // Convert id to ObjectId for proper comparison
+    const mongoose = require('mongoose');
+    const postObjectId = new mongoose.Types.ObjectId(id);
+    
+    // Check if already hidden (compare as ObjectIds)
+    if (user.hiddenPosts.some(postId => {
+      const existingId = postId instanceof mongoose.Types.ObjectId 
+        ? postId 
+        : new mongoose.Types.ObjectId(postId);
+      return existingId.equals(postObjectId);
+    })) {
       return res.status(400).json({
         success: false,
         message: 'Post is already hidden'
       });
     }
 
-    user.hiddenPosts.push(id);
+    // Add as ObjectId to ensure proper storage and comparison
+    user.hiddenPosts.push(postObjectId);
     await user.save();
 
     // Invalidate search cache for this user
@@ -1070,6 +1080,13 @@ const searchPosts = async (req, res) => {
 
     // Get user's friends for filtering
     const user = await User.findById(userId).select('friends hiddenPosts');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
     const friendIds = user.friends || [];
     const hiddenPostIds = user.hiddenPosts || [];
 
@@ -1078,12 +1095,12 @@ const searchPosts = async (req, res) => {
     const hiddenPostObjectIds = hiddenPostIds
       .filter(id => id != null)
       .map(id => {
-        // hiddenPostIds from User model are already ObjectIds, but ensure they're properly formatted
-        if (id instanceof mongoose.Types.ObjectId) {
-          return id;
-        }
-        // Convert string ID to ObjectId if needed
         try {
+          // hiddenPostIds from User model are already ObjectIds, but ensure they're properly formatted
+          if (id instanceof mongoose.Types.ObjectId) {
+            return id;
+          }
+          // Convert string ID to ObjectId if needed
           return new mongoose.Types.ObjectId(id);
         } catch (error) {
           // Skip invalid ObjectIds

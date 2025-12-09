@@ -258,6 +258,10 @@ postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
   const User = mongoose.model('User');
   
   const user = await User.findById(userId);
+  if (!user) {
+    return [];
+  }
+  
   const friendIds = user.friends || [];
   const hiddenPostIds = user.hiddenPosts || [];
   
@@ -265,11 +269,17 @@ postSchema.statics.getFeedPosts = async function(userId, page = 1, limit = 20) {
   const hiddenPostObjectIds = hiddenPostIds
     .filter(id => id != null)
     .map(id => {
-      if (id instanceof mongoose.Types.ObjectId) {
-        return id;
+      try {
+        if (id instanceof mongoose.Types.ObjectId) {
+          return id;
+        }
+        return new mongoose.Types.ObjectId(id);
+      } catch (error) {
+        // Skip invalid ObjectIds
+        return null;
       }
-      return new mongoose.Types.ObjectId(id);
-    });
+    })
+    .filter(id => id != null);
   
   const query = {
     isActive: true,

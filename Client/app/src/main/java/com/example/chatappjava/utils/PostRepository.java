@@ -381,6 +381,26 @@ public class PostRepository {
     }
     
     /**
+     * Delete a post by ID from database
+     */
+    public void deletePostById(String postId) {
+        if (postId == null || postId.isEmpty()) {
+            return;
+        }
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            String whereClause = DatabaseHelper.COL_POST_ID + " = ?";
+            String[] whereArgs = {postId};
+            int deleted = db.delete(DatabaseHelper.TABLE_POSTS, whereClause, whereArgs);
+            Log.d(TAG, "Deleted post: " + postId + " (count: " + deleted + ")");
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting post: " + e.getMessage(), e);
+        } finally {
+            db.close();
+        }
+    }
+    
+    /**
      * Delete all posts from database
      */
     public void deleteAllPosts() {

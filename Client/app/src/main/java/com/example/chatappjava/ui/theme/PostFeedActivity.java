@@ -888,6 +888,10 @@ public class PostFeedActivity extends AppCompatActivity implements PostAdapter.O
                         JSONObject jsonResponse = new JSONObject(responseBody);
                         if (jsonResponse.getBoolean("success")) {
                             Toast.makeText(PostFeedActivity.this, "Post hidden successfully", Toast.LENGTH_SHORT).show();
+                            // Remove post from cache
+                            if (postRepository != null) {
+                                postRepository.deletePostById(post.getId());
+                            }
                             // Remove post from list
                             int position = postList.indexOf(post);
                             if (position >= 0) {
