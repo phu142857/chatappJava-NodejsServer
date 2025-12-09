@@ -23,7 +23,7 @@ public class SyncManager {
     private static final String TAG = "SyncManager";
     private static final String PREFS_NAME = "sync_prefs";
     private static final String KEY_LAST_FOREGROUND_SYNC = "last_foreground_sync";
-    private static final long FOREGROUND_SYNC_INTERVAL_MS = 30 * 1000; // 30 seconds
+    private static final long FOREGROUND_SYNC_INTERVAL_MS = 2 * 1000; // 2 seconds
     private static final long BACKGROUND_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
     
     private static SyncManager instance;
@@ -33,6 +33,7 @@ public class SyncManager {
     private final MessageRepository messageRepository;
     private final PostRepository postRepository;
     private final ConversationRepository conversationRepository;
+    private final android.os.Handler mainHandler;
     
     // Sync listeners
     public interface SyncListener {
@@ -49,6 +50,7 @@ public class SyncManager {
         this.messageRepository = new MessageRepository(context);
         this.postRepository = new PostRepository(context);
         this.conversationRepository = new ConversationRepository(context);
+        this.mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     }
     
     public static synchronized SyncManager getInstance(Context context) {
@@ -75,7 +77,7 @@ public class SyncManager {
     }
     
     /**
-     * Check if foreground sync is needed (every 30 seconds)
+     * Check if foreground sync is needed (every 2 seconds)
      */
     public boolean shouldSyncForeground() {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -373,58 +375,97 @@ public class SyncManager {
      * Set last sync timestamp for a resource type
      */
     private void setLastSyncTimestamp(String resourceType, long timestamp) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        android.content.ContentValues values = new android.content.ContentValues();
-        values.put(DatabaseHelper.COL_SYNC_RESOURCE_TYPE, resourceType);
-        values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_TIMESTAMP, timestamp);
-        values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, 1);
-        values.putNull(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR);
-        
-        db.insertWithOnConflict(
-            DatabaseHelper.TABLE_SYNC_METADATA,
-            null,
-            values,
-            SQLiteDatabase.CONFLICT_REPLACE
-        );
-        db.close();
+        // Execute on main thread to avoid SQLite connection pool issues
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            setLastSyncTimestampInternal(resourceType, timestamp);
+        } else {
+            mainHandler.post(() -> setLastSyncTimestampInternal(resourceType, timestamp));
+        }
+    }
+    
+    private void setLastSyncTimestampInternal(String resourceType, long timestamp) {
+        try {
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(DatabaseHelper.COL_SYNC_RESOURCE_TYPE, resourceType);
+            values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_TIMESTAMP, timestamp);
+            values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, 1);
+            values.putNull(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR);
+            
+            db.insertWithOnConflict(
+                DatabaseHelper.TABLE_SYNC_METADATA,
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_REPLACE
+            );
+            db.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting sync timestamp: " + e.getMessage());
+        }
     }
     
     /**
      * Set last sync success status
      */
     private void setLastSyncSuccess(String resourceType, boolean success) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        android.content.ContentValues values = new android.content.ContentValues();
-        values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, success ? 1 : 0);
-        if (success) {
-            values.putNull(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR);
+        // Execute on main thread to avoid SQLite connection pool issues
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            setLastSyncSuccessInternal(resourceType, success);
+        } else {
+            mainHandler.post(() -> setLastSyncSuccessInternal(resourceType, success));
         }
-        
-        db.update(
-            DatabaseHelper.TABLE_SYNC_METADATA,
-            values,
-            DatabaseHelper.COL_SYNC_RESOURCE_TYPE + " = ?",
-            new String[]{resourceType}
-        );
-        db.close();
+    }
+    
+    private void setLastSyncSuccessInternal(String resourceType, boolean success) {
+        try {
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, success ? 1 : 0);
+            if (success) {
+                values.putNull(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR);
+            }
+            
+            db.update(
+                DatabaseHelper.TABLE_SYNC_METADATA,
+                values,
+                DatabaseHelper.COL_SYNC_RESOURCE_TYPE + " = ?",
+                new String[]{resourceType}
+            );
+            db.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting sync success: " + e.getMessage());
+        }
     }
     
     /**
      * Set last sync error
      */
     private void setLastSyncError(String resourceType, String error) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        android.content.ContentValues values = new android.content.ContentValues();
-        values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, 0);
-        values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR, error);
-        
-        db.update(
-            DatabaseHelper.TABLE_SYNC_METADATA,
-            values,
-            DatabaseHelper.COL_SYNC_RESOURCE_TYPE + " = ?",
-            new String[]{resourceType}
-        );
-        db.close();
+        // Execute on main thread to avoid SQLite connection pool issues
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            setLastSyncErrorInternal(resourceType, error);
+        } else {
+            mainHandler.post(() -> setLastSyncErrorInternal(resourceType, error));
+        }
+    }
+    
+    private void setLastSyncErrorInternal(String resourceType, String error) {
+        try {
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_SUCCESS, 0);
+            values.put(DatabaseHelper.COL_SYNC_LAST_SYNC_ERROR, error);
+            
+            db.update(
+                DatabaseHelper.TABLE_SYNC_METADATA,
+                values,
+                DatabaseHelper.COL_SYNC_RESOURCE_TYPE + " = ?",
+                new String[]{resourceType}
+            );
+            db.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting sync error: " + e.getMessage());
+        }
     }
     
     /**

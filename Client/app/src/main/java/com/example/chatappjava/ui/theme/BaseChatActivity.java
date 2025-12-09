@@ -138,6 +138,11 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected Runnable pollRunnable;
     protected boolean hasNewMessages = false;
     protected boolean isInitialLoad = true;
+    // Smart auto-scroll state (like Messenger)
+    protected boolean shouldAutoScroll = true; // Auto-scroll enabled by default
+    protected int newMessagesCount = 0; // Count of new messages when user is not at bottom
+    private boolean isUpdatingMessages = false; // Flag to prevent concurrent updates
+    private boolean isUserReadingOldMessages = false; // Flag to track if user is reading old messages (>5 from bottom)
     // Pagination state
     private int currentPage = 1;
     private final int pageSize = 20;
@@ -1536,10 +1541,52 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             @Override
             public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
                 if (success && itemsUpdated > 0 && "messages".equals(resourceType)) {
+                    // Use postDelayed to avoid conflicts with ongoing RecyclerView operations
+                    // This prevents IndexOutOfBoundsException during rapid syncs
                     runOnUiThread(() -> {
-                        // Reload messages from cache after sync
-                        if (currentChat != null) {
-                            loadMessagesFromDatabase();
+                        if (currentChat != null && rvMessages != null) {
+                            // CRITICAL: Check MULTIPLE conditions before reloading
+                            // 1. Check flag isUserReadingOldMessages
+                            // 2. Check shouldAutoScroll
+                            // 3. Check actual position (isReadingOldMessages)
+                            // If ANY condition indicates user is reading old messages, SKIP reload completely
+                            boolean isReadingOld = isReadingOldMessages();
+                            boolean shouldSkip = isUserReadingOldMessages || !shouldAutoScroll || isReadingOld;
+                            
+                            // Log current state for debugging
+                            LinearLayoutManager currentLm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                            int currentLastVisible = currentLm != null ? currentLm.findLastVisibleItemPosition() : -1;
+                            int currentTotal = currentLm != null ? currentLm.getItemCount() : 0;
+                            int currentDistance = currentTotal > 0 ? currentTotal - 1 - currentLastVisible : 0;
+                            
+                            android.util.Log.d("BaseChatActivity", "SYNC CHECK: isUserReadingOldMessages=" + isUserReadingOldMessages + 
+                                ", shouldAutoScroll=" + shouldAutoScroll + ", isReadingOldMessages()=" + isReadingOld + 
+                                ", distanceFromBottom=" + currentDistance + ", lastVisible=" + currentLastVisible + ", total=" + currentTotal);
+                            
+                            if (shouldSkip) {
+                                android.util.Log.d("BaseChatActivity", "BLOCKED sync reload - user reading old messages");
+                                return; // COMPLETELY SKIP - don't even delay
+                            }
+                            
+                            // Delay the update slightly to ensure RecyclerView is not in the middle of a layout pass
+                            rvMessages.postDelayed(() -> {
+                                // Final check before reloading (user might have scrolled up during delay)
+                                // Re-check all conditions including actual position
+                                boolean stillIsReadingOld = isReadingOldMessages();
+                                boolean stillShouldSkip = isUserReadingOldMessages || !shouldAutoScroll || stillIsReadingOld;
+                                
+                                // Log final check
+                                android.util.Log.d("BaseChatActivity", "SYNC DELAYED CHECK: isUserReadingOldMessages=" + isUserReadingOldMessages + 
+                                    ", shouldAutoScroll=" + shouldAutoScroll + ", isReadingOldMessages()=" + stillIsReadingOld + 
+                                    ", shouldSkip=" + stillShouldSkip);
+                                
+                                if (!stillShouldSkip) {
+                                    android.util.Log.d("BaseChatActivity", "ALLOWED sync reload after delay");
+                                    loadMessagesFromDatabaseSilent();
+                                } else {
+                                    android.util.Log.d("BaseChatActivity", "BLOCKED sync reload after delay - user scrolled up");
+                                }
+                            }, 100); // 100ms delay to let RecyclerView finish current operations
                         }
                     });
                 }
@@ -1735,6 +1782,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         android.util.Log.d("BaseChatActivity", "AvatarManager set: " + (avatarManager != null) + ", currentUserId: " + currentUserId);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(false);   // Set true to stack from bottom. But it can cause issues when have few messages.
+        // Disable prefetch to prevent IndexOutOfBoundsException during list updates
+        layoutManager.setItemPrefetchEnabled(false);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(messageAdapter);
         
@@ -1746,21 +1795,82 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         // Enable nested scrolling for better performance
         rvMessages.setNestedScrollingEnabled(true);
         
-        // Add scroll listener to detect when user reaches bottom
+        // Add scroll listener to detect when user reaches bottom (Smart Auto-scroll like Messenger)
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                if (isAtBottom()) {
-                    hasNewMessages = false;
-                }
-                // Infinite scroll upwards: when first visible close to top, load previous page
+                
                 LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                if (lm != null && !isLoadingMore && hasMore) {
+                if (lm == null) return;
+                
+                int lastVisiblePosition = lm.findLastVisibleItemPosition();
+                int totalItemCount = lm.getItemCount();
+                
+                // Calculate distance from bottom
+                int distanceFromBottom = totalItemCount > 0 ? totalItemCount - 1 - lastVisiblePosition : 0;
+                
+                // CRITICAL: Always check position first, then scroll direction
+                // If user is more than 5 messages from bottom, ALWAYS disable auto-scroll regardless of scroll direction
+                if (distanceFromBottom > 5) {
+                    shouldAutoScroll = false;
+                    isUserReadingOldMessages = true;
+                    android.util.Log.d("BaseChatActivity", "POSITION CHECK: distanceFromBottom=" + distanceFromBottom + " > 5, isUserReadingOldMessages=true, shouldAutoScroll=false, dy=" + dy);
+                } else if (distanceFromBottom <= 2) {
+                    // User is near bottom - enable auto-scroll only if scrolling down
+                    if (dy > 0) {
+                        shouldAutoScroll = true;
+                        isUserReadingOldMessages = false;
+                        android.util.Log.d("BaseChatActivity", "POSITION CHECK: distanceFromBottom=" + distanceFromBottom + " <= 2, scrolling down, isUserReadingOldMessages=false, shouldAutoScroll=true");
+                    } else if (dy < 0) {
+                        // User is scrolling up even though near bottom - disable auto-scroll
+                        shouldAutoScroll = false;
+                        android.util.Log.d("BaseChatActivity", "POSITION CHECK: distanceFromBottom=" + distanceFromBottom + " <= 2, scrolling up, shouldAutoScroll=false");
+                    }
+                } else {
+                    // Between 3-5 messages from bottom
+                    if (dy < 0) {
+                        // Scrolling up - disable auto-scroll
+                        shouldAutoScroll = false;
+                        android.util.Log.d("BaseChatActivity", "POSITION CHECK: distanceFromBottom=" + distanceFromBottom + " (3-5), scrolling up, shouldAutoScroll=false");
+                    } else if (dy > 0 && distanceFromBottom <= 2) {
+                        // Scrolling down and reached near bottom
+                        shouldAutoScroll = true;
+                        isUserReadingOldMessages = false;
+                        android.util.Log.d("BaseChatActivity", "POSITION CHECK: distanceFromBottom=" + distanceFromBottom + ", scrolling down to bottom, isUserReadingOldMessages=false, shouldAutoScroll=true");
+                    }
+                }
+                
+                if (shouldAutoScroll) {
+                    // User is at/near bottom - clear new messages indicator
+                    hasNewMessages = false;
+                    newMessagesCount = 0;
+                }
+                
+                // Infinite scroll upwards: when first visible close to top, load previous page
+                // IMPORTANT: Always allow loadMoreMessages even if user is reading old messages
+                // This is different from refresh - we want to load more old messages when scrolling up
+                // Allow loading when IDLE or SETTLING (not when actively dragging)
+                int scrollState = recyclerView.getScrollState();
+                boolean canLoadMore = (scrollState == RecyclerView.SCROLL_STATE_IDLE || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
+                
+                if (!isLoadingMore && hasMore && canLoadMore) {
                     int firstVisible = lm.findFirstVisibleItemPosition();
                     if (firstVisible <= 3) {
-                        loadMoreMessages();
+                        // Use postDelayed to avoid loading during active scrolling
+                        recyclerView.postDelayed(() -> {
+                            if (!isLoadingMore && hasMore) {
+                                android.util.Log.d("BaseChatActivity", "Triggering loadMoreMessages: firstVisible=" + firstVisible + ", hasMore=" + hasMore + ", isLoadingMore=" + isLoadingMore);
+                                loadMoreMessages();
+                            } else {
+                                android.util.Log.d("BaseChatActivity", "Skipped loadMoreMessages: isLoadingMore=" + isLoadingMore + ", hasMore=" + hasMore);
+                            }
+                        }, 200); // 200ms delay to ensure scroll has settled
+                    } else {
+                        android.util.Log.d("BaseChatActivity", "Not triggering loadMoreMessages: firstVisible=" + firstVisible + " > 3, hasMore=" + hasMore);
                     }
+                } else {
+                    android.util.Log.d("BaseChatActivity", "Not triggering loadMoreMessages: isLoadingMore=" + isLoadingMore + ", hasMore=" + hasMore + ", scrollState=" + scrollState + ", canLoadMore=" + canLoadMore);
                 }
             }
             
@@ -1769,11 +1879,36 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 super.onScrollStateChanged(recyclerView, newState);
                 // When user stops scrolling, check if they're at bottom
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    if (isAtBottom()) {
-                        hasNewMessages = false;
-                        // If user manually scrolled to bottom, enable auto-scroll for new messages
-                        enableAutoScrollForNewMessages();
+                    LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                    if (lm != null) {
+                        int lastVisiblePosition = lm.findLastVisibleItemPosition();
+                        int totalItemCount = lm.getItemCount();
+                        int distanceFromBottom = totalItemCount - 1 - lastVisiblePosition;
+                        
+                        // Only enable auto-scroll if user is within 2 messages from bottom
+                        // If user is more than 5 messages from bottom, keep auto-scroll disabled
+                        if (distanceFromBottom <= 2) {
+                            hasNewMessages = false;
+                            newMessagesCount = 0;
+                            // If user manually scrolled to bottom, enable auto-scroll for new messages
+                            shouldAutoScroll = true;
+                            isUserReadingOldMessages = false;
+                            enableAutoScrollForNewMessages();
+                            android.util.Log.d("BaseChatActivity", "SCROLL STATE IDLE AT BOTTOM: distanceFromBottom=" + distanceFromBottom + ", isUserReadingOldMessages=false, shouldAutoScroll=true");
+                        } else if (distanceFromBottom > 5) {
+                            // User is reading old messages (more than 5 from bottom) - disable auto-scroll
+                            shouldAutoScroll = false;
+                            isUserReadingOldMessages = true;
+                            android.util.Log.d("BaseChatActivity", "SCROLL STATE IDLE READING OLD: distanceFromBottom=" + distanceFromBottom + ", isUserReadingOldMessages=true, shouldAutoScroll=false");
+                        } else {
+                            // Between 3-5 messages from bottom - keep current state
+                            // Don't change shouldAutoScroll
+                            android.util.Log.d("BaseChatActivity", "SCROLL STATE IDLE MIDDLE: distanceFromBottom=" + distanceFromBottom + ", isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll);
+                        }
                     }
+                } else if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    // User started dragging - check if scrolling up
+                    // We'll handle this in onScrolled based on dy value
                 }
             }
         });
@@ -1837,6 +1972,24 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
     protected void loadMessages() {
         if (currentChat == null) return;
+        
+        // CRITICAL: Don't reload if user is reading old messages (for polling/refresh)
+        // Only allow initial load
+        boolean isRefresh = !isInitialLoad;
+        if (isRefresh) {
+            // For refresh/polling, check if user is reading old messages
+            // BUT: Still allow loading from database to show cached messages
+            // Only block the API call to server
+            boolean shouldBlockRefresh = isUserReadingOldMessages || !shouldAutoScroll || isReadingOldMessages();
+            if (shouldBlockRefresh) {
+                android.util.Log.d("BaseChatActivity", "BLOCKED loadMessages API call (refresh) - user reading old messages, but still loading from DB");
+                // Still load from database to show cached messages, but don't call API
+                messages.clear();
+                loadMessagesFromDatabase();
+                return; // Skip API call if user is reading old messages
+            }
+            android.util.Log.d("BaseChatActivity", "ALLOWED loadMessages (refresh) - user at bottom");
+        }
 
         // Clear messages list first to avoid duplicates
         messages.clear();
@@ -1851,7 +2004,6 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 return;
             }
             
-            boolean isRefresh = !isInitialLoad; // polling refresh vs first load
             if (!isRefresh) {
                 currentPage = 1;
                 hasMore = true;
@@ -1985,7 +2137,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
 
                                 // Handle scrolling based on context
                                 if (!isRefresh) {
-                                    // Always scroll to bottom on initial load
+                                    // Always scroll to bottom on initial load and enable auto-scroll
+                                    shouldAutoScroll = true;
                                     scrollToBottom();
                              
                                     isInitialLoad = false;
@@ -2043,19 +2196,270 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             // Check if there are more messages in DB
             int totalCount = messageRepository.getMessagesCountForChat(currentChat.getId());
             hasMoreInDb = totalCount > initialDbLoadLimit;
+            // IMPORTANT: Set hasMore based on whether there are more messages in DB or server
+            // This ensures loadMoreMessages can be called when scrolling up
+            boolean shouldHaveMore = hasMoreInDb || totalCount > dbMessages.size();
             
             if (!dbMessages.isEmpty()) {
                 runOnUiThread(() -> {
                     messages.clear();
                     messages.addAll(dbMessages);
+                    // Set hasMore flag - if we loaded less than total, there are more messages
+                    hasMore = shouldHaveMore;
+                    android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + 
+                        " messages from database (total: " + totalCount + "), hasMore=" + hasMore + ", hasMoreInDb=" + hasMoreInDb);
                     // Use notifyDataSetChanged only for initial load (empty list)
                     if (messageAdapter != null) {
                         messageAdapter.notifyDataSetChanged();
                     }
                     updateSummarizeIndicator();
+                    // On initial load, always enable auto-scroll and scroll to bottom
+                    shouldAutoScroll = true;
                     scrollToBottom();
-                    android.util.Log.d("BaseChatActivity", "Loaded " + dbMessages.size() + 
-                        " messages from database (total: " + totalCount + ")");
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Safely update messages list and restore scroll position
+     * @param shouldAutoScrollNow Current state of shouldAutoScroll (not the old wasAtBottom)
+     */
+    private void updateMessagesListSafely(List<Message> dbMessages, boolean shouldAutoScrollNow, 
+                                         boolean hasNewMessagesAtEnd, int firstVisiblePosition, 
+                                         int topOffset, LinearLayoutManager lm) {
+        // Save RecyclerView state if not already saved
+        android.os.Parcelable recyclerViewState = null;
+        if (lm != null && rvMessages != null) {
+            recyclerViewState = lm.onSaveInstanceState();
+        }
+        // Create final variable for use in lambda
+        final android.os.Parcelable savedState = recyclerViewState;
+        
+        if (isUpdatingMessages) {
+            // Another update in progress - skip this one
+            android.util.Log.d("BaseChatActivity", "Skipping update - another update in progress");
+            return;
+        }
+        
+        waitForRecyclerViewIdle(() -> {
+            if (isUpdatingMessages) return; // Another update started
+            isUpdatingMessages = true;
+            
+            try {
+                // Stop scroll to prevent inconsistency
+                if (rvMessages != null) {
+                    rvMessages.stopScroll();
+                }
+                
+                // SOLUTION: Save RecyclerView state BEFORE updating data (if not already saved)
+                // This is the recommended approach to prevent auto-scroll
+                // Use the state saved at the beginning of the method, or save it now if not saved
+                android.os.Parcelable stateToUse = savedState;
+                if (stateToUse == null && lm != null && rvMessages != null) {
+                    stateToUse = lm.onSaveInstanceState();
+                }
+                final android.os.Parcelable finalState = stateToUse;
+                
+                // Calculate if user is reading old messages
+                // Use the flag isUserReadingOldMessages which is more reliable
+                final boolean userIsReadingOldMessages = isUserReadingOldMessages || !shouldAutoScrollNow || 
+                    (firstVisiblePosition >= 0 && messages.size() > 0 && firstVisiblePosition < messages.size() - 3);
+                
+                // CRITICAL: If user is reading old messages, DON'T update the list at all
+                // This prevents any scrolling issues
+                // Check current state again before updating (user might have scrolled during load)
+                boolean currentIsReadingOld = isUserReadingOldMessages || !shouldAutoScroll;
+                if (userIsReadingOldMessages || currentIsReadingOld) {
+                    android.util.Log.d("BaseChatActivity", "BLOCKED list update - user reading old messages (userIsReadingOldMessages=" + userIsReadingOldMessages + ", isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + "), skipping notifyDataSetChanged()");
+                    // Don't update messages list at all - just return
+                    isUpdatingMessages = false;
+                    return;
+                }
+                
+                // Update messages list only if user is NOT reading old messages
+                messages.clear();
+                messages.addAll(dbMessages);
+                
+                // Notify adapter
+                if (messageAdapter != null) {
+                    messageAdapter.notifyDataSetChanged();
+                }
+                updateSummarizeIndicator();
+                
+                // SOLUTION: Restore RecyclerView state AFTER notifyDataSetChanged
+                // This prevents RecyclerView from auto-scrolling
+                // CRITICAL: ALWAYS restore if user is reading old messages OR shouldAutoScroll is false
+                // This is the key to preventing unwanted scrolling
+                if (finalState != null && lm != null && rvMessages != null) {
+                    // Save current shouldAutoScroll state before restore
+                    final boolean wasReadingOldMessages = userIsReadingOldMessages || !shouldAutoScroll || isUserReadingOldMessages;
+                    
+                    // Restore state immediately after layout - use multiple posts to ensure it happens
+                    rvMessages.post(() -> {
+                        rvMessages.post(() -> {
+                            rvMessages.post(() -> {
+                                if (lm != null && rvMessages != null) {
+                                    try {
+                                        // ALWAYS restore if user was reading old messages
+                                        // This is critical to prevent auto-scroll
+                                        // Also check current state - user might have scrolled during update
+                                        boolean stillReadingOld = isUserReadingOldMessages || !shouldAutoScroll;
+                                        if (wasReadingOldMessages || stillReadingOld) {
+                                            lm.onRestoreInstanceState(finalState);
+                                            // Force layout to ensure position is restored
+                                            rvMessages.requestLayout();
+                                            android.util.Log.d("BaseChatActivity", "FORCE RESTORED RecyclerView state (wasReadingOldMessages=" + wasReadingOldMessages + ", stillReadingOld=" + stillReadingOld + ", isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ")");
+                                        } else {
+                                            android.util.Log.d("BaseChatActivity", "SKIPPED restore - user at bottom (wasReadingOldMessages=" + wasReadingOldMessages + ", stillReadingOld=" + stillReadingOld + ")");
+                                        }
+                                    } catch (Exception e) {
+                                        android.util.Log.e("BaseChatActivity", "Error restoring RecyclerView state: " + e.getMessage());
+                                    }
+                                }
+                            });
+                        });
+                    });
+                }
+                
+                // Only check for auto-scroll if user is NOT reading old messages AND at bottom
+                if (!userIsReadingOldMessages && hasNewMessagesAtEnd) {
+                    rvMessages.post(() -> {
+                        if (lm != null && rvMessages != null && !messages.isEmpty()) {
+                            try {
+                                // Double-check current state
+                                boolean isCurrentlyAtBottom = isAtBottom();
+                                boolean currentShouldAutoScrollState = shouldAutoScroll;
+                                
+                                // Only scroll to bottom if user is at bottom and shouldAutoScroll is true
+                                if (isCurrentlyAtBottom && currentShouldAutoScrollState) {
+                                    scrollToBottomIfAtBottom();
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.e("BaseChatActivity", "Error checking auto-scroll: " + e.getMessage());
+                            }
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                android.util.Log.e("BaseChatActivity", "Error updating messages list: " + e.getMessage());
+            } finally {
+                isUpdatingMessages = false;
+            }
+        });
+    }
+    
+    /**
+     * Load messages from local database silently (without scrolling)
+     * Used for foreground sync updates to avoid disrupting user's reading position
+     */
+    private void loadMessagesFromDatabaseSilent() {
+        if (currentChat == null || messageRepository == null) return;
+        
+        // CRITICAL: Don't reload if user is reading old messages
+        // This is the most important check to prevent unwanted scrolling
+        // Check both flag and actual position
+        boolean isCurrentlyReadingOld = isUserReadingOldMessages || !shouldAutoScroll || isReadingOldMessages();
+        if (isCurrentlyReadingOld) {
+            android.util.Log.d("BaseChatActivity", "BLOCKED silent reload - user is reading old messages (isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ", isReadingOldMessages()=" + isReadingOldMessages() + ")");
+            return;
+        }
+        
+        android.util.Log.d("BaseChatActivity", "ALLOWED silent reload - user at bottom (isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ")");
+        
+        // Don't reload if currently loading more messages to avoid conflicts
+        if (isLoadingMore) {
+            android.util.Log.d("BaseChatActivity", "Skipping silent reload - currently loading more messages");
+            return;
+        }
+        
+        // SOLUTION: Save RecyclerView state BEFORE loading
+        // This is the recommended approach to prevent auto-scroll
+        LinearLayoutManager lm = 
+            (LinearLayoutManager) rvMessages.getLayoutManager();
+        android.os.Parcelable recyclerViewState = null;
+        if (lm != null && rvMessages != null) {
+            recyclerViewState = lm.onSaveInstanceState();
+        }
+        // Create final variable for use in nested lambdas
+        final android.os.Parcelable savedRecyclerViewState = recyclerViewState;
+        
+        // Check if user is reading old messages using the flag and current position
+        int lastVisiblePosition = lm != null ? lm.findLastVisibleItemPosition() : -1;
+        int totalItemCount = lm != null ? lm.getItemCount() : 0;
+        int distanceFromBottom = totalItemCount > 0 ? totalItemCount - 1 - lastVisiblePosition : 0;
+        boolean userIsReadingOldMessages = isUserReadingOldMessages || !shouldAutoScroll || 
+            (distanceFromBottom > 5);
+        
+        // Use current shouldAutoScroll state
+        boolean currentShouldAutoScroll = shouldAutoScroll;
+        String lastMessageIdBefore = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
+        
+        // Load asynchronously to avoid blocking UI thread
+        new Thread(() -> {
+            List<Message> dbMessages = messageRepository.getMessagesForChat(
+                currentChat.getId(), 
+                initialDbLoadLimit
+            );
+            
+            // Check if there are more messages in DB
+            int totalCount = messageRepository.getMessagesCountForChat(currentChat.getId());
+            hasMoreInDb = totalCount > initialDbLoadLimit;
+            
+            if (!dbMessages.isEmpty()) {
+                runOnUiThread(() -> {
+                    // Stop any ongoing scroll to avoid inconsistency
+                    if (rvMessages != null) {
+                        rvMessages.stopScroll();
+                    }
+                    
+                    // Check if new messages were added at the end BEFORE updating the list
+                    String lastMessageIdAfter = dbMessages.isEmpty() ? null : dbMessages.get(dbMessages.size() - 1).getId();
+                    boolean hasNewMessagesAtEnd = lastMessageIdAfter != null && 
+                        (lastMessageIdBefore == null || !lastMessageIdAfter.equals(lastMessageIdBefore));
+                    
+                    // Use double post to ensure RecyclerView has finished its current layout pass
+                    // This prevents IndexOutOfBoundsException
+                    rvMessages.post(() -> {
+                        rvMessages.post(() -> {
+                            try {
+                                // Check if RecyclerView is scrolling - if so, defer update
+                                int scrollState = rvMessages != null ? rvMessages.getScrollState() : RecyclerView.SCROLL_STATE_IDLE;
+                                boolean isScrolling = scrollState != RecyclerView.SCROLL_STATE_IDLE;
+                                
+                                if (isScrolling) {
+                                    // Defer update until scroll is complete
+                                    // Use the saved final state
+                                    rvMessages.postDelayed(() -> {
+                                        if (rvMessages.getScrollState() == RecyclerView.SCROLL_STATE_IDLE) {
+                                            // Re-check shouldAutoScroll state after scroll completes (may have changed)
+                                            // Save state again before updating
+                                            android.os.Parcelable newState = null;
+                                            LinearLayoutManager currentLm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                                            if (currentLm != null) {
+                                                newState = currentLm.onSaveInstanceState();
+                                            }
+                                            // Use new state if available, otherwise use the saved one
+                                            final android.os.Parcelable stateToUse = newState != null ? newState : savedRecyclerViewState;
+                                            boolean updatedShouldAutoScroll = shouldAutoScroll;
+                                            // updateMessagesListSafely will handle state restoration using onSaveInstanceState
+                                            updateMessagesListSafely(dbMessages, updatedShouldAutoScroll, hasNewMessagesAtEnd, -1, 0, currentLm);
+                                        }
+                                    }, 300);
+                                    return;
+                                }
+                                
+                                // Update messages list - updateMessagesListSafely will handle state restoration
+                                // It will use onSaveInstanceState() internally, so we don't need firstVisiblePosition/topOffset
+                                updateMessagesListSafely(dbMessages, currentShouldAutoScroll, hasNewMessagesAtEnd, -1, 0, lm);
+                                
+                                android.util.Log.d("BaseChatActivity", "Silently loaded " + dbMessages.size() + 
+                                    " messages from database (total: " + totalCount + "), shouldAutoScroll: " + currentShouldAutoScroll);
+                            } catch (Exception e) {
+                                android.util.Log.e("BaseChatActivity", "Error updating messages list: " + e.getMessage());
+                            }
+                        });
+                    });
                 });
             }
         }).start();
@@ -2451,8 +2855,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     private void loadMoreMessages() {
-        if (currentChat == null || isLoadingMore || !hasMore) return;
+        android.util.Log.d("BaseChatActivity", "loadMoreMessages called: currentChat=" + (currentChat != null ? currentChat.getId() : "null") + ", isLoadingMore=" + isLoadingMore + ", hasMore=" + hasMore);
+        if (currentChat == null || isLoadingMore || !hasMore) {
+            android.util.Log.d("BaseChatActivity", "loadMoreMessages blocked: currentChat=" + (currentChat != null) + ", isLoadingMore=" + isLoadingMore + ", hasMore=" + hasMore);
+            return;
+        }
         isLoadingMore = true;
+        android.util.Log.d("BaseChatActivity", "loadMoreMessages starting: currentPage=" + currentPage + ", pageSize=" + pageSize);
         String token = databaseManager.getToken();
         // Capture current top item and offset to restore after prepend
         LinearLayoutManager lmBefore = (LinearLayoutManager) rvMessages.getLayoutManager();
@@ -2483,22 +2892,79 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                 messageRepository.saveMessagesBatch(older);
                             }
                             
-                            messages.addAll(0, older);
-                            currentPage += 1;
-                            hasMore = arr.length() >= pageSize;
-                            messageAdapter.notifyItemRangeInserted(0, older.size());
-                            // Restore previous viewport so it doesn't jump to bottom
-                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                            if (lm != null) {
-                                lm.scrollToPositionWithOffset(firstVisibleBefore + older.size(), topOffsetBefore);
-                            }
+                            // Wait for RecyclerView to be idle before modifying list
+                            waitForRecyclerViewIdle(() -> {
+                                if (isUpdatingMessages) {
+                                    isLoadingMore = false;
+                                    return;
+                                }
+                                isUpdatingMessages = true;
+                                
+                                try {
+                                    // Stop scroll to prevent inconsistency
+                                    if (rvMessages != null) {
+                                        rvMessages.stopScroll();
+                                    }
+                                    
+                                    // Check if list hasn't been cleared by another operation
+                                    if (messages.isEmpty() && !older.isEmpty()) {
+                                        // List was cleared, can't restore position - just add messages
+                                        messages.addAll(older);
+                                        currentPage += 1;
+                                        hasMore = arr.length() >= pageSize;
+                                        if (messageAdapter != null) {
+                                            messageAdapter.notifyDataSetChanged();
+                                        }
+                                        return;
+                                    }
+                                    
+                                    // Add older messages at the beginning
+                                    messages.addAll(0, older);
+                                    currentPage += 1;
+                                    hasMore = arr.length() >= pageSize;
+                                    
+                                    // Notify adapter after list modification
+                                    if (messageAdapter != null) {
+                                        messageAdapter.notifyItemRangeInserted(0, older.size());
+                                    }
+                                    
+                                    // Restore previous viewport after adapter has been notified
+                                    rvMessages.post(() -> {
+                                        rvMessages.post(() -> {
+                                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                                            if (lm != null && !messages.isEmpty()) {
+                                                try {
+                                                    int newFirstVisible = firstVisibleBefore + older.size();
+                                                    if (newFirstVisible >= 0 && newFirstVisible < messages.size()) {
+                                                        lm.scrollToPositionWithOffset(newFirstVisible, topOffsetBefore);
+                                                    }
+                                                } catch (Exception e) {
+                                                    android.util.Log.e("BaseChatActivity", "Error restoring scroll in loadMoreMessages: " + e.getMessage());
+                                                }
+                                            }
+                                        });
+                                    });
+                                } catch (Exception e) {
+                                    android.util.Log.e("BaseChatActivity", "Error in loadMoreMessages: " + e.getMessage());
+                                } finally {
+                                    isLoadingMore = false;
+                                    isUpdatingMessages = false;
+                                }
+                            });
                         } else {
                             hasMore = false;
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        android.util.Log.e("BaseChatActivity", "Error parsing loadMoreMessages response: " + e.getMessage());
+                    }
                 });
             }
-            @Override public void onFailure(Call call, IOException e) { runOnUiThread(() -> isLoadingMore = false); }
+            @Override public void onFailure(Call call, IOException e) { 
+                runOnUiThread(() -> {
+                    isLoadingMore = false;
+                    android.util.Log.e("BaseChatActivity", "Failed to load more messages: " + e.getMessage());
+                });
+            }
         });
     }
 
@@ -2687,7 +3153,9 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     }
 
     protected void scrollToBottom() {
-        if (!messages.isEmpty()) {
+        // Only scroll if shouldAutoScroll is true (user is at/near bottom)
+        // This prevents unwanted scrolling when user is reading older messages
+        if (!messages.isEmpty() && shouldAutoScroll) {
             rvMessages.smoothScrollToPosition(messages.size() - 1);
         }
     }
@@ -2701,27 +3169,135 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         int lastVisiblePosition = layoutManager.findLastVisibleItemPosition();
         int totalItemCount = layoutManager.getItemCount();
         
-        // Consider at bottom if user is within 7 messages from the end
-        return lastVisiblePosition >= totalItemCount - 7;
+        // Consider at bottom if user is within 2 messages from the end (tighter threshold for smart auto-scroll)
+        int distanceFromBottom = totalItemCount - 1 - lastVisiblePosition;
+        return distanceFromBottom <= 2;
+    }
+    
+    /**
+     * Check if user is reading old messages (more than 5 messages from bottom)
+     */
+    protected boolean isReadingOldMessages() {
+        if (messages.isEmpty()) return false;
+        
+        LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (layoutManager == null) return false;
+        
+        int lastVisiblePosition = layoutManager.findLastVisibleItemPosition();
+        int totalItemCount = layoutManager.getItemCount();
+        int distanceFromBottom = totalItemCount - 1 - lastVisiblePosition;
+        
+        // User is reading old messages if more than 5 messages from bottom
+        return distanceFromBottom > 5;
     }
 
     protected void scrollToBottomIfAtBottom() {
+        // CRITICAL: Only auto-scroll if shouldAutoScroll is true
+        // If shouldAutoScroll is false, user has scrolled up and we MUST NOT scroll down
+        // This is the most important check to prevent unwanted scrolling
+        if (!shouldAutoScroll) {
+            // User is reading older messages - don't scroll, but mark that there are new messages
+            hasNewMessages = true;
+            newMessagesCount++;
+            return; // Exit early - never scroll if shouldAutoScroll is false
+        }
+        
+        // Double-check: Only auto-scroll if user is actually at bottom
+        // This prevents unwanted scrolling when user is reading old messages
         if (isAtBottom()) {
             scrollToBottom();
             hasNewMessages = false;
+            newMessagesCount = 0;
         } else {
+            // User is reading older messages - don't scroll, but mark that there are new messages
             hasNewMessages = true;
+            newMessagesCount++;
         }
     }
 
     protected void forceScrollToBottom() {
+        // When user sends a message, always scroll and re-enable auto-scroll
+        shouldAutoScroll = true;
         scrollToBottom();
         hasNewMessages = false;
+        newMessagesCount = 0;
     }
 
     protected void enableAutoScrollForNewMessages() {
         // Reset the flag to enable auto-scroll for new messages
+        shouldAutoScroll = true;
         hasNewMessages = false;
+        newMessagesCount = 0;
+    }
+    
+    /**
+     * Safely add a new message to the list and notify adapter
+     * This prevents IndexOutOfBoundsException by ensuring updates happen when RecyclerView is ready
+     * Follows Messenger-style pattern: only update when RecyclerView is idle
+     */
+    private void safeAddMessage(Message message, boolean shouldScroll) {
+        if (message == null || messageAdapter == null || rvMessages == null) return;
+        if (isUpdatingMessages) {
+            // Another update in progress - defer this one
+            rvMessages.postDelayed(() -> safeAddMessage(message, shouldScroll), 150);
+            return;
+        }
+        
+        // Add message to list first
+        messages.add(message);
+        int position = messages.size() - 1;
+        
+        // Wait for RecyclerView to be completely idle before notifying
+        waitForRecyclerViewIdle(() -> {
+            if (isUpdatingMessages) return; // Another update started
+            isUpdatingMessages = true;
+            
+            try {
+                if (messageAdapter != null && position < messages.size() && position >= 0) {
+                    messageAdapter.notifyItemInserted(position);
+                    if (shouldScroll && shouldAutoScroll) {
+                        rvMessages.post(() -> scrollToBottomIfAtBottom());
+                    }
+                }
+            } finally {
+                isUpdatingMessages = false;
+            }
+        });
+    }
+    
+    /**
+     * Wait for RecyclerView to be completely idle before executing action
+     * This prevents IndexOutOfBoundsException during prefetch/layout
+     */
+    private void waitForRecyclerViewIdle(Runnable action) {
+        if (rvMessages == null) {
+            action.run();
+            return;
+        }
+        
+        // Stop any ongoing scroll first
+        rvMessages.stopScroll();
+        
+        // Wait a bit to ensure RecyclerView has stopped all operations
+        rvMessages.postDelayed(() -> {
+            int scrollState = rvMessages.getScrollState();
+            boolean isComputing = rvMessages.isComputingLayout();
+            
+            if (scrollState == RecyclerView.SCROLL_STATE_IDLE && !isComputing) {
+                // RecyclerView is idle - execute immediately
+                action.run();
+            } else {
+                // Still not idle - wait more and retry
+                rvMessages.postDelayed(() -> {
+                    if (rvMessages.getScrollState() == RecyclerView.SCROLL_STATE_IDLE && !rvMessages.isComputingLayout()) {
+                        action.run();
+                    } else {
+                        // Force execute after maximum wait time (300ms total)
+                        rvMessages.postDelayed(action, 200);
+                    }
+                }, 150);
+            }
+        }, 50);
     }
 
     protected void scrollToMessage(String messageId) {
@@ -2761,6 +3337,16 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         pollRunnable = new Runnable() {
             @Override
             public void run() {
+                // CRITICAL: Don't poll if user is reading old messages
+                // This prevents unwanted scrolling when user is reading old messages
+                if (isUserReadingOldMessages || !shouldAutoScroll || isReadingOldMessages()) {
+                    android.util.Log.d("BaseChatActivity", "BLOCKED polling - user reading old messages (isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ")");
+                    // Still schedule next poll, but skip this one
+                    pollHandler.postDelayed(this, 3000);
+                    return;
+                }
+                
+                android.util.Log.d("BaseChatActivity", "ALLOWED polling - user at bottom");
                 loadMessages();
                 pollHandler.postDelayed(this, 3000); // Poll every 3 seconds
             }
@@ -3155,8 +3741,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 }
                 // Update summarize indicator when new message arrives
                 updateSummarizeIndicator();
-                // Only scroll to bottom if user is already at the bottom
-                scrollToBottomIfAtBottom();
+                // Only scroll to bottom if user is already at the bottom AND not reading old messages
+                if (!isUserReadingOldMessages && shouldAutoScroll) {
+                    scrollToBottomIfAtBottom();
+                } else {
+                    android.util.Log.d("BaseChatActivity", "BLOCKED scroll from handleIncomingMessage (placeholder) - isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll);
+                }
                 return;
             }
             
@@ -3165,13 +3755,15 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             if (messageRepository != null) {
                 messageRepository.saveMessage(incoming);
             }
-            // Add to UI list
-            messages.add(incoming);
-            messageAdapter.notifyItemInserted(messages.size() - 1);
+            // Safely add message to UI list (prevents IndexOutOfBoundsException during scroll)
+            // Only scroll if user is NOT reading old messages
+            boolean shouldScrollForNewMessage = !isUserReadingOldMessages && shouldAutoScroll;
+            safeAddMessage(incoming, shouldScrollForNewMessage);
+            if (!shouldScrollForNewMessage) {
+                android.util.Log.d("BaseChatActivity", "BLOCKED scroll from handleIncomingMessage (new message) - isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll);
+            }
             // Update summarize indicator when new message arrives
             updateSummarizeIndicator();
-            // Only scroll to bottom if user is already at the bottom
-            scrollToBottomIfAtBottom();
         } catch (Exception e) {
             android.util.Log.e("BaseChatActivity", "Failed to handle incoming message: " + e.getMessage());
         }

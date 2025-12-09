@@ -20,6 +20,7 @@ uikit = "2.9.0"
 webrtc = "1.0.5"
 webrtcGoogleWebrtc = "1.0.30039"
 swiperefreshlayout = "1.1.0"
+adsMobileSdk = "0.22.0-beta04"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -47,6 +48,7 @@ permissionx = { module = "com.guolindev.permissionx:permissionx", version.ref = 
 uikit = { module = "com.zegocloud:uikit", version.ref = "uikit" }
 webrtc = { module = "com.mesibo.api:webrtc", version.ref = "webrtc" }
 swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
+ads-mobile-sdk = { group = "com.google.android.libraries.ads.mobile.sdk", name = "ads-mobile-sdk", version.ref = "adsMobileSdk" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
