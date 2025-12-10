@@ -294,8 +294,6 @@ class SocketHandler {
         return;
       }
 
-      console.log(`emitToCallParticipantsExceptSender: Forwarding ${event} for call ${callId} to ${callInfo.participants.length} participants (excluding ${senderSocket.userId})`);
-
       // Emit to everyone currently in the room except the sender
       senderSocket.to(roomName).emit(event, payload);
 
@@ -306,7 +304,6 @@ class SocketHandler {
 
         const connected = this.connectedUsers.get(participantUserId);
         if (!connected) {
-          console.log(`emitToCallParticipantsExceptSender: Participant ${participantUserId} not connected`);
           continue;
         }
 
@@ -314,11 +311,6 @@ class SocketHandler {
         // CRITICAL: Always send to user room as well to ensure delivery
         // This ensures frames are delivered even if participant hasn't joined the call room yet
         this.sendToUser(participantUserId, event, payload);
-        
-        // Also check if they're in the room - if not, log it
-        if (!roomSockets.has(participantSocketId)) {
-          console.log(`emitToCallParticipantsExceptSender: Participant ${participantUserId} not in room ${roomName}, delivered via user room`);
-        }
       }
     } catch (error) {
       console.error('emitToCallParticipantsExceptSender error:', error);
@@ -655,8 +647,6 @@ class SocketHandler {
       };
 
       this.emitToCallParticipantsExceptSender(callId, 'webrtc_offer', payload, socket);
-
-      console.log(`Forwarded WebRTC offer for call ${callId} from user ${socket.userId}`);
     });
 
     socket.on('webrtc_answer', (data) => {
@@ -670,8 +660,6 @@ class SocketHandler {
       };
 
       this.emitToCallParticipantsExceptSender(callId, 'webrtc_answer', payload, socket);
-
-      console.log(`Forwarded WebRTC answer for call ${callId} from user ${socket.userId}`);
     });
 
     socket.on('webrtc_ice_candidate', (data) => {
@@ -684,8 +672,6 @@ class SocketHandler {
       };
 
       this.emitToCallParticipantsExceptSender(callId, 'webrtc_ice_candidate', payload, socket);
-
-      console.log(`Forwarded ICE candidate for call ${callId} from user ${socket.userId}`);
     });
 
     // Handle custom video frames (without WebRTC)
@@ -719,7 +705,6 @@ class SocketHandler {
                 participants: connectedParticipantIds,
                 roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
               });
-              console.log(`video_frame: Call ${callId} added to activeCalls with ${connectedParticipantIds.length} connected participants (out of ${call.participants.length} total)`);
               
               // Retry sending the frame
               const payload = {
@@ -766,13 +751,10 @@ class SocketHandler {
               roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
             });
             
-            console.log(`video_frame: Forwarding frame from user ${socket.userId} for call ${callId} to ${latestParticipantIds.length} connected participants (out of ${call.participants.length} total):`, latestParticipantIds);
-            
             // Forward frame with updated participant list (only connected participants)
             this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
           } else {
             // Fallback: use existing callInfo
-            console.log(`video_frame: Call not found in DB, using existing callInfo`);
             this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
           }
         } catch (err) {
@@ -818,7 +800,6 @@ class SocketHandler {
                 participants: connectedParticipantIds,
                 roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
               });
-              console.log(`audio_frame: Call ${callId} added to activeCalls with ${connectedParticipantIds.length} connected participants`);
               
               // Retry sending the audio
               const payload = {
@@ -1134,7 +1115,6 @@ class SocketHandler {
         
         if (targetSocketId) {
           this.io.to(targetSocketId).emit('group_call_webrtc_offer', payload);
-          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} (direct socket) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         } else {
           // CRITICAL FIX: Try multiple delivery methods
           // 1. Try user room
@@ -1142,12 +1122,10 @@ class SocketHandler {
           // 2. Also try socket room (group_call_${chatId}) as fallback
           // This ensures users in the same group call room receive the offer
           socket.to(socketRoom).emit('group_call_webrtc_offer', payload);
-          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=${toUserId} (user room + socket room: ${socketRoom}) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
       } else {
           // Broadcast to all in chat room except sender
           socket.to(socketRoom).emit('group_call_webrtc_offer', payload);
-          console.log(`[signal] forward offer call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
       } catch (error) {
         console.error('Error handling group call offer:', error);
@@ -1218,11 +1196,9 @@ class SocketHandler {
         } else {
           this.io.to(`user_${toUserId}`).emit('group_call_webrtc_answer', payload);
         }
-          console.log(`[signal] forward answer call=${callId} from=${socket.userId} to=${toUserId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
       } else {
           // Broadcast to all in chat room except sender
           socket.to(socketRoom).emit('group_call_webrtc_answer', payload);
-          console.log(`[signal] forward answer call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
       } catch (error) {
         console.error('Error handling group call answer:', error);
@@ -1289,7 +1265,6 @@ class SocketHandler {
         
         if (targetSocketId) {
           this.io.to(targetSocketId).emit('group_call_ice_candidate', payload);
-          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} (direct socket) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         } else {
           // CRITICAL FIX: Try multiple delivery methods
           // 1. Try user room
@@ -1297,12 +1272,10 @@ class SocketHandler {
           // 2. Also try socket room (group_call_${chatId}) as fallback
           // This ensures users in the same group call room receive the ICE candidate
           socket.to(socketRoom).emit('group_call_ice_candidate', payload);
-          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=${toUserId} (user room + socket room: ${socketRoom}) session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
       } else {
           // Broadcast to all in chat room except sender
           socket.to(socketRoom).emit('group_call_ice_candidate', payload);
-          console.log(`[signal] forward ice_candidate call=${callId} from=${socket.userId} to=room:${chatId} session=${sessionId || 'none'} timestamp=${Date.now()}`);
         }
       } catch (error) {
         console.error('Error handling group call ICE candidate:', error);
