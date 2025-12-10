@@ -61,7 +61,7 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     // CRITICAL: Reduced FPS to minimize encoding load and latency
     // 33ms = ~30 FPS - reduces encoding time significantly
     // Lower FPS = less encoding overhead = much lower latency
-    private static final int FRAME_CAPTURE_INTERVAL_MS = 33; // ~30 FPS (reduced for lower latency)
+    private static final int FRAME_CAPTURE_INTERVAL_MS = 10; 
     // CRITICAL: Increase timeout to prevent losing video when user is idle
     // User may be still but camera is still capturing, just not moving much
     private static final long VIDEO_FRAME_TIMEOUT_MS = 10000; // 10 seconds (increased from 2s)

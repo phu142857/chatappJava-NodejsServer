@@ -64,7 +64,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 100;
     // CRITICAL: Reduced FPS to minimize encoding load and latency
     // 33ms = ~30 FPS - reduces encoding time significantly
-    private static final int FRAME_CAPTURE_INTERVAL_MS = 33; // ~30 FPS (reduced for lower latency)
+    private static final int FRAME_CAPTURE_INTERVAL_MS = 10;
     
     // UI Components
     private RecyclerView rvVideoGrid;
