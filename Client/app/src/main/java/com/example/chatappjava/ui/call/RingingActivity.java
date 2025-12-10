@@ -89,6 +89,10 @@ public class RingingActivity extends AppCompatActivity {
     private DatabaseManager sharedPrefsManager;
     private ApiClient apiClient;
     
+    // CRITICAL: Handler for auto-decline timer - must be stored to cancel it
+    private Handler autoDeclineHandler;
+    private Runnable autoDeclineRunnable;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -298,12 +302,18 @@ public class RingingActivity extends AppCompatActivity {
         // Start ringtone
         startRingtone();
         
-        // Auto-decline after 30 seconds if not answered
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (!isCallActive) {
-                declineCall();
+        // CRITICAL: Store handler and runnable to cancel it when call is accepted/declined
+        autoDeclineHandler = new Handler(Looper.getMainLooper());
+        autoDeclineRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isCallActive && !isFinishing()) {
+                    Log.d(TAG, "Auto-declining call after 30 seconds");
+                    declineCall();
+                }
             }
-        }, 30000);
+        };
+        autoDeclineHandler.postDelayed(autoDeclineRunnable, 30000);
     }
     
     @SuppressLint("SetTextI18n")
@@ -475,6 +485,15 @@ public class RingingActivity extends AppCompatActivity {
         
         Log.d(TAG, "Accepting call: " + callId);
         isCallActive = true;
+        
+        // CRITICAL: Cancel auto-decline timer when accepting call
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer");
+        }
+        
         stopRingingAnimations();
         stopRingtone();
         
@@ -597,6 +616,14 @@ public class RingingActivity extends AppCompatActivity {
             }
             navigateToHome();
             return;
+        }
+        
+        // CRITICAL: Cancel auto-decline timer when declining call
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer");
         }
         
         stopRingingAnimations();
@@ -780,9 +807,18 @@ public class RingingActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        
+        // CRITICAL: Cancel auto-decline timer when activity is destroyed
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer in onDestroy");
+        }
+        
         stopRingingAnimations();
         stopRingtone();
-        
+
         // Reset call action state
         resetCallActionState();
         
