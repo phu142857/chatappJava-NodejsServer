@@ -147,6 +147,15 @@ public class SocketManager {
             public void call(Object... args) {
                 Log.d(TAG, "Connected to Socket.io server");
                 isConnected = true;
+                
+                // Re-setup audio frame listener if it was set before connection
+                if (audioFrameListener != null) {
+                    Log.d(TAG, "Re-setting up audio_frame listener after socket connect");
+                    // Re-setup the listener now that socket is connected
+                    AudioFrameListener listener = audioFrameListener;
+                    audioFrameListener = null; // Clear first
+                    setAudioFrameListener(listener); // Re-setup
+                }
             }
         });
         
@@ -612,8 +621,14 @@ public class SocketManager {
     public void setAudioFrameListener(AudioFrameListener listener) {
         this.audioFrameListener = listener;
         
+        // Remove existing listener first
+        if (socket != null) {
+            socket.off("audio_frame");
+        }
+        
         // Setup socket listener if connected
         if (socket != null && isConnected && listener != null) {
+            Log.d(TAG, "Setting up audio_frame listener");
             socket.on("audio_frame", new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
@@ -623,14 +638,23 @@ public class SocketManager {
                         String audio = data.getString("audio");
                         long timestamp = data.optLong("timestamp", System.currentTimeMillis());
                         
+                        Log.d(TAG, "Received audio_frame event from userId: " + userId + ", audio length: " + (audio != null ? audio.length() : 0));
+                        
                         if (audioFrameListener != null) {
                             audioFrameListener.onAudioFrameReceived(userId, audio, timestamp);
+                        } else {
+                            Log.w(TAG, "AudioFrameListener is null, cannot process audio frame");
                         }
                     } catch (JSONException e) {
                         Log.e(TAG, "Error receiving audio frame", e);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unexpected error in audio_frame listener", e);
                     }
                 }
             });
+            Log.d(TAG, "Audio frame listener setup complete");
+        } else {
+            Log.w(TAG, "Cannot setup audio_frame listener: socket=" + (socket != null) + ", isConnected=" + isConnected + ", listener=" + (listener != null));
         }
     }
     

@@ -32,6 +32,7 @@ import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
 import com.example.chatappjava.utils.AudioCaptureManager;
+import com.example.chatappjava.utils.AudioEncoder;
 import com.example.chatappjava.utils.AudioPlaybackManager;
 import com.example.chatappjava.utils.CameraCaptureManager;
 import com.example.chatappjava.utils.DatabaseManager;
@@ -214,6 +215,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private void initializeCall() {
         showLoading("Connecting to call...");
         
+        // Setup audio mode for voice call
+        setupAudioMode();
+        
         // CRITICAL: Setup listeners BEFORE joining room to avoid missing call_room_joined event
         setupSocketListeners();
         
@@ -235,6 +239,31 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         
         hideLoading();
         isCallActive = true;
+    }
+    
+    private void setupAudioMode() {
+        try {
+            android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+            if (audioManager != null) {
+                // Set mode to IN_COMMUNICATION for voice calls
+                audioManager.setMode(android.media.AudioManager.MODE_IN_COMMUNICATION);
+                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting audio mode", e);
+        }
+    }
+    
+    private void resetAudioMode() {
+        try {
+            android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+            if (audioManager != null) {
+                audioManager.setMode(android.media.AudioManager.MODE_NORMAL);
+                Log.d(TAG, "Audio mode reset to MODE_NORMAL");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error resetting audio mode", e);
+        }
     }
     
     private void setupSocketListeners() {
@@ -278,16 +307,32 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
             @Override
             public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
+                Log.d(TAG, "Received audio frame from user: " + userId + ", audio length: " + (base64Audio != null ? base64Audio.length() : 0));
                 // Play audio from all remote participants (not local user)
                 if (currentUserId != null && !currentUserId.equals(userId)) {
-                    if (audioPlaybackManager != null && audioPlaybackManager.isPlaying()) {
+                    if (audioPlaybackManager != null) {
+                        if (!audioPlaybackManager.isPlaying()) {
+                            Log.w(TAG, "AudioPlaybackManager is not playing, restarting...");
+                            audioPlaybackManager.startPlayback();
+                        }
                         try {
-                            byte[] audioData = android.util.Base64.decode(base64Audio, android.util.Base64.NO_WRAP);
-                            audioPlaybackManager.playAudio(audioData);
+                            // Decode base64 to PCM (similar to video frame decoding)
+                            // Flow: Server -> Decode (base64) -> Play (PCM)
+                            byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
+                            if (audioData != null) {
+                                Log.d(TAG, "Decoded audio data length: " + audioData.length);
+                                audioPlaybackManager.playAudio(audioData);
+                            } else {
+                                Log.w(TAG, "Failed to decode audio frame from user: " + userId);
+                            }
                         } catch (Exception e) {
                             Log.e(TAG, "Error playing audio frame from user: " + userId, e);
                         }
+                    } else {
+                        Log.w(TAG, "AudioPlaybackManager is null");
                     }
+                } else {
+                    Log.d(TAG, "Ignoring audio from local user: " + userId);
                 }
             }
         });
@@ -578,6 +623,12 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     
     private void startAudioCapture() {
         if (isMuted) {
+            Log.d(TAG, "Audio capture skipped (muted)");
+            return;
+        }
+        
+        if (audioCaptureManager != null && audioCaptureManager.isCapturing()) {
+            Log.w(TAG, "Audio capture already started");
             return;
         }
         
@@ -590,22 +641,36 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 }
             }
         });
+        Log.d(TAG, "Audio capture started, isCapturing: " + audioCaptureManager.isCapturing());
     }
     
     private void startAudioPlayback() {
-        audioPlaybackManager = new AudioPlaybackManager();
+        if (audioPlaybackManager == null) {
+            audioPlaybackManager = new AudioPlaybackManager();
+        }
         audioPlaybackManager.startPlayback();
+        Log.d(TAG, "Audio playback started, isPlaying: " + audioPlaybackManager.isPlaying());
     }
     
     private void sendAudioFrame(byte[] audioData) {
+        if (audioData == null || audioData.length == 0) {
+            return;
+        }
+        
         new Thread(() -> {
             try {
-                // Encode audio to base64
-                String base64Audio = android.util.Base64.encodeToString(audioData, android.util.Base64.NO_WRAP);
+                // Encode audio to base64 (similar to video frame encoding)
+                // Flow: Capture (PCM) -> Encode (base64) -> Server -> Decode (base64) -> Play (PCM)
+                String base64Audio = AudioEncoder.encodeAudio(audioData);
                 
-                // Send to server to forward to other participants
-                if (socketManager != null) {
-                    socketManager.sendAudioFrame(callId, base64Audio);
+                if (base64Audio != null) {
+                    // Send to server to forward to other participants
+                    if (socketManager != null) {
+                        socketManager.sendAudioFrame(callId, base64Audio);
+                        Log.d(TAG, "Sent audio frame, PCM size: " + audioData.length + " bytes, base64 length: " + base64Audio.length());
+                    }
+                } else {
+                    Log.w(TAG, "Failed to encode audio frame");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error sending audio frame", e);
@@ -965,6 +1030,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         stopAudioCapture();
         stopAudioPlayback();
         
+        // Reset audio mode
+        resetAudioMode();
+        
         // Leave call room
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
@@ -1010,6 +1078,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         // Stop audio capture and playback
         stopAudioCapture();
         stopAudioPlayback();
+        
+        // Reset audio mode
+        resetAudioMode();
         
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
