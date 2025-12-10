@@ -31,6 +31,8 @@ import com.example.chatappjava.adapters.CustomVideoParticipantAdapter;
 import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
+import com.example.chatappjava.utils.AudioCaptureManager;
+import com.example.chatappjava.utils.AudioPlaybackManager;
 import com.example.chatappjava.utils.CameraCaptureManager;
 import com.example.chatappjava.utils.DatabaseManager;
 import com.example.chatappjava.utils.VideoFrameEncoder;
@@ -84,6 +86,8 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SocketManager socketManager;
     private CameraCaptureManager cameraCaptureManager;
+    private AudioCaptureManager audioCaptureManager;
+    private AudioPlaybackManager audioPlaybackManager;
     
     // State
     private boolean isMuted = false;
@@ -222,6 +226,10 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         // Start video capture
         startVideoCapture();
         
+        // Start audio capture and playback
+        startAudioCapture();
+        startAudioPlayback();
+        
         // Start call duration timer
         startCallDurationTimer();
         
@@ -263,6 +271,24 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                         Log.w(TAG, "Adapter is null, cannot update video frame");
                     }
                 });
+            }
+        });
+        
+        // Listener for received audio frames
+        socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
+            @Override
+            public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
+                // Play audio from all remote participants (not local user)
+                if (currentUserId != null && !currentUserId.equals(userId)) {
+                    if (audioPlaybackManager != null && audioPlaybackManager.isPlaying()) {
+                        try {
+                            byte[] audioData = android.util.Base64.decode(base64Audio, android.util.Base64.NO_WRAP);
+                            audioPlaybackManager.playAudio(audioData);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error playing audio frame from user: " + userId, e);
+                        }
+                    }
+                }
             }
         });
         
@@ -550,6 +576,43 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         frameCaptureHandler.post(frameCaptureRunnable);
     }
     
+    private void startAudioCapture() {
+        if (isMuted) {
+            return;
+        }
+        
+        audioCaptureManager = new AudioCaptureManager();
+        audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
+            @Override
+            public void onAudioCaptured(byte[] audioData, int bytesRead) {
+                if (audioData != null && isCallActive && !isMuted) {
+                    sendAudioFrame(audioData);
+                }
+            }
+        });
+    }
+    
+    private void startAudioPlayback() {
+        audioPlaybackManager = new AudioPlaybackManager();
+        audioPlaybackManager.startPlayback();
+    }
+    
+    private void sendAudioFrame(byte[] audioData) {
+        new Thread(() -> {
+            try {
+                // Encode audio to base64
+                String base64Audio = android.util.Base64.encodeToString(audioData, android.util.Base64.NO_WRAP);
+                
+                // Send to server to forward to other participants
+                if (socketManager != null) {
+                    socketManager.sendAudioFrame(callId, base64Audio);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error sending audio frame", e);
+            }
+        }).start();
+    }
+    
     private void sendVideoFrame(byte[] frameData) {
         // Avoid sending multiple frames at the same time
         if (!isSendingFrame.compareAndSet(false, true)) {
@@ -603,6 +666,15 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         }
         
+        // Stop/start audio capture based on mute state
+        if (isMuted) {
+            if (audioCaptureManager != null) {
+                audioCaptureManager.stopCapture();
+            }
+        } else {
+            startAudioCapture();
+        }
+        
         // Send update to server
         updateMediaState();
     }
@@ -651,6 +723,18 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         
         if (frameCaptureHandler != null && frameCaptureRunnable != null) {
             frameCaptureHandler.removeCallbacks(frameCaptureRunnable);
+        }
+    }
+    
+    private void stopAudioCapture() {
+        if (audioCaptureManager != null) {
+            audioCaptureManager.stopCapture();
+        }
+    }
+    
+    private void stopAudioPlayback() {
+        if (audioPlaybackManager != null) {
+            audioPlaybackManager.stopPlayback();
         }
     }
     
@@ -877,10 +961,15 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         // Stop video capture
         stopVideoCapture();
         
+        // Stop audio capture and playback
+        stopAudioCapture();
+        stopAudioPlayback();
+        
         // Leave call room
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
         }
         
         // Stop call duration timer
@@ -918,8 +1007,13 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             cameraCaptureManager.stopCapture();
         }
         
+        // Stop audio capture and playback
+        stopAudioCapture();
+        stopAudioPlayback();
+        
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
             socketManager.off("user_joined_call");
             socketManager.off("user_left_call");
         }

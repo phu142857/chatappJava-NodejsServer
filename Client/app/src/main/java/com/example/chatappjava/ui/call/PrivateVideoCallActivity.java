@@ -24,6 +24,8 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
+import com.example.chatappjava.utils.AudioCaptureManager;
+import com.example.chatappjava.utils.AudioPlaybackManager;
 import com.example.chatappjava.utils.CameraCaptureManager;
 import com.example.chatappjava.utils.DatabaseManager;
 import com.example.chatappjava.utils.VideoFrameEncoder;
@@ -87,6 +89,8 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SocketManager socketManager;
     private CameraCaptureManager cameraCaptureManager;
+    private AudioCaptureManager audioCaptureManager;
+    private AudioPlaybackManager audioPlaybackManager;
     
     // State
     private boolean isMuted = false;
@@ -289,6 +293,10 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         // Start video capture
         startVideoCapture();
         
+        // Start audio capture and playback
+        startAudioCapture();
+        startAudioPlayback();
+        
         // Start call duration timer
         startCallDurationTimer();
         
@@ -343,6 +351,26 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                         }
                     }
                 });
+            }
+        });
+        
+        // Listener for received audio frames
+        socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
+            @Override
+            public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
+                // Only play audio from remote user
+                if (remoteParticipant != null && remoteParticipant.getUserId() != null && 
+                    remoteParticipant.getUserId().equals(userId)) {
+                    // Decode and play audio
+                    if (audioPlaybackManager != null && audioPlaybackManager.isPlaying()) {
+                        try {
+                            byte[] audioData = android.util.Base64.decode(base64Audio, android.util.Base64.NO_WRAP);
+                            audioPlaybackManager.playAudio(audioData);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error playing audio frame", e);
+                        }
+                    }
+                }
             }
         });
         
@@ -554,6 +582,43 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         frameCaptureHandler.post(frameCaptureRunnable);
     }
     
+    private void startAudioCapture() {
+        if (isMuted) {
+            return;
+        }
+        
+        audioCaptureManager = new AudioCaptureManager();
+        audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
+            @Override
+            public void onAudioCaptured(byte[] audioData, int bytesRead) {
+                if (audioData != null && isCallActive && !isMuted) {
+                    sendAudioFrame(audioData);
+                }
+            }
+        });
+    }
+    
+    private void startAudioPlayback() {
+        audioPlaybackManager = new AudioPlaybackManager();
+        audioPlaybackManager.startPlayback();
+    }
+    
+    private void sendAudioFrame(byte[] audioData) {
+        new Thread(() -> {
+            try {
+                // Encode audio to base64
+                String base64Audio = android.util.Base64.encodeToString(audioData, android.util.Base64.NO_WRAP);
+                
+                // Send to server to forward to remote user
+                if (socketManager != null) {
+                    socketManager.sendAudioFrame(callId, base64Audio);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error sending audio frame", e);
+            }
+        }).start();
+    }
+    
     private void sendVideoFrame(byte[] frameData) {
         if (!isSendingFrame.compareAndSet(false, true)) {
             return;
@@ -590,6 +655,15 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         
         if (localParticipant != null) {
             localParticipant.setAudioMuted(isMuted);
+        }
+        
+        // Stop/start audio capture based on mute state
+        if (isMuted) {
+            if (audioCaptureManager != null) {
+                audioCaptureManager.stopCapture();
+            }
+        } else {
+            startAudioCapture();
         }
         
         // Send update to server
@@ -637,6 +711,18 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         
         if (frameCaptureHandler != null && frameCaptureRunnable != null) {
             frameCaptureHandler.removeCallbacks(frameCaptureRunnable);
+        }
+    }
+    
+    private void stopAudioCapture() {
+        if (audioCaptureManager != null) {
+            audioCaptureManager.stopCapture();
+        }
+    }
+    
+    private void stopAudioPlayback() {
+        if (audioPlaybackManager != null) {
+            audioPlaybackManager.stopPlayback();
         }
     }
     
@@ -711,10 +797,15 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         // Stop video capture
         stopVideoCapture();
         
+        // Stop audio capture and playback
+        stopAudioCapture();
+        stopAudioPlayback();
+        
         // Leave call room
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
         }
         
         // Stop call duration timer
@@ -784,11 +875,16 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
             socketManager.off("call_room_joined");
             socketManager.off("user_left_call");
             socketManager.off("call_declined");
             socketManager.off("call_ended");
         }
+        
+        // Stop audio capture and playback
+        stopAudioCapture();
+        stopAudioPlayback();
         
         // CRITICAL: Clear ImageViews BEFORE recycling bitmaps to avoid "recycled bitmap" crash
         if (ivLocalVideoFrame != null) {
