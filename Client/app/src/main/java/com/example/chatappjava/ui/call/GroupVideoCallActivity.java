@@ -47,6 +47,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -112,6 +115,10 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private static final long VIDEO_FRAME_TIMEOUT_MS = 10000; // 10 seconds (increased from 2s)
     private Handler videoFrameTimeoutHandler;
     private Runnable videoFrameTimeoutRunnable;
+    
+    // CRITICAL: Thread pool for audio/video processing to avoid thread exhaustion
+    private ExecutorService audioProcessingExecutor;
+    private ExecutorService videoProcessingExecutor;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -219,30 +226,61 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private void initializeCall() {
         showLoading("Connecting to call...");
         
-        // Setup audio mode for voice call
-        setupAudioMode();
-        
-        // CRITICAL: Setup listeners BEFORE joining room to avoid missing call_room_joined event
-        setupSocketListeners();
-        
-        // Add local participant first
-        addLocalParticipant();
-        
-        // Join call room via socket (will trigger call_room_joined with participants list)
-        socketManager.joinCallRoom(callId);
-        
-        // Start video capture
-        startVideoCapture();
-        
-        // Start audio capture and playback
-        startAudioCapture();
-        startAudioPlayback();
-        
-        // Start call duration timer
-        startCallDurationTimer();
-        
-        hideLoading();
-        isCallActive = true;
+        try {
+            // Setup audio mode for voice call
+            setupAudioMode();
+            
+            // CRITICAL: Setup listeners BEFORE joining room to avoid missing call_room_joined event
+            setupSocketListeners();
+            
+            // Add local participant first
+            addLocalParticipant();
+            
+            // Join call room via socket (will trigger call_room_joined with participants list)
+            if (socketManager != null && callId != null) {
+                socketManager.joinCallRoom(callId);
+            } else {
+                Log.e(TAG, "Cannot join call room: socketManager=" + (socketManager != null) + ", callId=" + callId);
+                Toast.makeText(this, "Failed to connect to call", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+            
+            // Start video capture (with error handling)
+            try {
+                startVideoCapture();
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting video capture", e);
+                // Don't end call - continue without video
+            }
+            
+            // Start audio capture (with error handling)
+            try {
+                startAudioCapture();
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting audio capture", e);
+                // Don't end call - continue without audio capture
+            }
+            
+            // Start audio playback (with error handling)
+            try {
+                startAudioPlayback();
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting audio playback", e);
+                // Don't end call - continue without audio playback
+            }
+            
+            // Start call duration timer
+            startCallDurationTimer();
+            
+            hideLoading();
+            isCallActive = true;
+            Log.d(TAG, "Call initialized successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Critical error initializing call", e);
+            Toast.makeText(this, "Failed to initialize call: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
     
     private void setupAudioMode() {
@@ -311,30 +349,47 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
             @Override
             public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
-                Log.d(TAG, "Received audio frame from user: " + userId + ", audio length: " + (base64Audio != null ? base64Audio.length() : 0));
+                // CRITICAL: Process audio immediately in background thread for lowest latency
                 // Play audio from all remote participants (not local user)
                 if (currentUserId != null && !currentUserId.equals(userId)) {
-                    if (audioPlaybackManager != null) {
-                        if (!audioPlaybackManager.isPlaying()) {
-                            Log.w(TAG, "AudioPlaybackManager is not playing, restarting...");
-                            audioPlaybackManager.startPlayback();
-                        }
+                    // CRITICAL: Use thread pool instead of creating new thread for each frame
+                    // This prevents thread exhaustion and process kill
+                    if (audioProcessingExecutor == null || audioProcessingExecutor.isShutdown()) {
+                        // Create single-threaded executor for sequential audio processing
+                        // Audio must be played sequentially to avoid glitches
+                        audioProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+                            @Override
+                            public Thread newThread(Runnable r) {
+                                Thread t = new Thread(r, "AudioProcessor");
+                                t.setPriority(Thread.MAX_PRIORITY);
+                                return t;
+                            }
+                        });
+                    }
+                    
+                    audioProcessingExecutor.execute(() -> {
                         try {
-                            // Decode base64 to PCM (similar to video frame decoding)
-                            // Flow: Server -> Decode (base64) -> Play (PCM)
-                            byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
-                            if (audioData != null) {
-                                Log.d(TAG, "Decoded audio data length: " + audioData.length);
-                                audioPlaybackManager.playAudio(audioData);
-                            } else {
-                                Log.w(TAG, "Failed to decode audio frame from user: " + userId);
+                            if (!isCallActive) {
+                                return;
+                            }
+                            
+                            if (audioPlaybackManager != null) {
+                                if (!audioPlaybackManager.isPlaying()) {
+                                    audioPlaybackManager.startPlayback();
+                                }
+                                // CRITICAL: Decode and play immediately - no buffering
+                                byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
+                                if (audioData != null && isCallActive) {
+                                    // Play immediately - AudioPlaybackManager uses adaptive flush
+                                    audioPlaybackManager.playAudio(audioData);
+                                }
                             }
                         } catch (Exception e) {
+                            // CRITICAL: Catch all exceptions to prevent call from ending
                             Log.e(TAG, "Error playing audio frame from user: " + userId, e);
+                            // Don't end call on audio error - just log it
                         }
-                    } else {
-                        Log.w(TAG, "AudioPlaybackManager is null");
-                    }
+                    });
                 } else {
                     Log.d(TAG, "Ignoring audio from local user: " + userId);
                 }
@@ -346,12 +401,19 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         
         // CRITICAL: Listener for call_room_joined - load existing participants list
         socketManager.on("call_room_joined", args -> {
-            JSONObject data = (JSONObject) args[0];
-            JSONArray participantsArray = data.optJSONArray("participants");
+            try {
+                if (args == null || args.length == 0) {
+                    Log.w(TAG, "call_room_joined: empty args, ignoring");
+                    return;
+                }
+                
+                JSONObject data = (JSONObject) args[0];
+                JSONArray participantsArray = data.optJSONArray("participants");
 
-            if (participantsArray != null) {
-                Log.d(TAG, "Received call_room_joined with " + participantsArray.length() + " participants");
-                runOnUiThread(() -> {
+                if (participantsArray != null) {
+                    Log.d(TAG, "Received call_room_joined with " + participantsArray.length() + " participants");
+                    runOnUiThread(() -> {
+                        try {
                     // CRITICAL: Remove all old participants (except local participant) before loading new list
                     // This ensures only people actually in the call are displayed
                     List<CallParticipant> toRemove = new ArrayList<>();
@@ -421,37 +483,75 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     // Update adapter after loading is complete
                     adapter.notifyDataSetChanged();
                     updateParticipantCount();
-                });
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error processing call_room_joined", e);
+                            // Don't end call on parse error
+                        }
+                    });
+                } else {
+                    Log.w(TAG, "call_room_joined: no participants array");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Unexpected error in call_room_joined listener", e);
+                // Don't end call on unexpected error
             }
         });
         
         // Listener for participants who join
         socketManager.on("user_joined_call", args -> {
             try {
+                if (args == null || args.length == 0) {
+                    Log.w(TAG, "user_joined_call: empty args, ignoring");
+                    return;
+                }
+                
                 JSONObject data = (JSONObject) args[0];
-                String userId = data.getString("userId");
-                String username = data.getString("username");
+                String userId = data.optString("userId", "");
+                String username = data.optString("username", "");
                 String avatar = data.optString("avatar", "");
                 
+                // CRITICAL: Validate userId before processing
+                if (userId == null || userId.isEmpty()) {
+                    Log.w(TAG, "user_joined_call: invalid userId, ignoring");
+                    return;
+                }
+                
                 runOnUiThread(() -> {
-                    addParticipant(userId, username, avatar);
+                    if (isCallActive) {
+                        addParticipant(userId, username, avatar);
+                    }
                 });
-            } catch (JSONException e) {
-                Log.e(TAG, "Error receiving user_joined_call", e);
+            } catch (Exception e) {
+                Log.e(TAG, "Unexpected error in user_joined_call listener", e);
+                // Don't end call on unexpected error
             }
         });
         
         // Listener for participants who leave
         socketManager.on("user_left_call", args -> {
             try {
+                if (args == null || args.length == 0) {
+                    Log.w(TAG, "user_left_call: empty args, ignoring");
+                    return;
+                }
+                
                 JSONObject data = (JSONObject) args[0];
-                String userId = data.getString("userId");
+                String userId = data.optString("userId", "");
+                
+                // CRITICAL: Validate userId before processing
+                if (userId == null || userId.isEmpty()) {
+                    Log.w(TAG, "user_left_call: invalid userId, ignoring");
+                    return;
+                }
                 
                 runOnUiThread(() -> {
-                    removeParticipant(userId);
+                    if (isCallActive) {
+                        removeParticipant(userId);
+                    }
                 });
-            } catch (JSONException e) {
-                Log.e(TAG, "Error receiving user_left_call", e);
+            } catch (Exception e) {
+                Log.e(TAG, "Unexpected error in user_left_call listener", e);
+                // Don't end call on unexpected error
             }
         });
     }
@@ -597,32 +697,48 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             return;
         }
         
-        // CRITICAL FIX: Reset isFrontCamera flag when starting capture
-        // Default is back camera (false)
-        isFrontCamera = false;
-        
-        cameraCaptureManager = new CameraCaptureManager(this);
-        cameraCaptureManager.startCapture(new CameraCaptureManager.FrameCaptureCallback() {
-            @Override
-            public void onFrameCaptured(byte[] frameData, int width, int height) {
-                if (frameData != null && isCallActive && isCameraOn) {
-                    sendVideoFrame(frameData);
+        try {
+            // CRITICAL FIX: Reset isFrontCamera flag when starting capture
+            // Default is back camera (false)
+            isFrontCamera = false;
+            
+            cameraCaptureManager = new CameraCaptureManager(this);
+            cameraCaptureManager.startCapture(new CameraCaptureManager.FrameCaptureCallback() {
+                @Override
+                public void onFrameCaptured(byte[] frameData, int width, int height) {
+                    try {
+                        if (frameData != null && isCallActive && isCameraOn) {
+                            sendVideoFrame(frameData);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in video frame callback", e);
+                        // Don't end call on frame processing error
+                    }
                 }
-            }
-        });
-        
-        // Start periodic capture
-        frameCaptureHandler = new Handler(Looper.getMainLooper());
-        frameCaptureRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (isCallActive && isCameraOn && cameraCaptureManager != null && cameraCaptureManager.isCapturing()) {
-                    // Capture is continuous, send frames periodically
-                    frameCaptureHandler.postDelayed(this, FRAME_CAPTURE_INTERVAL_MS);
+            });
+            
+            // Start periodic capture
+            frameCaptureHandler = new Handler(Looper.getMainLooper());
+            frameCaptureRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (isCallActive && isCameraOn && cameraCaptureManager != null && cameraCaptureManager.isCapturing()) {
+                            // Capture is continuous, send frames periodically
+                            frameCaptureHandler.postDelayed(this, FRAME_CAPTURE_INTERVAL_MS);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in frame capture runnable", e);
+                        // Don't end call - just stop the runnable
+                    }
                 }
-            }
-        };
-        frameCaptureHandler.post(frameCaptureRunnable);
+            };
+            frameCaptureHandler.post(frameCaptureRunnable);
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting video capture", e);
+            // Don't end call - continue without video
+            Toast.makeText(this, "Camera unavailable, continuing without video", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void startAudioCapture() {
@@ -636,24 +752,41 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             return;
         }
         
-        audioCaptureManager = new AudioCaptureManager();
-        audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
-            @Override
-            public void onAudioCaptured(byte[] audioData, int bytesRead) {
-                if (audioData != null && isCallActive && !isMuted) {
-                    sendAudioFrame(audioData);
+        try {
+            audioCaptureManager = new AudioCaptureManager();
+            audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
+                @Override
+                public void onAudioCaptured(byte[] audioData, int bytesRead) {
+                    try {
+                        if (audioData != null && isCallActive && !isMuted) {
+                            sendAudioFrame(audioData);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in audio capture callback", e);
+                        // Don't end call on audio processing error
+                    }
                 }
-            }
-        });
-        Log.d(TAG, "Audio capture started, isCapturing: " + audioCaptureManager.isCapturing());
+            });
+            Log.d(TAG, "Audio capture started, isCapturing: " + audioCaptureManager.isCapturing());
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting audio capture", e);
+            // Don't end call - continue without audio capture
+            Toast.makeText(this, "Microphone unavailable, continuing without audio", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void startAudioPlayback() {
-        if (audioPlaybackManager == null) {
-            audioPlaybackManager = new AudioPlaybackManager();
+        try {
+            if (audioPlaybackManager == null) {
+                audioPlaybackManager = new AudioPlaybackManager();
+            }
+            audioPlaybackManager.startPlayback();
+            Log.d(TAG, "Audio playback started, isPlaying: " + audioPlaybackManager.isPlaying());
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting audio playback", e);
+            // Don't end call - continue without audio playback
+            // Audio playback will be retried when first audio frame arrives
         }
-        audioPlaybackManager.startPlayback();
-        Log.d(TAG, "Audio playback started, isPlaying: " + audioPlaybackManager.isPlaying());
     }
     
     private void sendAudioFrame(byte[] audioData) {
@@ -661,25 +794,40 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             return;
         }
         
-        new Thread(() -> {
+        // CRITICAL: Use thread pool instead of creating new thread for each frame
+        // This prevents thread exhaustion and process kill
+        if (audioProcessingExecutor == null || audioProcessingExecutor.isShutdown()) {
+            audioProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "AudioSender");
+                    t.setPriority(Thread.MAX_PRIORITY);
+                    return t;
+                }
+            });
+        }
+        
+        audioProcessingExecutor.execute(() -> {
             try {
+                if (!isCallActive) {
+                    return;
+                }
+                
                 // Encode audio to base64 (similar to video frame encoding)
                 // Flow: Capture (PCM) -> Encode (base64) -> Server -> Decode (base64) -> Play (PCM)
                 String base64Audio = AudioEncoder.encodeAudio(audioData);
                 
-                if (base64Audio != null) {
+                if (base64Audio != null && isCallActive) {
                     // Send to server to forward to other participants
                     if (socketManager != null) {
                         socketManager.sendAudioFrame(callId, base64Audio);
-                        Log.d(TAG, "Sent audio frame, PCM size: " + audioData.length + " bytes, base64 length: " + base64Audio.length());
+                        // Reduced logging to minimize overhead
                     }
-                } else {
-                    Log.w(TAG, "Failed to encode audio frame");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error sending audio frame", e);
             }
-        }).start();
+        });
     }
     
     private void sendVideoFrame(byte[] frameData) {
@@ -692,37 +840,53 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             return;
         }
         
-        new Thread(() -> {
+        // CRITICAL: Use thread pool instead of creating new thread for each frame
+        // This prevents thread exhaustion and process kill
+        if (videoProcessingExecutor == null || videoProcessingExecutor.isShutdown()) {
+            videoProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "VideoProcessor");
+                    t.setPriority(Thread.MAX_PRIORITY);
+                    return t;
+                }
+            });
+        }
+
+        videoProcessingExecutor.execute(() -> {
             try {
+                if (!isCallActive) {
+                    isSendingFrame.set(false);
+                    return;
+                }
+                
                 // Encode frame to base64
                 String base64Frame = VideoFrameEncoder.encodeFrame(frameData);
                 
-                if (base64Frame != null) {
+                if (base64Frame != null && isCallActive) {
                     // CRITICAL: Update local participant video frame immediately
                     // This ensures the user sees their own video
                     // CRITICAL FIX: Pass isFrontCamera flag to mirror front camera correctly
                     final boolean frontCamera = isFrontCamera;
                     runOnUiThread(() -> {
-                        if (adapter != null && currentUserId != null) {
+                        if (isCallActive && adapter != null && currentUserId != null) {
                             adapter.updateVideoFrame(currentUserId, base64Frame, frontCamera);
                         }
                     });
                     
                     // Send to server to forward to other participants
-                    if (socketManager != null) {
+                    if (socketManager != null && isCallActive) {
                         socketManager.sendVideoFrame(callId, base64Frame);
-                    } else {
-                        Log.w(TAG, "SocketManager is null, cannot send video frame");
                     }
-                } else {
-                    Log.w(TAG, "Failed to encode video frame");
                 }
             } catch (Exception e) {
+                // CRITICAL: Catch all exceptions to prevent call from ending
                 Log.e(TAG, "Error sending video frame", e);
+                // Don't end call on encoding error - just skip this frame
             } finally {
                 isSendingFrame.set(false);
             }
-        }).start();
+        });
     }
     
     private void toggleMute() {
@@ -1030,6 +1194,16 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private void endCall() {
         isCallActive = false;
         
+        // CRITICAL: Shutdown thread pools to prevent memory leaks
+        if (audioProcessingExecutor != null && !audioProcessingExecutor.isShutdown()) {
+            audioProcessingExecutor.shutdown();
+            audioProcessingExecutor = null;
+        }
+        if (videoProcessingExecutor != null && !videoProcessingExecutor.isShutdown()) {
+            videoProcessingExecutor.shutdown();
+            videoProcessingExecutor = null;
+        }
+        
         // Stop video capture
         stopVideoCapture();
         
@@ -1077,6 +1251,16 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         
+        // CRITICAL: Shutdown thread pools to prevent memory leaks
+        if (audioProcessingExecutor != null && !audioProcessingExecutor.isShutdown()) {
+            audioProcessingExecutor.shutdownNow();
+            audioProcessingExecutor = null;
+        }
+        if (videoProcessingExecutor != null && !videoProcessingExecutor.isShutdown()) {
+            videoProcessingExecutor.shutdownNow();
+            videoProcessingExecutor = null;
+        }
+        
         // Clean up resources
         if (cameraCaptureManager != null) {
             cameraCaptureManager.stopCapture();
@@ -1092,6 +1276,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
             socketManager.removeAudioFrameListener();
+            socketManager.off("call_room_joined");
             socketManager.off("user_joined_call");
             socketManager.off("user_left_call");
         }
