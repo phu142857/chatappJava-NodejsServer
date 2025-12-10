@@ -1,6 +1,7 @@
 package com.example.chatappjava.ui.call;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -429,11 +430,41 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                 Log.e(TAG, "Error receiving user_left_call", e);
             }
         });
+        
+        // Listener for call declined event
+        socketManager.on("call_declined", args -> {
+            JSONObject data = (JSONObject) args[0];
+            String declinedCallId = data.optString("callId", "");
+
+            runOnUiThread(() -> {
+                // Check if this is the current call
+                if (callId != null && callId.equals(declinedCallId)) {
+                    Log.d(TAG, "Call declined by remote user");
+                    Toast.makeText(this, "Call declined", Toast.LENGTH_SHORT).show();
+                    endCall();
+                }
+            });
+        });
+        
+        // Listener for call ended event
+        socketManager.on("call_ended", args -> {
+            JSONObject data = (JSONObject) args[0];
+            String endedCallId = data.optString("callId", "");
+
+            runOnUiThread(() -> {
+                // Check if this is the current call
+                if (callId != null && callId.equals(endedCallId)) {
+                    Log.d(TAG, "Call ended");
+                    Toast.makeText(this, "Call ended", Toast.LENGTH_SHORT).show();
+                    endCall();
+                }
+            });
+        });
     }
     
     private void updateLocalVideoFrame(String base64Frame, boolean isFrontCamera) {
-        // CRITICAL: Only update if camera is on
-        if (!isCameraOn) {
+        // CRITICAL: Only update if call is active and camera is on
+        if (!isCallActive || !isCameraOn) {
             return;
         }
         
@@ -469,6 +500,11 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     }
     
     private void updateRemoteVideoFrame(String base64Frame) {
+        // CRITICAL: Only update if call is active
+        if (!isCallActive) {
+            return;
+        }
+        
         android.graphics.Bitmap bitmap = VideoFrameEncoder.decodeFrame(base64Frame);
         if (bitmap != null) {
             // Release old bitmap
@@ -691,14 +727,38 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
             videoFrameTimeoutHandler.removeCallbacks(videoFrameTimeoutRunnable);
         }
         
-        // Clean up bitmaps
+        // CRITICAL: Clear ImageViews BEFORE recycling bitmaps to avoid "recycled bitmap" crash
+        if (ivLocalVideoFrame != null) {
+            ivLocalVideoFrame.setImageBitmap(null);
+        }
+        if (ivRemoteVideoFrame != null) {
+            ivRemoteVideoFrame.setImageBitmap(null);
+        }
+        
+        // Clean up bitmaps after clearing ImageViews
         if (localVideoBitmap != null && !localVideoBitmap.isRecycled()) {
             localVideoBitmap.recycle();
+            localVideoBitmap = null;
         }
         if (remoteVideoBitmap != null && !remoteVideoBitmap.isRecycled()) {
             remoteVideoBitmap.recycle();
+            remoteVideoBitmap = null;
         }
         
+        // Navigate to home
+        navigateToHome();
+    }
+    
+    private void navigateToHome() {
+        Log.d(TAG, "Navigating back to HomeActivity");
+        
+        // Create intent to go back to HomeActivity
+        Intent intent = new Intent(this, com.example.chatappjava.ui.theme.HomeActivity.class);
+        
+        // Clear the activity stack and start fresh from HomeActivity
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        
+        startActivity(intent);
         finish();
     }
     
@@ -726,13 +786,26 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
             socketManager.removeVideoFrameListener();
             socketManager.off("call_room_joined");
             socketManager.off("user_left_call");
+            socketManager.off("call_declined");
+            socketManager.off("call_ended");
         }
         
+        // CRITICAL: Clear ImageViews BEFORE recycling bitmaps to avoid "recycled bitmap" crash
+        if (ivLocalVideoFrame != null) {
+            ivLocalVideoFrame.setImageBitmap(null);
+        }
+        if (ivRemoteVideoFrame != null) {
+            ivRemoteVideoFrame.setImageBitmap(null);
+        }
+        
+        // Clean up bitmaps after clearing ImageViews
         if (localVideoBitmap != null && !localVideoBitmap.isRecycled()) {
             localVideoBitmap.recycle();
+            localVideoBitmap = null;
         }
         if (remoteVideoBitmap != null && !remoteVideoBitmap.isRecycled()) {
             remoteVideoBitmap.recycle();
+            remoteVideoBitmap = null;
         }
         
         if (frameCaptureHandler != null && frameCaptureRunnable != null) {

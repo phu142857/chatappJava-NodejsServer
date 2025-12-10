@@ -350,13 +350,8 @@ public class RingingActivity extends AppCompatActivity {
                             Log.d(TAG, "Call declined by other party");
                             Toast.makeText(RingingActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
                             
-                            // Set result to indicate call was declined
-                            Intent resultIntent = new Intent();
-                            resultIntent.putExtra("callDeclined", true);
-                            resultIntent.putExtra("callId", callId);
-                            setResult(RESULT_OK, resultIntent);
-                            
-                            finish();
+                            // Navigate to home
+                            navigateToHome();
                         }
                     });
                 }
@@ -594,17 +589,35 @@ public class RingingActivity extends AppCompatActivity {
         }
         
         Log.d(TAG, "Declining call: " + callId);
-        isCallActive = true;
+        
+        if (callId == null || callId.isEmpty()) {
+            Log.e(TAG, "Cannot decline call: callId is null or empty");
+            synchronized (callActionLock) {
+                isDecliningCall = false;
+            }
+            navigateToHome();
+            return;
+        }
+        
         stopRingingAnimations();
         stopRingtone();
         
         // Call API to decline call
         String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Log.e(TAG, "Cannot decline call: token is null or empty");
+            synchronized (callActionLock) {
+                isDecliningCall = false;
+            }
+            navigateToHome();
+            return;
+        }
+        
         apiClient.declineCall(token, callId, new Callback() {
             @Override
             public void onFailure(Call call, java.io.IOException e) {
+                Log.e(TAG, "Failed to decline call", e);
                 runOnUiThread(() -> {
-                    Log.e(TAG, "Failed to decline call", e);
                     // Reset active call on failure as well to avoid stuck state
                     com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
                     if (sm != null) sm.resetActiveCall();
@@ -617,15 +630,54 @@ public class RingingActivity extends AppCompatActivity {
             
             @Override
             public void onResponse(Call call, Response response) {
-                runOnUiThread(() -> {
-                    Log.d(TAG, "Call declined: " + response.code());
-                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
-                    if (sm != null) sm.resetActiveCall();
-                    synchronized (callActionLock) {
-                        isDecliningCall = false;
+                // CRITICAL FIX: Read response body in background thread to avoid NetworkOnMainThreadException
+                new Thread(() -> {
+                    try {
+                        String responseBody = null;
+                        if (response.body() != null) {
+                            responseBody = response.body().string();
+                        }
+                        
+                        final String finalResponseBody = responseBody;
+                        final boolean isSuccessful = response.isSuccessful();
+                        
+                        runOnUiThread(() -> {
+                            if (isSuccessful) {
+                                Log.d(TAG, "Call declined successfully");
+                                try {
+                                    if (finalResponseBody != null) {
+                                        JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                        boolean success = jsonResponse.optBoolean("success", false);
+                                        String message = jsonResponse.optString("message", "");
+                                        Log.d(TAG, "Decline call response: success=" + success + ", message=" + message);
+                                    }
+                                } catch (JSONException e) {
+                                    Log.e(TAG, "Error parsing decline call response", e);
+                                }
+                            } else {
+                                Log.e(TAG, "Failed to decline call: " + response.code());
+                            }
+                            
+                            // Reset active call state
+                            com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) sm.resetActiveCall();
+                            
+                            synchronized (callActionLock) {
+                                isDecliningCall = false;
+                            }
+                            
+                            navigateToHome();
+                        });
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error reading decline call response body", e);
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isDecliningCall = false;
+                            }
+                            navigateToHome();
+                        });
                     }
-                    navigateToHome();
-                });
+                }).start();
             }
         });
     }
