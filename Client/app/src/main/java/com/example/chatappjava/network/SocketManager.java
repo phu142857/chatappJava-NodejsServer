@@ -517,7 +517,7 @@ public class SocketManager {
     }
     
     /**
-     * Envoyer une frame vidéo au serveur
+     * Send a video frame to the server
      */
     public void sendVideoFrame(String callId, String base64Frame) {
         if (socket != null && isConnected) {
@@ -528,13 +528,13 @@ public class SocketManager {
                 data.put("timestamp", System.currentTimeMillis());
                 socket.emit("video_frame", data);
             } catch (JSONException e) {
-                Log.e(TAG, "Erreur lors de l'envoi de la frame vidéo", e);
+                Log.e(TAG, "Error sending video frame", e);
             }
         }
     }
     
     /**
-     * Interface pour recevoir les frames vidéo
+     * Interface for receiving video frames
      */
     public interface VideoFrameListener {
         void onVideoFrameReceived(String userId, String base64Frame, long timestamp);
@@ -543,12 +543,12 @@ public class SocketManager {
     private VideoFrameListener videoFrameListener;
     
     /**
-     * Définir le listener pour les frames vidéo
+     * Set the listener for video frames
      */
     public void setVideoFrameListener(VideoFrameListener listener) {
         this.videoFrameListener = listener;
         
-        // Configurer l'écouteur socket si connecté
+        // Setup socket listener if connected
         if (socket != null && isConnected && listener != null) {
             socket.on("video_frame", new Emitter.Listener() {
                 @Override
@@ -563,7 +563,7 @@ public class SocketManager {
                             videoFrameListener.onVideoFrameReceived(userId, frame, timestamp);
                         }
                     } catch (JSONException e) {
-                        Log.e(TAG, "Erreur lors de la réception de la frame vidéo", e);
+                        Log.e(TAG, "Error receiving video frame", e);
                     }
                 }
             });
@@ -571,7 +571,7 @@ public class SocketManager {
     }
     
     /**
-     * Retirer le listener pour les frames vidéo
+     * Remove the listener for video frames
      */
     public void removeVideoFrameListener() {
         this.videoFrameListener = null;

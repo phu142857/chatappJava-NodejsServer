@@ -1116,22 +1116,22 @@ public class GroupChatActivity extends BaseChatActivity {
         android.util.Log.d("GroupChatActivity", "Group call socket listeners registered");
     }
     
-    // Throttle mechanism để tránh gọi API quá nhiều
+    // Throttle mechanism to avoid calling API too frequently
     private long lastActiveCallCheckTime = 0;
-    private static final long ACTIVE_CALL_CHECK_INTERVAL_MS = 5000; // Chỉ check mỗi 5 giây
+    private static final long ACTIVE_CALL_CHECK_INTERVAL_MS = 5000; // Only check every 5 seconds
     private boolean isCheckingActiveCall = false;
     
     private void checkForActiveGroupCall() {
         if (currentChat == null) return;
         
-        // Throttle: Chỉ check nếu đã qua 5 giây kể từ lần check cuối
+        // Throttle: Only check if 5 seconds have passed since last check
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastActiveCallCheckTime < ACTIVE_CALL_CHECK_INTERVAL_MS) {
             android.util.Log.d("GroupChatActivity", "Skipping active call check - too soon (throttled)");
             return;
         }
         
-        // Tránh gọi đồng thời nhiều request
+        // Avoid concurrent requests
         if (isCheckingActiveCall) {
             android.util.Log.d("GroupChatActivity", "Active call check already in progress, skipping");
             return;
@@ -1316,7 +1316,7 @@ public class GroupChatActivity extends BaseChatActivity {
         android.util.Log.d("GroupChatActivity", "  callId: " + activeCallId);
         android.util.Log.d("GroupChatActivity", "  isCaller: false");
         
-        // Lancer l'activité d'appel vidéo
+        // Launch video call activity
         Intent intent = new Intent(this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
         intent.putExtra("callId", activeCallId);
         intent.putExtra("chatId", currentChat.getId());

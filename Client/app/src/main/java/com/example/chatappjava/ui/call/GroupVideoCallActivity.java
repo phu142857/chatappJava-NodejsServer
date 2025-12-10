@@ -42,8 +42,8 @@ import okhttp3.Callback;
 import okhttp3.Response;
 
 /**
- * Activité pour les appels vidéo de groupe personnalisés (sans WebRTC)
- * Capture continuellement des frames depuis la caméra, les encode et les envoie au serveur
+ * Activity for custom group video calls (without WebRTC)
+ * Continuously captures frames from the camera, encodes them and sends them to the server
  */
 public class GroupVideoCallActivity extends AppCompatActivity {
     private static final String TAG = "GroupVideoCallActivity";
@@ -93,19 +93,19 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_group_video_call);
         
-        // Obtenir les données de l'intent
+        // Get intent data
         getIntentData();
         
-        // Initialiser les managers
+        // Initialize managers
         databaseManager = new DatabaseManager(this);
         apiClient = new ApiClient();
         socketManager = SocketManager.getInstance();
         currentUserId = databaseManager.getUserId();
         
-        // Initialiser les vues
+        // Initialize views
         initViews();
         
-        // Vérifier les permissions
+        // Check permissions
         if (checkPermissions()) {
             initializeCall();
         } else {
@@ -119,7 +119,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         groupName = getIntent().getStringExtra("groupName");
         
         if (callId == null || chatId == null) {
-            Toast.makeText(this, "Données d'appel invalides", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid call data", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
@@ -141,7 +141,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             tvGroupName.setText(groupName);
         }
         
-        // Configurer le RecyclerView avec GridLayoutManager
+        // Configure RecyclerView with GridLayoutManager
         GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
         rvVideoGrid.setLayoutManager(layoutManager);
         
@@ -149,7 +149,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         adapter = new CustomVideoParticipantAdapter(this, participants);
         rvVideoGrid.setAdapter(adapter);
         
-        // Configurer les listeners
+        // Setup click listeners
         setupClickListeners();
     }
     
@@ -179,28 +179,28 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 grantResults[1] == PackageManager.PERMISSION_GRANTED) {
                 initializeCall();
             } else {
-                Toast.makeText(this, "Les permissions sont nécessaires pour l'appel vidéo", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Permissions are required for video call", Toast.LENGTH_SHORT).show();
                 finish();
             }
         }
     }
     
     private void initializeCall() {
-        showLoading("Connexion à l'appel...");
+        showLoading("Connecting to call...");
         
-        // CRITICAL: Setup listeners TRƯỚC khi join room để không bỏ lỡ event call_room_joined
+        // CRITICAL: Setup listeners BEFORE joining room to avoid missing call_room_joined event
         setupSocketListeners();
         
-        // Thêm local participant trước
+        // Add local participant first
         addLocalParticipant();
         
-        // Rejoindre la salle d'appel via socket (sẽ trigger call_room_joined với danh sách participants)
+        // Join call room via socket (will trigger call_room_joined with participants list)
         socketManager.joinCallRoom(callId);
         
-        // Démarrer la capture vidéo
+        // Start video capture
         startVideoCapture();
         
-        // Démarrer le chronomètre
+        // Start call duration timer
         startCallDurationTimer();
         
         hideLoading();
@@ -208,7 +208,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     }
     
     private void setupSocketListeners() {
-        // Listener pour les frames vidéo reçues
+        // Listener for received video frames
         socketManager.setVideoFrameListener(new SocketManager.VideoFrameListener() {
             @Override
             public void onVideoFrameReceived(String userId, String base64Frame, long timestamp) {
@@ -223,7 +223,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         });
         
-        // CRITICAL: Listener pour call_room_joined - load danh sách participants hiện có
+        // CRITICAL: Listener for call_room_joined - load existing participants list
         socketManager.on("call_room_joined", args -> {
             JSONObject data = (JSONObject) args[0];
             JSONArray participantsArray = data.optJSONArray("participants");
@@ -231,8 +231,8 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             if (participantsArray != null) {
                 Log.d(TAG, "Received call_room_joined with " + participantsArray.length() + " participants");
                 runOnUiThread(() -> {
-                    // CRITICAL: Xóa tất cả participants cũ (trừ local participant) trước khi load danh sách mới
-                    // Điều này đảm bảo chỉ hiển thị những người đang thực sự trong call
+                    // CRITICAL: Remove all old participants (except local participant) before loading new list
+                    // This ensures only people actually in the call are displayed
                     List<CallParticipant> toRemove = new ArrayList<>();
                     for (CallParticipant p : participants) {
                         if (!p.isLocal() && p.getUserId() != null && !p.getUserId().equals(currentUserId)) {
@@ -243,7 +243,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                         participants.remove(p);
                     }
                     
-                    // Load tất cả participants hiện có từ server (chỉ những người đã join room)
+                    // Load all existing participants from server (only those who have joined room)
                     for (int i = 0; i < participantsArray.length(); i++) {
                         try {
                             JSONObject participantObj = participantsArray.getJSONObject(i);
@@ -262,7 +262,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                                 continue;
                             }
 
-                            // Skip local participant (đã được thêm trong addLocalParticipant)
+                            // Skip local participant (already added in addLocalParticipant)
                             if (userId != null && userId.equals(currentUserId)) {
                                 continue;
                             }
@@ -270,21 +270,21 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                             String username = participantObj.optString("username", "");
                             String avatar = participantObj.optString("avatar", "");
 
-                            // Thêm participant (đã được filter ở server - chỉ những người đã join)
+                            // Add participant (already filtered on server - only those who have joined)
                             addParticipant(userId, username, avatar);
                         } catch (JSONException e) {
                             Log.e(TAG, "Error parsing participant at index " + i, e);
                         }
                     }
                     
-                    // Update adapter sau khi load xong
+                    // Update adapter after loading is complete
                     adapter.notifyDataSetChanged();
                     updateParticipantCount();
                 });
             }
         });
         
-        // Listener pour les participants qui rejoignent
+        // Listener for participants who join
         socketManager.on("user_joined_call", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -296,11 +296,11 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     addParticipant(userId, username, avatar);
                 });
             } catch (JSONException e) {
-                Log.e(TAG, "Erreur lors de la réception de user_joined_call", e);
+                Log.e(TAG, "Error receiving user_joined_call", e);
             }
         });
         
-        // Listener pour les participants qui quittent
+        // Listener for participants who leave
         socketManager.on("user_left_call", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -310,16 +310,16 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     removeParticipant(userId);
                 });
             } catch (JSONException e) {
-                Log.e(TAG, "Erreur lors de la réception de user_left_call", e);
+                Log.e(TAG, "Error receiving user_left_call", e);
             }
         });
     }
     
-    // Method này không còn cần thiết vì participants được load từ call_room_joined event
-    // Giữ lại để tương thích nếu có code khác gọi
+    // This method is no longer needed because participants are loaded from call_room_joined event
+    // Kept for compatibility if other code calls it
     private void loadParticipants() {
-        // Participants sẽ được load từ event call_room_joined
-        // Chỉ thêm local participant nếu chưa có
+        // Participants will be loaded from call_room_joined event
+        // Only add local participant if not already present
         boolean hasLocal = false;
         for (CallParticipant p : participants) {
             if (p.isLocal() && p.getUserId() != null && p.getUserId().equals(currentUserId)) {
@@ -347,10 +347,10 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     }
     
     private void addParticipant(String userId, String username, String avatar) {
-        // Vérifier si le participant existe déjà
+        // Check if participant already exists
         for (CallParticipant p : participants) {
             if (p.getUserId() != null && p.getUserId().equals(userId)) {
-                return; // Déjà présent
+                return; // Already present
             }
         }
         
@@ -405,13 +405,13 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         });
         
-        // Démarrer la capture périodique
+        // Start periodic capture
         frameCaptureHandler = new Handler(Looper.getMainLooper());
         frameCaptureRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isCallActive && isCameraOn && cameraCaptureManager != null && cameraCaptureManager.isCapturing()) {
-                    // La capture est continue, on envoie les frames périodiquement
+                    // Capture is continuous, send frames periodically
                     frameCaptureHandler.postDelayed(this, FRAME_CAPTURE_INTERVAL_MS);
                 }
             }
@@ -420,14 +420,14 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     }
     
     private void sendVideoFrame(byte[] frameData) {
-        // Éviter d'envoyer plusieurs frames en même temps
+        // Avoid sending multiple frames at the same time
         if (!isSendingFrame.compareAndSet(false, true)) {
             return;
         }
         
         new Thread(() -> {
             try {
-                // Encoder la frame en base64
+                // Encode frame to base64
                 String base64Frame = VideoFrameEncoder.encodeFrame(frameData);
                 
                 if (base64Frame != null) {
@@ -450,7 +450,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     Log.w(TAG, "Failed to encode video frame");
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Erreur lors de l'envoi de la frame", e);
+                Log.e(TAG, "Error sending video frame", e);
             } finally {
                 isSendingFrame.set(false);
             }
@@ -461,7 +461,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         isMuted = !isMuted;
         btnMute.setImageResource(isMuted ? R.drawable.ic_mic_off : R.drawable.ic_mic);
         
-        // Mettre à jour le participant local
+        // Update local participant
         for (CallParticipant p : participants) {
             if (p.isLocal()) {
                 p.setAudioMuted(isMuted);
@@ -470,7 +470,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         }
         
-        // Envoyer la mise à jour au serveur
+        // Send update to server
         updateMediaState();
     }
     
@@ -484,7 +484,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             stopVideoCapture();
         }
         
-        // Mettre à jour le participant local
+        // Update local participant
         for (CallParticipant p : participants) {
             if (p.isLocal()) {
                 p.setVideoMuted(!isCameraOn);
@@ -493,7 +493,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         }
         
-        // Envoyer la mise à jour au serveur
+        // Send update to server
         updateMediaState();
     }
     
@@ -514,8 +514,8 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     }
     
     private void updateMediaState() {
-        // Envoyer la mise à jour de l'état média au serveur
-        // Note: Vous devrez peut-être créer cette méthode dans ApiClient
+        // Send media state update to server
+        // Note: You may need to create this method in ApiClient
     }
     
     private void startCallDurationTimer() {
@@ -541,24 +541,24 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private void endCall() {
         isCallActive = false;
         
-        // Arrêter la capture vidéo
+        // Stop video capture
         stopVideoCapture();
         
-        // Quitter la salle d'appel
+        // Leave call room
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
             socketManager.removeVideoFrameListener();
         }
         
-        // Arrêter le chronomètre
+        // Stop call duration timer
         if (callDurationHandler != null && callDurationRunnable != null) {
             callDurationHandler.removeCallbacks(callDurationRunnable);
         }
         
-        // Appeler l'API pour quitter l'appel
+        // Call API to leave call
         String token = databaseManager.getToken();
         if (token != null && callId != null) {
-            // Note: Vous devrez peut-être créer cette méthode dans ApiClient
+            // Note: You may need to create this method in ApiClient
             // apiClient.leaveGroupCall(token, callId, ...);
         }
         
@@ -580,7 +580,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         
-        // Nettoyer les ressources
+        // Clean up resources
         if (cameraCaptureManager != null) {
             cameraCaptureManager.stopCapture();
         }

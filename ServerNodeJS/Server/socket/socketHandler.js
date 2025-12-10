@@ -374,12 +374,12 @@ class SocketHandler {
           avatar: socket.user.avatar
         });
 
-        // CRITICAL: Chỉ gửi những participants đã thực sự join call room (có trong socket room)
-        // Lấy danh sách sockets đang trong room
+        // CRITICAL: Only send participants who have actually joined call room (are in socket room)
+        // Get list of sockets currently in room
         const roomName = `call_${callId}`;
         const roomSockets = this.io.sockets.adapter.rooms.get(roomName) || new Set();
         
-        // Lấy danh sách userIds đã join room
+        // Get list of userIds that have joined room
         const joinedUserIds = new Set();
         for (const socketId of roomSockets) {
           const userId = this.socketToUserMap.get(socketId);
@@ -388,7 +388,7 @@ class SocketHandler {
           }
         }
         
-        // Filter participants để chỉ lấy những người đã join room
+        // Filter participants to only get those who have joined room
         const activeParticipants = call.participants.filter(p => {
           let participantUserId;
           if (p.userId && typeof p.userId === 'object' && p.userId._id) {
@@ -401,7 +401,7 @@ class SocketHandler {
         
         console.log(`join_call_room: Sending ${activeParticipants.length} active participants (out of ${call.participants.length} total) to user ${socket.userId}`);
 
-        // Send call info to user với chỉ những participants đã join
+        // Send call info to user with only participants who have joined
         socket.emit('call_room_joined', {
           callId: callId,
           roomId: call.webrtcData.roomId,
@@ -490,20 +490,20 @@ class SocketHandler {
       console.log(`Forwarded ICE candidate for call ${callId} from user ${socket.userId}`);
     });
 
-    // Gérer les frames vidéo personnalisées (sans WebRTC)
+    // Handle custom video frames (without WebRTC)
     socket.on('video_frame', async (data) => {
       try {
         const { callId, frame, timestamp } = data;
         
         if (!callId || !frame) {
-          console.error('video_frame: callId ou frame manquant');
+          console.error('video_frame: callId or frame missing');
           return;
         }
 
-        // Vérifier que l'utilisateur est dans la salle d'appel
+        // Verify that user is in call room
         const callInfo = this.activeCalls.get(callId);
         if (!callInfo) {
-          console.error(`video_frame: Appel ${callId} non trouvé dans activeCalls`);
+          console.error(`video_frame: Call ${callId} not found in activeCalls`);
           // Try to find call in database and add to activeCalls
           Call.findOne({ callId: callId }).then(call => {
             if (call) {
@@ -512,7 +512,7 @@ class SocketHandler {
                 participants: call.participants.map(p => p.userId.toString()),
                 roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
               });
-              console.log(`video_frame: Call ${callId} ajouté à activeCalls`);
+              console.log(`video_frame: Call ${callId} added to activeCalls`);
               
               // Retry sending the frame
               const payload = {
@@ -524,12 +524,12 @@ class SocketHandler {
               this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
             }
           }).catch(err => {
-            console.error(`video_frame: Erreur lors de la recherche de l'appel ${callId}:`, err);
+            console.error(`video_frame: Error searching for call ${callId}:`, err);
           });
           return;
         }
 
-        // Créer le payload avec les informations de l'expéditeur
+        // Create payload with sender information
         const payload = {
           callId: callId,
           userId: socket.userId,
@@ -572,8 +572,8 @@ class SocketHandler {
         }
 
       } catch (error) {
-        console.error('Erreur lors du traitement de video_frame:', error);
-        socket.emit('call_error', { message: 'Erreur lors de l\'envoi de la frame vidéo' });
+        console.error('Error processing video_frame:', error);
+        socket.emit('call_error', { message: 'Error sending video frame' });
       }
     });
 
