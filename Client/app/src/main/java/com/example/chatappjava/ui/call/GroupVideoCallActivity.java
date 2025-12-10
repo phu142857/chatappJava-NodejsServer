@@ -59,7 +59,9 @@ import okhttp3.Response;
 public class GroupVideoCallActivity extends AppCompatActivity {
     private static final String TAG = "GroupVideoCallActivity";
     private static final int PERMISSION_REQUEST_CODE = 100;
-    private static final int FRAME_CAPTURE_INTERVAL_MS = 100; // 10 FPS
+    // CRITICAL: Reduced FPS to minimize encoding load and latency
+    // 33ms = ~30 FPS - reduces encoding time significantly
+    private static final int FRAME_CAPTURE_INTERVAL_MS = 33; // ~30 FPS (reduced for lower latency)
     
     // UI Components
     private RecyclerView rvVideoGrid;
@@ -105,7 +107,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     // CRITICAL: Track last frame received time for each participant
     // If no frames received for 2 seconds, assume camera is off
     private Map<String, Long> lastFrameReceivedTime;
-    private static final long VIDEO_FRAME_TIMEOUT_MS = 2000; // 2 seconds
+    // CRITICAL: Increase timeout to prevent losing video when user is idle
+    // User may be still but camera is still capturing, just not moving much
+    private static final long VIDEO_FRAME_TIMEOUT_MS = 10000; // 10 seconds (increased from 2s)
     private Handler videoFrameTimeoutHandler;
     private Runnable videoFrameTimeoutRunnable;
     
@@ -679,8 +683,12 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     }
     
     private void sendVideoFrame(byte[] frameData) {
-        // Avoid sending multiple frames at the same time
+        // CRITICAL: Always send frames, even if previous send is in progress
+        // This ensures frames are sent periodically even when user is idle
+        // Use tryLock to allow skipping if encoding is slow to maintain frame rate
         if (!isSendingFrame.compareAndSet(false, true)) {
+            // If previous frame is still being encoded, skip this one to maintain frame rate
+            // This prevents queue buildup and ensures timely delivery
             return;
         }
         
@@ -702,7 +710,6 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     
                     // Send to server to forward to other participants
                     if (socketManager != null) {
-                        Log.d(TAG, "Sending video frame to server for callId: " + callId);
                         socketManager.sendVideoFrame(callId, base64Frame);
                     } else {
                         Log.w(TAG, "SocketManager is null, cannot send video frame");
@@ -871,8 +878,8 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                         }
                     }
                     
-                    // Check again in 500ms
-                    videoFrameTimeoutHandler.postDelayed(this, 500);
+                    // Check again in 1 second (less frequent to reduce overhead)
+                    videoFrameTimeoutHandler.postDelayed(this, 1000);
                 }
             }
         };

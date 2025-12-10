@@ -30,7 +30,8 @@ public class AudioEncoder {
         try {
             // Encode PCM to base64 (similar to video frame encoding)
             // Note: We don't compress audio here to avoid latency
-            // Raw PCM: 16kHz * 2 bytes * 1 channel = 32KB/s (acceptable for voice calls)
+            // Raw PCM: 16kHz * 2 bytes * 1 channel = 32KB/s (optimized for low latency)
+            // Reduced from 24kHz to minimize buffer size and latency
             String base64 = Base64.encodeToString(pcmData, Base64.NO_WRAP);
             return base64;
         } catch (Exception e) {

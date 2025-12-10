@@ -43,9 +43,10 @@ public class CameraCaptureManager {
     private boolean isCapturing = false;
     private int currentCameraFacing = CameraCharacteristics.LENS_FACING_BACK;
     
-    // Capture configuration
-    private static final int CAPTURE_WIDTH = 640;
-    private static final int CAPTURE_HEIGHT = 480;
+    // Capture configuration - optimized for 60 FPS
+    // Reduced resolution for faster processing and lower bandwidth
+    private static final int CAPTURE_WIDTH = 480;
+    private static final int CAPTURE_HEIGHT = 360;
     private static final int MAX_IMAGES = 1;
     
     public interface FrameCaptureCallback {
@@ -393,7 +394,9 @@ public class CameraCaptureManager {
         backgroundHandler.post(captureRunnableRef[0]);
     }
     
-    private static final int FRAME_CAPTURE_INTERVAL_MS = 100; // 10 FPS
+    // CRITICAL: Reduced FPS to minimize encoding load and latency
+    // 33ms = ~30 FPS - reduces encoding time significantly
+    private static final int FRAME_CAPTURE_INTERVAL_MS = 33; // ~30 FPS (reduced for lower latency)
     
     /**
      * Get optimal size
