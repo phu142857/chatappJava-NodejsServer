@@ -289,7 +289,21 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             if (audioManager != null) {
                 // Set mode to IN_COMMUNICATION for voice calls
                 audioManager.setMode(android.media.AudioManager.MODE_IN_COMMUNICATION);
-                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION");
+                
+                // CRITICAL: Set speakerphone on for group calls (better for multiple participants)
+                audioManager.setSpeakerphoneOn(true);
+                
+                // CRITICAL: Adjust stream volume to ensure audio is audible
+                int maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                int currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                if (currentVolume < maxVolume * 0.7) {
+                    // Set volume to at least 70% of max for better audio
+                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, 
+                                                 (int)(maxVolume * 0.7), 0);
+                    Log.d(TAG, "Adjusted voice call volume to " + (int)(maxVolume * 0.7) + " (max: " + maxVolume + ")");
+                }
+                
+                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION, speakerphone: true, volume: " + currentVolume + "/" + maxVolume);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error setting audio mode", e);
@@ -374,15 +388,26 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                             }
                             
                             if (audioPlaybackManager != null) {
+                                // CRITICAL: Always ensure playback is started before playing audio
                                 if (!audioPlaybackManager.isPlaying()) {
+                                    Log.w(TAG, "Audio playback not started, starting now...");
                                     audioPlaybackManager.startPlayback();
+                                    if (!audioPlaybackManager.isPlaying()) {
+                                        Log.e(TAG, "Failed to start audio playback, skipping frame");
+                                        return;
+                                    }
                                 }
+                                
                                 // CRITICAL: Decode and play immediately - no buffering
                                 byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
-                                if (audioData != null && isCallActive) {
+                                if (audioData != null && audioData.length > 0 && isCallActive) {
                                     // Play immediately - AudioPlaybackManager uses adaptive flush
                                     audioPlaybackManager.playAudio(audioData);
+                                } else {
+                                    Log.w(TAG, "Invalid audio data: " + (audioData == null ? "null" : "length=" + audioData.length));
                                 }
+                            } else {
+                                Log.w(TAG, "AudioPlaybackManager is null, cannot play audio");
                             }
                         } catch (Exception e) {
                             // CRITICAL: Catch all exceptions to prevent call from ending
@@ -758,7 +783,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 @Override
                 public void onAudioCaptured(byte[] audioData, int bytesRead) {
                     try {
-                        if (audioData != null && isCallActive && !isMuted) {
+                        if (audioData != null && audioData.length > 0 && isCallActive && !isMuted) {
                             sendAudioFrame(audioData);
                         }
                     } catch (Exception e) {
@@ -767,7 +792,12 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                     }
                 }
             });
-            Log.d(TAG, "Audio capture started, isCapturing: " + audioCaptureManager.isCapturing());
+            boolean isCapturing = audioCaptureManager.isCapturing();
+            Log.d(TAG, "Audio capture started, isCapturing: " + isCapturing);
+            
+            if (!isCapturing) {
+                Log.e(TAG, "WARNING: Audio capture failed to start!");
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio capture", e);
             // Don't end call - continue without audio capture
@@ -779,9 +809,19 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         try {
             if (audioPlaybackManager == null) {
                 audioPlaybackManager = new AudioPlaybackManager();
+                Log.d(TAG, "Created new AudioPlaybackManager");
             }
+            
+            // CRITICAL: Always try to start playback, even if already playing
+            // This ensures AudioTrack is properly initialized
             audioPlaybackManager.startPlayback();
-            Log.d(TAG, "Audio playback started, isPlaying: " + audioPlaybackManager.isPlaying());
+            
+            boolean isPlaying = audioPlaybackManager.isPlaying();
+            Log.d(TAG, "Audio playback started, isPlaying: " + isPlaying);
+            
+            if (!isPlaying) {
+                Log.e(TAG, "WARNING: Audio playback failed to start!");
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio playback", e);
             // Don't end call - continue without audio playback

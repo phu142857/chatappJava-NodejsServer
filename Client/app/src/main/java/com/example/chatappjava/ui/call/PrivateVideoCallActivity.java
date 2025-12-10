@@ -358,11 +358,48 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         try {
             android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
             if (audioManager != null) {
+                // CRITICAL: Request audio focus for voice calls
+                // This ensures our app has priority for audio playback
+                int focusRequest = audioManager.requestAudioFocus(
+                    null, // AudioFocusChangeListener (null for one-time request)
+                    android.media.AudioManager.STREAM_MUSIC, // Stream type
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT // Request transient focus
+                );
+                Log.d(TAG, "Audio focus request result: " + focusRequest + " (AUDIOFOCUS_REQUEST_GRANTED=" + android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED + ")");
+                
                 // Set mode to IN_COMMUNICATION for voice calls
                 audioManager.setMode(android.media.AudioManager.MODE_IN_COMMUNICATION);
-                // Enable speaker if needed (optional)
-                // audioManager.setSpeakerphoneOn(true);
-                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION");
+                
+                // CRITICAL: Set speakerphone on for better audio output
+                // This ensures audio is routed to speaker/earpiece properly
+                // For private calls, try speakerphone first to ensure audio is audible
+                audioManager.setSpeakerphoneOn(true); // Use speaker for better audio output
+                
+                // CRITICAL: Since we're using USAGE_MEDIA in AudioTrack, set MUSIC stream volume
+                // USAGE_MEDIA maps to STREAM_MUSIC, so we need to set MUSIC volume
+                int maxMusicVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int currentMusicVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                
+                Log.d(TAG, "Current MUSIC stream volume: " + currentMusicVolume + "/" + maxMusicVolume);
+                
+                // CRITICAL: Set MUSIC stream volume to maximum to ensure audio is clearly audible
+                // AudioTrack uses USAGE_MEDIA which maps to STREAM_MUSIC
+                if (currentMusicVolume < maxMusicVolume) {
+                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 
+                                                 maxMusicVolume, 0);
+                    Log.d(TAG, "Set MUSIC stream volume to maximum: " + maxMusicVolume);
+                } else {
+                    Log.d(TAG, "MUSIC stream volume already at maximum: " + currentMusicVolume);
+                }
+                
+                // Also check VOICE_CALL stream volume for reference
+                int maxVoiceVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                int currentVoiceVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                Log.d(TAG, "VOICE_CALL stream volume: " + currentVoiceVolume + "/" + maxVoiceVolume);
+                
+                // Verify final volume
+                int finalMusicVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION, speakerphone: true, MUSIC volume: " + finalMusicVolume + "/" + maxMusicVolume);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error setting audio mode", e);
@@ -445,15 +482,30 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                             }
                             
                             if (audioPlaybackManager != null) {
+                                // CRITICAL: Always ensure playback is started before playing audio
                                 if (!audioPlaybackManager.isPlaying()) {
+                                    Log.w(TAG, "Audio playback not started, starting now...");
                                     audioPlaybackManager.startPlayback();
+                                    if (!audioPlaybackManager.isPlaying()) {
+                                        Log.e(TAG, "Failed to start audio playback, skipping frame");
+                                        return;
+                                    }
                                 }
+                                
                                 // CRITICAL: Decode and play immediately - no buffering
                                 byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
-                                if (audioData != null && isCallActive) {
+                                if (audioData != null && audioData.length > 0 && isCallActive) {
+                                    // Log only occasionally to avoid spam
+                                    if (System.currentTimeMillis() % 5000 < 100) {
+                                        Log.d(TAG, "Received and playing audio frame: " + audioData.length + " bytes");
+                                    }
                                     // Play immediately - AudioPlaybackManager uses adaptive flush
                                     audioPlaybackManager.playAudio(audioData);
+                                } else {
+                                    Log.w(TAG, "Invalid audio data: " + (audioData == null ? "null" : "length=" + audioData.length));
                                 }
+                            } else {
+                                Log.w(TAG, "AudioPlaybackManager is null, cannot play audio");
                             }
                         } catch (Exception e) {
                             // CRITICAL: Catch all exceptions to prevent call from ending
@@ -812,7 +864,11 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                 @Override
                 public void onAudioCaptured(byte[] audioData, int bytesRead) {
                     try {
-                        if (audioData != null && isCallActive && !isMuted) {
+                        if (audioData != null && audioData.length > 0 && isCallActive && !isMuted) {
+                            // Log capture frequency to debug
+                            if (System.currentTimeMillis() % 5000 < 100) {
+                                Log.d(TAG, "Audio captured: " + bytesRead + " bytes, sending to server");
+                            }
                             sendAudioFrame(audioData);
                         }
                     } catch (Exception e) {
@@ -821,7 +877,12 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                     }
                 }
             });
-            Log.d(TAG, "Audio capture started, isCapturing: " + audioCaptureManager.isCapturing());
+            boolean isCapturing = audioCaptureManager.isCapturing();
+            Log.d(TAG, "Audio capture started, isCapturing: " + isCapturing);
+            
+            if (!isCapturing) {
+                Log.e(TAG, "WARNING: Audio capture failed to start!");
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio capture", e);
             // Don't end call - continue without audio capture
@@ -845,9 +906,19 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         try {
             if (audioPlaybackManager == null) {
                 audioPlaybackManager = new AudioPlaybackManager();
+                Log.d(TAG, "Created new AudioPlaybackManager");
             }
+            
+            // CRITICAL: Always try to start playback, even if already playing
+            // This ensures AudioTrack is properly initialized
             audioPlaybackManager.startPlayback();
-            Log.d(TAG, "Audio playback started, isPlaying: " + audioPlaybackManager.isPlaying());
+            
+            boolean isPlaying = audioPlaybackManager.isPlaying();
+            Log.d(TAG, "Audio playback started, isPlaying: " + isPlaying);
+            
+            if (!isPlaying) {
+                Log.e(TAG, "WARNING: Audio playback failed to start!");
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio playback", e);
             // Don't end call - continue without audio playback
@@ -888,7 +959,10 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                     // No queue, no buffering - direct send for lowest latency
                     if (socketManager != null) {
                         socketManager.sendAudioFrame(callId, base64Audio);
-                        // Reduced logging to minimize overhead
+                        // Log send frequency to debug
+                        if (System.currentTimeMillis() % 5000 < 100) {
+                            Log.d(TAG, "Sent audio frame to server: " + base64Audio.length() + " bytes base64");
+                        }
                     }
                 }
             } catch (Exception e) {
