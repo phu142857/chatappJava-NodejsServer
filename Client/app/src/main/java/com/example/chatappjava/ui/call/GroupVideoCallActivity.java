@@ -40,7 +40,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import okhttp3.Call;
@@ -94,6 +96,13 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private long callStartTime;
     private Handler callDurationHandler;
     private Runnable callDurationRunnable;
+    
+    // CRITICAL: Track last frame received time for each participant
+    // If no frames received for 2 seconds, assume camera is off
+    private Map<String, Long> lastFrameReceivedTime;
+    private static final long VIDEO_FRAME_TIMEOUT_MS = 2000; // 2 seconds
+    private Handler videoFrameTimeoutHandler;
+    private Runnable videoFrameTimeoutRunnable;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -155,6 +164,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         participants = new ArrayList<>();
         adapter = new CustomVideoParticipantAdapter(this, participants);
         rvVideoGrid.setAdapter(adapter);
+        
+        // Initialize last frame received time tracking
+        lastFrameReceivedTime = new HashMap<>();
         
         // Setup click listeners
         setupClickListeners();
@@ -226,12 +238,36 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (adapter != null) {
                         adapter.updateVideoFrame(userId, base64Frame);
+                        
+                        // CRITICAL FIX: Track last frame received time
+                        lastFrameReceivedTime.put(userId, System.currentTimeMillis());
+                        
+                        // CRITICAL FIX: If we receive video frames, the user's camera must be on
+                        // Update participant's videoMuted state to false
+                        for (CallParticipant p : participants) {
+                            if (p.getUserId() != null && p.getUserId().equals(userId) && !p.isLocal()) {
+                                // Only update for remote participants (not local)
+                                if (p.isVideoMuted()) {
+                                    Log.d(TAG, "Updating participant " + userId + " videoMuted state to false (received video frame)");
+                                    p.setVideoMuted(false);
+                                    // Find index and notify change
+                                    int index = participants.indexOf(p);
+                                    if (index >= 0) {
+                                        adapter.notifyItemChanged(index);
+                                    }
+                                }
+                                break;
+                            }
+                        }
                     } else {
                         Log.w(TAG, "Adapter is null, cannot update video frame");
                     }
                 });
             }
         });
+        
+        // CRITICAL FIX: Start timeout checker to detect when participants stop sending frames
+        startVideoFrameTimeoutChecker();
         
         // CRITICAL: Listener for call_room_joined - load existing participants list
         socketManager.on("call_room_joined", args -> {
@@ -279,9 +315,29 @@ public class GroupVideoCallActivity extends AppCompatActivity {
 
                             String username = participantObj.optString("username", "");
                             String avatar = participantObj.optString("avatar", "");
+                            
+                            // CRITICAL FIX: Check if participant has video muted state from server
+                            // If not explicitly set, default to false (camera is on) if they're sending frames
+                            boolean isVideoMuted = participantObj.optBoolean("isVideoMuted", false);
+                            // Note: We'll update this automatically when receiving video frames
 
                             // Add participant (already filtered on server - only those who have joined)
-                            addParticipant(userId, username, avatar);
+                            CallParticipant participant = new CallParticipant();
+                            participant.setUserId(userId);
+                            participant.setUsername(username);
+                            participant.setAvatar(avatar);
+                            participant.setLocal(false);
+                            participant.setVideoMuted(isVideoMuted);
+                            
+                            participants.add(participant);
+                            adapter.notifyDataSetChanged();
+                            updateParticipantCount();
+                            
+                            // CRITICAL FIX: If avatar is empty, fetch user profile to get avatar
+                            // This matches how local participant gets avatar from databaseManager
+                            if (avatar == null || avatar.isEmpty() || avatar.trim().isEmpty()) {
+                                fetchUserAvatar(userId, participant);
+                            }
                         } catch (JSONException e) {
                             Log.e(TAG, "Error parsing participant at index " + i, e);
                         }
@@ -360,6 +416,14 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         // Check if participant already exists
         for (CallParticipant p : participants) {
             if (p.getUserId() != null && p.getUserId().equals(userId)) {
+                // Update avatar if it's empty and we have a new one
+                if ((p.getAvatar() == null || p.getAvatar().isEmpty()) && avatar != null && !avatar.isEmpty()) {
+                    p.setAvatar(avatar);
+                    int index = participants.indexOf(p);
+                    if (index >= 0) {
+                        adapter.notifyItemChanged(index);
+                    }
+                }
                 return; // Already present
             }
         }
@@ -369,14 +433,67 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         participant.setUsername(username);
         participant.setAvatar(avatar);
         participant.setLocal(false);
+        // CRITICAL FIX: Default to video NOT muted (camera on) when adding participant
+        // This will be updated automatically when we receive video frames or media state updates
+        participant.setVideoMuted(false);
         
         participants.add(participant);
         adapter.notifyDataSetChanged();
         updateParticipantCount();
         
+        // CRITICAL FIX: If avatar is empty, fetch user profile to get avatar
+        // This matches how local participant gets avatar from databaseManager
+        if (avatar == null || avatar.isEmpty() || avatar.trim().isEmpty()) {
+            fetchUserAvatar(userId, participant);
+        }
+        
         if (emptyState.getVisibility() == View.VISIBLE) {
             emptyState.setVisibility(View.GONE);
         }
+    }
+    
+    /**
+     * Fetch user avatar from server if not available
+     */
+    private void fetchUserAvatar(String userId, CallParticipant participant) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        
+        apiClient.authenticatedGet("/api/users/" + userId, token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NonNull okhttp3.Call call, @NonNull java.io.IOException e) {
+                Log.e(TAG, "Failed to fetch user avatar for " + userId, e);
+            }
+            
+            @Override
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    String responseBody = response.body().string();
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.optBoolean("success", false)) {
+                            JSONObject userData = jsonResponse.optJSONObject("data");
+                            if (userData != null) {
+                                String avatar = userData.optString("avatar", "");
+                                runOnUiThread(() -> {
+                                    // Update participant avatar
+                                    participant.setAvatar(avatar);
+                                    // Find and notify adapter
+                                    int index = participants.indexOf(participant);
+                                    if (index >= 0) {
+                                        adapter.notifyItemChanged(index);
+                                    }
+                                });
+                            }
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing user data for avatar", e);
+                    }
+                }
+            }
+        });
     }
     
     private void removeParticipant(String userId) {
@@ -560,6 +677,57 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         };
         callDurationHandler.post(callDurationRunnable);
+    }
+    
+    /**
+     * Start checking for video frame timeouts
+     * If a participant hasn't sent frames for VIDEO_FRAME_TIMEOUT_MS, assume camera is off
+     */
+    private void startVideoFrameTimeoutChecker() {
+        videoFrameTimeoutHandler = new Handler(Looper.getMainLooper());
+        videoFrameTimeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isCallActive) {
+                    long currentTime = System.currentTimeMillis();
+                    
+                    // Check all remote participants
+                    for (CallParticipant p : participants) {
+                        if (!p.isLocal() && p.getUserId() != null) {
+                            String userId = p.getUserId();
+                            Long lastFrameTime = lastFrameReceivedTime.get(userId);
+                            
+                            // If we have received frames before but haven't received any recently
+                            if (lastFrameTime != null) {
+                                long timeSinceLastFrame = currentTime - lastFrameTime;
+                                
+                                // If timeout exceeded and participant is not marked as video muted
+                                if (timeSinceLastFrame > VIDEO_FRAME_TIMEOUT_MS && !p.isVideoMuted()) {
+                                    Log.d(TAG, "Participant " + userId + " stopped sending frames, marking video as muted");
+                                    p.setVideoMuted(true);
+                                    
+                                    // Clear video frame from cache
+                                    if (adapter != null) {
+                                        adapter.clearVideoFrameForUser(userId);
+                                    }
+                                    
+                                    // CRITICAL: Force notify adapter to reload avatar
+                                    // Use notifyItemChanged with payload to force rebind
+                                    int index = participants.indexOf(p);
+                                    if (index >= 0) {
+                                        adapter.notifyItemChanged(index, "video_muted");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check again in 500ms
+                    videoFrameTimeoutHandler.postDelayed(this, 500);
+                }
+            }
+        };
+        videoFrameTimeoutHandler.post(videoFrameTimeoutRunnable);
     }
     
     private void showParticipantsListDialog() {
@@ -766,6 +934,10 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         
         if (callDurationHandler != null && callDurationRunnable != null) {
             callDurationHandler.removeCallbacks(callDurationRunnable);
+        }
+        
+        if (videoFrameTimeoutHandler != null && videoFrameTimeoutRunnable != null) {
+            videoFrameTimeoutHandler.removeCallbacks(videoFrameTimeoutRunnable);
         }
     }
 }

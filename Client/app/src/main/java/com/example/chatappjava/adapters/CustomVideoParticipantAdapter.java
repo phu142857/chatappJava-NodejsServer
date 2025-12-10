@@ -69,6 +69,9 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
                 bitmap = mirroredBitmap;
             }
             
+            // CRITICAL FIX: Always update video frame, even if participant is marked as video muted
+            // This prevents race conditions where frames are received but not displayed
+            // The onBindViewHolder will handle showing/hiding based on isVideoMuted state
             // Release old bitmap if it exists
             Bitmap oldBitmap = videoFrames.get(userId);
             if (oldBitmap != null && !oldBitmap.isRecycled()) {
@@ -78,6 +81,7 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
             videoFrames.put(userId, bitmap);
             
             // Find participant index and notify change
+            // CRITICAL: Always notify even if video is muted, so UI can update correctly
             for (int i = 0; i < participants.size(); i++) {
                 if (participants.get(i).getUserId() != null && 
                     participants.get(i).getUserId().equals(userId)) {
@@ -135,27 +139,6 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
         holder.tvParticipantName.setText(participant.getUsername());
         // Removed tvParticipantNamePlaceholder - no longer needed
         
-        // Load avatar - CRITICAL FIX: Construct full URL if needed
-        String avatarUrl = participant.getAvatar();
-        if (avatarUrl != null && !avatarUrl.isEmpty()) {
-            // Construct full URL if it's a relative path (like other adapters)
-            if (!avatarUrl.startsWith("http")) {
-                // Ensure avatar starts with / if it doesn't already
-                String avatarPath = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
-                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
-                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarPath;
-            }
-            
-            // Load avatar with Picasso
-            Picasso.get()
-                    .load(avatarUrl)
-                    .placeholder(R.drawable.ic_profile_placeholder)
-                    .error(R.drawable.ic_profile_placeholder)
-                    .into(holder.ivParticipantAvatar);
-        } else {
-            holder.ivParticipantAvatar.setImageResource(R.drawable.ic_profile_placeholder);
-        }
-        
         // Display video frame if available AND video is not muted
         String userId = participant.getUserId();
         boolean isVideoMuted = participant.isVideoMuted();
@@ -177,14 +160,33 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
             holder.ivVideoFrame.setVisibility(View.GONE);
             holder.videoPlaceholder.setVisibility(View.VISIBLE);
             
-            // CRITICAL FIX: Clear video frame from cache when video is muted
-            // This ensures avatar is shown instead of last frame
-            if (isVideoMuted && userId != null && videoFrames.containsKey(userId)) {
-                Bitmap oldFrame = videoFrames.remove(userId);
-                if (oldFrame != null && !oldFrame.isRecycled()) {
-                    oldFrame.recycle();
-                }
+            // CRITICAL FIX: DO NOT clear video frame from cache in onBindViewHolder
+            // This causes race conditions where frames are deleted while still being received
+            // Video frames should only be cleared explicitly via clearVideoFrameForUser()
+            // when the user actually turns off their camera
+        }
+        
+        // CRITICAL FIX: Always load avatar (even when video is on, it's used in placeholder)
+        // Load avatar - Construct full URL if needed
+        String avatarUrl = participant.getAvatar();
+        if (avatarUrl != null && !avatarUrl.isEmpty() && !avatarUrl.trim().isEmpty()) {
+            // Construct full URL if it's a relative path (like other adapters)
+            if (!avatarUrl.startsWith("http")) {
+                // Ensure avatar starts with / if it doesn't already
+                String avatarPath = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarPath;
             }
+            
+            // Load avatar with Picasso - force reload to ensure it displays
+            Picasso.get()
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
+                    .into(holder.ivParticipantAvatar);
+        } else {
+            // No avatar URL, use placeholder
+            holder.ivParticipantAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
         
         // Show muted indicator
