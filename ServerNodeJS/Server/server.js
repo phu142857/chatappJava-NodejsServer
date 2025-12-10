@@ -39,6 +39,10 @@ const { initializeGemini } = require('./services/summarizeService');
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
+  // CRITICAL: Increase maxHttpBufferSize to handle large video/audio frames
+  // Default is 1MB, but with 30 FPS video calls, frames can accumulate quickly
+  // Set to 10MB to match express.json limit and prevent call disconnections
+  maxHttpBufferSize: 10 * 1024 * 1024, // 10MB (increased from default 1MB)
   cors: {
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps)
