@@ -33,6 +33,8 @@ import com.squareup.picasso.Picasso;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+
 import de.hdodenhof.circleimageview.CircleImageView;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -497,19 +499,81 @@ public class RingingActivity extends AppCompatActivity {
             
             @Override
             public void onResponse(Call call, Response response) {
-                runOnUiThread(() -> {
-                    synchronized (callActionLock) {
-                        isAcceptingCall = false;
+                // CRITICAL FIX: Read response body in background thread to avoid NetworkOnMainThreadException
+                new Thread(() -> {
+                    try {
+                        String responseBody = null;
+                        if (response.body() != null) {
+                            responseBody = response.body().string();
+                        }
+                        
+                        final String finalResponseBody = responseBody;
+                        final boolean isSuccessful = response.isSuccessful();
+                        
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isAcceptingCall = false;
+                            }
+                            
+                            if (isSuccessful) {
+                                Log.d(TAG, "Call accepted successfully");
+                                
+                                try {
+                                    // Parse response to get call info
+                                    if (finalResponseBody != null) {
+                                        JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                        JSONObject data = jsonResponse.optJSONObject("data");
+                                        
+                                        if (data != null) {
+                                            // Get caller info from current chat or caller object
+                                            String remoteUserId = null;
+                                            String remoteUserName = null;
+                                            String remoteUserAvatar = null;
+                                            
+                                            if (caller != null) {
+                                                remoteUserId = caller.getId();
+                                                remoteUserName = caller.getDisplayName();
+                                                remoteUserAvatar = caller.getAvatar();
+                                            } else if (currentChat != null && currentChat.getOtherParticipant() != null) {
+                                                remoteUserId = currentChat.getOtherParticipant().getId();
+                                                remoteUserName = currentChat.getOtherParticipant().getDisplayName();
+                                                remoteUserAvatar = currentChat.getOtherParticipant().getAvatar();
+                                            }
+                                            
+                                            // Launch PrivateVideoCallActivity
+                                            Intent intent = new Intent(RingingActivity.this, com.example.chatappjava.ui.call.PrivateVideoCallActivity.class);
+                                            intent.putExtra("callId", callId);
+                                            intent.putExtra("chatId", currentChat != null ? currentChat.getId() : "");
+                                            intent.putExtra("remoteUserId", remoteUserId);
+                                            intent.putExtra("remoteUserName", remoteUserName != null ? remoteUserName : "Unknown");
+                                            intent.putExtra("remoteUserAvatar", remoteUserAvatar);
+                                            intent.putExtra("isCaller", false);
+                                            startActivity(intent);
+                                            finish();
+                                            return;
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error parsing call response", e);
+                                }
+                                
+                                // Fallback: navigate to home
+                                navigateToHome();
+                            } else {
+                                Log.e(TAG, "Failed to accept call: " + response.code());
+                                navigateToHome();
+                            }
+                        });
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error reading response body", e);
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isAcceptingCall = false;
+                            }
+                            navigateToHome();
+                        });
                     }
-                    
-                    if (response.isSuccessful()) {
-                        Log.d(TAG, "Call accepted successfully");
-                        navigateToHome();
-                    } else {
-                        Log.e(TAG, "Failed to accept call: " + response.code());
-                        navigateToHome();
-                    }
-                });
+                }).start();
             }
         });
     }

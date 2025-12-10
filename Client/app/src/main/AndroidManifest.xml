@@ -138,6 +138,13 @@
             android:theme="@style/Theme.ChatAppJava"
             android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity
+            android:name=".ui.call.PrivateVideoCallActivity"
+            android:exported="false"
+            android:label="Video Call"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.ChatAppJava"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity
             android:name=".ui.theme.SettingsActivity"
             android:exported="false"
             android:label="Settings"

@@ -277,8 +277,102 @@ public class PrivateChatActivity extends BaseChatActivity {
     
     @Override
     protected void handleVideoCall() {
-        // Video call feature removed - only UI button remains
-        Toast.makeText(this, "Video call feature is not available", Toast.LENGTH_SHORT).show();
+        if (currentChat == null) {
+            Toast.makeText(this, "Chat not loaded", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Get other user info
+        String otherUserId = null;
+        String otherUserName = null;
+        String otherUserAvatar = null;
+        
+        String currentUserId = databaseManager.getUserId();
+        
+        // Try to get from participantIds
+        if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+            for (String participantId : currentChat.getParticipantIds()) {
+                if (participantId != null && !participantId.isEmpty() && !participantId.equals(currentUserId)) {
+                    otherUserId = participantId;
+                    break;
+                }
+            }
+        }
+        
+        // Try from otherParticipant
+        if (otherUserId == null && currentChat.getOtherParticipant() != null) {
+            otherUserId = currentChat.getOtherParticipant().getId();
+            otherUserName = currentChat.getOtherParticipant().getDisplayName();
+            otherUserAvatar = currentChat.getOtherParticipant().getAvatar();
+        }
+        
+        // Try from otherUser variable
+        if (otherUserId == null && otherUser != null) {
+            otherUserId = otherUser.getId();
+            otherUserName = otherUser.getDisplayName();
+            otherUserAvatar = otherUser.getAvatar();
+        }
+        
+        if (otherUserId == null) {
+            Toast.makeText(this, "Unable to get other user info", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Initiate call
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, "Authentication required", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Make variables final for use in lambda
+        final String finalOtherUserId = otherUserId;
+        final String finalOtherUserName = otherUserName != null ? otherUserName : "Unknown";
+        final String finalOtherUserAvatar = otherUserAvatar;
+        final String finalChatId = currentChat.getId();
+        
+        // Call API to initiate call
+        apiClient.initiateCall(token, currentChat.getId(), "video", new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("PrivateChatActivity", "Failed to initiate call", e);
+                    Toast.makeText(PrivateChatActivity.this, "Failed to start call", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        if (jsonResponse.optBoolean("success", false)) {
+                            org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                            if (data != null) {
+                                String callId = data.getString("callId");
+                                
+                                // Launch PrivateVideoCallActivity
+                                Intent intent = new Intent(PrivateChatActivity.this, com.example.chatappjava.ui.call.PrivateVideoCallActivity.class);
+                                intent.putExtra("callId", callId);
+                                intent.putExtra("chatId", finalChatId);
+                                intent.putExtra("remoteUserId", finalOtherUserId);
+                                intent.putExtra("remoteUserName", finalOtherUserName);
+                                intent.putExtra("remoteUserAvatar", finalOtherUserAvatar);
+                                intent.putExtra("isCaller", true);
+                                startActivity(intent);
+                            }
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to start call");
+                            Toast.makeText(PrivateChatActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (org.json.JSONException e) {
+                        android.util.Log.e("PrivateChatActivity", "Error parsing call response", e);
+                        Toast.makeText(PrivateChatActivity.this, "Error starting call", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
     
     private void showChatInfo() {
