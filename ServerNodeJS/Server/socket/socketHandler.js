@@ -348,23 +348,221 @@ class SocketHandler {
         // Join socket room for call
         socket.join(`call_${callId}`);
         
-        // CRITICAL: Update activeCalls to include all current participants from database
-        // This ensures video frames are forwarded to all participants, even if they join later
-        const allParticipantIds = call.participants.map(p => {
+        // CRITICAL FIX: For group calls, check if this is first user joining and send notification
+        if (call.isGroupCall) {
+          // Store io reference for use in nested functions
+          const io = this.io;
+          
+          // Check number of connected participants BEFORE user joins
+          const connectedParticipantsBeforeJoin = call.participants.filter(p => p.status === 'connected');
+          const connectedCountBeforeJoin = connectedParticipantsBeforeJoin.length;
+          
+          // Check if caller has already joined
+          const callerParticipant = call.participants.find(p => p.isCaller === true);
+          const callerHasJoined = callerParticipant && callerParticipant.status === 'connected';
+          const callerUserId = callerParticipant?.userId?.toString() || '';
+          
+          console.log(`[Socket] [GroupCall] join_call_room: connectedCountBeforeJoin=${connectedCountBeforeJoin}, callerHasJoined=${callerHasJoined}, callerUserId=${callerUserId}, currentUserId=${socket.userId}`);
+          
+          // Check if this is first user to join or first non-caller joining
+          // CRITICAL FIX: Also send notification if caller is joining and they are the only connected participant
+          // (when caller initiates call, notification should be sent when they join call room)
+          const isFirstUserToJoin = connectedCountBeforeJoin === 0;
+          const isFirstNonCallerJoining = connectedCountBeforeJoin === 1 && callerHasJoined && socket.userId !== callerUserId;
+          // If caller is joining and they are the only connected participant, send notification
+          const isCallerJoiningAsOnlyParticipant = socket.userId === callerUserId && connectedCountBeforeJoin === 1 && callerHasJoined;
+          
+          if (isFirstUserToJoin || isFirstNonCallerJoining || isCallerJoiningAsOnlyParticipant) {
+            const reason = isCallerJoiningAsOnlyParticipant ? 'Caller joining as only participant' : (isFirstUserToJoin ? 'First user to join' : 'First non-caller joining');
+            console.log(`[Socket] [GroupCall] ✓ Sending notification. Reason: ${reason}`);
+            
+            // Get chat information
+            const chatId = extractChatId(call);
+            if (chatId) {
+              Chat.findById(chatId).populate('participants.user', 'username avatar').then(chat => {
+                if (chat) {
+                  // CRITICAL FIX: Determine the actual caller for notification
+                  // BEST PRACTICE: Check if current user just initiated the call (within last 5 seconds)
+                  // This ensures that when user B starts call, notification shows "user B started call"
+                  let caller = null;
+                  
+                  // CRITICAL FIX: Prioritize lastNotificationCallerId from metadata (most reliable)
+                  // This ensures we use the caller who most recently started the call, not the original caller
+                  const lastNotificationCallerId = call.metadata?.lastNotificationCallerId;
+                  const lastNotificationTimestamp = call.metadata?.lastNotificationTimestamp;
+                  const notificationWasRecent = lastNotificationTimestamp && 
+                    (Date.now() - new Date(lastNotificationTimestamp).getTime()) < 30000; // Within 30 seconds
+                  
+                  // Check if current user just initiated the call
+                  const isLastNotificationCaller = lastNotificationCallerId === socket.userId;
+                  const userJustInitiatedCall = isLastNotificationCaller && notificationWasRecent;
+                  
+                  // Method 2: Check recent logs (if available)
+                  const recentInitLog = call.logs && call.logs.length > 0 ? 
+                    call.logs.slice().reverse().find(log => 
+                      log.action === 'call_initiated' && 
+                      log.userId && 
+                      log.userId.toString() === socket.userId &&
+                      log.timestamp && 
+                      (Date.now() - new Date(log.timestamp).getTime()) < 10000
+                    ) : null;
+                  
+                  // Method 3: Check if user has status='notified' (just added, not yet joined)
+                  const currentUserParticipant = call.participants.find(p => p.userId.toString() === socket.userId);
+                  const hasNotifiedStatus = currentUserParticipant && currentUserParticipant.status === 'notified';
+                  
+                  const userJustStartedCall = userJustInitiatedCall || !!recentInitLog || hasNotifiedStatus;
+                  
+                  console.log(`[Socket] [GroupCall] Caller determination: lastNotificationCallerId=${lastNotificationCallerId}, userJustStartedCall=${userJustStartedCall} (recentInitLog: ${!!recentInitLog}, hasNotifiedStatus: ${hasNotifiedStatus}), isFirstUserToJoin=${isFirstUserToJoin}, isCallerJoiningAsOnlyParticipant=${isCallerJoiningAsOnlyParticipant}`);
+                  
+                  // CRITICAL FIX: Priority order:
+                  // 1. If user just started call OR is first to join, use them as caller
+                  // 2. If metadata has recent lastNotificationCallerId, use that caller (not original caller)
+                  // 3. Otherwise, use original caller or current user
+                  if (userJustStartedCall || isFirstUserToJoin || isCallerJoiningAsOnlyParticipant) {
+                    // Current user is the caller (they just started/joined first)
+                    console.log(`[Socket] [GroupCall] ✓ Using current user as caller (they just started call)`);
+                    caller = socket.user;
+                    sendGroupCallNotification();
+                  } else if (lastNotificationCallerId && notificationWasRecent) {
+                    // CRITICAL: Use the last notification caller from metadata (most recent caller)
+                    // This ensures "user B started call" when user B starts call, even if user A was original caller
+                    User.findById(lastNotificationCallerId).then(callerUser => {
+                      if (callerUser) {
+                        console.log(`[Socket] [GroupCall] ✓ Using last notification caller from metadata: ${callerUser.username} (${lastNotificationCallerId})`);
+                        caller = callerUser;
+                        sendGroupCallNotification();
+                      } else {
+                        // Fallback: use current user
+                        console.log(`[Socket] [GroupCall] Fallback: Last notification caller not found, using current user`);
+                        caller = socket.user;
+                        sendGroupCallNotification();
+                      }
+                    });
+                  } else if (callerParticipant && callerParticipant.userId.toString() === socket.userId) {
+                    // Current user IS the original caller, use them
+                    console.log(`[Socket] [GroupCall] ✓ Using current user as caller (they are the original caller)`);
+                    caller = socket.user;
+                    sendGroupCallNotification();
+                  } else if (callerParticipant) {
+                    // Use the original caller from call (fallback if no metadata)
+                    User.findById(callerParticipant.userId).then(callerUser => {
+                      if (callerUser) {
+                        console.log(`[Socket] [GroupCall] ✓ Using original caller (fallback): ${callerUser.username}`);
+                        caller = callerUser;
+                        sendGroupCallNotification();
+                      } else {
+                        // Fallback: use current user
+                        console.log(`[Socket] [GroupCall] Fallback: Using current user as caller`);
+                        caller = socket.user;
+                        sendGroupCallNotification();
+                      }
+                    });
+                  } else {
+                    // No caller found, use current user
+                    console.log(`[Socket] [GroupCall] No caller found, using current user as caller`);
+                    caller = socket.user;
+                    sendGroupCallNotification();
+                  }
+                  
+                  function sendGroupCallNotification() {
+                    if (!caller) return;
+                    
+                    // CRITICAL FIX: Update metadata to track the caller who sent this notification
+                    if (!call.metadata) {
+                      call.metadata = {};
+                    }
+                    const callerIdStr = caller._id.toString();
+                    call.metadata.lastNotificationCallerId = callerIdStr;
+                    call.metadata.lastNotificationTimestamp = new Date();
+                    
+                    // Save metadata immediately
+                    call.save().catch(err => {
+                      console.error(`[Socket] [GroupCall] Failed to save call metadata: ${err.message}`);
+                    });
+                    
+                    const notificationData = {
+                      callId: call.callId,
+                      chatId: chatId,
+                      chatName: chat.name,
+                      callerName: caller.username,
+                      caller: {
+                        id: caller._id,
+                        username: caller.username,
+                        avatar: caller.avatar
+                      },
+                      callType: call.type,
+                      isGroupCall: true,
+                      mediaTopology: 'sfu',
+                      bannerCopy: `Live group ${call.type} call in progress`,
+                      timestamp: new Date()
+                    };
+                    
+                    console.log(`[Socket] [GroupCall] Sending notification with caller: ${caller.username} (${callerIdStr}), metadata.lastNotificationCallerId=${call.metadata.lastNotificationCallerId}`);
+                    
+                    // STRATEGY 1: Emit to individual user rooms (SEND TO ALL - no exceptions)
+                    for (const participant of chat.participants) {
+                      if (participant.user) {
+                        let participantUserId;
+                        if (typeof participant.user === 'object' && participant.user._id) {
+                          participantUserId = participant.user._id.toString();
+                        } else {
+                          participantUserId = participant.user.toString();
+                        }
+                        
+                        // Send to ALL participants (no skipping)
+                        const userRoom = `user_${participantUserId}`;
+                        io.to(userRoom).emit('group_call_passive_alert', notificationData);
+                        console.log(`[Socket] [GroupCall] ✓ Sent group_call_passive_alert to user room: ${userRoom} (userId: ${participantUserId})`);
+                      }
+                    }
+                    
+                    // STRATEGY 2: Emit to chat room
+                    const chatRoom = `chat_${chatId}`;
+                    io.to(chatRoom).emit('group_call_passive_alert', notificationData);
+                    console.log(`[Socket] [GroupCall] ✓ Sent group_call_passive_alert to chat room: ${chatRoom}`);
+                    
+                    // STRATEGY 3: Emit to group room if available
+                    if (chat.groupId) {
+                      io.to(`group_${chat.groupId}`).emit('group_call_passive_alert', notificationData);
+                      console.log(`[Socket] [GroupCall] ✓ Sent group_call_passive_alert to group room: group_${chat.groupId}`);
+                    }
+                    
+                    // STRATEGY 4: Broadcast
+                    io.emit('group_call_passive_alert_broadcast', {
+                      ...notificationData,
+                      targetChatId: chatId
+                    });
+                    console.log(`[Socket] [GroupCall] ✓ Broadcast group_call_passive_alert_broadcast to all clients (targetChatId: ${chatId})`);
+                  }
+                }
+              }).catch(err => {
+                console.error(`[Socket] [GroupCall] Error getting chat:`, err);
+              });
+            }
+          } else {
+            console.log(`[Socket] [GroupCall] ✗ Skipping notification: not first user to join and not first non-caller joining`);
+          }
+        }
+        
+        // CRITICAL FIX: Update activeCalls to include only connected participants from database
+        // This ensures video frames are only forwarded to participants who are actually in the call
+        const connectedParticipants = call.participants.filter(p => p.status === 'connected');
+        const connectedParticipantIds = connectedParticipants.map(p => {
           if (p.userId && typeof p.userId === 'object' && p.userId._id) {
             return p.userId._id.toString();
           }
           return p.userId.toString();
         });
         
-        // Store call info - always use latest participants from database
+        // Store call info - only include connected participants
         this.activeCalls.set(callId, {
           callId: callId,
-          participants: allParticipantIds,
+          participants: connectedParticipantIds,
           roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
         });
         
-        console.log(`join_call_room: Updated activeCalls for ${callId} with ${allParticipantIds.length} participants:`, allParticipantIds);
+        console.log(`join_call_room: Updated activeCalls for ${callId} with ${connectedParticipantIds.length} connected participants (out of ${call.participants.length} total):`, connectedParticipantIds);
 
         // Notify other participants
         socket.to(`call_${callId}`).emit('user_joined_call', {
@@ -507,12 +705,21 @@ class SocketHandler {
           // Try to find call in database and add to activeCalls
           Call.findOne({ callId: callId }).then(call => {
             if (call) {
+              // CRITICAL FIX: Only include participants with status = 'connected'
+              const connectedParticipants = call.participants.filter(p => p.status === 'connected');
+              const connectedParticipantIds = connectedParticipants.map(p => {
+                if (p.userId && typeof p.userId === 'object' && p.userId._id) {
+                  return p.userId._id.toString();
+                }
+                return p.userId.toString();
+              });
+              
               this.activeCalls.set(callId, {
                 callId: callId,
-                participants: call.participants.map(p => p.userId.toString()),
+                participants: connectedParticipantIds,
                 roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
               });
-              console.log(`video_frame: Call ${callId} added to activeCalls`);
+              console.log(`video_frame: Call ${callId} added to activeCalls with ${connectedParticipantIds.length} connected participants (out of ${call.participants.length} total)`);
               
               // Retry sending the frame
               const payload = {
@@ -539,26 +746,29 @@ class SocketHandler {
 
         // CRITICAL: Refresh participants from database synchronously before forwarding
         // This ensures new participants receive frames immediately
+        // CRITICAL FIX: Only include participants with status = 'connected' (actually in the call)
         try {
           const call = await Call.findOne({ callId: callId });
           if (call) {
-            const latestParticipantIds = call.participants.map(p => {
+            // Filter to only include participants with status = 'connected'
+            const connectedParticipants = call.participants.filter(p => p.status === 'connected');
+            const latestParticipantIds = connectedParticipants.map(p => {
               if (p.userId && typeof p.userId === 'object' && p.userId._id) {
                 return p.userId._id.toString();
               }
               return p.userId.toString();
             });
             
-            // Update activeCalls with latest participants immediately
+            // Update activeCalls with only connected participants
             this.activeCalls.set(callId, {
               callId: callId,
               participants: latestParticipantIds,
               roomId: call.webrtcData ? call.webrtcData.roomId : `room_${callId}`
             });
             
-            console.log(`video_frame: Forwarding frame from user ${socket.userId} for call ${callId} to ${latestParticipantIds.length} participants:`, latestParticipantIds);
+            console.log(`video_frame: Forwarding frame from user ${socket.userId} for call ${callId} to ${latestParticipantIds.length} connected participants (out of ${call.participants.length} total):`, latestParticipantIds);
             
-            // Forward frame with updated participant list
+            // Forward frame with updated participant list (only connected participants)
             this.emitToCallParticipantsExceptSender(callId, 'video_frame', payload, socket);
           } else {
             // Fallback: use existing callInfo

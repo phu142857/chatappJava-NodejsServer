@@ -1018,31 +1018,42 @@ public class GroupChatActivity extends BaseChatActivity {
                     return;
                 }
                 
-                // CRITICAL FIX: Don't show notification if current user is the caller
-                String currentUserId = databaseManager.getUserId();
-                if (currentUserId != null && !currentUserId.isEmpty() && 
-                    callerId != null && !callerId.isEmpty() && 
-                    currentUserId.equals(callerId)) {
-                    android.util.Log.d("GroupChatActivity", "✗ Current user is the caller, not showing notification");
-                    return;
+                // Simplified: Show notification for all users (no caller check)
+                android.util.Log.d("GroupChatActivity", "✓ Will show notification for call");
+                
+                // CRITICAL FIX: Show notification ONLY if chat matches
+                // This ensures notification is only shown when user is viewing the relevant chat
+                boolean shouldShowNotification = false;
+                
+                if (currentChat != null && eventChatId != null && !eventChatId.isEmpty()) {
+                    // Normalize chat IDs for comparison
+                    String normalizedCurrentChatId = currentChat.getId().trim();
+                    String normalizedEventChatId = eventChatId.trim();
+                    
+                    if (normalizedCurrentChatId.equals(normalizedEventChatId)) {
+                        android.util.Log.d("GroupChatActivity", "✓ Chat matches! Showing notification");
+                        android.util.Log.d("GroupChatActivity", "  currentChatId: " + normalizedCurrentChatId);
+                        android.util.Log.d("GroupChatActivity", "  eventChatId: " + normalizedEventChatId);
+                        shouldShowNotification = true;
+                    } else {
+                        android.util.Log.d("GroupChatActivity", "✗ Chat doesn't match, ignoring");
+                        android.util.Log.d("GroupChatActivity", "  currentChatId: " + normalizedCurrentChatId);
+                        android.util.Log.d("GroupChatActivity", "  eventChatId: " + normalizedEventChatId);
+                    }
+                } else {
+                    android.util.Log.d("GroupChatActivity", "✗ Missing chat info, ignoring");
+                    android.util.Log.d("GroupChatActivity", "  currentChat: " + (currentChat != null ? "exists" : "null"));
+                    android.util.Log.d("GroupChatActivity", "  eventChatId: " + (eventChatId != null ? eventChatId : "null"));
                 }
                 
-                // Only show notification for this chat
-                if (currentChat != null && currentChat.getId().equals(eventChatId)) {
-                    android.util.Log.d("GroupChatActivity", "✓ Chat matches! Showing notification");
+                if (shouldShowNotification) {
                     android.util.Log.d("GroupChatActivity", "  callId: " + callId);
-                    android.util.Log.d("GroupChatActivity", "  callerName: " + callerName);
-                    android.util.Log.d("GroupChatActivity", "  currentChatId: " + currentChat.getId());
                     
                     runOnUiThread(() -> {
                         android.util.Log.d("GroupChatActivity", "On UI thread, calling showGroupCallNotification");
+                        // Simplified: Just show notification without caller name
                         showGroupCallNotification(callId);
-                        Toast.makeText(this, callerName + " started a video call", Toast.LENGTH_SHORT).show();
                     });
-                } else {
-                    android.util.Log.d("GroupChatActivity", "✗ Chat doesn't match, ignoring");
-                    android.util.Log.d("GroupChatActivity", "  Expected: " + (currentChat != null ? currentChat.getId() : "null"));
-                    android.util.Log.d("GroupChatActivity", "  Got: " + eventChatId);
                 }
             } catch (Exception e) {
                 android.util.Log.e("GroupChatActivity", "Error parsing group call alert", e);
@@ -1202,7 +1213,7 @@ public class GroupChatActivity extends BaseChatActivity {
                                     }
                                 }
                                 
-                                // Show notification if call is active and user is not the caller
+                                // Show notification if call is active
                                 if ("active".equals(status) || "notified".equals(status)) {
                                     showGroupCallNotification(callId);
                                 } else {
@@ -1242,12 +1253,20 @@ public class GroupChatActivity extends BaseChatActivity {
             android.util.Log.e("GroupChatActivity", "CRITICAL: groupCallNotification is null! Trying to reinitialize...");
             // Try to reinitialize
             groupCallNotification = findViewById(R.id.group_call_notification);
+            tvGroupCallNotificationText = findViewById(R.id.tv_group_call_notification_text);
             if (groupCallNotification == null) {
                 android.util.Log.e("GroupChatActivity", "Still null after reinit! View might not be in layout.");
                 Toast.makeText(this, "Notification view not found", Toast.LENGTH_SHORT).show();
                 return;
             }
             groupCallNotification.setOnClickListener(v -> joinActiveGroupCall());
+        }
+        
+        // Simplified: Always show "Call is started" without caller name
+        if (tvGroupCallNotificationText != null) {
+            String notificationText = "Call is started";
+            tvGroupCallNotificationText.setText(notificationText);
+            android.util.Log.d("GroupChatActivity", "Updated notification text: " + notificationText);
         }
         
         android.util.Log.d("GroupChatActivity", "Setting notification visible and animating");

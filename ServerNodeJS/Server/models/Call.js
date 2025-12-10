@@ -194,6 +194,18 @@ const callSchema = new mongoose.Schema({
         recordingUrl: String,
         recordingStartedAt: Date,
         recordingEndedAt: Date
+    },
+    
+    // Metadata for tracking notification caller
+    metadata: {
+        lastNotificationCallerId: {
+            type: String,
+            default: null
+        },
+        lastNotificationTimestamp: {
+            type: Date,
+            default: null
+        }
     }
 }, {
     timestamps: true, // Adds createdAt and updatedAt

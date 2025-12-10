@@ -71,6 +71,82 @@ const addParticipantUnique = (call, userId, username, avatar, opts = {}) => {
     return newP;
 };
 
+// Helper function to send group call notification
+const sendGroupCallNotification = async (io, call, chat, caller, callerId) => {
+    if (!io || !call || !chat || !caller) return;
+    
+    const callerIdStr = callerId.toString();
+    const chatId = extractChatId(call);
+    
+    // CRITICAL FIX: Track the caller who sent this notification
+    // This helps identify who started the call when user joins call room
+    if (!call.metadata) {
+        call.metadata = {};
+    }
+    call.metadata.lastNotificationCallerId = callerIdStr;
+    call.metadata.lastNotificationTimestamp = new Date();
+    
+    // Note: Call will be saved by the caller of this function
+    
+    const notificationData = {
+        callId: call.callId,
+        chatId: chatId,
+        chatName: chat.name,
+        callerName: caller.username, // Use current user as caller
+        caller: {
+            id: caller._id,
+            username: caller.username,
+            avatar: caller.avatar
+        },
+        callType: call.type,
+        isGroupCall: true,
+        mediaTopology: 'sfu',
+        bannerCopy: `Live group ${call.type} call in progress`,
+        timestamp: new Date()
+    };
+    
+    // STRATEGY 1: Emit to individual user rooms (SEND TO ALL - no exceptions)
+    console.log(`[GroupCall] Sending notification to ALL chat participants. Total participants: ${chat.participants.length}`);
+    let sentCount = 0;
+    
+    for (const participant of chat.participants) {
+        if (participant.user) {
+            let participantUserId;
+            if (typeof participant.user === 'object' && participant.user._id) {
+                participantUserId = participant.user._id.toString();
+            } else {
+                participantUserId = participant.user.toString();
+            }
+            
+            // Send to ALL participants (no skipping)
+            const userRoom = `user_${participantUserId}`;
+            io.to(userRoom).emit('group_call_passive_alert', notificationData);
+            sentCount++;
+            console.log(`[GroupCall] ✓ Sent group_call_passive_alert to user room: ${userRoom} (userId: ${participantUserId})`);
+        }
+    }
+    
+    console.log(`[GroupCall] Notification summary: Sent=${sentCount}, Total=${chat.participants.length}`);
+    
+    // STRATEGY 2: Emit to chat room
+    const chatRoom = `chat_${chatId}`;
+    io.to(chatRoom).emit('group_call_passive_alert', notificationData);
+    console.log(`[GroupCall] ✓ Sent group_call_passive_alert to chat room: ${chatRoom}`);
+    
+    // STRATEGY 3: Emit to group room if available
+    if (chat.groupId) {
+        io.to(`group_${chat.groupId}`).emit('group_call_passive_alert', notificationData);
+        console.log(`[GroupCall] ✓ Sent group_call_passive_alert to group room: group_${chat.groupId}`);
+    }
+    
+    // STRATEGY 4: Broadcast
+    io.emit('group_call_passive_alert_broadcast', {
+        ...notificationData,
+        targetChatId: chatId
+    });
+    console.log(`[GroupCall] ✓ Broadcast group_call_passive_alert_broadcast to all clients (targetChatId: ${chatId})`);
+};
+
 // Generate group-anchored call ID
 // Format: GC_[CHAT_ID]_[TIMESTAMP]
 // This ensures that simultaneous initiations for the same group get the same Call ID
@@ -181,13 +257,31 @@ const initiateGroupCall = async (req, res) => {
                 await call.save();
             }
             
+            // CRITICAL FIX: Send notification when user starts call on existing call
+            // Use current user (callerId) as the caller in notification, not the original caller
+            console.log(`[GroupCall] Sending notification for existing call: currentCallerId=${callerId}, callerName=${caller.username}`);
+            const io = req.app.get('io');
+            if (io) {
+                const chat = await Chat.findById(chatId).populate('participants.user', 'username avatar');
+                if (chat) {
+                    console.log(`[GroupCall] Chat participants count: ${chat.participants.length}`);
+                    await sendGroupCallNotification(io, call, chat, caller, callerId);
+                    // Save call to persist metadata
+                    await call.save();
+                    console.log(`[GroupCall] Notification sent and call saved with metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
+                    
+                    // CRITICAL FIX: Reload call from database to ensure metadata is fresh
+                    call = await Call.findById(call._id);
+                }
+            }
+            
             // Return existing call
             await call.populate([
                 { path: 'chatId', select: 'name type participants' },
                 { path: 'participants.userId', select: 'username avatar status' }
             ]);
             
-            console.log(`[GroupCall] Returning existing call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}`);
+            console.log(`[GroupCall] Returning existing call: callId=${call.callId}, type=${call.type}, isGroupCall=${call.isGroupCall}, metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
             
             return res.status(200).json({
                 success: true,
@@ -227,10 +321,28 @@ const initiateGroupCall = async (req, res) => {
                 await call.save();
             }
             
+            // CRITICAL FIX: Send notification when user starts call on existing call
+            // Use current user (callerId) as the caller in notification
+            const io = req.app.get('io');
+            if (io) {
+                const chat = await Chat.findById(chatId).populate('participants.user', 'username avatar');
+                if (chat) {
+                    await sendGroupCallNotification(io, call, chat, caller, callerId);
+                    // Save call to persist metadata
+                    await call.save();
+                    console.log(`[GroupCall] Notification sent and call saved with metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
+                    
+                    // CRITICAL FIX: Reload call from database to ensure metadata is fresh
+                    call = await Call.findById(call._id);
+                }
+            }
+            
             await call.populate([
                 { path: 'chatId', select: 'name type participants' },
                 { path: 'participants.userId', select: 'username avatar status' }
             ]);
+            
+            console.log(`[GroupCall] Returning existing call (after delay): callId=${call.callId}, metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
             
             return res.status(200).json({
                 success: true,
@@ -391,11 +503,31 @@ const initiateGroupCall = async (req, res) => {
                 console.log(`[GroupCall] Added caller as participant. New participant count: ${call.participants.length}`);
             }
             
+            // CRITICAL FIX: Send notification when user starts call on existing call (race condition)
+            // Use current user (callerId) as the caller in notification
+            console.log(`[GroupCall] Sending notification for existing call (race condition): currentCallerId=${callerId}, callerName=${caller.username}`);
+            const io = req.app.get('io');
+            if (io) {
+                const chat = await Chat.findById(chatId).populate('participants.user', 'username avatar');
+                if (chat) {
+                    console.log(`[GroupCall] Chat participants count: ${chat.participants.length}`);
+                    await sendGroupCallNotification(io, call, chat, caller, callerId);
+                    // Save call to persist metadata
+                    await call.save();
+                    console.log(`[GroupCall] Notification sent and call saved with metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
+                    
+                    // CRITICAL FIX: Reload call from database to ensure metadata is fresh
+                    call = await Call.findById(call._id);
+                }
+            }
+            
             // Return existing call with isExisting flag
             await call.populate([
                 { path: 'chatId', select: 'name type participants' },
                 { path: 'participants.userId', select: 'username avatar status' }
             ]);
+            
+            console.log(`[GroupCall] Returning existing call (race condition): callId=${call.callId}, metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
             
             return res.status(200).json({
                 success: true,
@@ -444,11 +576,32 @@ const initiateGroupCall = async (req, res) => {
                 await call.save();
             }
             
+            // CRITICAL FIX: Send notification when user starts call on existing call (race condition)
+            // Use current user (callerId) as the caller in notification
+            const io = req.app.get('io');
+            if (io) {
+                const chatIdForNotification = extractChatId(call);
+                if (chatIdForNotification) {
+                    const chat = await Chat.findById(chatIdForNotification).populate('participants.user', 'username avatar');
+                    if (chat) {
+                        await sendGroupCallNotification(io, call, chat, caller, callerId);
+                        // Save call to persist metadata
+                        await call.save();
+                        console.log(`[GroupCall] Notification sent and call saved with metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
+                        
+                        // CRITICAL FIX: Reload call from database to ensure metadata is fresh
+                        call = await Call.findById(call._id);
+                    }
+                }
+            }
+            
             // Return existing call with isExisting flag
             await call.populate([
                 { path: 'chatId', select: 'name type participants' },
                 { path: 'participants.userId', select: 'username avatar status' }
             ]);
+            
+            console.log(`[GroupCall] Returning existing call (wasJustCreated=false): callId=${call.callId}, metadata.lastNotificationCallerId=${call.metadata?.lastNotificationCallerId}`);
             
             return res.status(200).json({
                 success: true,
@@ -597,6 +750,13 @@ const initiateGroupCall = async (req, res) => {
         // Send passive notification to other participants via Socket.io
         const io = req.app.get('io');
         if (io) {
+            // CRITICAL FIX: Track the caller who sent this notification
+            if (!call.metadata) {
+                call.metadata = {};
+            }
+            call.metadata.lastNotificationCallerId = callerId.toString();
+            call.metadata.lastNotificationTimestamp = new Date();
+            
             const callerIdStr = callerId.toString();
             
             const notificationData = {
@@ -616,36 +776,34 @@ const initiateGroupCall = async (req, res) => {
                 timestamp: new Date()
             };
             
-            // STRATEGY 1: Emit to individual user rooms (EXCLUDE caller - they don't need notification)
-            for (const participant of call.participants) {
-                let participantUserId;
-                if (participant.userId && typeof participant.userId === 'object' && participant.userId._id) {
-                    participantUserId = participant.userId._id.toString();
-                } else {
-                    participantUserId = participant.userId.toString();
+            // STRATEGY 1: Emit to individual user rooms (SEND TO ALL - no exceptions)
+            // Send to ALL chat participants, not just call.participants
+            // This ensures all members of the chat receive notification, even if they haven't been added to call yet
+            for (const participant of chat.participants) {
+                if (participant.user) {
+                    let participantUserId;
+                    if (typeof participant.user === 'object' && participant.user._id) {
+                        participantUserId = participant.user._id.toString();
+                    } else {
+                        participantUserId = participant.user.toString();
+                    }
+                    
+                    // Send to ALL participants (no skipping)
+                    const userRoom = `user_${participantUserId}`;
+                    io.to(userRoom).emit('group_call_passive_alert', notificationData);
+                    console.log(`[GroupCall] ✓ Sent group_call_passive_alert to user room: ${userRoom} (userId: ${participantUserId})`);
                 }
-                
-                // Skip caller - they initiated the call, they don't need a "join" notification
-                if (participantUserId === callerIdStr) {
-                    console.log(`Skipping notification for caller: ${participantUserId}`);
-                    continue;
-                }
-                
-                // Send to other participants only
-                const userRoom = `user_${participantUserId}`;
-                io.to(userRoom).emit('group_call_passive_alert', notificationData);
-                console.log(`Sent group_call_passive_alert to user room: ${userRoom}`);
             }
             
             // STRATEGY 2: Also emit to chat room (for users actively viewing the chat)
             const chatRoom = `chat_${chatId}`;
             io.to(chatRoom).emit('group_call_passive_alert', notificationData);
-            console.log(`Sent group_call_passive_alert to chat room: ${chatRoom}`);
+            console.log(`[GroupCall] ✓ Sent group_call_passive_alert to chat room: ${chatRoom}`);
             
             // STRATEGY 3: Emit to group room if available
             if (chat.groupId) {
                 io.to(`group_${chat.groupId}`).emit('group_call_passive_alert', notificationData);
-                console.log(`Sent group_call_passive_alert to group room: group_${chat.groupId}`);
+                console.log(`[GroupCall] ✓ Sent group_call_passive_alert to group room: group_${chat.groupId}`);
             }
             
             // STRATEGY 4: Broadcast to all connected sockets (as last resort fallback)
@@ -654,7 +812,10 @@ const initiateGroupCall = async (req, res) => {
                 ...notificationData,
                 targetChatId: chatId // Clients will filter by this
             });
-            console.log(`Broadcast group_call_passive_alert_broadcast to all clients`);
+            console.log(`[GroupCall] ✓ Broadcast group_call_passive_alert_broadcast to all clients (targetChatId: ${chatId})`);
+            
+            // Save call to persist metadata
+            await call.save();
         }
 
         // CRITICAL: Get SFU router capabilities for the caller
@@ -742,6 +903,19 @@ const joinGroupCall = async (req, res) => {
             });
         }
 
+        // CRITICAL FIX: Check number of connected participants BEFORE user joins
+        // This ensures notification is sent when first user joins (when count = 0)
+        const connectedParticipantsBeforeJoin = call.participants.filter(
+            p => p.status === 'connected'
+        );
+        const connectedCountBeforeJoin = connectedParticipantsBeforeJoin.length;
+        
+        // Also check if caller has already joined (they join immediately when initiating)
+        const callerParticipant = call.participants.find(p => p.isCaller === true);
+        const callerHasJoined = callerParticipant && callerParticipant.status === 'connected';
+        
+        console.log(`[GroupCall] Connected participants before join: ${connectedCountBeforeJoin}, callerHasJoined: ${callerHasJoined}`);
+
         // Check if user is a participant
         let participant = call.participants.find(p => p.userId.toString() === userId);
         if (!participant) {
@@ -797,6 +971,118 @@ const joinGroupCall = async (req, res) => {
             action: 'user_joined',
             details: 'User joined the group call'
         });
+
+        // CRITICAL FIX: Send notification if:
+        // 1. This is the first user to join (connected count was 0), OR
+        // 2. Caller has joined but this is the first non-caller joining (connected count = 1 and caller is connected)
+        // This ensures notification is sent when first user joins, even if they didn't initiate the call
+        const isFirstUserToJoin = connectedCountBeforeJoin === 0;
+        const callerUserId = callerParticipant?.userId?.toString() || '';
+        const isFirstNonCallerJoining = connectedCountBeforeJoin === 1 && callerHasJoined && userId.toString() !== callerUserId;
+        
+        console.log(`[GroupCall] Notification check: connectedCountBeforeJoin=${connectedCountBeforeJoin}, callerHasJoined=${callerHasJoined}, callerUserId=${callerUserId}, currentUserId=${userId.toString()}, isFirstUserToJoin=${isFirstUserToJoin}, isFirstNonCallerJoining=${isFirstNonCallerJoining}`);
+        
+        if (isFirstUserToJoin || isFirstNonCallerJoining) {
+            console.log(`[GroupCall] ✓ Sending notification to other participants. Reason: ${isFirstUserToJoin ? 'First user to join' : 'First non-caller joining'}`);
+            
+            // Get chat information
+            const chatId = extractChatId(call);
+            if (chatId) {
+                const chat = await Chat.findById(chatId).populate('participants.user', 'username avatar');
+                if (chat) {
+                    // CRITICAL FIX: Determine the actual caller for notification
+                    // If current user is the first to join, they are effectively the caller
+                    // Otherwise, use the original caller from call.participants
+                    let caller = null;
+                    
+                    // If this is the first user joining, use current user as caller
+                    if (isFirstUserToJoin) {
+                        // Current user is effectively the caller (they started/joined first)
+                        caller = await User.findById(userId);
+                    } else {
+                        // Find original caller (person who initiated the call)
+                        const callerParticipant = call.participants.find(p => p.isCaller === true);
+                        if (callerParticipant) {
+                            caller = await User.findById(callerParticipant.userId);
+                        }
+                        
+                        // If no caller found, use current user
+                        if (!caller) {
+                            caller = await User.findById(userId);
+                        }
+                    }
+                    
+                    if (caller) {
+                        const io = req.app.get('io');
+                        if (io) {
+                            const callerIdStr = caller._id.toString();
+                            
+                            const notificationData = {
+                                callId: call.callId,
+                                chatId: chatId,
+                                chatName: chat.name,
+                                callerName: caller.username,
+                                caller: {
+                                    id: caller._id,
+                                    username: caller.username,
+                                    avatar: caller.avatar
+                                },
+                                callType: call.type,
+                                isGroupCall: true,
+                                mediaTopology: 'sfu',
+                                bannerCopy: `Live group ${call.type} call in progress`,
+                                timestamp: new Date()
+                            };
+                            
+                            // STRATEGY 1: Emit to individual user rooms (SEND TO ALL - no exceptions)
+                            for (const participant of chat.participants) {
+                                if (participant.user) {
+                                    let participantUserId;
+                                    if (typeof participant.user === 'object' && participant.user._id) {
+                                        participantUserId = participant.user._id.toString();
+                                    } else {
+                                        participantUserId = participant.user.toString();
+                                    }
+                                    
+                                    // Send to ALL participants (no skipping)
+                                    const userRoom = `user_${participantUserId}`;
+                                    io.to(userRoom).emit('group_call_passive_alert', notificationData);
+                                    console.log(`[GroupCall] ✓ Sent group_call_passive_alert to user room: ${userRoom} (userId: ${participantUserId})`);
+                                }
+                            }
+                            
+                            // STRATEGY 2: Also emit to chat room (for users actively viewing the chat)
+                            const chatRoom = `chat_${chatId}`;
+                            io.to(chatRoom).emit('group_call_passive_alert', notificationData);
+                            console.log(`[GroupCall] ✓ Sent group_call_passive_alert to chat room: ${chatRoom}`);
+                            
+                            // STRATEGY 3: Emit to group room if available
+                            if (chat.groupId) {
+                                io.to(`group_${chat.groupId}`).emit('group_call_passive_alert', notificationData);
+                                console.log(`[GroupCall] ✓ Sent group_call_passive_alert to group room: group_${chat.groupId}`);
+                            }
+                            
+                            // STRATEGY 4: Broadcast to all connected sockets (as last resort fallback)
+                            io.emit('group_call_passive_alert_broadcast', {
+                                ...notificationData,
+                                targetChatId: chatId // Clients will filter by this
+                            });
+                            console.log(`[GroupCall] ✓ Broadcast group_call_passive_alert_broadcast to all clients (targetChatId: ${chatId})`);
+                        } else {
+                            console.log(`[GroupCall] ✗ Cannot send notification: caller not found`);
+                        }
+                    } else {
+                        console.log(`[GroupCall] ✗ Cannot send notification: chat not found for chatId: ${chatId}`);
+                    }
+                } else {
+                    console.log(`[GroupCall] ✗ Cannot send notification: chatId is null or empty`);
+                }
+            } else {
+                console.log(`[GroupCall] ✗ Cannot send notification: io not available`);
+            }
+        } else {
+            console.log(`[GroupCall] ✗ Skipping notification: not first user to join and not first non-caller joining`);
+        }
 
         // CRITICAL: Ensure SFU config before save
         ensureSFUConfig(call);
