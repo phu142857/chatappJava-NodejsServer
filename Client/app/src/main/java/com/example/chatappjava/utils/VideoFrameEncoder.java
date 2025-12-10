@@ -2,6 +2,7 @@ package com.example.chatappjava.utils;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.util.Base64;
 import android.util.Log;
 
@@ -83,6 +84,8 @@ public class VideoFrameEncoder {
     
     /**
      * Decode a base64 frame to Bitmap
+     * Note: JPEG orientation should be handled by camera capture (JPEG_ORIENTATION)
+     * This method just decodes the frame as-is
      */
     public static Bitmap decodeFrame(String base64Data) {
         if (base64Data == null || base64Data.isEmpty()) {
@@ -91,7 +94,55 @@ public class VideoFrameEncoder {
         
         try {
             byte[] decodedBytes = Base64.decode(base64Data, Base64.NO_WRAP);
-            return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+            
+            // Check if bitmap needs rotation based on EXIF orientation
+            // Note: If JPEG_ORIENTATION is set correctly in camera capture, this should not be needed
+            // But we'll keep it as a fallback
+            if (bitmap != null) {
+                // Try to read EXIF orientation from JPEG
+                android.media.ExifInterface exif = null;
+                try {
+                    java.io.ByteArrayInputStream inputStream = new java.io.ByteArrayInputStream(decodedBytes);
+                    exif = new android.media.ExifInterface(inputStream);
+                    int orientation = exif.getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 
+                                                          android.media.ExifInterface.ORIENTATION_NORMAL);
+                    
+                    if (orientation != android.media.ExifInterface.ORIENTATION_NORMAL) {
+                        Matrix matrix = new Matrix();
+                        switch (orientation) {
+                            case android.media.ExifInterface.ORIENTATION_ROTATE_90:
+                                matrix.postRotate(90);
+                                break;
+                            case android.media.ExifInterface.ORIENTATION_ROTATE_180:
+                                matrix.postRotate(180);
+                                break;
+                            case android.media.ExifInterface.ORIENTATION_ROTATE_270:
+                                matrix.postRotate(270);
+                                break;
+                            case android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+                                matrix.postScale(-1, 1);
+                                break;
+                            case android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL:
+                                matrix.postScale(1, -1);
+                                break;
+                        }
+                        
+                        Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, 
+                                                                  bitmap.getWidth(), bitmap.getHeight(), 
+                                                                  matrix, true);
+                        if (rotatedBitmap != bitmap) {
+                            bitmap.recycle();
+                        }
+                        return rotatedBitmap;
+                    }
+                } catch (Exception e) {
+                    // EXIF reading failed, return bitmap as-is
+                    Log.d(TAG, "Could not read EXIF orientation, using bitmap as-is");
+                }
+            }
+            
+            return bitmap;
         } catch (Exception e) {
             Log.e(TAG, "Error decoding frame", e);
             return null;

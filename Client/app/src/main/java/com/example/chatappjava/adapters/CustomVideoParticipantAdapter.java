@@ -43,8 +43,32 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
      * Update video frame for a participant
      */
     public void updateVideoFrame(String userId, String base64Frame) {
+        updateVideoFrame(userId, base64Frame, false);
+    }
+    
+    /**
+     * Update video frame for a participant with front camera flag
+     * @param userId Participant user ID
+     * @param base64Frame Base64 encoded frame
+     * @param isFrontCamera True if using front camera (for mirror effect)
+     */
+    public void updateVideoFrame(String userId, String base64Frame, boolean isFrontCamera) {
         Bitmap bitmap = VideoFrameEncoder.decodeFrame(base64Frame);
         if (bitmap != null) {
+            // CRITICAL FIX: Mirror bitmap horizontally for front camera
+            // This fixes the 180-degree rotation issue for front camera
+            if (isFrontCamera) {
+                android.graphics.Matrix matrix = new android.graphics.Matrix();
+                matrix.postScale(-1, 1); // Mirror horizontally
+                Bitmap mirroredBitmap = Bitmap.createBitmap(bitmap, 0, 0, 
+                                                           bitmap.getWidth(), bitmap.getHeight(), 
+                                                           matrix, true);
+                if (mirroredBitmap != bitmap) {
+                    bitmap.recycle();
+                }
+                bitmap = mirroredBitmap;
+            }
+            
             // Release old bitmap if it exists
             Bitmap oldBitmap = videoFrames.get(userId);
             if (oldBitmap != null && !oldBitmap.isRecycled()) {
@@ -54,6 +78,26 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
             videoFrames.put(userId, bitmap);
             
             // Find participant index and notify change
+            for (int i = 0; i < participants.size(); i++) {
+                if (participants.get(i).getUserId() != null && 
+                    participants.get(i).getUserId().equals(userId)) {
+                    notifyItemChanged(i);
+                    break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Clear video frame for a specific user
+     */
+    public void clearVideoFrameForUser(String userId) {
+        if (userId != null && videoFrames.containsKey(userId)) {
+            Bitmap bitmap = videoFrames.remove(userId);
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
+            // Notify adapter to update view
             for (int i = 0; i < participants.size(); i++) {
                 if (participants.get(i).getUserId() != null && 
                     participants.get(i).getUserId().equals(userId)) {
@@ -89,12 +133,22 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
         
         // Set participant name
         holder.tvParticipantName.setText(participant.getUsername());
-        holder.tvParticipantNamePlaceholder.setText(participant.getUsername());
+        // Removed tvParticipantNamePlaceholder - no longer needed
         
-        // Load avatar
-        if (participant.getAvatar() != null && !participant.getAvatar().isEmpty()) {
+        // Load avatar - CRITICAL FIX: Construct full URL if needed
+        String avatarUrl = participant.getAvatar();
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            // Construct full URL if it's a relative path (like other adapters)
+            if (!avatarUrl.startsWith("http")) {
+                // Ensure avatar starts with / if it doesn't already
+                String avatarPath = avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl;
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarPath;
+            }
+            
+            // Load avatar with Picasso
             Picasso.get()
-                    .load(participant.getAvatar())
+                    .load(avatarUrl)
                     .placeholder(R.drawable.ic_profile_placeholder)
                     .error(R.drawable.ic_profile_placeholder)
                     .into(holder.ivParticipantAvatar);
@@ -102,9 +156,12 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
             holder.ivParticipantAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
         
-        // Display video frame if available
+        // Display video frame if available AND video is not muted
         String userId = participant.getUserId();
-        if (userId != null && videoFrames.containsKey(userId)) {
+        boolean isVideoMuted = participant.isVideoMuted();
+        
+        if (!isVideoMuted && userId != null && videoFrames.containsKey(userId)) {
+            // Video is on and frame is available - show video frame
             Bitmap frame = videoFrames.get(userId);
             if (frame != null && !frame.isRecycled()) {
                 holder.ivVideoFrame.setImageBitmap(frame);
@@ -116,9 +173,18 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
                 holder.videoPlaceholder.setVisibility(View.VISIBLE);
             }
         } else {
-            // No frame available, show placeholder
+            // Video is muted or no frame available - show avatar placeholder
             holder.ivVideoFrame.setVisibility(View.GONE);
             holder.videoPlaceholder.setVisibility(View.VISIBLE);
+            
+            // CRITICAL FIX: Clear video frame from cache when video is muted
+            // This ensures avatar is shown instead of last frame
+            if (isVideoMuted && userId != null && videoFrames.containsKey(userId)) {
+                Bitmap oldFrame = videoFrames.remove(userId);
+                if (oldFrame != null && !oldFrame.isRecycled()) {
+                    oldFrame.recycle();
+                }
+            }
         }
         
         // Show muted indicator
@@ -165,7 +231,6 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
         public LinearLayout videoPlaceholder;
         public CircleImageView ivParticipantAvatar;
         public TextView tvParticipantName;
-        public TextView tvParticipantNamePlaceholder;
         public ImageView ivMutedIndicator;
         public ImageView ivConnectionQuality;
         
@@ -175,7 +240,6 @@ public class CustomVideoParticipantAdapter extends RecyclerView.Adapter<CustomVi
             videoPlaceholder = itemView.findViewById(R.id.video_placeholder);
             ivParticipantAvatar = itemView.findViewById(R.id.iv_participant_avatar);
             tvParticipantName = itemView.findViewById(R.id.tv_participant_name);
-            tvParticipantNamePlaceholder = itemView.findViewById(R.id.tv_participant_name_placeholder);
             ivMutedIndicator = itemView.findViewById(R.id.iv_muted_indicator);
             ivConnectionQuality = itemView.findViewById(R.id.iv_connection_quality);
         }

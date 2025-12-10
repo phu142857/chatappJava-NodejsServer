@@ -17,6 +17,7 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
+import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
@@ -263,6 +264,65 @@ public class CameraCaptureManager {
     }
     
     /**
+     * Get correct JPEG orientation based on device rotation and camera sensor orientation
+     */
+    private int getJpegOrientation() {
+        try {
+            WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            int deviceRotation = windowManager.getDefaultDisplay().getRotation();
+            
+            // Get camera sensor orientation
+            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            Integer sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            if (sensorOrientation == null) {
+                sensorOrientation = 90; // Default for most devices
+            }
+            
+            // Calculate orientation
+            int rotationDegrees = 0;
+            switch (deviceRotation) {
+                case Surface.ROTATION_0:
+                    rotationDegrees = 0;
+                    break;
+                case Surface.ROTATION_90:
+                    rotationDegrees = 90;
+                    break;
+                case Surface.ROTATION_180:
+                    rotationDegrees = 180;
+                    break;
+                case Surface.ROTATION_270:
+                    rotationDegrees = 270;
+                    break;
+            }
+            
+            // For front camera, mirror the rotation
+            Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+            boolean isFrontCamera = (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT);
+            
+            int jpegOrientation;
+            if (isFrontCamera) {
+                // Front camera: Use same formula as back camera
+                // The mirror effect is handled by the camera sensor itself
+                // Formula: (sensorOrientation - rotationDegrees + 360) % 360
+                jpegOrientation = (sensorOrientation - rotationDegrees + 360) % 360;
+            } else {
+                // Back camera: (sensorOrientation - rotationDegrees + 360) % 360
+                jpegOrientation = (sensorOrientation - rotationDegrees + 360) % 360;
+            }
+            
+            Log.d(TAG, "JPEG orientation calculation: isFrontCamera=" + isFrontCamera + 
+                  ", sensorOrientation=" + sensorOrientation + 
+                  ", rotationDegrees=" + rotationDegrees + 
+                  ", jpegOrientation=" + jpegOrientation);
+            
+            return jpegOrientation;
+        } catch (Exception e) {
+            Log.e(TAG, "Error calculating JPEG orientation", e);
+            return 0; // Default to 0 if calculation fails
+        }
+    }
+    
+    /**
      * Start repeating capture request
      */
     private void startRepeatingRequest() {
@@ -275,7 +335,10 @@ public class CameraCaptureManager {
             builder.addTarget(imageReader.getSurface());
             builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
-            builder.set(CaptureRequest.JPEG_ORIENTATION, 0);
+            // CRITICAL FIX: Set correct JPEG orientation based on device rotation and camera sensor
+            int jpegOrientation = getJpegOrientation();
+            builder.set(CaptureRequest.JPEG_ORIENTATION, jpegOrientation);
+            Log.d(TAG, "JPEG orientation set to: " + jpegOrientation);
             
             CaptureRequest request = builder.build();
             

@@ -32,21 +32,11 @@
 
             <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/iv_participant_avatar"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
                 android:src="@drawable/ic_profile_placeholder"
                 app:civ_border_color="@android:color/white"
                 app:civ_border_width="3dp" />
-
-            <TextView
-                android:id="@+id/tv_participant_name_placeholder"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="User"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginTop="8dp" />
 
         </LinearLayout>
 

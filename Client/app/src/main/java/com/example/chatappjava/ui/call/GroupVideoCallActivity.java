@@ -7,6 +7,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.LayoutInflater;
+import android.content.Context;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -18,7 +21,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.app.AlertDialog;
+import android.view.Window;
 
 import com.example.chatappjava.R;
 import com.example.chatappjava.adapters.CustomVideoParticipantAdapter;
@@ -81,6 +87,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private boolean isMuted = false;
     private boolean isCameraOn = true;
     private boolean isCallActive = false;
+    private boolean isFrontCamera = false; // Track current camera facing
     private AtomicBoolean isSendingFrame = new AtomicBoolean(false);
     private Handler frameCaptureHandler;
     private Runnable frameCaptureRunnable;
@@ -158,6 +165,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         btnCameraToggle.setOnClickListener(v -> toggleCamera());
         btnSwitchCamera.setOnClickListener(v -> switchCamera());
         btnEndCall.setOnClickListener(v -> endCall());
+        
+        // CRITICAL FIX: Add click listener for participant count to show participants list
+        tvParticipantCount.setOnClickListener(v -> showParticipantsListDialog());
     }
     
     private boolean checkPermissions() {
@@ -395,6 +405,10 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             return;
         }
         
+        // CRITICAL FIX: Reset isFrontCamera flag when starting capture
+        // Default is back camera (false)
+        isFrontCamera = false;
+        
         cameraCaptureManager = new CameraCaptureManager(this);
         cameraCaptureManager.startCapture(new CameraCaptureManager.FrameCaptureCallback() {
             @Override
@@ -433,9 +447,11 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 if (base64Frame != null) {
                     // CRITICAL: Update local participant video frame immediately
                     // This ensures the user sees their own video
+                    // CRITICAL FIX: Pass isFrontCamera flag to mirror front camera correctly
+                    final boolean frontCamera = isFrontCamera;
                     runOnUiThread(() -> {
                         if (adapter != null && currentUserId != null) {
-                            adapter.updateVideoFrame(currentUserId, base64Frame);
+                            adapter.updateVideoFrame(currentUserId, base64Frame, frontCamera);
                         }
                     });
                     
@@ -482,6 +498,11 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             startVideoCapture();
         } else {
             stopVideoCapture();
+            // CRITICAL FIX: Clear local participant video frame when camera is turned off
+            // This ensures avatar is shown instead of last frame
+            if (adapter != null && currentUserId != null) {
+                adapter.clearVideoFrameForUser(currentUserId);
+            }
         }
         
         // Update local participant
@@ -500,6 +521,9 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     private void switchCamera() {
         if (cameraCaptureManager != null) {
             cameraCaptureManager.switchCamera();
+            // CRITICAL FIX: Update isFrontCamera flag when switching camera
+            isFrontCamera = !isFrontCamera;
+            Log.d(TAG, "Camera switched, isFrontCamera=" + isFrontCamera);
         }
     }
     
@@ -536,6 +560,147 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             }
         };
         callDurationHandler.post(callDurationRunnable);
+    }
+    
+    private void showParticipantsListDialog() {
+        if (participants == null || participants.isEmpty()) {
+            Toast.makeText(this, "No participants in call", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tagged_users, null);
+        builder.setView(dialogView);
+        
+        AlertDialog dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        
+        TextView tvTitle = dialogView.findViewById(R.id.tv_dialog_title);
+        RecyclerView rvParticipants = dialogView.findViewById(R.id.rv_tagged_users);
+        android.widget.Button btnClose = dialogView.findViewById(R.id.btn_close);
+        
+        if (tvTitle != null) {
+            tvTitle.setText("Participants (" + participants.size() + ")");
+        }
+        
+        // Create adapter for participants list
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvParticipants.setLayoutManager(layoutManager);
+        
+        // Convert CallParticipant to simple display format
+        List<ParticipantDisplayItem> displayItems = new ArrayList<>();
+        for (CallParticipant p : participants) {
+            ParticipantDisplayItem item = new ParticipantDisplayItem();
+            item.userId = p.getUserId();
+            item.username = p.getUsername();
+            item.avatar = p.getAvatar();
+            item.isAudioMuted = p.isAudioMuted();
+            item.isVideoMuted = p.isVideoMuted();
+            item.isLocal = p.isLocal();
+            displayItems.add(item);
+        }
+        
+        ParticipantsListAdapter adapter = new ParticipantsListAdapter(this, displayItems);
+        rvParticipants.setAdapter(adapter);
+        
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        dialog.show();
+    }
+    
+    // Simple class to display participant info in dialog
+    private static class ParticipantDisplayItem {
+        String userId;
+        String username;
+        String avatar;
+        boolean isAudioMuted;
+        boolean isVideoMuted;
+        boolean isLocal;
+    }
+    
+    // Simple adapter for participants list in dialog
+    private static class ParticipantsListAdapter extends RecyclerView.Adapter<ParticipantsListAdapter.ViewHolder> {
+        private Context context;
+        private List<ParticipantDisplayItem> items;
+        
+        public ParticipantsListAdapter(Context context, List<ParticipantDisplayItem> items) {
+            this.context = context;
+            this.items = items;
+        }
+        
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(context).inflate(R.layout.item_group_member, parent, false);
+            return new ViewHolder(view);
+        }
+        
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            ParticipantDisplayItem item = items.get(position);
+            
+            // Set name with status indicators
+            String displayName = item.username;
+            if (item.isLocal) {
+                displayName = item.username + " (You)";
+            }
+            
+            // Add mute/video status to name
+            StringBuilder statusText = new StringBuilder();
+            if (item.isAudioMuted) {
+                statusText.append(" 🔇");
+            }
+            if (item.isVideoMuted) {
+                statusText.append(" 📹");
+            }
+            
+            holder.tvMemberName.setText(displayName + statusText.toString());
+            
+            // Hide role text (not needed for call participants)
+            if (holder.tvMemberRole != null) {
+                holder.tvMemberRole.setVisibility(View.GONE);
+            }
+            
+            // Load avatar
+            if (item.avatar != null && !item.avatar.isEmpty()) {
+                String avatarUrl = item.avatar;
+                if (!avatarUrl.startsWith("http")) {
+                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + 
+                               (avatarUrl.startsWith("/") ? avatarUrl : "/" + avatarUrl);
+                }
+                com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(holder.ivMemberAvatar);
+            } else {
+                holder.ivMemberAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        }
+        
+        @Override
+        public int getItemCount() {
+            return items.size();
+        }
+        
+        class ViewHolder extends RecyclerView.ViewHolder {
+            de.hdodenhof.circleimageview.CircleImageView ivMemberAvatar;
+            TextView tvMemberName;
+            TextView tvMemberRole;
+            
+            public ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                ivMemberAvatar = itemView.findViewById(R.id.iv_member_avatar);
+                tvMemberName = itemView.findViewById(R.id.tv_member_name);
+                tvMemberRole = itemView.findViewById(R.id.tv_member_role);
+            }
+        }
     }
     
     private void endCall() {
