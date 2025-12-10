@@ -148,14 +148,6 @@ public class SocketManager {
                 Log.d(TAG, "Connected to Socket.io server");
                 isConnected = true;
                 
-                // Re-setup audio frame listener if it was set before connection
-                if (audioFrameListener != null) {
-                    Log.d(TAG, "Re-setting up audio_frame listener after socket connect");
-                    // Re-setup the listener now that socket is connected
-                    AudioFrameListener listener = audioFrameListener;
-                    audioFrameListener = null; // Clear first
-                    setAudioFrameListener(listener); // Re-setup
-                }
             }
         });
         
@@ -542,22 +534,6 @@ public class SocketManager {
         }
     }
     
-    /**
-     * Send an audio frame to the server
-     */
-    public void sendAudioFrame(String callId, String base64Audio) {
-        if (socket != null && isConnected) {
-            JSONObject data = new JSONObject();
-            try {
-                data.put("callId", callId);
-                data.put("audio", base64Audio);
-                data.put("timestamp", System.currentTimeMillis());
-                socket.emit("audio_frame", data);
-            } catch (JSONException e) {
-                Log.e(TAG, "Error sending audio frame", e);
-            }
-        }
-    }
     
     /**
      * Interface for receiving video frames
@@ -606,67 +582,6 @@ public class SocketManager {
         }
     }
     
-    /**
-     * Interface for receiving audio frames
-     */
-    public interface AudioFrameListener {
-        void onAudioFrameReceived(String userId, String base64Audio, long timestamp);
-    }
-    
-    private AudioFrameListener audioFrameListener;
-    
-    /**
-     * Set the listener for audio frames
-     */
-    public void setAudioFrameListener(AudioFrameListener listener) {
-        this.audioFrameListener = listener;
-        
-        // Remove existing listener first
-        if (socket != null) {
-            socket.off("audio_frame");
-        }
-        
-        // Setup socket listener if connected
-        if (socket != null && isConnected && listener != null) {
-            Log.d(TAG, "Setting up audio_frame listener");
-            socket.on("audio_frame", new Emitter.Listener() {
-                @Override
-                public void call(Object... args) {
-                    try {
-                        JSONObject data = (JSONObject) args[0];
-                        String userId = data.getString("userId");
-                        String audio = data.getString("audio");
-                        long timestamp = data.optLong("timestamp", System.currentTimeMillis());
-                        
-                        Log.d(TAG, "Received audio_frame event from userId: " + userId + ", audio length: " + (audio != null ? audio.length() : 0));
-                        
-                        if (audioFrameListener != null) {
-                            audioFrameListener.onAudioFrameReceived(userId, audio, timestamp);
-                        } else {
-                            Log.w(TAG, "AudioFrameListener is null, cannot process audio frame");
-                        }
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Error receiving audio frame", e);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Unexpected error in audio_frame listener", e);
-                    }
-                }
-            });
-            Log.d(TAG, "Audio frame listener setup complete");
-        } else {
-            Log.w(TAG, "Cannot setup audio_frame listener: socket=" + (socket != null) + ", isConnected=" + isConnected + ", listener=" + (listener != null));
-        }
-    }
-    
-    /**
-     * Remove the listener for audio frames
-     */
-    public void removeAudioFrameListener() {
-        this.audioFrameListener = null;
-        if (socket != null) {
-            socket.off("audio_frame");
-        }
-    }
 
     /**
      * Listen to a socket event with a custom listener

@@ -24,9 +24,6 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
-import com.example.chatappjava.utils.AudioCaptureManager;
-import com.example.chatappjava.utils.AudioEncoder;
-import com.example.chatappjava.utils.AudioPlaybackManager;
 import com.example.chatappjava.utils.CameraCaptureManager;
 import com.example.chatappjava.utils.DatabaseManager;
 import com.example.chatappjava.utils.VideoFrameEncoder;
@@ -98,8 +95,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SocketManager socketManager;
     private CameraCaptureManager cameraCaptureManager;
-    private AudioCaptureManager audioCaptureManager;
-    private AudioPlaybackManager audioPlaybackManager;
     
     // State
     private boolean isMuted = false;
@@ -122,8 +117,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     private Handler videoFrameTimeoutHandler;
     private Runnable videoFrameTimeoutRunnable;
     
-    // CRITICAL: Thread pool for audio processing to avoid thread exhaustion
-    private ExecutorService audioProcessingExecutor;
     private ExecutorService videoProcessingExecutor;
     
     @Override
@@ -322,22 +315,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                 // Don't end call - continue without video
             }
             
-            // Start audio capture (with error handling)
-            try {
-                startAudioCapture();
-            } catch (Exception e) {
-                Log.e(TAG, "Error starting audio capture", e);
-                // Don't end call - continue without audio capture
-            }
-            
-            // Start audio playback (with error handling)
-            try {
-                startAudioPlayback();
-            } catch (Exception e) {
-                Log.e(TAG, "Error starting audio playback", e);
-                // Don't end call - continue without audio playback
-            }
-            
             // Start call duration timer
             startCallDurationTimer();
             
@@ -450,70 +427,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                         }
                     }
                 });
-            }
-        });
-        
-        // Listener for received audio frames
-        socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
-            @Override
-            public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
-                // CRITICAL: Process audio immediately in background thread for lowest latency
-                if (remoteParticipant != null && remoteParticipant.getUserId() != null && 
-                    remoteParticipant.getUserId().equals(userId)) {
-                    // CRITICAL: Use thread pool instead of creating new thread for each frame
-                    // This prevents thread exhaustion and process kill
-                    if (audioProcessingExecutor == null || audioProcessingExecutor.isShutdown()) {
-                        // Create single-threaded executor for sequential audio processing
-                        // Audio must be played sequentially to avoid glitches
-                        audioProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
-                            @Override
-                            public Thread newThread(Runnable r) {
-                                Thread t = new Thread(r, "AudioProcessor");
-                                t.setPriority(Thread.MAX_PRIORITY);
-                                return t;
-                            }
-                        });
-                    }
-                    
-                    audioProcessingExecutor.execute(() -> {
-                        try {
-                            if (!isCallActive) {
-                                return;
-                            }
-                            
-                            if (audioPlaybackManager != null) {
-                                // CRITICAL: Always ensure playback is started before playing audio
-                                if (!audioPlaybackManager.isPlaying()) {
-                                    Log.w(TAG, "Audio playback not started, starting now...");
-                                    audioPlaybackManager.startPlayback();
-                                    if (!audioPlaybackManager.isPlaying()) {
-                                        Log.e(TAG, "Failed to start audio playback, skipping frame");
-                                        return;
-                                    }
-                                }
-                                
-                                // CRITICAL: Decode and play immediately - no buffering
-                                byte[] audioData = AudioEncoder.decodeAudio(base64Audio);
-                                if (audioData != null && audioData.length > 0 && isCallActive) {
-                                    // Log only occasionally to avoid spam
-                                    if (System.currentTimeMillis() % 5000 < 100) {
-                                        Log.d(TAG, "Received and playing audio frame: " + audioData.length + " bytes");
-                                    }
-                                    // Play immediately - AudioPlaybackManager uses adaptive flush
-                                    audioPlaybackManager.playAudio(audioData);
-                                } else {
-                                    Log.w(TAG, "Invalid audio data: " + (audioData == null ? "null" : "length=" + audioData.length));
-                                }
-                            } else {
-                                Log.w(TAG, "AudioPlaybackManager is null, cannot play audio");
-                            }
-                        } catch (Exception e) {
-                            // CRITICAL: Catch all exceptions to prevent call from ending
-                            Log.e(TAG, "Error playing audio frame", e);
-                            // Don't end call on audio error - just log it
-                        }
-                    });
-                }
             }
         });
         
@@ -847,48 +760,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         }
     }
     
-    private void startAudioCapture() {
-        if (isMuted) {
-            Log.d(TAG, "Audio capture skipped (muted)");
-            return;
-        }
-        
-        if (audioCaptureManager != null && audioCaptureManager.isCapturing()) {
-            Log.w(TAG, "Audio capture already started");
-            return;
-        }
-        
-        try {
-            audioCaptureManager = new AudioCaptureManager();
-            audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
-                @Override
-                public void onAudioCaptured(byte[] audioData, int bytesRead) {
-                    try {
-                        if (audioData != null && audioData.length > 0 && isCallActive && !isMuted) {
-                            // Log capture frequency to debug
-                            if (System.currentTimeMillis() % 5000 < 100) {
-                                Log.d(TAG, "Audio captured: " + bytesRead + " bytes, sending to server");
-                            }
-                            sendAudioFrame(audioData);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error in audio capture callback", e);
-                        // Don't end call on audio processing error
-                    }
-                }
-            });
-            boolean isCapturing = audioCaptureManager.isCapturing();
-            Log.d(TAG, "Audio capture started, isCapturing: " + isCapturing);
-            
-            if (!isCapturing) {
-                Log.e(TAG, "WARNING: Audio capture failed to start!");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting audio capture", e);
-            // Don't end call - continue without audio capture
-            Toast.makeText(this, "Microphone unavailable, continuing without audio", Toast.LENGTH_SHORT).show();
-        }
-    }
     
     private void resetAudioMode() {
         try {
@@ -900,75 +771,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error resetting audio mode", e);
         }
-    }
-    
-    private void startAudioPlayback() {
-        try {
-            if (audioPlaybackManager == null) {
-                audioPlaybackManager = new AudioPlaybackManager();
-                Log.d(TAG, "Created new AudioPlaybackManager");
-            }
-            
-            // CRITICAL: Always try to start playback, even if already playing
-            // This ensures AudioTrack is properly initialized
-            audioPlaybackManager.startPlayback();
-            
-            boolean isPlaying = audioPlaybackManager.isPlaying();
-            Log.d(TAG, "Audio playback started, isPlaying: " + isPlaying);
-            
-            if (!isPlaying) {
-                Log.e(TAG, "WARNING: Audio playback failed to start!");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error starting audio playback", e);
-            // Don't end call - continue without audio playback
-            // Audio playback will be retried when first audio frame arrives
-        }
-    }
-    
-    private void sendAudioFrame(byte[] audioData) {
-        if (audioData == null || audioData.length == 0) {
-            return;
-        }
-        
-        // CRITICAL: Use thread pool instead of creating new thread for each frame
-        // This prevents thread exhaustion and process kill
-        if (audioProcessingExecutor == null || audioProcessingExecutor.isShutdown()) {
-            audioProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
-                @Override
-                public Thread newThread(Runnable r) {
-                    Thread t = new Thread(r, "AudioSender");
-                    t.setPriority(Thread.MAX_PRIORITY);
-                    return t;
-                }
-            });
-        }
-        
-        audioProcessingExecutor.execute(() -> {
-            try {
-                if (!isCallActive) {
-                    return;
-                }
-                
-                // Encode audio to base64 (similar to video frame encoding)
-                // Flow: Capture (PCM) -> Encode (base64) -> Server -> Decode (base64) -> Play (PCM)
-                String base64Audio = AudioEncoder.encodeAudio(audioData);
-                
-                if (base64Audio != null && isCallActive) {
-                    // CRITICAL: Send immediately without delay
-                    // No queue, no buffering - direct send for lowest latency
-                    if (socketManager != null) {
-                        socketManager.sendAudioFrame(callId, base64Audio);
-                        // Log send frequency to debug
-                        if (System.currentTimeMillis() % 5000 < 100) {
-                            Log.d(TAG, "Sent audio frame to server: " + base64Audio.length() + " bytes base64");
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error sending audio frame", e);
-            }
-        });
     }
     
     private void sendVideoFrame(byte[] frameData) {
@@ -1034,15 +836,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
             localParticipant.setAudioMuted(isMuted);
         }
         
-        // Stop/start audio capture based on mute state
-        if (isMuted) {
-            if (audioCaptureManager != null) {
-                audioCaptureManager.stopCapture();
-            }
-        } else {
-            startAudioCapture();
-        }
-        
         // Send update to server
         updateMediaState();
     }
@@ -1091,17 +884,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         }
     }
     
-    private void stopAudioCapture() {
-        if (audioCaptureManager != null) {
-            audioCaptureManager.stopCapture();
-        }
-    }
-    
-    private void stopAudioPlayback() {
-        if (audioPlaybackManager != null) {
-            audioPlaybackManager.stopPlayback();
-        }
-    }
     
     private void updateMediaState() {
         // Send media state update to server
@@ -1182,10 +964,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         isCallActive = false;
         
         // CRITICAL: Shutdown thread pools to prevent memory leaks
-        if (audioProcessingExecutor != null && !audioProcessingExecutor.isShutdown()) {
-            audioProcessingExecutor.shutdown();
-            audioProcessingExecutor = null;
-        }
         if (videoProcessingExecutor != null && !videoProcessingExecutor.isShutdown()) {
             videoProcessingExecutor.shutdown();
             videoProcessingExecutor = null;
@@ -1194,10 +972,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         // Stop video capture
         stopVideoCapture();
         
-        // Stop audio capture and playback
-        stopAudioCapture();
-        stopAudioPlayback();
-        
         // Reset audio mode
         resetAudioMode();
         
@@ -1205,7 +979,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
             socketManager.removeVideoFrameListener();
-            socketManager.removeAudioFrameListener();
         }
         
         // Stop call duration timer
@@ -1269,10 +1042,6 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         super.onDestroy();
         
         // CRITICAL: Shutdown thread pools to prevent memory leaks
-        if (audioProcessingExecutor != null && !audioProcessingExecutor.isShutdown()) {
-            audioProcessingExecutor.shutdownNow();
-            audioProcessingExecutor = null;
-        }
         if (videoProcessingExecutor != null && !videoProcessingExecutor.isShutdown()) {
             videoProcessingExecutor.shutdownNow();
             videoProcessingExecutor = null;
@@ -1285,16 +1054,11 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
-            socketManager.removeAudioFrameListener();
             socketManager.off("call_room_joined");
             socketManager.off("user_left_call");
             socketManager.off("call_declined");
             socketManager.off("call_ended");
         }
-        
-        // Stop audio capture and playback
-        stopAudioCapture();
-        stopAudioPlayback();
         
         // CRITICAL: Clear ImageViews BEFORE recycling bitmaps to avoid "recycled bitmap" crash
         if (ivLocalVideoFrame != null) {
