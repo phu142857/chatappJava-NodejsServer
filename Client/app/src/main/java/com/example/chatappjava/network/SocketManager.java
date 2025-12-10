@@ -582,6 +582,69 @@ public class SocketManager {
         }
     }
     
+    /**
+     * Send an audio frame to the server
+     */
+    public void sendAudioFrame(String callId, String base64Audio) {
+        if (socket != null && isConnected) {
+            JSONObject data = new JSONObject();
+            try {
+                data.put("callId", callId);
+                data.put("audio", base64Audio);
+                data.put("timestamp", System.currentTimeMillis());
+                socket.emit("audio_frame", data);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error sending audio frame", e);
+            }
+        }
+    }
+    
+    /**
+     * Interface for receiving audio frames
+     */
+    public interface AudioFrameListener {
+        void onAudioFrameReceived(String userId, String base64Audio, long timestamp);
+    }
+    
+    private AudioFrameListener audioFrameListener;
+    
+    /**
+     * Set the listener for audio frames
+     */
+    public void setAudioFrameListener(AudioFrameListener listener) {
+        this.audioFrameListener = listener;
+        
+        // Setup socket listener if connected
+        if (socket != null && isConnected && listener != null) {
+            socket.on("audio_frame", new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    try {
+                        JSONObject data = (JSONObject) args[0];
+                        String userId = data.getString("userId");
+                        String audio = data.getString("audio");
+                        long timestamp = data.optLong("timestamp", System.currentTimeMillis());
+                        
+                        if (audioFrameListener != null) {
+                            audioFrameListener.onAudioFrameReceived(userId, audio, timestamp);
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error receiving audio frame", e);
+                    }
+                }
+            });
+        }
+    }
+    
+    /**
+     * Remove the listener for audio frames
+     */
+    public void removeAudioFrameListener() {
+        this.audioFrameListener = null;
+        if (socket != null) {
+            socket.off("audio_frame");
+        }
+    }
 
     /**
      * Listen to a socket event with a custom listener

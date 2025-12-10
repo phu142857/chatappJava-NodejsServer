@@ -24,6 +24,9 @@ import com.example.chatappjava.R;
 import com.example.chatappjava.models.CallParticipant;
 import com.example.chatappjava.network.ApiClient;
 import com.example.chatappjava.network.SocketManager;
+import com.example.chatappjava.utils.AudioCaptureManager;
+import com.example.chatappjava.utils.AudioFrameEncoder;
+import com.example.chatappjava.utils.AudioPlaybackManager;
 import com.example.chatappjava.utils.CameraCaptureManager;
 import com.example.chatappjava.utils.DatabaseManager;
 import com.example.chatappjava.utils.VideoFrameEncoder;
@@ -95,6 +98,8 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SocketManager socketManager;
     private CameraCaptureManager cameraCaptureManager;
+    private AudioCaptureManager audioCaptureManager;
+    private AudioPlaybackManager audioPlaybackManager;
     
     // State
     private boolean isMuted = false;
@@ -102,6 +107,7 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     private boolean isCallActive = false;
     private boolean isFrontCamera = false;
     private AtomicBoolean isSendingFrame = new AtomicBoolean(false);
+    private AtomicBoolean isSendingAudio = new AtomicBoolean(false);
     private Handler frameCaptureHandler;
     private Runnable frameCaptureRunnable;
     private long callStartTime;
@@ -315,6 +321,14 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                 // Don't end call - continue without video
             }
             
+            // Start audio capture (with error handling)
+            try {
+                startAudioCapture();
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting audio capture", e);
+                // Don't end call - continue without audio
+            }
+            
             // Start call duration timer
             startCallDurationTimer();
             
@@ -427,6 +441,19 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                         }
                     }
                 });
+            }
+        });
+        
+        // Listener for received audio frames
+        socketManager.setAudioFrameListener(new SocketManager.AudioFrameListener() {
+            @Override
+            public void onAudioFrameReceived(String userId, String base64Audio, long timestamp) {
+                // Only process if it's from remote user
+                if (remoteParticipant != null && remoteParticipant.getUserId() != null && 
+                    remoteParticipant.getUserId().equals(userId)) {
+                    // Decode and play audio
+                    playRemoteAudio(userId, base64Audio);
+                }
             }
         });
         
@@ -832,6 +859,13 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         isMuted = !isMuted;
         btnMute.setImageResource(isMuted ? R.drawable.ic_mic_off : R.drawable.ic_mic);
         
+        // Start or stop audio capture based on mute state
+        if (isMuted) {
+            stopAudioCapture();
+        } else {
+            startAudioCapture();
+        }
+        
         if (localParticipant != null) {
             localParticipant.setAudioMuted(isMuted);
         }
@@ -882,6 +916,112 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         if (frameCaptureHandler != null && frameCaptureRunnable != null) {
             frameCaptureHandler.removeCallbacks(frameCaptureRunnable);
         }
+    }
+    
+    private void startAudioCapture() {
+        if (isMuted || !isCallActive) {
+            return;
+        }
+        
+        try {
+            if (audioCaptureManager == null) {
+                audioCaptureManager = new AudioCaptureManager();
+            }
+            
+            audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
+                @Override
+                public void onAudioCaptured(byte[] audioData, int sampleRate) {
+                    try {
+                        if (audioData != null && isCallActive && !isMuted) {
+                            sendAudioFrame(audioData);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in audio capture callback", e);
+                    }
+                }
+            });
+            
+            Log.d(TAG, "Audio capture started successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting audio capture", e);
+        }
+    }
+    
+    private void stopAudioCapture() {
+        if (audioCaptureManager != null) {
+            audioCaptureManager.stopCapture();
+        }
+    }
+    
+    private void sendAudioFrame(byte[] audioData) {
+        // Skip if previous encoding is still in progress
+        if (!isSendingAudio.compareAndSet(false, true)) {
+            return;
+        }
+        
+        // Use thread pool for audio processing
+        if (videoProcessingExecutor == null || videoProcessingExecutor.isShutdown()) {
+            videoProcessingExecutor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "AudioProcessor");
+                    t.setPriority(Thread.MAX_PRIORITY);
+                    return t;
+                }
+            });
+        }
+        
+        videoProcessingExecutor.execute(() -> {
+            try {
+                if (!isCallActive || isMuted) {
+                    isSendingAudio.set(false);
+                    return;
+                }
+                
+                // Encode audio to base64
+                String base64Audio = AudioFrameEncoder.encodeFrame(audioData);
+                
+                if (base64Audio != null && isCallActive && !isMuted) {
+                    // Send to server
+                    if (socketManager != null && isCallActive) {
+                        socketManager.sendAudioFrame(callId, base64Audio);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error sending audio frame", e);
+            } finally {
+                isSendingAudio.set(false);
+            }
+        });
+    }
+    
+    private void playRemoteAudio(String userId, String base64Audio) {
+        if (!isCallActive || base64Audio == null || base64Audio.isEmpty()) {
+            return;
+        }
+        
+        // Decode audio in background thread
+        new Thread(() -> {
+            try {
+                byte[] audioData = AudioFrameEncoder.decodeFrame(base64Audio);
+                if (audioData != null && isCallActive) {
+                    // Initialize playback manager if needed
+                    if (audioPlaybackManager == null) {
+                        audioPlaybackManager = new AudioPlaybackManager();
+                    }
+                    
+                    // Start playback if not already playing
+                    if (!audioPlaybackManager.isPlaying(userId)) {
+                        audioPlaybackManager.startPlayback(userId, 16000); // 16kHz sample rate
+                    }
+                    
+                    // Play audio data
+                    audioPlaybackManager.playAudio(userId, audioData);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error playing remote audio", e);
+            }
+        }).start();
     }
     
     
@@ -972,6 +1112,12 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         // Stop video capture
         stopVideoCapture();
         
+        // Stop audio capture and playback
+        stopAudioCapture();
+        if (audioPlaybackManager != null) {
+            audioPlaybackManager.stopAllPlayback();
+        }
+        
         // Reset audio mode
         resetAudioMode();
         
@@ -979,6 +1125,7 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         if (socketManager != null) {
             socketManager.leaveCallRoom(callId);
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
         }
         
         // Stop call duration timer
@@ -1054,10 +1201,17 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
         
         if (socketManager != null) {
             socketManager.removeVideoFrameListener();
+            socketManager.removeAudioFrameListener();
             socketManager.off("call_room_joined");
             socketManager.off("user_left_call");
             socketManager.off("call_declined");
             socketManager.off("call_ended");
+        }
+        
+        // Stop audio capture and playback
+        stopAudioCapture();
+        if (audioPlaybackManager != null) {
+            audioPlaybackManager.stopAllPlayback();
         }
         
         // CRITICAL: Clear ImageViews BEFORE recycling bitmaps to avoid "recycled bitmap" crash
