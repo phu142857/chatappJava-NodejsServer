@@ -29,6 +29,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -595,22 +596,130 @@ public class GroupSettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
         }
-        apiClient.deleteChat(token, currentChat.getId(), new Callback() {
-            @Override
-            public void onResponse(Call call, Response response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(GroupSettingsActivity.this, "Group deleted", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        Toast.makeText(GroupSettingsActivity.this, "Failed to delete group", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
+        
+        String groupId = currentChat != null ? currentChat.getGroupId() : null;
+        
+        // Use deleteGroup API if groupId is available, otherwise fallback to deleteChat
+        if (groupId != null && !groupId.isEmpty()) {
+            apiClient.deleteGroup(token, groupId, new Callback() {
+                @Override
+                public void onResponse(Call call, Response response) {
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(GroupSettingsActivity.this, "Group deleted", Toast.LENGTH_SHORT).show();
+                            finish();
+                        } else {
+                            Toast.makeText(GroupSettingsActivity.this, "Failed to delete group", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
 
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                }
+            });
+        } else {
+            // If groupId is not available, find group by name and then delete
+            if (currentChat != null) {
+                findGroupByNameAndDelete(token, currentChat.getName());
+            } else {
+                Toast.makeText(this, "Cannot find group", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
+    private void findGroupByNameAndDelete(String token, String groupName) {
+        if (groupName == null || groupName.isEmpty()) {
+            Toast.makeText(this, "Cannot find group", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Search groups by exact name
+        String encodedName = "";
+        try {
+            encodedName = URLEncoder.encode(groupName, "UTF-8");
+        } catch (Exception e) {
+            encodedName = groupName.replace(" ", "%20");
+        }
+        String searchUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/api/groups?search=" + encodedName;
+        
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(searchUrl)
+                .get()
+                .addHeader("Authorization", "Bearer " + token)
+                .build();
+        
+        okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+        client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data != null) {
+                            org.json.JSONArray groups = data.optJSONArray("groups");
+                            if (groups != null && groups.length() > 0) {
+                                // Find exact match by name
+                                for (int i = 0; i < groups.length(); i++) {
+                                    org.json.JSONObject group = groups.getJSONObject(i);
+                                    String name = group.optString("name", "");
+                                    if (name.equals(groupName)) {
+                                        String foundGroupId = group.optString("_id", "");
+                                        if (!foundGroupId.isEmpty()) {
+                                            // Delete the found group
+                                            runOnUiThread(() -> {
+                                                apiClient.deleteGroup(token, foundGroupId, new Callback() {
+                                                    @Override
+                                                    public void onResponse(Call call, Response response) {
+                                                        runOnUiThread(() -> {
+                                                            if (response.isSuccessful()) {
+                                                                Toast.makeText(GroupSettingsActivity.this, "Group deleted", Toast.LENGTH_SHORT).show();
+                                                                finish();
+                                                            } else {
+                                                                Toast.makeText(GroupSettingsActivity.this, "Failed to delete group", Toast.LENGTH_SHORT).show();
+                                                            }
+                                                        });
+                                                    }
+                                                    
+                                                    @Override
+                                                    public void onFailure(Call call, IOException e) {
+                                                        runOnUiThread(() -> {
+                                                            Toast.makeText(GroupSettingsActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                                        });
+                                                    }
+                                                });
+                                            });
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // If no exact match found, show error
+                        runOnUiThread(() -> {
+                            Toast.makeText(GroupSettingsActivity.this, "Group not found", Toast.LENGTH_SHORT).show();
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            Toast.makeText(GroupSettingsActivity.this, "Error finding group", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupSettingsActivity.this, "Failed to find group", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+            
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(GroupSettingsActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }

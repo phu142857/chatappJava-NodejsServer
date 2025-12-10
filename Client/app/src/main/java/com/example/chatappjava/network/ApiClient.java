@@ -481,6 +481,13 @@ public class ApiClient {
     }
 
     /**
+     * Delete a group (hard delete - only for group creator/admin)
+     */
+    public void deleteGroup(String token, String groupId, Callback callback) {
+        authenticatedDelete("/api/groups/" + groupId, token, callback);
+    }
+
+    /**
      * Unfriend a user (remove both sides friendship)
      */
     public void unfriendUser(String token, String userId, Callback callback) {

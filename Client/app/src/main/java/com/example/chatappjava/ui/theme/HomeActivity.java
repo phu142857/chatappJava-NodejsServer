@@ -2732,7 +2732,10 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         Toast.makeText(this, "Deleting group...", Toast.LENGTH_SHORT).show();
         
         String token = databaseManager.getToken();
-        apiClient.deleteChat(token, chat.getId(), new okhttp3.Callback() {
+        String groupId = chat.getGroupId();
+        
+        // Use deleteGroup API if groupId is available, otherwise fallback to deleteChat
+        okhttp3.Callback callback = new okhttp3.Callback() {
             @Override
             public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
                 runOnUiThread(() -> {
@@ -2774,7 +2777,14 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
                     Toast.makeText(HomeActivity.this, "Network error", Toast.LENGTH_SHORT).show();
                 });
             }
-        });
+        };
+        
+        // Use deleteGroup API if groupId is available, otherwise fallback to deleteChat
+        if (groupId != null && !groupId.isEmpty()) {
+            apiClient.deleteGroup(token, groupId, callback);
+        } else {
+            apiClient.deleteChat(token, chat.getId(), callback);
+        }
     }
     
     // ChatListAdapter.OnChatClickListener implementation
