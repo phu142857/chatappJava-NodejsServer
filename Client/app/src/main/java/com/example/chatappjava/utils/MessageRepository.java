@@ -94,9 +94,9 @@ public class MessageRepository {
         } catch (Exception e) {
             Log.e(TAG, "Error saving message: " + e.getMessage(), e);
             return null;
-        } finally {
-            db.close();
         }
+        // Don't close database connection - let SQLite manage the connection pool
+        // Closing here can cause crashes when other threads are using the database
     }
     
     /**
@@ -141,7 +141,8 @@ public class MessageRepository {
             }
         }
         
-        db.close();
+        // Don't close database connection - let SQLite manage the connection pool
+        // Closing here can cause crashes when other threads are using the database
         
         // If we used DESC order (for limit), reverse to get chronological order
         if (limit > 0) {
@@ -247,9 +248,9 @@ public class MessageRepository {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error batch saving messages: " + e.getMessage(), e);
-        } finally {
-            db.close();
         }
+        // Don't close database connection - let SQLite manage the connection pool
+        // Closing here can cause crashes when other threads are using the database
     }
     
     /**
@@ -293,7 +294,8 @@ public class MessageRepository {
             }
         }
         
-        db.close();
+        // Don't close database connection - let SQLite manage the connection pool
+        // Closing here can cause crashes when other threads are using the database
         Log.d(TAG, "Retrieved " + messages.size() + " new messages after timestamp " + afterTimestamp + " for chat: " + chatId);
         return messages;
     }
@@ -322,14 +324,20 @@ public class MessageRepository {
             null, null, null
         );
         
-        if (timestampCursor != null && timestampCursor.moveToFirst()) {
-            int timestampIndex = timestampCursor.getColumnIndex(DatabaseHelper.COL_MSG_TIMESTAMP);
-            if (timestampIndex >= 0) {
-                afterTimestamp = timestampCursor.getLong(timestampIndex);
+        try {
+            if (timestampCursor != null && timestampCursor.moveToFirst()) {
+                int timestampIndex = timestampCursor.getColumnIndex(DatabaseHelper.COL_MSG_TIMESTAMP);
+                if (timestampIndex >= 0) {
+                    afterTimestamp = timestampCursor.getLong(timestampIndex);
+                }
             }
-            timestampCursor.close();
+        } finally {
+            if (timestampCursor != null) {
+                timestampCursor.close();
+            }
         }
-        db.close();
+        // Don't close database connection - let SQLite manage the connection pool
+        // Closing here can cause crashes when other threads are using the database
         
         if (afterTimestamp > 0) {
             return getMessagesAfter(chatId, afterTimestamp);

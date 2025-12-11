@@ -1449,7 +1449,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         if (btnScrollToBottom != null) {
             btnScrollToBottom.setOnClickListener(v -> {
                 if (messages != null && !messages.isEmpty() && rvMessages != null) {
-                    rvMessages.scrollToPosition(messages.size() - 1);
+                    int lastPos = messages.size() - 1;
+                    // Use postDelayed to ensure layout is complete
+                    rvMessages.postDelayed(() -> {
+                        if (rvMessages != null && !messages.isEmpty() && lastPos >= 0 && lastPos < messages.size()) {
+                            rvMessages.smoothScrollToPosition(lastPos);
+                        }
+                    }, 100);
                     shouldAutoScroll = true;
                     isUserReadingOldMessages = false;
                     hasNewMessages = false;
@@ -1540,10 +1546,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                                             // Only auto-scroll if user is at bottom
                                             if (isAtBottom && shouldAutoScroll) {
                                                 rvMessages.postDelayed(() -> {
-                                                    if (isAtBottom()) {
-                                                        rvMessages.scrollToPosition(messages.size() - 1);
+                                                    if (isAtBottom() && !messages.isEmpty() && rvMessages != null) {
+                                                        int lastPos = messages.size() - 1;
+                                                        if (lastPos >= 0 && lastPos < messages.size()) {
+                                                            rvMessages.smoothScrollToPosition(lastPos);
+                                                        }
                                                     }
-                                                }, 50);
+                                                }, 100);
                                             } else {
                                                 // User is not at bottom - show scroll-to-bottom button
                                                 newMessagesCount += addedCount;
@@ -3131,8 +3140,18 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected void scrollToBottom() {
         // Only scroll if shouldAutoScroll is true (user is at/near bottom)
         // This prevents unwanted scrolling when user is reading older messages
-        if (!messages.isEmpty() && shouldAutoScroll) {
-            rvMessages.smoothScrollToPosition(messages.size() - 1);
+        if (!messages.isEmpty() && shouldAutoScroll && rvMessages != null) {
+            int lastPosition = messages.size() - 1;
+            
+            // Use postDelayed to ensure RecyclerView has finished layout and adapter has updated
+            rvMessages.postDelayed(() -> {
+                if (rvMessages != null && !messages.isEmpty() && lastPosition >= 0 && lastPosition < messages.size()) {
+                    // Use smoothScrollToPosition to scroll to the last message
+                    // This ensures the last message is fully visible at the bottom
+                    rvMessages.smoothScrollToPosition(lastPosition);
+                    android.util.Log.d("BaseChatActivity", "scrollToBottom: scrolled to position " + lastPosition + " (total: " + messages.size() + ")");
+                }
+            }, 100);
         }
     }
 
@@ -3264,10 +3283,13 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                         // Only auto-scroll if user is at bottom
                         if (isAtBottom && shouldAutoScroll) {
                             rvMessages.postDelayed(() -> {
-                                if (isAtBottom()) {
-                                    rvMessages.scrollToPosition(messages.size() - 1);
+                                if (isAtBottom() && !messages.isEmpty() && rvMessages != null) {
+                                    int lastPos = messages.size() - 1;
+                                    if (lastPos >= 0 && lastPos < messages.size()) {
+                                        rvMessages.smoothScrollToPosition(lastPos);
+                                    }
                                 }
-                            }, 50);
+                            }, 100);
                         } else {
                             // User is not at bottom - show scroll-to-bottom button
                             newMessagesCount += addedCount;
