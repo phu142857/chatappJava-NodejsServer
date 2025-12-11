@@ -258,6 +258,26 @@
                 android:padding="8dp"
                 android:scrollbars="vertical" />
 
+            <!-- Scroll to Bottom Button (shown when user is not at bottom) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_scroll_to_bottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="16dp"
+                android:text="↓ Tin nhắn mới"
+                android:textSize="12sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:background="@drawable/rounded_container"
+                android:backgroundTint="#FFFFFF"
+                android:elevation="4dp"
+                android:visibility="gone"
+                android:minWidth="0dp"
+                android:minHeight="0dp" />
+
         </FrameLayout>
 
         <!-- Typing Indicator -->

@@ -253,6 +253,92 @@ public class MessageRepository {
     }
     
     /**
+     * Get new messages for a chat after a certain timestamp (for real-time updates)
+     * 
+     * @param chatId Chat ID
+     * @param afterTimestamp Load messages after this timestamp
+     * @return List of new messages
+     */
+    public List<Message> getMessagesAfter(String chatId, long afterTimestamp) {
+        List<Message> messages = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        
+        String whereClause = DatabaseHelper.COL_MSG_CHAT_ID + " = ? AND " +
+                            DatabaseHelper.COL_MSG_TIMESTAMP + " > ? AND " +
+                            DatabaseHelper.COL_MSG_IS_DELETED + " = 0";
+        String[] whereArgs = {chatId, String.valueOf(afterTimestamp)};
+        String orderBy = DatabaseHelper.COL_MSG_TIMESTAMP + " ASC";
+        
+        Cursor cursor = db.query(
+            DatabaseHelper.TABLE_MESSAGES,
+            null,
+            whereClause,
+            whereArgs,
+            null,
+            null,
+            orderBy,
+            null
+        );
+        
+        if (cursor != null) {
+            try {
+                while (cursor.moveToNext()) {
+                    Message message = cursorToMessage(cursor);
+                    if (message != null) {
+                        messages.add(message);
+                    }
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        
+        db.close();
+        Log.d(TAG, "Retrieved " + messages.size() + " new messages after timestamp " + afterTimestamp + " for chat: " + chatId);
+        return messages;
+    }
+    
+    /**
+     * Get new messages for a chat after a certain message ID (for real-time updates)
+     * 
+     * @param chatId Chat ID
+     * @param afterMessageId Load messages after this message ID (by timestamp)
+     * @return List of new messages
+     */
+    public List<Message> getMessagesAfterId(String chatId, String afterMessageId) {
+        if (afterMessageId == null || afterMessageId.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // First, get the timestamp of the message with this ID
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        long afterTimestamp = 0;
+        
+        Cursor timestampCursor = db.query(
+            DatabaseHelper.TABLE_MESSAGES,
+            new String[]{DatabaseHelper.COL_MSG_TIMESTAMP},
+            DatabaseHelper.COL_MSG_ID + " = ?",
+            new String[]{afterMessageId},
+            null, null, null
+        );
+        
+        if (timestampCursor != null && timestampCursor.moveToFirst()) {
+            int timestampIndex = timestampCursor.getColumnIndex(DatabaseHelper.COL_MSG_TIMESTAMP);
+            if (timestampIndex >= 0) {
+                afterTimestamp = timestampCursor.getLong(timestampIndex);
+            }
+            timestampCursor.close();
+        }
+        db.close();
+        
+        if (afterTimestamp > 0) {
+            return getMessagesAfter(chatId, afterTimestamp);
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    /**
      * Get messages for a chat with pagination (for loading older messages)
      * 
      * @param chatId Chat ID

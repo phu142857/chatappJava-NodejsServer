@@ -103,6 +103,8 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
     protected android.view.View offlineIndicator;
     // Summarize indicator
     protected android.view.View summarizeIndicator;
+    // Scroll to bottom button
+    protected android.widget.Button btnScrollToBottom;
     protected String replyingToMessageId;
     protected String replyingToAuthor;
     protected String replyingToContent;
@@ -1441,6 +1443,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         ivReplyClose = findViewById(R.id.iv_reply_close);
         offlineIndicator = findViewById(R.id.offline_indicator);
         summarizeIndicator = findViewById(R.id.summarize_indicator);
+        btnScrollToBottom = findViewById(R.id.btn_scroll_to_bottom);
+        
+        // Setup scroll-to-bottom button click listener
+        if (btnScrollToBottom != null) {
+            btnScrollToBottom.setOnClickListener(v -> {
+                if (messages != null && !messages.isEmpty() && rvMessages != null) {
+                    rvMessages.scrollToPosition(messages.size() - 1);
+                    shouldAutoScroll = true;
+                    isUserReadingOldMessages = false;
+                    hasNewMessages = false;
+                    newMessagesCount = 0;
+                    updateScrollToBottomButton();
+                }
+            });
+        }
         
         // Log view initialization
         android.util.Log.d("BaseChatActivity", "Views initialized - ivBack: " + (ivBack != null) + 
@@ -1465,53 +1482,80 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         backgroundSyncManager.addSyncListener(new com.example.chatappjava.utils.SyncManager.SyncListener() {
             @Override
             public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
-                if (success && itemsUpdated > 0 && "messages".equals(resourceType)) {
-                    // Use postDelayed to avoid conflicts with ongoing RecyclerView operations
-                    // This prevents IndexOutOfBoundsException during rapid syncs
+                // FIX: Always check for new messages, even if itemsUpdated is 0
+                // Sometimes sync might not report itemsUpdated correctly, but messages are still in DB
+                if (success && "messages".equals(resourceType)) {
+                    // FIX: Always update UI with new messages, but only append (don't reload entire list)
+                    // This ensures real-time chat works even when user is reading old messages
                     runOnUiThread(() -> {
-                        if (currentChat != null && rvMessages != null) {
-                            // CRITICAL: Check MULTIPLE conditions before reloading
-                            // 1. Check flag isUserReadingOldMessages
-                            // 2. Check shouldAutoScroll
-                            // 3. Check actual position (isReadingOldMessages)
-                            // If ANY condition indicates user is reading old messages, SKIP reload completely
-                            boolean isReadingOld = isReadingOldMessages();
-                            boolean shouldSkip = isUserReadingOldMessages || !shouldAutoScroll || isReadingOld;
+                        if (currentChat != null && rvMessages != null && messageRepository != null) {
+                            // Get last message ID to fetch only new messages
+                            String lastMessageId = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
+                            long lastTimestamp = messages.isEmpty() ? 0 : messages.get(messages.size() - 1).getTimestamp();
                             
-                            // Log current state for debugging
-                            LinearLayoutManager currentLm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                            int currentLastVisible = currentLm != null ? currentLm.findLastVisibleItemPosition() : -1;
-                            int currentTotal = currentLm != null ? currentLm.getItemCount() : 0;
-                            int currentDistance = currentTotal > 0 ? currentTotal - 1 - currentLastVisible : 0;
+                            // Check if user is at bottom (for auto-scroll decision)
+                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                            boolean isAtBottom = isAtBottom();
                             
-                            android.util.Log.d("BaseChatActivity", "SYNC CHECK: isUserReadingOldMessages=" + isUserReadingOldMessages + 
-                                ", shouldAutoScroll=" + shouldAutoScroll + ", isReadingOldMessages()=" + isReadingOld + 
-                                ", distanceFromBottom=" + currentDistance + ", lastVisible=" + currentLastVisible + ", total=" + currentTotal);
+                            android.util.Log.d("BaseChatActivity", "SYNC: Fetching new messages after ID=" + lastMessageId + 
+                                ", timestamp=" + lastTimestamp + ", isAtBottom=" + isAtBottom + ", itemsUpdated=" + itemsUpdated);
                             
-                            if (shouldSkip) {
-                                android.util.Log.d("BaseChatActivity", "BLOCKED sync reload - user reading old messages");
-                                return; // COMPLETELY SKIP - don't even delay
-                            }
-                            
-                            // Delay the update slightly to ensure RecyclerView is not in the middle of a layout pass
-                            rvMessages.postDelayed(() -> {
-                                // Final check before reloading (user might have scrolled up during delay)
-                                // Re-check all conditions including actual position
-                                boolean stillIsReadingOld = isReadingOldMessages();
-                                boolean stillShouldSkip = isUserReadingOldMessages || !shouldAutoScroll || stillIsReadingOld;
-                                
-                                // Log final check
-                                android.util.Log.d("BaseChatActivity", "SYNC DELAYED CHECK: isUserReadingOldMessages=" + isUserReadingOldMessages + 
-                                    ", shouldAutoScroll=" + shouldAutoScroll + ", isReadingOldMessages()=" + stillIsReadingOld + 
-                                    ", shouldSkip=" + stillShouldSkip);
-                                
-                                if (!stillShouldSkip) {
-                                    android.util.Log.d("BaseChatActivity", "ALLOWED sync reload after delay");
-                                    loadMessagesFromDatabaseSilent();
+                            // Fetch only new messages (after last message)
+                            new Thread(() -> {
+                                List<Message> newMessages;
+                                if (lastMessageId != null) {
+                                    newMessages = messageRepository.getMessagesAfterId(currentChat.getId(), lastMessageId);
+                                } else if (lastTimestamp > 0) {
+                                    newMessages = messageRepository.getMessagesAfter(currentChat.getId(), lastTimestamp);
                                 } else {
-                                    android.util.Log.d("BaseChatActivity", "BLOCKED sync reload after delay - user scrolled up");
+                                    // No messages yet, load initial batch
+                                    newMessages = messageRepository.getMessagesForChat(currentChat.getId(), initialDbLoadLimit);
                                 }
-                            }, 100); // 100ms delay to let RecyclerView finish current operations
+                                
+                                if (newMessages != null && !newMessages.isEmpty()) {
+                                    runOnUiThread(() -> {
+                                        // Append new messages to list
+                                        int oldSize = messages.size();
+                                        for (Message msg : newMessages) {
+                                            // Avoid duplicates
+                                            boolean exists = false;
+                                            for (Message existing : messages) {
+                                                if (existing.getId() != null && existing.getId().equals(msg.getId())) {
+                                                    exists = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!exists) {
+                                                messages.add(msg);
+                                            }
+                                        }
+                                        
+                                        int addedCount = messages.size() - oldSize;
+                                        if (addedCount > 0) {
+                                            android.util.Log.d("BaseChatActivity", "SYNC: Added " + addedCount + " new messages");
+                                            
+                                            // Notify adapter of new items
+                                            messageAdapter.notifyItemRangeInserted(oldSize, addedCount);
+                                            
+                                            // Only auto-scroll if user is at bottom
+                                            if (isAtBottom && shouldAutoScroll) {
+                                                rvMessages.postDelayed(() -> {
+                                                    if (isAtBottom()) {
+                                                        rvMessages.scrollToPosition(messages.size() - 1);
+                                                    }
+                                                }, 50);
+                                            } else {
+                                                // User is not at bottom - show scroll-to-bottom button
+                                                newMessagesCount += addedCount;
+                                                hasNewMessages = true;
+                                                updateScrollToBottomButton();
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    android.util.Log.d("BaseChatActivity", "SYNC: No new messages found in DB");
+                                }
+                            }).start();
                         }
                     });
                 }
@@ -1602,8 +1646,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                 }
             });
 
-            // If user scroll up, stopPolling to avoid conflicts
-            stopPolling();
+            // FIX: Don't stop polling when socket is setup
+            // Keep polling as backup in case socket doesn't work
+            // Polling will sync messages to DB, and onSyncComplete will update UI
+            // Only stop polling if we're sure socket is working and receiving messages
+            // For now, keep both running - socket for real-time, polling as backup
+            android.util.Log.d("BaseChatActivity", "Socket listener setup, keeping polling as backup");
         }
     }
     
@@ -1770,6 +1818,7 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                     // User is at/near bottom - clear new messages indicator
                     hasNewMessages = false;
                     newMessagesCount = 0;
+                    updateScrollToBottomButton();
                 }
                 
                 // Infinite scroll upwards: when first visible close to top, load previous page
@@ -1824,10 +1873,12 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
                             // User is reading old messages (more than 5 from bottom) - disable auto-scroll
                             shouldAutoScroll = false;
                             isUserReadingOldMessages = true;
+                            updateScrollToBottomButton();
                             android.util.Log.d("BaseChatActivity", "SCROLL STATE IDLE READING OLD: distanceFromBottom=" + distanceFromBottom + ", isUserReadingOldMessages=true, shouldAutoScroll=false");
                         } else {
                             // Between 3-5 messages from bottom - keep current state
                             // Don't change shouldAutoScroll
+                            updateScrollToBottomButton();
                             android.util.Log.d("BaseChatActivity", "SCROLL STATE IDLE MIDDLE: distanceFromBottom=" + distanceFromBottom + ", isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll);
                         }
                     }
@@ -1907,10 +1958,10 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
             // Only block the API call to server
             boolean shouldBlockRefresh = isUserReadingOldMessages || !shouldAutoScroll || isReadingOldMessages();
             if (shouldBlockRefresh) {
-                android.util.Log.d("BaseChatActivity", "BLOCKED loadMessages API call (refresh) - user reading old messages, but still loading from DB");
-                // Still load from database to show cached messages, but don't call API
-                messages.clear();
-                loadMessagesFromDatabase();
+                android.util.Log.d("BaseChatActivity", "BLOCKED loadMessages API call (refresh) - user reading old messages, but checking for new messages in DB");
+                // FIX: Still check for new messages in DB and append them (don't reload entire list)
+                // This ensures real-time chat works even when user is reading old messages
+                checkAndAppendNewMessagesFromDB();
                 return; // Skip API call if user is reading old messages
             }
             android.util.Log.d("BaseChatActivity", "ALLOWED loadMessages (refresh) - user at bottom");
@@ -3153,6 +3204,102 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         shouldAutoScroll = true;
         hasNewMessages = false;
         newMessagesCount = 0;
+        updateScrollToBottomButton();
+    }
+    
+    /**
+     * Check for new messages in DB and append them to the list (without reloading entire list)
+     * This is used when user is reading old messages - we still want to show new messages
+     */
+    protected void checkAndAppendNewMessagesFromDB() {
+        if (currentChat == null || messageRepository == null || messages == null) return;
+        
+        // Get last message ID to fetch only new messages
+        String lastMessageId = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
+        long lastTimestamp = messages.isEmpty() ? 0 : messages.get(messages.size() - 1).getTimestamp();
+        
+        // Check if user is at bottom (for auto-scroll decision)
+        boolean isAtBottom = isAtBottom();
+        
+        android.util.Log.d("BaseChatActivity", "checkAndAppendNewMessagesFromDB: lastMessageId=" + lastMessageId + 
+            ", timestamp=" + lastTimestamp + ", isAtBottom=" + isAtBottom);
+        
+        // Fetch only new messages (after last message)
+        new Thread(() -> {
+            List<Message> newMessages;
+            if (lastMessageId != null) {
+                newMessages = messageRepository.getMessagesAfterId(currentChat.getId(), lastMessageId);
+            } else if (lastTimestamp > 0) {
+                newMessages = messageRepository.getMessagesAfter(currentChat.getId(), lastTimestamp);
+            } else {
+                // No messages yet, skip (initial load will handle this)
+                return;
+            }
+            
+            if (newMessages != null && !newMessages.isEmpty()) {
+                runOnUiThread(() -> {
+                    // Append new messages to list
+                    int oldSize = messages.size();
+                    for (Message msg : newMessages) {
+                        // Avoid duplicates
+                        boolean exists = false;
+                        for (Message existing : messages) {
+                            if (existing.getId() != null && existing.getId().equals(msg.getId())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            messages.add(msg);
+                        }
+                    }
+                    
+                    int addedCount = messages.size() - oldSize;
+                    if (addedCount > 0) {
+                        android.util.Log.d("BaseChatActivity", "checkAndAppendNewMessagesFromDB: Added " + addedCount + " new messages");
+                        
+                        // Notify adapter of new items
+                        messageAdapter.notifyItemRangeInserted(oldSize, addedCount);
+                        
+                        // Only auto-scroll if user is at bottom
+                        if (isAtBottom && shouldAutoScroll) {
+                            rvMessages.postDelayed(() -> {
+                                if (isAtBottom()) {
+                                    rvMessages.scrollToPosition(messages.size() - 1);
+                                }
+                            }, 50);
+                        } else {
+                            // User is not at bottom - show scroll-to-bottom button
+                            newMessagesCount += addedCount;
+                            hasNewMessages = true;
+                            updateScrollToBottomButton();
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Update scroll-to-bottom button visibility and text
+     * Show button when user is not at bottom and there are new messages
+     */
+    protected void updateScrollToBottomButton() {
+        if (btnScrollToBottom == null) return;
+        
+        boolean isAtBottomNow = isAtBottom();
+        boolean shouldShow = !isAtBottomNow && (hasNewMessages || newMessagesCount > 0);
+        
+        if (shouldShow) {
+            btnScrollToBottom.setVisibility(android.view.View.VISIBLE);
+            if (newMessagesCount > 0) {
+                btnScrollToBottom.setText("↓ " + newMessagesCount + " tin nhắn mới");
+            } else {
+                btnScrollToBottom.setText("↓ Tin nhắn mới");
+            }
+        } else {
+            btnScrollToBottom.setVisibility(android.view.View.GONE);
+        }
     }
     
     /**
@@ -3262,17 +3409,21 @@ public abstract class BaseChatActivity extends AppCompatActivity implements Mess
         pollRunnable = new Runnable() {
             @Override
             public void run() {
-                // CRITICAL: Don't poll if user is reading old messages
-                // This prevents unwanted scrolling when user is reading old messages
-                if (isUserReadingOldMessages || !shouldAutoScroll || isReadingOldMessages()) {
-                    android.util.Log.d("BaseChatActivity", "BLOCKED polling - user reading old messages (isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ")");
-                    // Still schedule next poll, but skip this one
-                    pollHandler.postDelayed(this, 3000);
-                    return;
+                // FIX: Always sync messages to DB (polling should always run)
+                // Only block UI reload, not the sync itself
+                // This ensures real-time chat works even when user is reading old messages
+                android.util.Log.d("BaseChatActivity", "Polling: syncing messages (isUserReadingOldMessages=" + isUserReadingOldMessages + ", shouldAutoScroll=" + shouldAutoScroll + ")");
+                
+                // Always trigger sync to get new messages into DB
+                String token = databaseManager.getToken();
+                if (token != null && !token.isEmpty() && backgroundSyncManager != null) {
+                    backgroundSyncManager.syncForeground(token);
                 }
                 
-                android.util.Log.d("BaseChatActivity", "ALLOWED polling - user at bottom");
+                // Also trigger loadMessages but it will check if user is reading old messages
+                // loadMessages will handle the UI update logic internally
                 loadMessages();
+                
                 pollHandler.postDelayed(this, 3000); // Poll every 3 seconds
             }
         };
