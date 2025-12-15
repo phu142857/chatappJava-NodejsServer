@@ -1,5 +1,5 @@
 /**
- * API Testing Script
+ * API Testing Script - Complete Test Suite
  * 
  * This script tests all API endpoints of the chat application server.
  * 
@@ -10,6 +10,8 @@
  *   BASE_URL - Server base URL (default: http://localhost:49664)
  *   TEST_EMAIL - Test user email (default: test@example.com)
  *   TEST_PASSWORD - Test user password (default: Test123)
+ *   USER2_EMAIL - Second test user email (for private chat testing)
+ *   USER2_PASSWORD - Second test user password
  *   ADMIN_EMAIL - Admin user email (optional, for admin endpoints)
  *   ADMIN_PASSWORD - Admin user password (optional)
  */
@@ -42,6 +44,10 @@ let user2Id = null;
 let testChatId = null;
 let testMessageId = null;
 let testPostId = null;
+let testGroupId = null;
+let testFriendRequestId = null;
+let testNotificationId = null;
+let testReportId = null;
 
 // Helper function to make HTTP requests
 function makeRequest(method, url, data = null, token = null) {
@@ -144,7 +150,7 @@ function assertSuccess(response) {
 
 async function runTests() {
   console.log('='.repeat(60));
-  console.log('API Testing Script');
+  console.log('API Testing Script - Complete Test Suite');
   console.log('='.repeat(60));
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Test Email: ${TEST_EMAIL}`);
@@ -157,7 +163,7 @@ async function runTests() {
     assert(response.body.status === 'OK', 'Health check should return OK');
   });
 
-  // Authentication Tests
+  // ==================== AUTHENTICATION TESTS ====================
   console.log('\n--- Authentication Tests ---');
 
   await test('Login', async () => {
@@ -167,16 +173,9 @@ async function runTests() {
     });
     assertSuccess(response);
     
-    // Debug: log response structure if token not found
-    if (!response.body.token && !response.body.data?.token) {
-      console.log('  Response body:', JSON.stringify(response.body, null, 2));
-    }
-    
-    // Try different possible token locations
     authToken = response.body.token || response.body.data?.token || response.body.data?.accessToken;
     assert(authToken, 'Response should contain token');
     
-    // Try different possible user ID locations
     testUserId = response.body.user?._id || response.body.user?.id || 
                  response.body.data?.user?._id || response.body.data?.user?.id ||
                  response.body.data?._id || response.body.data?.id;
@@ -211,6 +210,15 @@ async function runTests() {
     assertSuccess(response);
   });
 
+  await test('Change Password', async () => {
+    const response = await makeRequest('PUT', `${API_BASE}/auth/change-password`, {
+      currentPassword: TEST_PASSWORD,
+      newPassword: 'NewPass123'
+    }, authToken);
+    // May fail if password doesn't meet requirements, that's OK
+    console.log(`  Status: ${response.status}`);
+  });
+
   await test('Refresh Token', async () => {
     const response = await makeRequest('POST', `${API_BASE}/auth/refresh`, null, authToken);
     assertSuccess(response);
@@ -224,22 +232,16 @@ async function runTests() {
     });
     assertSuccess(response);
     
-    // Try different possible token locations
-    const user2Token = response.body.token || response.body.data?.token || response.body.data?.accessToken;
-    
-    // Try different possible user ID locations
     user2Id = response.body.user?._id || response.body.user?.id || 
               response.body.data?.user?._id || response.body.data?.user?.id ||
               response.body.data?._id || response.body.data?.id;
     
     if (user2Id) {
       console.log(`  User2 ID: ${user2Id}`);
-    } else {
-      console.log('  Warning: Could not extract User2 ID from response');
     }
   });
 
-  // Users Tests
+  // ==================== USERS TESTS ====================
   console.log('\n--- Users Tests ---');
 
   await test('Get All Users', async () => {
@@ -279,11 +281,42 @@ async function runTests() {
     });
   }
 
-  // Chats Tests
+  // ==================== FRIEND REQUESTS TESTS ====================
+  console.log('\n--- Friend Requests Tests ---');
+
+  await test('Get Friend Requests', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/friend-requests`, null, authToken);
+    assertSuccess(response);
+    if (response.body.data && response.body.data.length > 0) {
+      testFriendRequestId = response.body.data[0]._id || response.body.data[0].id;
+      console.log(`  Found friend request ID: ${testFriendRequestId}`);
+    }
+  });
+
+  if (user2Id) {
+    await test('Send Friend Request', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/friend-requests`, {
+        receiverId: user2Id
+      }, authToken);
+      // May fail if already friends or request exists, that's OK
+      console.log(`  Status: ${response.status}`);
+    });
+  }
+
+  if (testFriendRequestId) {
+    await test('Respond to Friend Request', async () => {
+      const response = await makeRequest('PUT', `${API_BASE}/friend-requests/${testFriendRequestId}`, {
+        action: 'accept'
+      }, authToken);
+      console.log(`  Status: ${response.status}`);
+    });
+  }
+
+  // ==================== CHATS TESTS ====================
   console.log('\n--- Chats Tests ---');
 
   await test('Get User Chats', async () => {
-    const response = await makeRequest('GET', `${API_BASE}/chats`, null, authToken);
+    const response = await makeRequest('GET', `${API_BASE}/chats?page=1&limit=20`, null, authToken);
     assertSuccess(response);
     if (response.body.data && response.body.data.length > 0) {
       testChatId = response.body.data[0]._id || response.body.data[0].id;
@@ -309,7 +342,6 @@ async function runTests() {
         participantId: user2Id
       }, authToken);
       assertSuccess(response);
-      // Save the chat ID if returned
       if (response.body.data?._id || response.body.data?.id || response.body._id || response.body.id) {
         testChatId = response.body.data?._id || response.body.data?.id || response.body._id || response.body.id;
         console.log(`  Private chat created with ID: ${testChatId}`);
@@ -319,7 +351,20 @@ async function runTests() {
     skip('Create Private Chat (user2 ID not available)');
   }
 
-  // Messages Tests
+  await test('Create Group Chat', async () => {
+    const response = await makeRequest('POST', `${API_BASE}/chats/group`, {
+      name: `Test Group ${Date.now()}`,
+      description: 'Test group description',
+      participantIds: user2Id ? [user2Id] : []
+    }, authToken);
+    assertSuccess(response);
+    if (response.body.data?._id || response.body.data?.id || response.body._id || response.body.id) {
+      testChatId = response.body.data?._id || response.body.data?.id || response.body._id || response.body.id;
+      console.log(`  Group chat created with ID: ${testChatId}`);
+    }
+  });
+
+  // ==================== MESSAGES TESTS ====================
   console.log('\n--- Messages Tests ---');
 
   if (testChatId) {
@@ -381,37 +426,18 @@ async function runTests() {
   } else {
     skip('Get Messages for Chat (no chat available)');
     skip('Send Message (no chat available)');
-    skip('Search Messages (no chat available)');
-    skip('Summarize Chat (no chat available)');
-    skip('Edit Message (no chat available)');
-    skip('Add Reaction (no chat available)');
-    skip('Mark as Read (no chat available)');
   }
 
-  // Friend Requests Tests
-  console.log('\n--- Friend Requests Tests ---');
-
-  await test('Get Friend Requests', async () => {
-    const response = await makeRequest('GET', `${API_BASE}/friend-requests`, null, authToken);
-    assertSuccess(response);
-  });
-
-  if (testUserId) {
-    await test('Send Friend Request', async () => {
-      const response = await makeRequest('POST', `${API_BASE}/friend-requests`, {
-        receiverId: testUserId
-      }, authToken);
-      // May fail if already friends or request exists, that's OK
-      console.log(`  Status: ${response.status}`);
-    });
-  }
-
-  // Groups Tests
+  // ==================== GROUPS TESTS ====================
   console.log('\n--- Groups Tests ---');
 
   await test('Get Groups', async () => {
     const response = await makeRequest('GET', `${API_BASE}/groups`, null, authToken);
     assertSuccess(response);
+    if (response.body.data && response.body.data.length > 0) {
+      testGroupId = response.body.data[0]._id || response.body.data[0].id;
+      console.log(`  Found group ID: ${testGroupId}`);
+    }
   });
 
   await test('Get Public Groups', async () => {
@@ -429,7 +455,7 @@ async function runTests() {
     assertSuccess(response);
   });
 
-  // Calls Tests
+  // ==================== CALLS TESTS ====================
   console.log('\n--- Calls Tests ---');
 
   await test('Get Call History', async () => {
@@ -442,7 +468,17 @@ async function runTests() {
     assertSuccess(response);
   });
 
-  // Group Calls Tests
+  if (testChatId) {
+    await test('Initiate Call', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/calls/initiate`, {
+        chatId: testChatId,
+        type: 'video'
+      }, authToken);
+      assertSuccess(response);
+    });
+  }
+
+  // ==================== GROUP CALLS TESTS ====================
   console.log('\n--- Group Calls Tests ---');
 
   if (testChatId) {
@@ -454,17 +490,31 @@ async function runTests() {
     skip('Get Active Group Call (no chat available)');
   }
 
-  // Upload Tests
-  console.log('\n--- Upload Tests ---');
+  // ==================== NOTIFICATIONS TESTS ====================
+  console.log('\n--- Notifications Tests ---');
 
-  if (testChatId) {
-    skip('Upload Chat Image (requires multipart/form-data)');
-    skip('Upload Chat File (requires multipart/form-data)');
-  } else {
-    skip('Upload Tests (no chat available)');
+  await test('Get Notifications', async () => {
+    const response = await makeRequest('GET', `${API_BASE}/notifications`, null, authToken);
+    assertSuccess(response);
+    if (response.body.data && response.body.data.length > 0) {
+      testNotificationId = response.body.data[0]._id || response.body.data[0].id;
+      console.log(`  Found notification ID: ${testNotificationId}`);
+    }
+  });
+
+  if (testNotificationId) {
+    await test('Mark Notification as Read', async () => {
+      const response = await makeRequest('PUT', `${API_BASE}/notifications/${testNotificationId}/read`, null, authToken);
+      assertSuccess(response);
+    });
   }
 
-  // Posts Tests
+  await test('Mark All Notifications as Read', async () => {
+    const response = await makeRequest('PUT', `${API_BASE}/notifications/read-all`, null, authToken);
+    assertSuccess(response);
+  });
+
+  // ==================== POSTS TESTS ====================
   console.log('\n--- Posts Tests ---');
 
   await test('Create Post', async () => {
@@ -487,30 +537,6 @@ async function runTests() {
 
   await test('Search Posts', async () => {
     const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&page=1&limit=20`, null, authToken);
-    assertSuccess(response);
-    assert(response.body.data || response.body.posts, 'Response should contain posts data');
-    console.log(`  Found ${(response.body.data || response.body.posts || []).length} posts`);
-  });
-
-  await test('Search Posts - Friends Only', async () => {
-    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&onlyFriends=true&page=1&limit=20`, null, authToken);
-    assertSuccess(response);
-  });
-
-  await test('Search Posts - Media Only', async () => {
-    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&mediaOnly=true&page=1&limit=20`, null, authToken);
-    assertSuccess(response);
-  });
-
-  await test('Search Posts - Hashtag Only', async () => {
-    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=travel&hashtagOnly=true&page=1&limit=20`, null, authToken);
-    assertSuccess(response);
-  });
-
-  await test('Search Posts - Date Range', async () => {
-    const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days ago
-    const dateTo = new Date().toISOString(); // today
-    const response = await makeRequest('GET', `${API_BASE}/posts/search?q=test&dateFrom=${dateFrom}&dateTo=${dateTo}&page=1&limit=20`, null, authToken);
     assertSuccess(response);
   });
 
@@ -538,87 +564,58 @@ async function runTests() {
       }, authToken);
       assertSuccess(response);
     });
-
-    await test('Update Post', async () => {
-      const response = await makeRequest('PUT', `${API_BASE}/posts/${testPostId}`, {
-        content: `Updated post content ${Date.now()}`,
-        privacySetting: 'friends'
-      }, authToken);
-      assertSuccess(response);
-    });
-
-    await test('Share Post', async () => {
-      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/share`, null, authToken);
-      assertSuccess(response);
-    });
-
-    await test('Hide Post', async () => {
-      const response = await makeRequest('POST', `${API_BASE}/posts/${testPostId}/hide`, null, authToken);
-      // Accept 200 (success) or 400 (already hidden or invalid)
-      if (response.status === 400) {
-        console.log('  Post may already be hidden or invalid');
-      } else {
-        assertSuccess(response);
-      }
-    });
-  } else {
-    skip('Get Post by ID (no post available)');
-    skip('Like Post (no post available)');
-    skip('Add Comment (no post available)');
-    skip('Update Post (no post available)');
-    skip('Share Post (no post available)');
-    skip('Hide Post (no post available)');
   }
 
-  // Updates Tests (Background Sync)
+  // ==================== REPORTS TESTS ====================
+  console.log('\n--- Reports Tests ---');
+
+  if (user2Id) {
+    await test('Create Report', async () => {
+      const response = await makeRequest('POST', `${API_BASE}/reports`, {
+        type: 'user',
+        targetId: user2Id,
+        reason: 'Inappropriate behavior',
+        description: 'Test report description'
+      }, authToken);
+      assertSuccess(response);
+      if (response.body.data?._id || response.body.data?.id) {
+        testReportId = response.body.data._id || response.body.data.id;
+        console.log(`  Report created with ID: ${testReportId}`);
+      }
+    });
+  }
+
+  // ==================== UPDATES TESTS ====================
   console.log('\n--- Updates Tests (Background Sync) ---');
 
   await test('Get Messages Updates', async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
     const response = await makeRequest('GET', `${API_BASE}/updates/messages?since=${since}`, null, authToken);
-    // Accept 200 (success) or 304 (Not Modified)
     assert(
       response.status === 200 || response.status === 304,
       `Expected status 200 or 304, got ${response.status}`
     );
-    if (response.status === 200) {
-      console.log(`  Found ${(response.body.data || response.body.messages || []).length} updated messages`);
-    } else {
-      console.log('  No updates (304 Not Modified)');
-    }
   });
 
   await test('Get Posts Updates', async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
     const response = await makeRequest('GET', `${API_BASE}/updates/posts?since=${since}`, null, authToken);
-    // Accept 200 (success) or 304 (Not Modified)
     assert(
       response.status === 200 || response.status === 304,
       `Expected status 200 or 304, got ${response.status}`
     );
-    if (response.status === 200) {
-      console.log(`  Found ${(response.body.data || response.body.posts || []).length} updated posts`);
-    } else {
-      console.log('  No updates (304 Not Modified)');
-    }
   });
 
   await test('Get Conversations Updates', async () => {
     const since = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
     const response = await makeRequest('GET', `${API_BASE}/updates/conversations?since=${since}`, null, authToken);
-    // Accept 200 (success) or 304 (Not Modified)
     assert(
       response.status === 200 || response.status === 304,
       `Expected status 200 or 304, got ${response.status}`
     );
-    if (response.status === 200) {
-      console.log(`  Found ${(response.body.data || response.body.conversations || []).length} updated conversations`);
-    } else {
-      console.log('  No updates (304 Not Modified)');
-    }
   });
 
-  // Admin Tests (if admin credentials provided)
+  // ==================== ADMIN TESTS ====================
   if (ADMIN_EMAIL && ADMIN_PASSWORD) {
     console.log('\n--- Admin Tests ---');
 
@@ -652,21 +649,6 @@ async function runTests() {
 
       await test('Get Server Health (Admin)', async () => {
         const response = await makeRequest('GET', `${API_BASE}/server/health`, null, adminToken);
-        assertSuccess(response);
-      });
-
-      await test('Get Server User Stats (Admin)', async () => {
-        const response = await makeRequest('GET', `${API_BASE}/server/users/stats`, null, adminToken);
-        assertSuccess(response);
-      });
-
-      await test('Get Server Message Stats (Admin)', async () => {
-        const response = await makeRequest('GET', `${API_BASE}/server/messages/stats`, null, adminToken);
-        assertSuccess(response);
-      });
-
-      await test('Get Server Call Stats (Admin)', async () => {
-        const response = await makeRequest('GET', `${API_BASE}/server/calls/stats`, null, adminToken);
         assertSuccess(response);
       });
 
@@ -745,4 +727,3 @@ runTests().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

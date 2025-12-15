@@ -321,6 +321,16 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
                 // Don't end call - continue without video
             }
             
+            // Initialize audio playback manager early
+            try {
+                if (audioPlaybackManager == null) {
+                    audioPlaybackManager = new AudioPlaybackManager();
+                    Log.d(TAG, "AudioPlaybackManager initialized");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error initializing audio playback manager", e);
+            }
+            
             // Start audio capture (with error handling)
             try {
                 startAudioCapture();
@@ -920,13 +930,20 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
     
     private void startAudioCapture() {
         if (isMuted || !isCallActive) {
+            Log.d(TAG, "Skipping audio capture start - muted: " + isMuted + ", callActive: " + isCallActive);
             return;
         }
         
         try {
-            if (audioCaptureManager == null) {
-                audioCaptureManager = new AudioCaptureManager();
+            // Stop existing capture if any
+            if (audioCaptureManager != null) {
+                Log.d(TAG, "Stopping existing audio capture before restarting");
+                audioCaptureManager.stopCapture();
+                audioCaptureManager = null;
             }
+            
+            audioCaptureManager = new AudioCaptureManager();
+            Log.d(TAG, "AudioCaptureManager created, starting capture...");
             
             audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
                 @Override
@@ -944,6 +961,7 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
             Log.d(TAG, "Audio capture started successfully");
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio capture", e);
+            Toast.makeText(this, "Failed to start audio capture: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -1005,21 +1023,27 @@ public class PrivateVideoCallActivity extends AppCompatActivity {
             try {
                 byte[] audioData = AudioFrameEncoder.decodeFrame(base64Audio);
                 if (audioData != null && isCallActive) {
-                    // Initialize playback manager if needed
+                    // Initialize playback manager if needed (should already be initialized)
                     if (audioPlaybackManager == null) {
+                        Log.w(TAG, "AudioPlaybackManager is null, initializing now");
                         audioPlaybackManager = new AudioPlaybackManager();
                     }
                     
                     // Start playback if not already playing
                     if (!audioPlaybackManager.isPlaying(userId)) {
+                        Log.d(TAG, "Starting audio playback for user: " + userId);
                         audioPlaybackManager.startPlayback(userId, 16000); // 16kHz sample rate
                     }
                     
                     // Play audio data
                     audioPlaybackManager.playAudio(userId, audioData);
+                } else {
+                    if (audioData == null) {
+                        Log.w(TAG, "Failed to decode audio data for user: " + userId);
+                    }
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Error playing remote audio", e);
+                Log.e(TAG, "Error playing remote audio for user: " + userId, e);
             }
         }).start();
     }

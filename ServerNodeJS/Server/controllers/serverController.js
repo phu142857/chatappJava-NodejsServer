@@ -5,15 +5,80 @@ const User = require('../models/User');
 const Message = require('../models/Message');
 const Call = require('../models/Call');
 
+// Cache for CPU usage calculation (system-wide)
+let lastCpuInfo = null;
+let lastCpuTime = null;
+
+// Initialize CPU usage cache on module load
+(function initializeCpuCache() {
+  const cpus = os.cpus();
+  const numCpus = cpus.length;
+  
+  let totalIdle = 0;
+  let totalTick = 0;
+  
+  cpus.forEach((cpu) => {
+    for (const type in cpu.times) {
+      totalTick += cpu.times[type];
+    }
+    totalIdle += cpu.times.idle;
+  });
+  
+  lastCpuInfo = {
+    idle: totalIdle / numCpus,
+    total: totalTick / numCpus
+  };
+  lastCpuTime = Date.now();
+})();
+
+// Helper function to calculate actual CPU usage percentage (system-wide)
+const getCpuUsage = () => {
+  const cpus = os.cpus();
+  const numCpus = cpus.length;
+  const currentTime = Date.now();
+  
+  // Calculate total CPU time for all cores
+  let totalIdle = 0;
+  let totalTick = 0;
+  
+  cpus.forEach((cpu) => {
+    for (const type in cpu.times) {
+      totalTick += cpu.times[type];
+    }
+    totalIdle += cpu.times.idle;
+  });
+  
+  const idle = totalIdle / numCpus;
+  const total = totalTick / numCpus;
+  
+  // Calculate time difference (in milliseconds)
+  const timeDiff = currentTime - lastCpuTime;
+  
+  // Calculate CPU usage difference
+  const idleDiff = idle - lastCpuInfo.idle;
+  const totalDiff = total - lastCpuInfo.total;
+  
+  // Calculate percentage: (1 - idle/total) * 100
+  // This gives us the actual CPU usage percentage
+  let cpuPercent = 0;
+  if (totalDiff > 0 && timeDiff > 0) {
+    cpuPercent = Math.min(100, Math.max(0, Math.round(100 - (idleDiff / totalDiff) * 100)));
+  }
+  
+  // Update cache for next calculation
+  lastCpuInfo = { idle, total };
+  lastCpuTime = currentTime;
+  
+  return cpuPercent;
+};
+
 // @desc    Get server health and metrics
 // @route   GET /api/server/health
 // @access  Private (Admin)
 const getServerHealth = async (req, res) => {
   try {
-    // Get CPU usage (simplified)
-    const cpus = os.cpus();
-    const cpuUsage = process.cpuUsage();
-    const cpuPercent = Math.round((cpuUsage.user + cpuUsage.system) / 1000000); // Convert to percentage
+    // Get CPU usage (actual current usage, not cumulative)
+    const cpuPercent = getCpuUsage();
 
     // Get memory usage
     const totalMem = os.totalmem();

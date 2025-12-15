@@ -254,6 +254,16 @@ public class GroupVideoCallActivity extends AppCompatActivity {
                 // Don't end call - continue without video
             }
             
+            // Initialize audio playback manager early
+            try {
+                if (audioPlaybackManager == null) {
+                    audioPlaybackManager = new AudioPlaybackManager();
+                    Log.d(TAG, "AudioPlaybackManager initialized");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error initializing audio playback manager", e);
+            }
+            
             // Start audio capture (with error handling)
             try {
                 startAudioCapture();
@@ -279,23 +289,45 @@ public class GroupVideoCallActivity extends AppCompatActivity {
         try {
             android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
             if (audioManager != null) {
+                // CRITICAL: Request audio focus for voice calls
+                // This ensures our app has priority for audio playback
+                int focusRequest = audioManager.requestAudioFocus(
+                    null, // AudioFocusChangeListener (null for one-time request)
+                    android.media.AudioManager.STREAM_MUSIC, // Stream type
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT // Request transient focus
+                );
+                Log.d(TAG, "Audio focus request result: " + focusRequest + " (AUDIOFOCUS_REQUEST_GRANTED=" + android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED + ")");
+                
                 // Set mode to IN_COMMUNICATION for voice calls
                 audioManager.setMode(android.media.AudioManager.MODE_IN_COMMUNICATION);
                 
                 // CRITICAL: Set speakerphone on for group calls (better for multiple participants)
                 audioManager.setSpeakerphoneOn(true);
                 
-                // CRITICAL: Adjust stream volume to ensure audio is audible
-                int maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL);
-                int currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL);
-                if (currentVolume < maxVolume * 0.7) {
-                    // Set volume to at least 70% of max for better audio
-                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, 
-                                                 (int)(maxVolume * 0.7), 0);
-                    Log.d(TAG, "Adjusted voice call volume to " + (int)(maxVolume * 0.7) + " (max: " + maxVolume + ")");
+                // CRITICAL: Since we're using USAGE_VOICE_COMMUNICATION in AudioTrack, 
+                // it may map to STREAM_VOICE_CALL, but also set MUSIC stream volume as fallback
+                int maxMusicVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int currentMusicVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                
+                Log.d(TAG, "Current MUSIC stream volume: " + currentMusicVolume + "/" + maxMusicVolume);
+                
+                // Set MUSIC stream volume to maximum to ensure audio is clearly audible
+                if (currentMusicVolume < maxMusicVolume) {
+                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 
+                                                 maxMusicVolume, 0);
+                    Log.d(TAG, "Set MUSIC stream volume to maximum: " + maxMusicVolume);
                 }
                 
-                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION, speakerphone: true, volume: " + currentVolume + "/" + maxVolume);
+                // Also set VOICE_CALL stream volume for better compatibility
+                int maxVoiceVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                int currentVoiceVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL);
+                if (currentVoiceVolume < maxVoiceVolume * 0.7) {
+                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, 
+                                                 (int)(maxVoiceVolume * 0.7), 0);
+                    Log.d(TAG, "Adjusted VOICE_CALL stream volume to " + (int)(maxVoiceVolume * 0.7) + " (max: " + maxVoiceVolume + ")");
+                }
+                
+                Log.d(TAG, "Audio mode set to MODE_IN_COMMUNICATION, speakerphone: true, MUSIC volume: " + maxMusicVolume + ", VOICE_CALL volume: " + currentVoiceVolume);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error setting audio mode", e);
@@ -837,13 +869,20 @@ public class GroupVideoCallActivity extends AppCompatActivity {
     
     private void startAudioCapture() {
         if (isMuted || !isCallActive) {
+            Log.d(TAG, "Skipping audio capture start - muted: " + isMuted + ", callActive: " + isCallActive);
             return;
         }
         
         try {
-            if (audioCaptureManager == null) {
-                audioCaptureManager = new AudioCaptureManager();
+            // Stop existing capture if any
+            if (audioCaptureManager != null) {
+                Log.d(TAG, "Stopping existing audio capture before restarting");
+                audioCaptureManager.stopCapture();
+                audioCaptureManager = null;
             }
+            
+            audioCaptureManager = new AudioCaptureManager();
+            Log.d(TAG, "AudioCaptureManager created, starting capture...");
             
             audioCaptureManager.startCapture(new AudioCaptureManager.AudioCaptureCallback() {
                 @Override
@@ -861,6 +900,7 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             Log.d(TAG, "Audio capture started successfully");
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio capture", e);
+            Toast.makeText(this, "Failed to start audio capture: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -922,21 +962,27 @@ public class GroupVideoCallActivity extends AppCompatActivity {
             try {
                 byte[] audioData = AudioFrameEncoder.decodeFrame(base64Audio);
                 if (audioData != null && isCallActive) {
-                    // Initialize playback manager if needed
+                    // Initialize playback manager if needed (should already be initialized)
                     if (audioPlaybackManager == null) {
+                        Log.w(TAG, "AudioPlaybackManager is null, initializing now");
                         audioPlaybackManager = new AudioPlaybackManager();
                     }
                     
                     // Start playback if not already playing
                     if (!audioPlaybackManager.isPlaying(userId)) {
+                        Log.d(TAG, "Starting audio playback for user: " + userId);
                         audioPlaybackManager.startPlayback(userId, 16000); // 16kHz sample rate
                     }
                     
                     // Play audio data
                     audioPlaybackManager.playAudio(userId, audioData);
+                } else {
+                    if (audioData == null) {
+                        Log.w(TAG, "Failed to decode audio data for user: " + userId);
+                    }
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Error playing remote audio", e);
+                Log.e(TAG, "Error playing remote audio for user: " + userId, e);
             }
         }).start();
     }
