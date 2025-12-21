@@ -3,7 +3,6 @@ const Chat = require('../models/Chat');
 const User = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
 const { sendCallNotification } = require('../services/fcmService');
-const { sendCallNotification } = require('../services/fcmService');
 
 // Generate unique call ID
 const generateCallId = () => {
