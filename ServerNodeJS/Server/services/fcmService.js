@@ -215,7 +215,7 @@ const sendChatMessageNotification = async (recipient, sender, message, chatId, c
 };
 
 // Send call notification
-const sendCallNotification = async (recipient, caller, callId, callType = 'voice') => {
+const sendCallNotification = async (recipient, caller, callId, callType = 'voice', chatId = null) => {
   const callerName = caller.profile?.firstName 
     ? `${caller.profile.firstName} ${caller.profile.lastName || ''}`.trim()
     : caller.username;
@@ -229,6 +229,11 @@ const sendCallNotification = async (recipient, caller, callId, callType = 'voice
     callerId: caller._id.toString(),
     callType: callType
   };
+  
+  // Add chatId if provided
+  if (chatId) {
+    data.chatId = chatId.toString();
+  }
 
   return await sendNotificationToUser(recipient, title, body, data);
 };

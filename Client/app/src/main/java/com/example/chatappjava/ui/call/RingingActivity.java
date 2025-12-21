@@ -112,6 +112,115 @@ public class RingingActivity extends AppCompatActivity {
         // Get call data from intent
         getCallDataFromIntent();
         
+        // If this is an incoming call opened from notification, verify call is still active
+        if (isIncomingCall && callId != null) {
+            verifyCallStatus();
+        } else {
+            // For outgoing calls or if no callId, proceed normally
+            initializeActivity();
+        }
+    }
+    
+    private void verifyCallStatus() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Log.e(TAG, "No token available, cannot verify call status");
+            navigateToHome();
+            return;
+        }
+        
+        Log.d(TAG, "Verifying call status for callId: " + callId);
+        
+        // Check call status on server
+        apiClient.getCallDetails(token, callId, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "Failed to verify call status", e);
+                runOnUiThread(() -> {
+                    // If we can't verify, assume call is still active and proceed
+                    // This handles network errors gracefully
+                    initializeActivity();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                response.close();
+                
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        boolean success = jsonResponse.optBoolean("success", false);
+                        
+                        if (success) {
+                            JSONObject data = jsonResponse.optJSONObject("data");
+                            if (data != null) {
+                                String status = data.optString("status", "");
+                                Log.d(TAG, "Call status: " + status);
+                                
+                                // Check if call is still active
+                                if ("initiated".equals(status) || "ringing".equals(status) || "active".equals(status)) {
+                                    // Call is still active, proceed with setup
+                                    Log.d(TAG, "Call is still active, proceeding with incoming call setup");
+                                    
+                                    // Clear any old activeCallId that might block this call
+                                    com.example.chatappjava.network.SocketManager sm = 
+                                        com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                    if (sm != null) {
+                                        String currentActiveCallId = sm.getActiveCallId();
+                                        if (currentActiveCallId != null && !currentActiveCallId.equals(callId)) {
+                                            Log.d(TAG, "Clearing old activeCallId: " + currentActiveCallId);
+                                            sm.clearActiveCallId(currentActiveCallId);
+                                        }
+                                    }
+                                    
+                                    initializeActivity();
+                                } else {
+                                    // Call has ended or been declined
+                                    Log.d(TAG, "Call is no longer active (status: " + status + "), closing activity");
+                                    Toast.makeText(RingingActivity.this, "Call has ended", Toast.LENGTH_SHORT).show();
+                                    
+                                    // Clear activeCallId
+                                    com.example.chatappjava.network.SocketManager sm = 
+                                        com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                    if (sm != null) {
+                                        sm.clearActiveCallId(callId);
+                                    }
+                                    
+                                    navigateToHome();
+                                }
+                            } else {
+                                // No data, call might not exist
+                                Log.w(TAG, "Call not found or no data returned");
+                                Toast.makeText(RingingActivity.this, "Call not found", Toast.LENGTH_SHORT).show();
+                                
+                                // Clear activeCallId
+                                com.example.chatappjava.network.SocketManager sm = 
+                                    com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                if (sm != null) {
+                                    sm.clearActiveCallId(callId);
+                                }
+                                
+                                navigateToHome();
+                            }
+                        } else {
+                            // API returned error
+                            Log.w(TAG, "Failed to get call details: " + jsonResponse.optString("message", "Unknown error"));
+                            // Assume call is still active and proceed (graceful degradation)
+                            initializeActivity();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing call status response", e);
+                        // Assume call is still active and proceed (graceful degradation)
+                        initializeActivity();
+                    }
+                });
+            }
+        });
+    }
+    
+    private void initializeActivity() {
         // Initialize UI
         initializeViews();
         setupSwipeGesture();
@@ -360,6 +469,13 @@ public class RingingActivity extends AppCompatActivity {
                             Log.d(TAG, "Call declined by other party");
                             Toast.makeText(RingingActivity.this, "Call declined", Toast.LENGTH_SHORT).show();
                             
+                            // Clear activeCallId
+                            com.example.chatappjava.network.SocketManager sm = 
+                                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) {
+                                sm.clearActiveCallId(callId);
+                            }
+                            
                             // Navigate to home
                             navigateToHome();
                         }
@@ -372,6 +488,13 @@ public class RingingActivity extends AppCompatActivity {
                         if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
                             Log.d(TAG, "Call ended by other party");
                             Toast.makeText(RingingActivity.this, "Call ended", Toast.LENGTH_SHORT).show();
+                            
+                            // Clear activeCallId
+                            com.example.chatappjava.network.SocketManager sm = 
+                                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) {
+                                sm.clearActiveCallId(callId);
+                            }
                             
                             // Set result to indicate call was ended
                             Intent resultIntent = new Intent();
@@ -793,6 +916,16 @@ public class RingingActivity extends AppCompatActivity {
     
     private void navigateToHome() {
         Log.d(TAG, "Navigating back to HomeActivity");
+        
+        // Clear activeCallId when leaving RingingActivity
+        if (callId != null) {
+            com.example.chatappjava.network.SocketManager sm = 
+                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+            if (sm != null) {
+                sm.clearActiveCallId(callId);
+                Log.d(TAG, "Cleared activeCallId: " + callId);
+            }
+        }
         
         // Create intent to go back to HomeActivity
         Intent intent = new Intent(this, com.example.chatappjava.ui.theme.HomeActivity.class);

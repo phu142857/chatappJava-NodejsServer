@@ -142,6 +142,7 @@ public class ChatFirebaseMessagingService extends FirebaseMessagingService {
     private void handleCallNotification(RemoteMessage remoteMessage) {
         String callId = remoteMessage.getData().get("callId");
         String callerId = remoteMessage.getData().get("callerId");
+        String chatId = remoteMessage.getData().get("chatId");
         String callType = remoteMessage.getData().get("callType");
         String title = remoteMessage.getNotification() != null 
             ? remoteMessage.getNotification().getTitle() 
@@ -150,11 +151,42 @@ public class ChatFirebaseMessagingService extends FirebaseMessagingService {
             ? remoteMessage.getNotification().getBody() 
             : "You have an incoming call";
 
+        Log.d(TAG, "Handling call notification: callId=" + callId + ", callerId=" + callerId + ", chatId=" + chatId + ", callType=" + callType);
+
+        // Check if socket is connected and app might be in foreground
+        // If socket is connected, it should handle incoming_call via socket event
+        // Only use push notification if socket is not connected (app is closed/background)
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        boolean isSocketConnected = socketManager != null && socketManager.isConnected();
+        
+        if (isSocketConnected) {
+            // Socket is connected, check if there's already an active call
+            String activeCallId = socketManager.getActiveCallId();
+            if (activeCallId != null && activeCallId.equals(callId)) {
+                Log.d(TAG, "Call already active via socket, ignoring push notification");
+                return; // Don't show notification or open activity, socket already handled it
+            }
+            
+            // Clear any old activeCallId that might block this call
+            if (activeCallId != null && !activeCallId.equals(callId)) {
+                Log.d(TAG, "Clearing old activeCallId: " + activeCallId);
+                socketManager.clearActiveCallId(activeCallId);
+            }
+            
+            // Set activeCallId for this call
+            socketManager.setActiveCallId(callId);
+        }
+
+        // Create intent for RingingActivity
         Intent intent = new Intent(this, RingingActivity.class);
         if (callId != null && callerId != null) {
             try {
+                // Use chatId if provided, otherwise use callId as fallback
+                String chatIdToUse = (chatId != null && !chatId.isEmpty()) ? chatId : callId;
+                
                 Chat chat = new Chat();
-                chat.setId(callId);
+                chat.setId(chatIdToUse);
                 chat.setType("private");
                 
                 JSONObject callerJson = new JSONObject();
@@ -165,12 +197,25 @@ public class ChatFirebaseMessagingService extends FirebaseMessagingService {
                 intent.putExtra("callId", callId);
                 intent.putExtra("callType", callType != null ? callType : "voice");
                 intent.putExtra("isIncomingCall", true);
+                
+                // Add flags to launch from background/service
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                
+                // Automatically open RingingActivity when call notification is received
+                // This ensures B always sees incoming call screen directly
+                Log.d(TAG, "Automatically opening RingingActivity for incoming call");
+                startActivity(intent);
+                
+                // Don't show push notification - we've already opened the activity
+                // This prevents duplicate notifications
+                return;
+                
             } catch (JSONException e) {
                 Log.e(TAG, "Error creating call intent", e);
             }
         }
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
+        // Fallback: If we couldn't open activity, show notification as backup
         PendingIntent pendingIntent = PendingIntent.getActivity(
             this,
             (int) System.currentTimeMillis(),

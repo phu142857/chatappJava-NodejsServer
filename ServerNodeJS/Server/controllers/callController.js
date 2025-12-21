@@ -200,7 +200,8 @@ const initiateCall = async (req, res) => {
                                             recipient,
                                             callerForNotification,
                                             call.callId,
-                                            type
+                                            type,
+                                            chatId // Pass chatId to FCM notification
                                         );
                                         if (result.success) {
                                             console.log(`[FCM] ✓ Push notification sent for incoming call to user ${recipient.username}`);

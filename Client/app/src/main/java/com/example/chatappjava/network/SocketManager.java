@@ -210,8 +210,10 @@ public class SocketManager {
                                 Log.d(TAG, "Ignoring duplicate incoming_call for active callId: " + callId);
                                 return;
                             } else {
-                                Log.w(TAG, "Another call is already active (" + activeCallId + "), ignoring incoming_call: " + callId);
-                                return;
+                                // Clear old activeCallId to allow new call
+                                // This fixes the issue where subsequent calls are ignored
+                                Log.w(TAG, "Clearing old activeCallId (" + activeCallId + ") to allow new call: " + callId);
+                                activeCallId = null;
                             }
                         }
                         activeCallId = callId;
