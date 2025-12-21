@@ -2,6 +2,8 @@ const Call = require('../models/Call');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
+const { sendCallNotification } = require('../services/fcmService');
+const { sendCallNotification } = require('../services/fcmService');
 
 // Generate unique call ID
 const generateCallId = () => {
@@ -187,6 +189,34 @@ const initiateCall = async (req, res) => {
                         io.to(userRoom).emit('incoming_call', callData);
                         
                         console.log(`Sent incoming call notification to user ${participantUserId} in room ${userRoom} (caller: ${callerIdStr})`);
+                        
+                        // Send push notification via FCM (async, don't wait)
+                        (async () => {
+                            try {
+                                const recipient = await User.findById(participantUserId).select('fcmTokens username avatar profile');
+                                if (recipient && recipient.fcmTokens && recipient.fcmTokens.length > 0) {
+                                    const callerForNotification = await User.findById(callerId).select('username avatar profile');
+                                    if (callerForNotification) {
+                                        const result = await sendCallNotification(
+                                            recipient,
+                                            callerForNotification,
+                                            call.callId,
+                                            type
+                                        );
+                                        if (result.success) {
+                                            console.log(`[FCM] ✓ Push notification sent for incoming call to user ${recipient.username}`);
+                                        } else {
+                                            console.error(`[FCM] ✗ Failed to send push notification for call:`, result.error);
+                                        }
+                                    }
+                                } else {
+                                    console.log(`[FCM] User ${participantUserId} has no FCM tokens, skipping push notification`);
+                                }
+                            } catch (notifError) {
+                                console.error(`[FCM] Error sending push notification for incoming call:`, notifError);
+                                // Don't fail the request if notification fails
+                            }
+                        })();
                     } else {
                         console.log(`Skipped sending notification to caller: ${participantUserId}`);
                     }
