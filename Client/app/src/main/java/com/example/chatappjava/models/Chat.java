@@ -158,9 +158,19 @@ public class Chat {
             u.setAvatar(other.optString("avatar", ""));
             u.setFriend(other.optBoolean("isFriend", false));
             u.setFriendshipStatus(other.optString("friendshipStatus", "not_friends"));
+            
+            // Parse profile if available
+            JSONObject profile = other.optJSONObject("profile");
+            if (profile != null) {
+                u.setFirstName(profile.optString("firstName", ""));
+                u.setLastName(profile.optString("lastName", ""));
+            }
+            
             chat.otherParticipant = u;
-            if (chat.name == null || chat.name.isEmpty()) {
-                chat.name = u.getDisplayName();
+            // Server already sets chat.name to otherParticipant.user.username, so we don't override it
+            // Only set name if it's empty and we have otherParticipant data
+            if ((chat.name == null || chat.name.isEmpty()) && u.getUsername() != null && !u.getUsername().isEmpty()) {
+                chat.name = u.getUsername();
             }
         }
         
@@ -303,16 +313,33 @@ public class Chat {
     }
     
     public String getDisplayName() {
+        // For private chats, prioritize name field (set by server with other participant's username)
+        if (isPrivateChat()) {
+            // First, try the name field (server sets this to otherParticipant.user.username)
+            if (name != null && !name.isEmpty() && !name.equals("Private Chat") && !name.equals("Unknown User")) {
+                return name;
+            }
+            // Fallback to otherParticipant's display name if name field is not set
+            if (otherParticipant != null) {
+                String otherName = otherParticipant.getDisplayName();
+                if (otherName != null && !otherName.isEmpty()) {
+                    return otherName;
+                }
+                // If otherParticipant exists but has no display name, use username
+                if (otherParticipant.getUsername() != null && !otherParticipant.getUsername().isEmpty()) {
+                    return otherParticipant.getUsername();
+                }
+            }
+            // Last resort
+            return "Private Chat";
+        }
+        
+        // For group chats, use the name field
         if (name != null && !name.isEmpty()) {
             return name;
-        } else if (isPrivateChat()) {
-            if (otherParticipant != null) {
-                return otherParticipant.getDisplayName();
-            }
-            return "Private Chat";
-        } else {
-            return "Group Chat";
         }
+        
+        return "Group Chat";
     }
     
     public String getLastMessageTimeFormatted() {

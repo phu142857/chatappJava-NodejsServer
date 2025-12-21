@@ -193,29 +193,45 @@ public class PrivateChatActivity extends BaseChatActivity {
                 ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
             }
 
-            // Load other user's avatar
+            // Load other user's avatar - try multiple sources
+            String avatarUrl = null;
+            
+            // Priority 1: Get avatar from otherUser
             if (otherUser != null) {
-                String avatarUrl = otherUser.getAvatar();
-                android.util.Log.d("PrivateChatActivity", "Loading avatar for user " + otherUser.getId() + 
-                    ", avatar URL: " + avatarUrl);
-                
-                if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                    // Construct full URL if needed
-                    if (!avatarUrl.startsWith("http")) {
-                        avatarUrl = "http://" + ServerConfig.getServerIp() +
-                                   ":" + ServerConfig.getServerPort() + avatarUrl;
-                        android.util.Log.d("PrivateChatActivity", "Constructed full URL: " + avatarUrl);
-                    }
-                    android.util.Log.d("PrivateChatActivity", "Loading avatar with AvatarManager");
-                    avatarManager.loadAvatar(avatarUrl, ivProfile, R.drawable.ic_profile_placeholder);
-                } else {
-                    android.util.Log.d("PrivateChatActivity", "No avatar URL, using placeholder");
-                    if (ivProfile != null) {
-                        ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
-                    }
+                avatarUrl = otherUser.getAvatar();
+                android.util.Log.d("PrivateChatActivity", "Avatar from otherUser: " + avatarUrl);
+            }
+            
+            // Priority 2: If otherUser has no avatar, try from currentChat.getOtherParticipant()
+            if ((avatarUrl == null || avatarUrl.isEmpty()) && currentChat.isPrivateChat()) {
+                User otherParticipant = currentChat.getOtherParticipant();
+                if (otherParticipant != null) {
+                    avatarUrl = otherParticipant.getAvatar();
+                    android.util.Log.d("PrivateChatActivity", "Avatar from currentChat.getOtherParticipant(): " + avatarUrl);
                 }
+            }
+            
+            // Priority 3: If still no avatar, try from currentChat.avatar (for private chats, this is other participant's avatar)
+            if ((avatarUrl == null || avatarUrl.isEmpty()) && currentChat.isPrivateChat()) {
+                avatarUrl = currentChat.getAvatar();
+                android.util.Log.d("PrivateChatActivity", "Avatar from currentChat.getAvatar(): " + avatarUrl);
+            }
+            
+            // Load avatar if we have a URL
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                android.util.Log.d("PrivateChatActivity", "Loading avatar for user " + 
+                    (otherUser != null ? otherUser.getId() : "unknown") + ", avatar URL: " + avatarUrl);
+                
+                // Construct full URL if needed
+                if (!avatarUrl.startsWith("http")) {
+                    avatarUrl = "http://" + ServerConfig.getServerIp() +
+                               ":" + ServerConfig.getServerPort() + avatarUrl;
+                    android.util.Log.d("PrivateChatActivity", "Constructed full URL: " + avatarUrl);
+                }
+                android.util.Log.d("PrivateChatActivity", "Loading avatar with AvatarManager");
+                avatarManager.loadAvatar(avatarUrl, ivProfile, R.drawable.ic_profile_placeholder);
             } else {
-                android.util.Log.d("PrivateChatActivity", "No otherUser, using placeholder");
+                android.util.Log.d("PrivateChatActivity", "No avatar URL found, using placeholder");
                 if (ivProfile != null) {
                     ivProfile.setImageResource(R.drawable.ic_profile_placeholder);
                 }
@@ -691,15 +707,32 @@ public class PrivateChatActivity extends BaseChatActivity {
                         org.json.JSONObject finalUserData = userData;
                         runOnUiThread(() -> {
                             try {
-                                otherUser = User.fromJson(finalUserData);
-                                android.util.Log.d("PrivateChatActivity", "Updated otherUser data: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                User updatedUser = User.fromJson(finalUserData);
+                                android.util.Log.d("PrivateChatActivity", "Updated otherUser data: id=" + (updatedUser != null ? updatedUser.getId() : "null") + 
+                                    ", avatar=" + (updatedUser != null ? updatedUser.getAvatar() : "null"));
                                 
                                 // If still no ID, try to get from _id field directly
-                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                if (updatedUser != null && (updatedUser.getId() == null || updatedUser.getId().isEmpty())) {
                                     String userId = finalUserData.optString("_id", finalUserData.optString("id", ""));
                                     if (!userId.isEmpty()) {
-                                        otherUser.setId(userId);
+                                        updatedUser.setId(userId);
                                         android.util.Log.d("PrivateChatActivity", "Set userId manually: " + userId);
+                                    }
+                                }
+                                
+                                // Update otherUser
+                                otherUser = updatedUser;
+                                
+                                // Also update currentChat's otherParticipant if it exists
+                                if (currentChat != null && currentChat.isPrivateChat() && currentChat.getOtherParticipant() != null) {
+                                    User otherParticipant = currentChat.getOtherParticipant();
+                                    if (otherParticipant.getId() != null && otherParticipant.getId().equals(updatedUser.getId())) {
+                                        // Update otherParticipant with new data
+                                        otherParticipant.setAvatar(updatedUser.getAvatar());
+                                        otherParticipant.setUsername(updatedUser.getUsername());
+                                        otherParticipant.setFirstName(updatedUser.getFirstName());
+                                        otherParticipant.setLastName(updatedUser.getLastName());
+                                        android.util.Log.d("PrivateChatActivity", "Updated currentChat.otherParticipant with new avatar: " + updatedUser.getAvatar());
                                     }
                                 }
                                 
