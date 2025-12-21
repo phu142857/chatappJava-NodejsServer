@@ -2,6 +2,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const { sendPostNotification } = require('../services/fcmService');
 
 // @desc    Create a new post
 // @route   POST /api/posts
@@ -83,6 +84,8 @@ const createPost = async (req, res) => {
     // Create notifications for tagged users
     if (tags && tags.length > 0) {
       const postPreviewImage = images && images.length > 0 ? images[0] : null;
+      const author = await User.findById(userId).select('username avatar profile');
+      
       for (const taggedUserId of tags) {
         try {
           await Notification.createNotification(
@@ -93,6 +96,12 @@ const createPost = async (req, res) => {
             null,
             postPreviewImage
           );
+          
+          // Send push notification
+          const taggedUser = await User.findById(taggedUserId).select('fcmTokens');
+          if (taggedUser && taggedUser.fcmTokens && taggedUser.fcmTokens.length > 0) {
+            await sendPostNotification(taggedUser, author, 'tagged_in_post', post._id);
+          }
         } catch (error) {
           console.error(`Error creating notification for tagged user ${taggedUserId}:`, error);
         }
@@ -102,7 +111,7 @@ const createPost = async (req, res) => {
     // Create notifications for friends when post is public or friends-only
     if (privacySetting === 'public' || privacySetting === 'friends') {
       try {
-        const author = await User.findById(userId).select('friends');
+        const author = await User.findById(userId).select('friends username avatar profile');
         if (author && author.friends && author.friends.length > 0) {
           const postPreviewImage = images && images.length > 0 ? images[0] : null;
           for (const friendId of author.friends) {
@@ -119,6 +128,12 @@ const createPost = async (req, res) => {
                 null,
                 postPreviewImage
               );
+              
+              // Send push notification
+              const friend = await User.findById(friendId).select('fcmTokens');
+              if (friend && friend.fcmTokens && friend.fcmTokens.length > 0) {
+                await sendPostNotification(friend, author, 'friend_posted', post._id);
+              }
             } catch (error) {
               console.error(`Error creating notification for friend ${friendId}:`, error);
             }

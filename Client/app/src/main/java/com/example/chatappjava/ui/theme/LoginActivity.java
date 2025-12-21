@@ -482,6 +482,10 @@ public class LoginActivity extends AppCompatActivity {
                 
                 // Reconnect socket with new token
                 com.example.chatappjava.ChatApplication.getInstance().reconnectSocket();
+                // Re-register FCM token after login
+                com.example.chatappjava.ChatApplication.getInstance().reRegisterFCMToken();
+                // Check and prompt for battery optimization (for push notifications)
+                com.example.chatappjava.utils.BatteryOptimizationHelper.checkAndPromptBatteryOptimization(LoginActivity.this);
                 
                 Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show();
                 navigateToMainActivity();

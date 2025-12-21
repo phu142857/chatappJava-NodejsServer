@@ -3,6 +3,7 @@ const Chat = require('../models/Chat');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const { summarizeMessages } = require('../services/summarizeService');
+const { sendChatMessageNotification } = require('../services/fcmService');
 
 // @desc    Get messages for a chat
 // @route   GET /api/messages/:chatId
@@ -189,11 +190,66 @@ const sendMessage = async (req, res) => {
 
     // Populate message for response
     await message.populate([
-      { path: 'sender', select: 'username avatar status' },
+      { path: 'sender', select: 'username avatar status profile' },
       { path: 'replyTo', select: 'content sender type' }
     ]);
 
+    // Get message object for notification (before async call)
     const messageObj = message.toJSON();
+
+    // Send push notifications to other participants (async, don't wait)
+    (async () => {
+      try {
+        // Get all active participants except the sender
+        const recipientIds = chat.participants
+          .filter(p => p.isActive && p.user && p.user.toString() !== req.user.id)
+          .map(p => p.user.toString());
+
+        if (recipientIds.length > 0) {
+          // Get sender info for notification
+          const sender = await User.findById(req.user.id).select('username avatar profile');
+          
+          // Get recipients with FCM tokens
+          const recipients = await User.find({ 
+            _id: { $in: recipientIds },
+            'fcmTokens.0': { $exists: true } // Only users with FCM tokens
+          }).select('fcmTokens username avatar profile');
+
+          console.log(`[FCM] Sending push notification to ${recipients.length} recipient(s) for chat ${chatId}`);
+
+          // Send notification to each recipient
+          for (const recipient of recipients) {
+            try {
+              const result = await sendChatMessageNotification(
+                recipient,
+                sender,
+                {
+                  ...messageObj,
+                  text: content,
+                  type: type,
+                  chatName: chat.name || (chat.type === 'private' ? null : 'Group')
+                },
+                chatId,
+                chat.type
+              );
+              
+              if (result.success) {
+                console.log(`[FCM] ✓ Notification sent to user ${recipient.username} (${recipient._id})`);
+              } else {
+                console.error(`[FCM] ✗ Failed to send notification to user ${recipient.username}:`, result.error);
+              }
+            } catch (notifError) {
+              console.error(`[FCM] ✗ Error sending notification to user ${recipient._id}:`, notifError);
+            }
+          }
+        } else {
+          console.log(`[FCM] No recipients found for chat ${chatId}`);
+        }
+      } catch (error) {
+        console.error('[FCM] Error sending push notifications:', error);
+        // Don't fail the request if notification fails
+      }
+    })();
     res.status(201).json({
       success: true,
       message: 'Message sent successfully',

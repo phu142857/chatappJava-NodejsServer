@@ -380,7 +380,7 @@ public class PrivateChatActivity extends BaseChatActivity {
         android.util.Log.d("PrivateChatActivity", "showChatInfo: currentUserId = " + currentUserId);
         
         if (currentChat == null || !currentChat.isPrivateChat()) {
-            Toast.makeText(this, "Chat không hợp lệ", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid chat", Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -417,7 +417,7 @@ public class PrivateChatActivity extends BaseChatActivity {
         if (otherUserId == null || otherUserId.equals(currentUserId)) {
             android.util.Log.e("PrivateChatActivity", "showChatInfo: Cannot determine other user ID. currentUserId: " + 
                 currentUserId + ", participantIds: " + (currentChat.getParticipantIds() != null ? currentChat.getParticipantIds().toString() : "null"));
-            Toast.makeText(this, "Không thể xác định người dùng đối phương", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Cannot identify other user", Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -443,7 +443,7 @@ public class PrivateChatActivity extends BaseChatActivity {
     private void fetchAndShowUserProfile(String userId) {
         String token = databaseManager.getToken();
         if (token == null || token.isEmpty()) {
-            Toast.makeText(this, "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please login again", Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -452,7 +452,7 @@ public class PrivateChatActivity extends BaseChatActivity {
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     android.util.Log.e("PrivateChatActivity", "Failed to fetch user profile: " + e.getMessage());
-                    Toast.makeText(PrivateChatActivity.this, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(PrivateChatActivity.this, "Cannot load user information", Toast.LENGTH_SHORT).show();
                 });
             }
             
@@ -484,23 +484,23 @@ public class PrivateChatActivity extends BaseChatActivity {
                                     startActivity(intent);
                                 } catch (Exception e) {
                                     android.util.Log.e("PrivateChatActivity", "Error opening profile: " + e.getMessage());
-                                    Toast.makeText(PrivateChatActivity.this, "Lỗi mở profile", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(PrivateChatActivity.this, "Error opening profile", Toast.LENGTH_SHORT).show();
                                 }
                             });
                         } else {
                             runOnUiThread(() -> {
-                                Toast.makeText(PrivateChatActivity.this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(PrivateChatActivity.this, "User information not found", Toast.LENGTH_SHORT).show();
                             });
                         }
                     } catch (Exception e) {
                         android.util.Log.e("PrivateChatActivity", "Error parsing user data: " + e.getMessage());
                         runOnUiThread(() -> {
-                            Toast.makeText(PrivateChatActivity.this, "Lỗi xử lý dữ liệu", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(PrivateChatActivity.this, "Data processing error", Toast.LENGTH_SHORT).show();
                         });
                     }
                 } else {
                     runOnUiThread(() -> {
-                        Toast.makeText(PrivateChatActivity.this, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(PrivateChatActivity.this, "Cannot load user information", Toast.LENGTH_SHORT).show();
                     });
                 }
             }

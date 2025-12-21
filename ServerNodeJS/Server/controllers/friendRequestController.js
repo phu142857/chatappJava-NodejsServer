@@ -2,6 +2,7 @@ const FriendRequest = require('../models/FriendRequest');
 const User = require('../models/User');
 const Chat = require('../models/Chat');
 const { validationResult } = require('express-validator');
+const { sendFriendRequestNotification } = require('../services/fcmService');
 
 // @desc    Send friend request
 // @route   POST /api/friend-requests
@@ -82,15 +83,30 @@ const sendFriendRequest = async (req, res) => {
     await friendRequest.populate([
       { 
         path: 'senderId', 
-        select: 'username email avatar profile',
+        select: 'username email avatar profile fcmTokens',
         model: 'User'
       },
       { 
         path: 'receiverId', 
-        select: 'username email avatar profile',
+        select: 'username email avatar profile fcmTokens',
         model: 'User'
       }
     ]);
+
+    // Send push notification to receiver (async, don't wait)
+    (async () => {
+      try {
+        const sender = await User.findById(senderId).select('username avatar profile');
+        const receiver = await User.findById(receiverId).select('fcmTokens username avatar profile');
+        
+        if (receiver && receiver.fcmTokens && receiver.fcmTokens.length > 0) {
+          await sendFriendRequestNotification(receiver, sender);
+        }
+      } catch (notifError) {
+        console.error('Error sending friend request notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    })();
 
     res.status(201).json({
       success: true,

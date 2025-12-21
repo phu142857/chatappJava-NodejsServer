@@ -13,7 +13,9 @@ const {
   setActive,
   updateRole,
   adminAddFriendship,
-  adminRemoveFriendship
+  adminRemoveFriendship,
+  registerFCMToken,
+  removeFCMToken
 } = require('../controllers/userController');
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { createUser, updateUser: adminUpdateUser, deleteUser: adminDeleteUser, setRole, resetPassword } = require('../controllers/adminUserController');
@@ -54,6 +56,14 @@ router.get('/blocked', getBlockedUsers);
 router.get('/me/blocked', getBlockedUsers);
 router.get('/friends', getUserFriends);
 router.get('/search', searchValidation, searchUsers);
+
+// FCM token management
+router.post('/me/fcm-token', [
+  body('token').notEmpty().withMessage('FCM token is required')
+], registerFCMToken);
+router.delete('/me/fcm-token', [
+  body('token').notEmpty().withMessage('FCM token is required')
+], removeFCMToken);
 
 // User can change their own role (with restrictions)
 router.put('/me/role', [

@@ -656,6 +656,80 @@ const updateRole = async (req, res) => {
   }
 };
 
+// @desc    Register FCM token for push notifications
+// @route   POST /api/users/me/fcm-token
+// @access  Private
+const registerFCMToken = async (req, res) => {
+  try {
+    const { token, deviceId, platform } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'FCM token is required'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    await user.addFCMToken(token, deviceId || null, platform || 'android');
+
+    res.json({
+      success: true,
+      message: 'FCM token registered successfully'
+    });
+  } catch (error) {
+    console.error('Register FCM token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Remove FCM token
+// @route   DELETE /api/users/me/fcm-token
+// @access  Private
+const removeFCMToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'FCM token is required'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    await user.removeFCMToken(token);
+
+    res.json({
+      success: true,
+      message: 'FCM token removed successfully'
+    });
+  } catch (error) {
+    console.error('Remove FCM token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // Helper function to log audit actions
 const logAuditAction = async (userId, action, resource, details, ipAddress) => {
   try {
@@ -685,5 +759,7 @@ module.exports = {
   setActive,
   updateRole,
   adminAddFriendship,
-  adminRemoveFriendship
+  adminRemoveFriendship,
+  registerFCMToken,
+  removeFCMToken
 };

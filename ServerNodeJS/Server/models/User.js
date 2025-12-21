@@ -76,6 +76,12 @@ const userSchema = new mongoose.Schema({
   hiddenPosts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post'
+  }],
+  fcmTokens: [{
+    token: { type: String, required: true, trim: true },
+    deviceId: { type: String, trim: true },
+    platform: { type: String, trim: true, default: 'android' },
+    createdAt: { type: Date, default: Date.now }
   }]
 }, {
   timestamps: true,
@@ -149,6 +155,33 @@ userSchema.methods.getFriendshipStatus = function(userId) {
     isFriend,
     status: isFriend ? 'friends' : 'not_friends'
   };
+};
+
+// Add FCM token method
+userSchema.methods.addFCMToken = async function(token, deviceId = null, platform = 'android') {
+  // Remove existing token if it exists
+  this.fcmTokens = this.fcmTokens.filter(t => t.token !== token);
+  
+  // Add new token
+  this.fcmTokens.push({
+    token,
+    deviceId,
+    platform,
+    createdAt: new Date()
+  });
+  
+  return await this.save();
+};
+
+// Remove FCM token method
+userSchema.methods.removeFCMToken = async function(token) {
+  this.fcmTokens = this.fcmTokens.filter(t => t.token !== token);
+  return await this.save();
+};
+
+// Get all FCM tokens
+userSchema.methods.getFCMTokens = function() {
+  return this.fcmTokens.map(t => t.token);
 };
 
 // Remove password from JSON output

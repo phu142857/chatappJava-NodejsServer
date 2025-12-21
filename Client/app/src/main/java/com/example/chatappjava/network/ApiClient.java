@@ -1373,4 +1373,35 @@ public class ApiClient {
         String endpoint = "/api/notifications/" + notificationId + "/read";
         authenticatedPut(endpoint, token, new JSONObject(), callback);
     }
+    
+    /**
+     * Register FCM token for push notifications
+     */
+    public void registerFCMToken(String token, String fcmToken, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("token", fcmToken);
+            body.put("platform", "android");
+            
+            String endpoint = "/api/users/me/fcm-token";
+            authenticatedPost(endpoint, token, body, callback);
+        } catch (JSONException e) {
+            android.util.Log.e("ApiClient", "Error creating FCM token registration request", e);
+        }
+    }
+    
+    /**
+     * Remove FCM token
+     */
+    public void removeFCMToken(String token, String fcmToken, Callback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("token", fcmToken);
+            
+            String endpoint = "/api/users/me/fcm-token";
+            authenticatedDelete(endpoint, token, body, callback);
+        } catch (JSONException e) {
+            android.util.Log.e("ApiClient", "Error creating FCM token removal request", e);
+        }
+    }
 }

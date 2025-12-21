@@ -36,6 +36,10 @@ const connectDB = require('./config/database');
 // Import summarize service
 const { initializeGemini } = require('./services/summarizeService');
 
+// Initialize Firebase Admin SDK for push notifications
+const { initializeFirebase } = require('./services/fcmService');
+initializeFirebase();
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
