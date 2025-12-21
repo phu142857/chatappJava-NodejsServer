@@ -124,6 +124,7 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
     // Hold reference to message listener for add/remove
     private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
     private android.content.BroadcastReceiver blockedChangedReceiver;
+    private android.content.BroadcastReceiver authErrorReceiver;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -165,6 +166,23 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         };
         registerReceiver(blockedChangedReceiver,
                 new android.content.IntentFilter("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED"),
+                android.content.Context.RECEIVER_NOT_EXPORTED);
+        
+        // Listen for authentication errors from socket
+        authErrorReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                if ("com.example.chatappjava.AUTH_ERROR".equals(intent.getAction())) {
+                    Log.w(TAG, "Received AUTH_ERROR broadcast, redirecting to login");
+                    runOnUiThread(() -> {
+                        databaseManager.clearLoginInfo();
+                        redirectToLogin();
+                    });
+                }
+            }
+        };
+        registerReceiver(authErrorReceiver,
+                new android.content.IntentFilter("com.example.chatappjava.AUTH_ERROR"),
                 android.content.Context.RECEIVER_NOT_EXPORTED);
     }
 
@@ -2225,6 +2243,9 @@ public class HomeActivity extends AppCompatActivity implements ChatListAdapter.O
         }
         if (blockedChangedReceiver != null) {
             try { unregisterReceiver(blockedChangedReceiver); } catch (Exception ignored) {}
+        }
+        if (authErrorReceiver != null) {
+            try { unregisterReceiver(authErrorReceiver); } catch (Exception ignored) {}
         }
     }
 

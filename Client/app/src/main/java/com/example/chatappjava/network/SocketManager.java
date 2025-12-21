@@ -162,8 +162,35 @@ public class SocketManager {
         socket.on(Socket.EVENT_CONNECT_ERROR, new Emitter.Listener() {
             @Override
             public void call(Object... args) {
-                Log.e(TAG, "Socket.io connection error: " + args[0]);
+                String errorMessage = args[0] != null ? args[0].toString() : "Unknown error";
+                Log.e(TAG, "Socket.io connection error: " + errorMessage);
                 isConnected = false;
+                
+                // Check if it's an authentication error
+                if (errorMessage.contains("Authentication error") || 
+                    errorMessage.contains("User not found") || 
+                    errorMessage.contains("inactive") ||
+                    errorMessage.contains("401") ||
+                    errorMessage.contains("unauthorized")) {
+                    Log.w(TAG, "Socket authentication error detected, clearing login info");
+                    
+                    // Clear login info and redirect to login
+                    if (appContext != null) {
+                        try {
+                            com.example.chatappjava.utils.DatabaseManager dbManager = 
+                                new com.example.chatappjava.utils.DatabaseManager(appContext);
+                            dbManager.clearLoginInfo();
+                            
+                            // Send broadcast to notify activities to redirect to login
+                            android.content.Intent intent = new android.content.Intent("com.example.chatappjava.AUTH_ERROR");
+                            appContext.sendBroadcast(intent);
+                            
+                            Log.d(TAG, "Sent AUTH_ERROR broadcast to redirect to login");
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error handling authentication error", e);
+                        }
+                    }
+                }
             }
         });
         
