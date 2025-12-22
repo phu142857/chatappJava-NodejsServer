@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import com.example.chatappjava.ChatApplication;
@@ -153,20 +155,26 @@ public class ChatFirebaseMessagingService extends FirebaseMessagingService {
 
         Log.d(TAG, "Handling call notification: callId=" + callId + ", callerId=" + callerId + ", chatId=" + chatId + ", callType=" + callType);
 
-        // Check if socket is connected and app might be in foreground
-        // If socket is connected, it should handle incoming_call via socket event
-        // Only use push notification if socket is not connected (app is closed/background)
+        // Validate required data
+        if (callId == null || callerId == null) {
+            Log.e(TAG, "Missing required call data: callId=" + callId + ", callerId=" + callerId);
+            return;
+        }
+
+        // Get socket manager
         com.example.chatappjava.network.SocketManager socketManager = 
             com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
         boolean isSocketConnected = socketManager != null && socketManager.isConnected();
         
-        if (isSocketConnected) {
-            // Socket is connected, check if there's already an active call
+        // CRITICAL: Always process push notification to ensure RingingActivity is opened
+        // Push notification is the reliable fallback when:
+        // 1. Socket is not connected (app is closed/background)
+        // 2. Socket event failed to open activity (race condition, app state issues)
+        // 3. Socket event hasn't arrived yet (network delay)
+        
+        // Set activeCallId to prevent duplicate handling
+        if (isSocketConnected && socketManager != null) {
             String activeCallId = socketManager.getActiveCallId();
-            if (activeCallId != null && activeCallId.equals(callId)) {
-                Log.d(TAG, "Call already active via socket, ignoring push notification");
-                return; // Don't show notification or open activity, socket already handled it
-            }
             
             // Clear any old activeCallId that might block this call
             if (activeCallId != null && !activeCallId.equals(callId)) {
@@ -174,48 +182,76 @@ public class ChatFirebaseMessagingService extends FirebaseMessagingService {
                 socketManager.clearActiveCallId(activeCallId);
             }
             
-            // Set activeCallId for this call
+            // Set activeCallId for this call (even if already set, to ensure consistency)
             socketManager.setActiveCallId(callId);
+            
+            if (activeCallId != null && activeCallId.equals(callId)) {
+                Log.d(TAG, "Call already active via socket, but push notification will ensure RingingActivity is displayed");
+            }
         }
 
         // Create intent for RingingActivity
         Intent intent = new Intent(this, RingingActivity.class);
-        if (callId != null && callerId != null) {
-            try {
-                // Use chatId if provided, otherwise use callId as fallback
-                String chatIdToUse = (chatId != null && !chatId.isEmpty()) ? chatId : callId;
-                
-                Chat chat = new Chat();
-                chat.setId(chatIdToUse);
-                chat.setType("private");
-                
-                JSONObject callerJson = new JSONObject();
-                callerJson.put("_id", callerId);
-                
-                intent.putExtra("chat", chat.toJson().toString());
-                intent.putExtra("caller", callerJson.toString());
-                intent.putExtra("callId", callId);
-                intent.putExtra("callType", callType != null ? callType : "voice");
-                intent.putExtra("isIncomingCall", true);
-                
-                // Add flags to launch from background/service
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                
-                // Automatically open RingingActivity when call notification is received
-                // This ensures B always sees incoming call screen directly
-                Log.d(TAG, "Automatically opening RingingActivity for incoming call");
-                startActivity(intent);
-                
-                // Don't show push notification - we've already opened the activity
-                // This prevents duplicate notifications
-                return;
-                
-            } catch (JSONException e) {
-                Log.e(TAG, "Error creating call intent", e);
-            }
+        try {
+            // Use chatId if provided, otherwise use callId as fallback
+            String chatIdToUse = (chatId != null && !chatId.isEmpty()) ? chatId : callId;
+            
+            Chat chat = new Chat();
+            chat.setId(chatIdToUse);
+            chat.setType("private");
+            
+            JSONObject callerJson = new JSONObject();
+            callerJson.put("_id", callerId);
+            
+            intent.putExtra("chat", chat.toJson().toString());
+            intent.putExtra("caller", callerJson.toString());
+            intent.putExtra("callId", callId);
+            intent.putExtra("callType", callType != null ? callType : "voice");
+            intent.putExtra("isIncomingCall", true);
+            
+            // Add flags to launch from background/service
+            // FLAG_ACTIVITY_NEW_TASK: Required to start activity from service/background
+            // FLAG_ACTIVITY_CLEAR_TOP: If activity already exists, bring it to front instead of creating new
+            // FLAG_ACTIVITY_SINGLE_TOP: Prevent multiple instances if activity is already on top
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
+                          Intent.FLAG_ACTIVITY_CLEAR_TOP | 
+                          Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            
+            // CRITICAL: Always open RingingActivity from push notification immediately
+            // This ensures the incoming call screen is displayed even if:
+            // - Socket event failed to open it
+            // - Socket event hasn't arrived yet
+            // - App is in background/closed
+            // - Race condition between socket and push notification
+            Log.d(TAG, "Opening RingingActivity from push notification for callId: " + callId);
+            
+            // Use Handler to ensure activity is opened on main thread
+            // This is required when starting activity from a service/background context
+            Handler mainHandler = new Handler(Looper.getMainLooper());
+            mainHandler.post(() -> {
+                try {
+                    startActivity(intent);
+                    Log.d(TAG, "Successfully opened RingingActivity from push notification");
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to open RingingActivity from push notification", e);
+                    // Fall through to show notification as backup
+                    showNotificationAsFallback(intent, title, body);
+                }
+            });
+            
+            // Don't show push notification immediately - we're trying to open activity
+            // If activity open fails, fallback notification will be shown
+            return;
+            
+        } catch (JSONException e) {
+            Log.e(TAG, "Error creating call intent", e);
         }
 
         // Fallback: If we couldn't open activity, show notification as backup
+        showNotificationAsFallback(intent, title, body);
+    }
+    
+    private void showNotificationAsFallback(Intent intent, String title, String body) {
         PendingIntent pendingIntent = PendingIntent.getActivity(
             this,
             (int) System.currentTimeMillis(),
