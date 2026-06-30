@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.ChatAppJava" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/md3_primary</item>
+        <item name="colorPrimaryVariant">@color/md3_primary_dark</item>
+        <item name="colorOnPrimary">@color/md3_on_primary</item>
+
+        <item name="colorSecondary">@color/md3_secondary</item>
+        <item name="colorSecondaryVariant">@color/md3_secondary_container</item>
+        <item name="colorOnSecondary">@color/md3_on_secondary</item>
+
+        <item name="android:colorBackground">@color/md3_background</item>
+        <item name="colorSurface">@color/md3_surface_container</item>
+        <item name="colorOnSurface">@color/md3_on_surface</item>
+        <item name="colorError">@color/md3_error</item>
+
+        <item name="android:statusBarColor">@color/md3_background</item>
+        <item name="android:navigationBarColor">@color/md3_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+
+        <item name="alertDialogTheme">@style/ThemeOverlay.ChatApp.AlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.ChatApp.AlertDialog</item>
+    </style>
+</resources>

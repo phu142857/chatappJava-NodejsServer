@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_neu_copper_canvas"
+    android:fitsSystemWindows="true">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.12"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <include
+        android:id="@+id/header_card"
+        layout="@layout/component_neu_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+    <!-- Search — same placement/sizing as Home search trench -->
+    <include
+        android:id="@+id/search_bar_home"
+        layout="@layout/component_neu_search_field"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/neu_copper_search_height"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+    <!-- Tabs Bar -->
+    <LinearLayout
+        android:id="@+id/tabs_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        style="@style/AppNeuTabBar"
+        app:layout_constraintTop_toBottomOf="@id/search_bar_home"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <TextView
+            android:id="@+id/tab_requests"
+            style="@style/AppNeuTabItem"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:text="@string/friend_requests_tab_requests" />
+
+        <TextView
+            android:id="@+id/tab_friends"
+            style="@style/AppNeuTabItem"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:text="@string/friend_requests_tab_friends" />
+
+    </LinearLayout>
+
+    <!-- Content -->
+    <LinearLayout
+        android:id="@+id/content_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@id/tabs_bar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <!-- Requests Container -->
+            <LinearLayout
+                android:id="@+id/container_requests"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/list_skeleton"
+                    layout="@layout/component_list_skeleton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/tv_no_requests"
+                    layout="@layout/component_empty_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginStart="@dimen/screen_edge_inset"
+                    android:layout_marginEnd="@dimen/screen_edge_inset"
+                    android:layout_marginTop="@dimen/spacing_xl"
+                    android:visibility="gone"
+                    android:contentDescription="@string/empty_friend_requests_cd" />
+
+                <TextView
+                    android:id="@+id/tv_requests_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/friend_requests_tab_requests"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/neu_copper_ink"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="6dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_friend_requests"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
+                    android:nestedScrollingEnabled="true"
+                    android:overScrollMode="always"
+                    android:scrollbars="none"
+                    tools:itemCount="2"
+                    tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:listitem="@layout/item_friend_request" />
+
+            </LinearLayout>
+
+            <!-- Friends Container -->
+            <LinearLayout
+                android:id="@+id/container_friends"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_friends_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/friend_requests_tab_friends"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/neu_copper_ink"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="6dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_my_friends"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
+                    android:scrollbars="none"
+                    tools:itemCount="5"
+                    tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:listitem="@layout/item_friend_compact" />
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

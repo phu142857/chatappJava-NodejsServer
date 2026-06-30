@@ -1,0 +1,1315 @@
+package com.example.chatappjava.ui.theme;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ImageView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.chatappjava.R;
+import com.example.chatappjava.models.User;
+import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.adapters.FriendsAdapter;
+import com.example.chatappjava.utils.AvatarManager;
+import com.example.chatappjava.utils.DatabaseManager;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import de.hdodenhof.circleimageview.CircleImageView;
+import com.github.chrisbanes.photoview.PhotoView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ProfileViewActivity extends AppCompatActivity {
+    
+    private CircleImageView civAvatar;
+    private TextView tvUsername;
+    private TextView tvFirstName;
+    private TextView tvLastName;
+    private TextView tvPhoneNumber;
+    private TextView tvBio;
+    private ImageView ivBack;
+    private ImageView ivMore;
+    private RecyclerView rvFriends;
+    private RecyclerView rvPosts;
+    private TextView tvNoFriends;
+    private TextView tvNoPosts;
+    private FriendsAdapter friendsAdapter;
+    private com.example.chatappjava.adapters.PostAdapter postAdapter;
+    private java.util.List<com.example.chatappjava.models.Post> postsList;
+    
+    private User otherUser;
+    private AvatarManager avatarManager;
+    private DatabaseManager databaseManager;
+    private ApiClient apiClient;
+    private AlertDialog currentDialog;
+    private boolean isBlockedInSession; // local flag to reflect block state in this session
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_profile_view);
+        
+        initViews();
+        initData();
+        setupClickListeners();
+        loadUserData();
+    }
+    
+    private void initViews() {
+        civAvatar = findViewById(R.id.civ_avatar);
+        tvUsername = findViewById(R.id.tv_username);
+        tvFirstName = findViewById(R.id.tv_first_name);
+        tvLastName = findViewById(R.id.tv_last_name);
+        tvPhoneNumber = findViewById(R.id.tv_phone_number);
+        tvBio = findViewById(R.id.tv_bio);
+        View backWell = findViewById(R.id.toolbar_back_well);
+        if (backWell != null) {
+            backWell.setVisibility(View.VISIBLE);
+        }
+        ivBack = findViewById(R.id.iv_toolbar_back);
+        TextView toolbarTitle = findViewById(R.id.tv_toolbar_title);
+        if (toolbarTitle != null) {
+            toolbarTitle.setText(R.string.profile);
+        }
+        ivMore = findViewById(R.id.iv_more);
+        rvFriends = findViewById(R.id.rv_friends);
+        tvNoFriends = findViewById(R.id.tv_no_friends);
+        rvPosts = findViewById(R.id.rv_posts);
+        tvNoPosts = findViewById(R.id.tv_no_posts);
+        
+        postsList = new java.util.ArrayList<>();
+
+        if (rvFriends != null) {
+            rvFriends.setLayoutManager(new LinearLayoutManager(this));
+            friendsAdapter = new FriendsAdapter(user -> {
+                try {
+                    Intent intent = new Intent(ProfileViewActivity.this, ProfileViewActivity.class);
+                    intent.putExtra("user", user.toJson().toString());
+                    startActivity(intent);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+            rvFriends.setAdapter(friendsAdapter);
+        }
+        
+        if (rvPosts != null) {
+            rvPosts.setLayoutManager(new LinearLayoutManager(this));
+            postAdapter = new com.example.chatappjava.adapters.PostAdapter(this, postsList, new com.example.chatappjava.adapters.PostAdapter.OnPostClickListener() {
+                @Override
+                public void onPostClick(com.example.chatappjava.models.Post post) {
+                    Intent intent = new Intent(ProfileViewActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_open_post), Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onLikeClick(com.example.chatappjava.models.Post post, int position) {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    apiClient.toggleLikePost(token, post.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, getString(R.string.error_update_like), Toast.LENGTH_SHORT).show());
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            runOnUiThread(() -> {
+                                if (response.isSuccessful()) {
+                                    post.setLiked(!post.isLiked());
+                                    if (post.isLiked()) {
+                                        post.setLikesCount(post.getLikesCount() + 1);
+                                    } else {
+                                        post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                                    }
+                                    postAdapter.updatePost(position, post);
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCommentClick(com.example.chatappjava.models.Post post) {
+                    Intent intent = new Intent(ProfileViewActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_open_post), Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onShareClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.msg_share_feature), Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onPostMenuClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.dialog_post_options_title), Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onAuthorClick(com.example.chatappjava.models.Post post) {
+                    // Open author profile
+                    try {
+                        Intent intent = new Intent(ProfileViewActivity.this, ProfileViewActivity.class);
+                        intent.putExtra("user", post.getAuthorId());
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_error_opening_profile), Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
+                    // Navigate to post detail when media is clicked
+                    if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+                        String mediaType = post.getMediaType();
+                        if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                            // Show image viewer for images
+                            if (post.getMediaUrls() != null && mediaIndex < post.getMediaUrls().size()) {
+                                List<String> imageUrls = post.getMediaUrls();
+                                String imageUrl = imageUrls.get(mediaIndex);
+                                if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    // Construct full URLs for all images
+                                    List<String> fullImageUrls = new ArrayList<>();
+                                    for (String url : imageUrls) {
+                                        if (url != null && !url.isEmpty()) {
+                                            if (!url.startsWith("http")) {
+                                                url = com.example.chatappjava.config.ServerConfig.getBaseUrl() + 
+                                                      (url.startsWith("/") ? url : "/" + url);
+                                            }
+                                            fullImageUrls.add(url);
+                                        }
+                                    }
+                                    
+                                    // Open PostDetailActivity to view images
+                                    Intent intent = new Intent(ProfileViewActivity.this, PostDetailActivity.class);
+                                    try {
+                                        intent.putExtra("post", post.toJson().toString());
+                                        startActivity(intent);
+                                    } catch (JSONException e) {
+                                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_open_post), Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                @Override
+                public void onTaggedUsersClick(com.example.chatappjava.models.Post post) {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.create_post_tagged_users), Toast.LENGTH_SHORT).show();
+                }
+            });
+            rvPosts.setAdapter(postAdapter);
+        }
+    }
+    
+    private void initData() {
+        avatarManager = AvatarManager.getInstance(this);
+        databaseManager = new DatabaseManager(this);
+        apiClient = new ApiClient();
+        
+        Intent intent = getIntent();
+        String currentUserId = databaseManager.getUserId();
+        android.util.Log.d("ProfileViewActivity", "initData - currentUserId: " + currentUserId);
+        
+        if (intent.hasExtra("user")) {
+            try {
+                String userExtra = intent.getStringExtra("user");
+                android.util.Log.d("ProfileViewActivity", "Loading user from Intent: " + userExtra);
+                
+                // Check if it's a JSON string or just a userId string
+                if (userExtra != null && (userExtra.startsWith("{") || userExtra.startsWith("["))) {
+                    // It's a JSON string
+                    JSONObject userJsonObj = new JSONObject(userExtra);
+                    otherUser = User.fromJsonStatic(userJsonObj);
+                    android.util.Log.d("ProfileViewActivity", "User loaded from Intent JSON: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                    
+                    // If user doesn't have ID, fetch from server
+                    if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                        android.util.Log.w("ProfileViewActivity", "User from Intent has no ID, cannot load posts");
+                        // Still allow viewing profile, but posts won't load
+                    }
+                } else {
+                    // It's a userId string - fetch user from server
+                    android.util.Log.d("ProfileViewActivity", "Intent has userId string, fetching from server: " + userExtra);
+                    android.util.Log.d("ProfileViewActivity", "Comparing - userExtra: " + userExtra + ", currentUserId: " + currentUserId);
+                    // Always fetch from server, even if userId matches currentUserId
+                    // This ensures we get the latest user data
+                    fetchUserById(userExtra);
+                    return; // Don't call loadUserData() yet, wait for fetchUserById to complete
+                }
+            } catch (JSONException e) {
+                // If parsing fails, treat it as userId and fetch from server
+                String userExtra = intent.getStringExtra("user");
+                android.util.Log.d("ProfileViewActivity", "Failed to parse as JSON, treating as userId: " + userExtra);
+                if (userExtra != null && !userExtra.isEmpty()) {
+                    fetchUserById(userExtra);
+                    return;
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Error loading user from Intent: " + e.getMessage(), e);
+                    Toast.makeText(this, getString(R.string.error_error_loading_user_data), Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+            }
+        } else if (intent.hasExtra("username")) {
+            // Fallback: fetch by username from server
+            String username = intent.getStringExtra("username");
+            fetchUserByUsername(username);
+        } else {
+            Toast.makeText(this, getString(R.string.msg_no_user_data_provided), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+    }
+    
+    private void setupClickListeners() {
+        ivBack.setOnClickListener(v -> finish());
+        
+        civAvatar.setOnClickListener(v -> showAvatarZoom());
+        
+        ivMore.setOnClickListener(v -> showMoreOptions());
+    }
+
+    private void performBlockUser() {
+        if (otherUser == null) {
+            Toast.makeText(this, getString(R.string.msg_no_user_to_block), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String action = isBlockedInSession ? "unblock" : "block";
+        apiClient.blockUser(token, otherUser.getId(), action, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        isBlockedInSession = !isBlockedInSession;
+                        Toast.makeText(ProfileViewActivity.this,
+                                isBlockedInSession
+                                        ? getString(R.string.success_user_blocked_successfully)
+                                        : getString(R.string.success_user_unblocked),
+                                Toast.LENGTH_SHORT).show();
+                        // Optionally finish or refresh UI
+                    } else {
+                        String message = getString(R.string.error_action_failed);
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            message = json.optString("message", message);
+                        } catch (Exception ignored) {}
+                        Toast.makeText(ProfileViewActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+    
+    private void loadUserData() {
+        if (otherUser == null) return;
+        
+        // Load avatar - handle URL like ProfileActivity
+        if (otherUser.getAvatar() != null && !otherUser.getAvatar().isEmpty()) {
+            String avatarUrl = otherUser.getAvatar();
+            android.util.Log.d("ProfileViewActivity", "Original avatar URL: " + avatarUrl);
+            
+            // If it's a relative URL, prepend the server base URL
+            if (!avatarUrl.startsWith("http")) {
+                avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                           ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                android.util.Log.d("ProfileViewActivity", "Constructed full URL: " + avatarUrl);
+            }
+            
+            try {
+                // Try AvatarManager first
+                avatarManager.loadAvatar(avatarUrl, civAvatar, R.drawable.ic_profile_placeholder);
+                
+                // Backup: Also try Picasso directly (like ProfileActivity)
+                com.squareup.picasso.Picasso.get()
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(civAvatar);
+                        
+            } catch (Exception e) {
+                android.util.Log.e("ProfileViewActivity", "Error loading avatar: " + e.getMessage());
+                // Fallback to direct Picasso load
+                try {
+                    com.squareup.picasso.Picasso.get()
+                            .load(avatarUrl)
+                            .placeholder(R.drawable.ic_profile_placeholder)
+                            .error(R.drawable.ic_profile_placeholder)
+                            .into(civAvatar);
+                } catch (Exception e2) {
+                    android.util.Log.e("ProfileViewActivity", "Picasso also failed: " + e2.getMessage());
+                    civAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
+        } else {
+            civAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        
+        // Set user information
+        tvUsername.setText(otherUser.getUsername() != null ? otherUser.getUsername() : "N/A");
+        tvFirstName.setText(otherUser.getFirstName() != null ? otherUser.getFirstName() : "N/A");
+        tvLastName.setText(otherUser.getLastName() != null ? otherUser.getLastName() : "N/A");
+        tvPhoneNumber.setText(otherUser.getPhoneNumber() != null ? otherUser.getPhoneNumber() : "N/A");
+        tvBio.setText(otherUser.getBio() != null ? otherUser.getBio() : "No bio available");
+
+        // Load friends for this user
+        loadFriends();
+        
+        // Load posts for this user
+        loadPosts();
+    }
+    
+    private void loadPosts() {
+        if (rvPosts == null || otherUser == null) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: rvPosts=" + rvPosts + ", otherUser=" + otherUser);
+            return;
+        }
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: token is null or empty");
+            return;
+        }
+        
+        String userId = otherUser.getId();
+        if (userId == null || userId.isEmpty()) {
+            android.util.Log.e("ProfileViewActivity", "Cannot load posts: userId is null or empty");
+            if (tvNoPosts != null) {
+                tvNoPosts.setVisibility(View.VISIBLE);
+                tvNoPosts.setText(getString(R.string.error_user_id_unavailable));
+            }
+            return;
+        }
+        
+        android.util.Log.d("ProfileViewActivity", "Loading posts for userId: " + userId);
+        apiClient.getUserPosts(token, userId, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (tvNoPosts != null) {
+                        tvNoPosts.setVisibility(View.VISIBLE);
+                        tvNoPosts.setText(getString(R.string.error_load_posts_failed));
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    android.util.Log.d("ProfileViewActivity", "Get user posts response: " + response.code() + " - " + body);
+                    if (!response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            if (tvNoPosts != null) {
+                                tvNoPosts.setVisibility(View.VISIBLE);
+                                tvNoPosts.setText(getString(R.string.empty_posts_title));
+                            }
+                        });
+                        return;
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    if (json.optBoolean("success", false)) {
+                        org.json.JSONObject data = json.getJSONObject("data");
+                        org.json.JSONArray postsArray = data.optJSONArray("posts");
+                        if (postsArray == null) {
+                            android.util.Log.e("ProfileViewActivity", "Posts array is null in response");
+                            runOnUiThread(() -> {
+                                if (tvNoPosts != null) {
+                                    tvNoPosts.setVisibility(View.VISIBLE);
+                                    tvNoPosts.setText(getString(R.string.empty_posts_title));
+                                }
+                            });
+                            return;
+                        }
+                        java.util.List<com.example.chatappjava.models.Post> list = new java.util.ArrayList<>();
+                        for (int i = 0; i < postsArray.length(); i++) {
+                            try {
+                                org.json.JSONObject postJson = postsArray.getJSONObject(i);
+                                com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                list.add(post);
+                            } catch (Exception e) {
+                                android.util.Log.e("ProfileViewActivity", "Error parsing post " + i + ": " + e.getMessage());
+                            }
+                        }
+                        android.util.Log.d("ProfileViewActivity", "Loaded " + list.size() + " posts");
+                        runOnUiThread(() -> {
+                            postsList.clear();
+                            postsList.addAll(list);
+                            if (postAdapter != null) postAdapter.setPosts(list);
+                            if (tvNoPosts != null) tvNoPosts.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                        });
+                    } else {
+                        android.util.Log.e("ProfileViewActivity", "Response success is false: " + json.optString("message", "Unknown error"));
+                        runOnUiThread(() -> {
+                            if (tvNoPosts != null) {
+                                tvNoPosts.setVisibility(View.VISIBLE);
+                                tvNoPosts.setText(getString(R.string.empty_posts_title));
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("ProfileViewActivity", "Error loading posts: " + e.getMessage(), e);
+                    runOnUiThread(() -> {
+                        if (tvNoPosts != null) {
+                            tvNoPosts.setVisibility(View.VISIBLE);
+                            tvNoPosts.setText(getString(R.string.error_parse_posts_detail, e.getMessage()));
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    private void loadFriends() {
+        if (rvFriends == null || otherUser == null) return;
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+
+        apiClient.getUserFriendsById(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (tvNoFriends != null) {
+                        tvNoFriends.setVisibility(View.VISIBLE);
+                        tvNoFriends.setText(getString(R.string.error_load_friends_failed));
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    if (!response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            if (tvNoFriends != null) {
+                                tvNoFriends.setVisibility(View.VISIBLE);
+                                tvNoFriends.setText(getString(R.string.empty_friends_title));
+                            }
+                        });
+                        return;
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONObject data = json.getJSONObject("data");
+                    org.json.JSONArray arr = data.getJSONArray("friends");
+                    java.util.List<com.example.chatappjava.models.User> list = new java.util.ArrayList<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        com.example.chatappjava.models.User friend = com.example.chatappjava.models.User.fromJsonStatic(u);
+                        list.add(friend);
+                    }
+                    runOnUiThread(() -> {
+                        if (friendsAdapter != null) friendsAdapter.setItems(list);
+                        if (tvNoFriends != null) tvNoFriends.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        if (tvNoFriends != null) {
+                            tvNoFriends.setVisibility(View.VISIBLE);
+                            tvNoFriends.setText(getString(R.string.error_parse_friends));
+                        }
+                    });
+                }
+            }
+        });
+    }
+    
+    private void showAvatarZoom() {
+        if (otherUser == null || otherUser.getAvatar() == null || otherUser.getAvatar().isEmpty()) {
+            Toast.makeText(this, getString(R.string.msg_no_avatar_to_display), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_zoom, null);
+        
+        PhotoView zoomImage = dialogView.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialogView.findViewById(R.id.iv_close);
+        
+        // Load the same avatar in zoomed view - handle URL like ProfileActivity
+        String avatarUrl = otherUser.getAvatar();
+        // If it's a relative URL, prepend the server base URL
+        if (!avatarUrl.startsWith("http")) {
+            avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                       ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+        }
+        
+        try {
+            // Prefer AvatarManager cache
+            avatarManager.loadAvatar(avatarUrl, zoomImage, R.drawable.ic_profile_placeholder);
+        } catch (Exception e) {
+            android.util.Log.e("ProfileViewActivity", "AvatarManager load failed: " + e.getMessage());
+        }
+        // Ensure Picasso loads as well (fallback)
+        try {
+            com.squareup.picasso.Picasso.get()
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
+                    .into(zoomImage);
+        } catch (Exception e2) {
+            android.util.Log.e("ProfileViewActivity", "Picasso failed: " + e2.getMessage());
+            zoomImage.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> {
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+        }
+        currentDialog.show();
+    }
+    
+    private void showMoreOptions() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_profile_options, null);
+        
+        // Toggle Add Friend / Unfriend based on friendship status (resolved dynamically)
+        View addFriendOption = dialogView.findViewById(R.id.option_add_friend);
+        View unfriendOption = dialogView.findViewById(R.id.option_unfriend);
+        if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+        if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+        resolveFriendshipAndToggleOptions(addFriendOption, unfriendOption);
+
+        // Add Friend handler
+        if (addFriendOption != null) {
+            addFriendOption.setOnClickListener(v -> {
+                sendFriendRequest();
+                if (currentDialog != null) currentDialog.dismiss();
+            });
+        }
+
+        // Unfriend handler (with confirmation)
+        if (unfriendOption != null) {
+            unfriendOption.setOnClickListener(v -> {
+                if (otherUser == null) return;
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Unfriend")
+                        .setMessage("Are you sure you want to unfriend " + otherUser.getDisplayName() + "?")
+                        .setPositiveButton("Unfriend", (d, w) -> {
+                            performUnfriend();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
+
+        // Report handler -> open input dialog up to 100 words
+        View reportOption = dialogView.findViewById(R.id.option_report);
+        if (reportOption != null) {
+            reportOption.setOnClickListener(v -> {
+                if (currentDialog != null) currentDialog.dismiss();
+                showReportDialog();
+            });
+        }
+
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_send_message).setOnClickListener(v -> {
+            navigateToPrivateChat();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+
+        dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+            if (currentDialog != null) currentDialog.dismiss();
+            performBlockUser();
+        });
+        
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        currentDialog.show();
+    }
+
+    private void showReportDialog() {
+        if (otherUser == null) {
+            Toast.makeText(this, getString(R.string.msg_no_user_to_report), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Report user");
+
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("Describe the issue (max 100 words)");
+        input.setMinLines(3);
+        input.setMaxLines(6);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setTextColor(getResources().getColor(com.example.chatappjava.R.color.text_white));
+        input.setHintTextColor(getResources().getColor(com.example.chatappjava.R.color.text_white));
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        input.setPadding(padding, padding, padding, padding);
+
+        builder.setView(input);
+
+        builder.setPositiveButton("Send", (dialog, which) -> {
+            String content = input.getText().toString().trim();
+            if (content.isEmpty()) {
+                Toast.makeText(this, getString(R.string.error_please_enter_report_content), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!isWithinWordLimit(content, 100)) {
+                Toast.makeText(this, getString(R.string.msg_report_must_be_at_most_100_words), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            submitReport(content);
+        });
+
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dlg = builder.create();
+        if (dlg.getWindow() != null) {
+            dlg.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.WHITE));
+        }
+        dlg.show();
+    }
+
+    private boolean isWithinWordLimit(String text, int maxWords) {
+        String[] words = text.trim().split("\\s+");
+        return words.length <= maxWords;
+    }
+
+    private void submitReport(String content) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.reportUser(token, otherUser.getId(), content, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, getString(R.string.error_failed_to_send_report), Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.msg_report_sent), Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_report_failed), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void resolveFriendshipAndToggleOptions(View addFriendOption, View unfriendOption) {
+        boolean localIsFriend = otherUser != null && otherUser.isFriend();
+        if (localIsFriend) {
+            if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+            if (unfriendOption != null) unfriendOption.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty() || otherUser == null) {
+            if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+            if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+            return;
+        }
+
+        apiClient.authenticatedGet("/api/users/friends", token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+                    if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                boolean found = false;
+                try {
+                    if (response.isSuccessful()) {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        org.json.JSONObject data = json.has("data") ? json.getJSONObject("data") : json;
+                        org.json.JSONArray arr = data.has("friends") ? data.getJSONArray("friends") : new org.json.JSONArray();
+                        for (int i = 0; i < arr.length(); i++) {
+                            org.json.JSONObject u = arr.getJSONObject(i);
+                            String fid = u.optString("id", u.optString("_id", ""));
+                            if (otherUser.getId().equals(fid)) { found = true; break; }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                final boolean isFriendNow = found;
+                runOnUiThread(() -> {
+                    if (isFriendNow) {
+                        if (addFriendOption != null) addFriendOption.setVisibility(View.GONE);
+                        if (unfriendOption != null) unfriendOption.setVisibility(View.VISIBLE);
+                        if (otherUser != null) otherUser.setFriend(true);
+                    } else {
+                        if (addFriendOption != null) addFriendOption.setVisibility(View.VISIBLE);
+                        if (unfriendOption != null) unfriendOption.setVisibility(View.GONE);
+                        // Not friends: check if there is a pending friend request that I sent
+                        checkPendingFriendRequest(addFriendOption);
+                    }
+                });
+            }
+        });
+    }
+
+    private void checkPendingFriendRequest(View addFriendOption) {
+        if (addFriendOption == null) return;
+        String token = databaseManager.getToken();
+        String currentUserId = databaseManager.getUserId();
+        if (token == null || token.isEmpty() || currentUserId == null || currentUserId.isEmpty() || otherUser == null) {
+            return;
+        }
+        apiClient.getFriendRequests(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* no-op */ }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                boolean hasPending = false;
+                try {
+                    if (response.isSuccessful()) {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        org.json.JSONObject data = json.has("data") ? json.getJSONObject("data") : json;
+                        // Server may return arrays: sentRequests, receivedRequests, or a unified list
+                        if (data.has("sentRequests")) {
+                            org.json.JSONArray arr = data.getJSONArray("sentRequests");
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject fr = arr.getJSONObject(i);
+                                String receiverId = fr.optString("receiver", fr.optString("receiverId", ""));
+                                String status = fr.optString("status", fr.optString("state", ""));
+                                if (otherUser.getId().equals(receiverId) && "pending".equalsIgnoreCase(status)) { hasPending = true; break; }
+                            }
+                        } else if (data.has("requests")) {
+                            org.json.JSONArray arr = data.getJSONArray("requests");
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject fr = arr.getJSONObject(i);
+                                String senderId = fr.optString("sender", fr.optString("senderId", ""));
+                                String receiverId = fr.optString("receiver", fr.optString("receiverId", ""));
+                                String status = fr.optString("status", fr.optString("state", ""));
+                                if (currentUserId.equals(senderId) && otherUser.getId().equals(receiverId) && "pending".equalsIgnoreCase(status)) { hasPending = true; break; }
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                final boolean pendingNow = hasPending;
+                runOnUiThread(() -> {
+                    if (pendingNow) {
+                        setAddFriendPending(addFriendOption);
+                    }
+                });
+            }
+        });
+    }
+
+    private void setAddFriendPending(View addFriendOption) {
+        try {
+            // Structure: CardView > LinearLayout(option_add_friend) with children [ImageView, TextView]
+            if (addFriendOption instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) addFriendOption;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    View child = group.getChildAt(i);
+                    if (child instanceof android.widget.TextView) {
+                        android.widget.TextView tv = (android.widget.TextView) child;
+                        tv.setText(getString(R.string.status_pending));
+                        break;
+                    }
+                }
+            }
+            addFriendOption.setEnabled(false);
+            addFriendOption.setAlpha(0.6f);
+        } catch (Exception ignored) {}
+    }
+
+    private void sendFriendRequest() {
+        try {
+            String token = databaseManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (otherUser == null) return;
+
+            org.json.JSONObject requestData = new org.json.JSONObject();
+            requestData.put("receiverId", otherUser.getId());
+
+            apiClient.sendFriendRequest(token, requestData, new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, getString(R.string.error_failed_to_send_friend_request), Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body() != null ? response.body().string() : "";
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(ProfileViewActivity.this, getString(R.string.msg_friend_request_sent), Toast.LENGTH_SHORT).show();
+                        } else {
+                            String message = "Unable to send request";
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                message = json.optString("message", message);
+                            } catch (Exception ignored) {}
+                            Toast.makeText(ProfileViewActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    private void performUnfriend() {
+        if (otherUser == null) return;
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        apiClient.unfriendUser(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(ProfileViewActivity.this, getString(R.string.error_unfriend), Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.success_unfriended), Toast.LENGTH_SHORT).show();
+                        // Update UI state locally
+                        if (otherUser != null) otherUser.setFriend(false);
+                    } else {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_unfriend), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+    
+    private void navigateToPrivateChat() {
+        if (otherUser == null) return;
+        
+        // First, try to find existing chat with this user
+        String token = databaseManager.getToken();
+        if (token != null && !token.isEmpty()) {
+            apiClient.getChats(token, new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_failed_to_load_chats), Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    if (response.isSuccessful()) {
+                        try {
+                            String responseBody = response.body().string();
+                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                org.json.JSONArray chatsArray = jsonResponse.getJSONObject("data").getJSONArray("chats");
+                                
+                                // Look for existing private chat with this user
+                                for (int i = 0; i < chatsArray.length(); i++) {
+                                    org.json.JSONObject chatJson = chatsArray.getJSONObject(i);
+                                    String chatType = chatJson.optString("type", "");
+                                    
+                                    if ("private".equals(chatType)) {
+                                        // Check if this chat involves the other user
+                                        org.json.JSONArray participants = chatJson.getJSONArray("participants");
+                                        for (int j = 0; j < participants.length(); j++) {
+                                            org.json.JSONObject participant = participants.getJSONObject(j);
+                                            String userId = participant.optString("user", "");
+                                            if (otherUser.getId().equals(userId)) {
+                                                // Found existing chat, open it
+                                                runOnUiThread(() -> {
+                                                    Intent intent = new Intent(ProfileViewActivity.this, PrivateChatActivity.class);
+                                                    intent.putExtra("chat", chatJson.toString());
+                                                    try {
+                                                        intent.putExtra("user", otherUser.toJson().toString());
+                                                    } catch (JSONException e) {
+                                                        throw new RuntimeException(e);
+                                                    }
+                                                    startActivity(intent);
+                                                });
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // No existing chat found, create new one
+                                runOnUiThread(() -> createNewPrivateChat());
+                            } else {
+                                runOnUiThread(() -> createNewPrivateChat());
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            runOnUiThread(() -> createNewPrivateChat());
+                        }
+                    } else {
+                        runOnUiThread(() -> createNewPrivateChat());
+                    }
+                }
+            });
+        } else {
+            createNewPrivateChat();
+        }
+    }
+    
+    private void createNewPrivateChat() {
+        // Create a new private chat on the server
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_not_logged_in), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Create chat with the other user
+        apiClient.createPrivateChat(token, otherUser.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.error_create_chat_generic), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        
+                        if (jsonResponse.optBoolean("success", false)) {
+                            org.json.JSONObject chatData = jsonResponse.getJSONObject("data").getJSONObject("chat");
+                            
+                            runOnUiThread(() -> {
+                                Intent intent = new Intent(ProfileViewActivity.this, PrivateChatActivity.class);
+                                intent.putExtra("chat", chatData.toString());
+                                try {
+                                    intent.putExtra("user", otherUser.toJson().toString());
+                                } catch (JSONException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                startActivity(intent);
+                            });
+                        } else {
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, getString(R.string.error_create_chat_generic), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, getString(R.string.error_error_creating_chat), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_create_chat_generic), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Reload user data when returning to activity
+        // This ensures profile changes are reflected immediately
+        if (otherUser != null) {
+            loadOtherUserData();
+        }
+    }
+    
+    private void fetchUserById(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_invalid_user_id), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        apiClient.authenticatedGet("/api/users/" + userId, token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.error_failed_to_load_user), Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        android.util.Log.d("ProfileViewActivity", "Fetch user by ID response: " + responseBody);
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data == null) {
+                            android.util.Log.e("ProfileViewActivity", "Response data is null");
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+                                finish();
+                            });
+                            return;
+                        }
+                        
+                        org.json.JSONObject userData = data.optJSONObject("user");
+                        if (userData == null) {
+                            // Try alternative format: data might be the user object directly
+                            userData = data;
+                        }
+                        
+                        if (userData == null) {
+                            android.util.Log.e("ProfileViewActivity", "Cannot find user data in response");
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProfileViewActivity.this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+                                finish();
+                            });
+                            return;
+                        }
+                        
+                        JSONObject finalUserData = userData;
+                        runOnUiThread(() -> {
+                            try {
+                                otherUser = User.fromJsonStatic(finalUserData);
+                                android.util.Log.d("ProfileViewActivity", "User fetched by ID: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                
+                                // If still no ID, try to get from _id field directly
+                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                    String userIdFromJson = finalUserData.optString("_id", finalUserData.optString("id", ""));
+                                    if (!userIdFromJson.isEmpty()) {
+                                        otherUser.setId(userIdFromJson);
+                                        android.util.Log.d("ProfileViewActivity", "Set userId manually: " + userIdFromJson);
+                                    }
+                                }
+                                
+                                loadUserData(); // Load UI with user data
+                            } catch (JSONException e) {
+                                android.util.Log.e("ProfileViewActivity", "Error parsing user from JSON: " + e.getMessage(), e);
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProfileViewActivity.this, getString(R.string.error_error_parsing_user_data), Toast.LENGTH_SHORT).show();
+                                    finish();
+                                });
+                            }
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage(), e);
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, getString(R.string.error_error_loading_user), Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    }
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Failed to fetch user by ID: " + response.code());
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                }
+            }
+        });
+    }
+    
+    private void loadOtherUserData() {
+        if (otherUser == null) return;
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        // Use ApiClient to get updated user data
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        apiClient.authenticatedGet("/api/users/" + otherUser.getId(), token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                android.util.Log.e("ProfileViewActivity", "Failed to reload user data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        android.util.Log.d("ProfileViewActivity", "User data response: " + responseBody);
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data == null) {
+                            android.util.Log.e("ProfileViewActivity", "Response data is null");
+                            return;
+                        }
+                        
+                        org.json.JSONObject userData = null;
+                        // Try to get user from different formats
+                        if (data.has("user")) {
+                            userData = data.optJSONObject("user");
+                        } else if (data.has("users")) {
+                            // Response has users array (from search API)
+                            org.json.JSONArray usersArray = data.optJSONArray("users");
+                            if (usersArray != null && usersArray.length() > 0) {
+                                userData = usersArray.getJSONObject(0);
+                            }
+                        } else {
+                            // Data might be the user object directly
+                            userData = data;
+                        }
+                        
+                        if (userData == null) {
+                            android.util.Log.e("ProfileViewActivity", "Cannot find user data in response");
+                            return;
+                        }
+ 
+                        JSONObject finalUserData = userData;
+                        runOnUiThread(() -> {
+                            try {
+                                otherUser = User.fromJsonStatic(finalUserData);
+                                android.util.Log.d("ProfileViewActivity", "User loaded: id=" + (otherUser != null ? otherUser.getId() : "null"));
+                                
+                                // If still no ID, try to get from _id field directly
+                                if (otherUser != null && (otherUser.getId() == null || otherUser.getId().isEmpty())) {
+                                    String userId = finalUserData.optString("_id", finalUserData.optString("id", ""));
+                                    if (!userId.isEmpty()) {
+                                        otherUser.setId(userId);
+                                        android.util.Log.d("ProfileViewActivity", "Set userId manually: " + userId);
+                                    }
+                                }
+                                
+                                loadUserData(); // Refresh the UI with updated data
+                            } catch (JSONException e) {
+                                android.util.Log.e("ProfileViewActivity", "Error parsing user from JSON: " + e.getMessage(), e);
+                            }
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("ProfileViewActivity", "Error parsing user data: " + e.getMessage(), e);
+                    }
+                } else {
+                    android.util.Log.e("ProfileViewActivity", "Failed to load user data: " + response.code());
+                }
+            }
+        });
+    }
+
+    private void fetchUserByUsername(String username) {
+        if (username == null || username.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_invalid_username), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        com.example.chatappjava.network.ApiClient apiClient = new com.example.chatappjava.network.ApiClient();
+        // Use search API, then pick exact match (case-insensitive)
+        apiClient.authenticatedGet("/api/users/search?q=" + username, token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProfileViewActivity.this, getString(R.string.error_failed_to_load_user), Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (!response.isSuccessful()) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                    return;
+                }
+                try {
+                    String body = response.body().string();
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONArray arr = null;
+                    if (json.has("data") && json.get("data") instanceof org.json.JSONObject) {
+                        org.json.JSONObject data = json.getJSONObject("data");
+                        if (data.has("users")) arr = data.getJSONArray("users");
+                    }
+                    if (arr == null && json.has("users")) {
+                        arr = json.getJSONArray("users");
+                    }
+                    if (arr == null || arr.length() == 0) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(ProfileViewActivity.this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                        return;
+                    }
+                    // Pick best match
+                    org.json.JSONObject userObj = null;
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        String uname = u.optString("username", "");
+                        if (uname.equalsIgnoreCase(username)) { userObj = u; break; }
+                    }
+                    if (userObj == null) userObj = arr.getJSONObject(0);
+                    User fetched = User.fromJsonStatic(userObj);
+                    otherUser = fetched;
+                    runOnUiThread(() -> loadUserData());
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileViewActivity.this, getString(R.string.error_error_parsing_user), Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                }
+            }
+        });
+    }
+}

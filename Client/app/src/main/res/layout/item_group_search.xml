@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_list_row_divider"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/list_row_min_height"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/margin_mobile"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingEnd="@dimen/margin_mobile"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/iv_group_avatar"
+        android:layout_width="@dimen/avatar_sm"
+        android:layout_height="@dimen/avatar_sm"
+        android:src="@drawable/ic_group_avatar"
+        app:civ_border_color="@color/md3_border_subtle"
+        app:civ_border_width="@dimen/avatar_border_width_sm" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_group_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:maxLines="1"
+            android:text="@string/group_name_placeholder"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="@dimen/text_body_large"
+            android:textStyle="bold"
+            tools:text="Group Name" />
+
+        <TextView
+            android:id="@+id/tv_member_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/list_item_margin"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:maxLines="1"
+            android:text="@string/preview_members_count"
+            android:textColor="@color/md3_on_surface_secondary"
+            android:textSize="@dimen/text_banner"
+            tools:text="12 members" />
+
+        <TextView
+            android:id="@+id/tv_last_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/list_item_margin"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:maxLines="1"
+            android:text="@string/group_no_messages_yet"
+            android:textColor="@color/md3_on_surface_secondary"
+            android:textSize="@dimen/text_banner"
+            tools:text="No messages yet" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_group_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/touch_target_min"
+        android:background="@drawable/bg_new_message_button"
+        android:backgroundTint="@null"
+        android:insetBottom="0dp"
+        android:insetTop="0dp"
+        android:minWidth="92dp"
+        android:paddingStart="@dimen/dialog_padding_h"
+        android:paddingEnd="@dimen/dialog_padding_h"
+        android:text="@string/group_action_join"
+        android:textAllCaps="false"
+        android:textColor="@color/md3_on_surface"
+        android:textSize="@dimen/text_banner"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+</LinearLayout>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_list_row_divider"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/margin_mobile"
+    android:paddingTop="@dimen/spacing_md"
+    android:paddingEnd="@dimen/margin_mobile"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/spacing_sm"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_avatar"
+            android:layout_width="@dimen/avatar_sm"
+            android:layout_height="@dimen/avatar_sm"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/md3_border_subtle"
+            app:civ_border_width="@dimen/avatar_border_width_sm" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_author_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:ellipsize="end"
+                android:focusable="true"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:maxLines="1"
+                android:textColor="@color/md3_on_surface"
+                android:textSize="@dimen/text_body_large"
+                android:textStyle="bold"
+                tools:text="Leo Vasquez" />
+
+            <TextView
+                android:id="@+id/tv_timestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:textColor="@color/md3_on_surface_secondary"
+                android:textSize="@dimen/text_body_small"
+                tools:text="2 hours ago" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/spacing_sm"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:lineSpacingExtra="3dp"
+        android:maxLines="3"
+        android:textColor="@color/md3_on_surface"
+        android:textSize="@dimen/text_body_medium"
+        tools:text="This is a sample post content. It can be multiline and will truncate if too long." />
+
+    <FrameLayout
+        android:id="@+id/media_container"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginBottom="@dimen/spacing_sm"
+        android:background="@drawable/bg_soft_inset"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/iv_media"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="visible"
+            tools:src="@drawable/ic_profile_placeholder" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_likes"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/post_interaction_row_height"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center_vertical"
+            android:paddingStart="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/spacing_sm"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="@dimen/text_body_small"
+            android:textStyle="bold"
+            tools:text="120 likes" />
+
+        <TextView
+            android:id="@+id/tv_comments"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/post_interaction_row_height"
+            android:layout_marginStart="@dimen/spacing_xs"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center_vertical"
+            android:paddingStart="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/spacing_sm"
+            android:textColor="@color/md3_on_surface_secondary"
+            android:textSize="@dimen/text_body_small"
+            tools:text="45 comments" />
+
+        <TextView
+            android:id="@+id/tv_shares"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/post_interaction_row_height"
+            android:layout_marginStart="@dimen/spacing_xs"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center_vertical"
+            android:paddingStart="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/spacing_sm"
+            android:textColor="@color/md3_on_surface_secondary"
+            android:textSize="@dimen/text_body_small"
+            tools:text="8 shares" />
+
+    </LinearLayout>
+
+</LinearLayout>

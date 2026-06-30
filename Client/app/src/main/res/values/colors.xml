@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Void Copper — see DESIGN.md. Legacy token names kept for layout/Java compat. -->
+
+    <!-- Canvas & surfaces -->
+    <color name="palette_charcoal">#0B0D11</color>
+    <color name="neu_surface_sunken">#12161C</color>
+    <color name="neu_surface_raised">#1A2028</color>
+    <color name="neu_highlight">#222932</color>
+    <color name="neu_shadow">#06080C</color>
+    <color name="md3_surface_dim">#0E1116</color>
+    <color name="md3_surface_container_highest">#2B3340</color>
+    <color name="md3_surface_variant">#1E2733</color>
+
+    <!-- Ink -->
+    <color name="ink_primary">#F2F4F7</color>
+    <color name="ink_muted">#8A939F</color>
+    <color name="ink_whisper">#9AA0A8</color>
+
+    <!-- Accent: Copper Signal (legacy names palette_crimson / brand_red) -->
+    <color name="palette_crimson">#C8875A</color>
+    <color name="palette_wine">#A66D45</color>
+    <color name="palette_blood">#8F5A38</color>
+    <color name="brand_red_light">#E0A67E</color>
+    <color name="brand_red_glow">#33C8875A</color>
+    <color name="indicator_primary_fill_start">#33C8875A</color>
+    <color name="indicator_primary_fill_end">#22C8875A</color>
+    <color name="indicator_primary_stroke">#55C8875A</color>
+    <color name="indicator_error_fill">#33E05A5A</color>
+    <color name="indicator_error_stroke">#55E05A5A</color>
+    <color name="md3_primary_container">#2A2218</color>
+    <color name="secondary_light">#3A2E22</color>
+
+    <!-- Switch track (copper on, outline off) -->
+    <color name="switch_track_off">#402A323D</color>
+    <color name="switch_track_on">#55C8875A</color>
+
+    <!-- Semantic -->
+    <color name="danger">#E05A5A</color>
+    <color name="accept">#3DB88C</color>
+    <color name="warning_color">#D4A054</color>
+    <color name="call_end">#C44A4A</color>
+    <color name="danger_surface">#2A1818</color>
+    <color name="danger_border">#4A2828</color>
+    <color name="md3_error_container">#2A1818</color>
+
+    <!-- Chat bubbles -->
+    <color name="my_message_bg">#141C24</color>
+    <color name="other_message_bg">@color/neu_surface_raised</color>
+    <color name="reply_message_bg">#1E2733</color>
+
+    <!-- Borders -->
+    <color name="md3_border_subtle">#2A323D</color>
+    <color name="md3_outline_variant">#2A323D</color>
+    <color name="md3_outline">#3D4654</color>
+    <color name="border_highlight">#14FFFFFF</color>
+
+    <!-- Shadows & overlays -->
+    <color name="shadow_tint">#14000000</color>
+    <color name="shadow_tint_subtle">#0A000000</color>
+    <color name="surface_overlay">#990B0D11</color>
+    <color name="call_overlay_scrim">#CC0B0D11</color>
+    <color name="control_button_background">#660B0D11</color>
+    <color name="semi_transparent_black">#660B0D11</color>
+    <color name="md3_glass_fill">@color/neu_surface_sunken</color>
+    <color name="md3_glass_nav">@color/neu_surface_sunken</color>
+
+    <!-- Ripples -->
+    <color name="md3_ripple">#1AC8875A</color>
+    <color name="danger_ripple">#1AE05A5A</color>
+    <color name="success_ripple">#1A3DB88C</color>
+    <color name="success_gradient_start">#3DB88C</color>
+    <color name="success_gradient_end">#2E9A74</color>
+    <color name="danger_gradient_start">#E05A5A</color>
+    <color name="danger_gradient_end">#C44A4A</color>
+
+    <!-- Video / call -->
+    <color name="video_stage">#080A0E</color>
+    <color name="video_stage_soft">@color/palette_charcoal</color>
+
+    <!-- Text aliases -->
+    <color name="text_white">@color/ink_primary</color>
+    <color name="text_primary">@color/ink_primary</color>
+    <color name="text_muted">@color/ink_muted</color>
+    <color name="text_secondary">@color/ink_muted</color>
+    <color name="text_tertiary">@color/ink_whisper</color>
+    <color name="text_hint">@color/ink_whisper</color>
+    <color name="text_accent">@color/palette_crimson</color>
+    <color name="text_inverse">@color/palette_charcoal</color>
+    <color name="white">@color/ink_primary</color>
+    <color name="black">@color/palette_charcoal</color>
+
+    <!-- Legacy core -->
+    <color name="app_bg">@color/palette_charcoal</color>
+    <color name="pending">@color/neu_surface_raised</color>
+    <color name="dialog_bg">@color/neu_surface_sunken</color>
+    <color name="dialog_button_bg">@color/neu_surface_raised</color>
+    <color name="dialog_text">@color/ink_primary</color>
+
+    <!-- Material 3 -->
+    <color name="md3_primary">@color/palette_crimson</color>
+    <color name="md3_primary_dark">@color/palette_wine</color>
+    <color name="md3_on_primary">@color/ink_primary</color>
+    <color name="md3_on_primary_container">#E0A67E</color>
+
+    <color name="md3_background">@color/palette_charcoal</color>
+    <color name="md3_surface">@color/neu_surface_raised</color>
+    <color name="md3_surface_bright">@color/neu_highlight</color>
+    <color name="md3_surface_container_lowest">@color/neu_surface_sunken</color>
+    <color name="md3_surface_container_low">@color/neu_surface_sunken</color>
+    <color name="md3_surface_container">@color/neu_surface_raised</color>
+    <color name="md3_surface_container_high">@color/neu_highlight</color>
+
+    <color name="md3_on_surface">@color/ink_primary</color>
+    <color name="md3_on_surface_secondary">@color/ink_muted</color>
+    <color name="md3_on_surface_variant">@color/ink_whisper</color>
+    <color name="md3_on_background">@color/ink_primary</color>
+
+    <color name="md3_secondary">@color/ink_muted</color>
+    <color name="md3_on_secondary">@color/ink_primary</color>
+    <color name="md3_secondary_container">@color/md3_surface_variant</color>
+    <color name="md3_tertiary">@color/ink_whisper</color>
+
+    <color name="md3_error">@color/danger</color>
+    <color name="md3_on_error">@color/ink_primary</color>
+    <color name="md3_border_glow">@color/brand_red_glow</color>
+    <color name="md3_neon_glow">@color/brand_red_glow</color>
+
+    <!-- Dialog buttons -->
+    <color name="dialog_button_filled_text">@color/ink_primary</color>
+    <color name="dialog_button_secondary_text">@color/ink_primary</color>
+    <color name="dialog_button_destructive_text">@color/ink_primary</color>
+    <color name="dialog_button_accent_text">@color/palette_crimson</color>
+
+    <!-- App aliases -->
+    <color name="button_normal_bg">@color/palette_crimson</color>
+    <color name="brand_red">@color/palette_crimson</color>
+    <color name="primary_color">@color/palette_crimson</color>
+    <color name="primary_light">@color/brand_red_light</color>
+    <color name="primary_dark">@color/palette_wine</color>
+
+    <color name="background_primary">@color/palette_charcoal</color>
+    <color name="background_secondary">@color/neu_surface_raised</color>
+    <color name="background_tertiary">@color/neu_highlight</color>
+    <color name="background_card">@color/neu_surface_raised</color>
+    <color name="background_light">@color/neu_highlight</color>
+
+    <color name="surface_primary">@color/neu_surface_raised</color>
+    <color name="surface_secondary">@color/neu_highlight</color>
+
+    <color name="border_light">@color/md3_border_subtle</color>
+    <color name="border_medium">@color/md3_outline_variant</color>
+    <color name="border_dark">@color/md3_outline</color>
+    <color name="border_primary">@color/md3_outline_variant</color>
+    <color name="border_secondary">@color/md3_outline</color>
+    <color name="border_focus">@color/palette_crimson</color>
+
+    <color name="chat_bubble_sent">@color/my_message_bg</color>
+    <color name="chat_bubble_sent_soft">@color/my_message_bg</color>
+    <color name="chat_bubble_received">@color/other_message_bg</color>
+    <color name="chat_text_sent">@color/ink_primary</color>
+    <color name="chat_text_received">@color/ink_primary</color>
+
+    <color name="success_color">@color/accept</color>
+    <color name="error_color">@color/danger</color>
+    <color name="info_color">@color/palette_crimson</color>
+
+    <color name="call_accept">@color/accept</color>
+    <color name="call_decline">@color/danger</color>
+
+    <color name="secondary_color">@color/brand_red_light</color>
+    <color name="secondary_dark">@color/palette_wine</color>
+
+    <color name="gradient_start">@color/palette_crimson</color>
+    <color name="gradient_end">@color/palette_wine</color>
+
+    <!-- Icons -->
+    <color name="icon_active">@color/palette_crimson</color>
+    <color name="icon_active_filled">@color/ink_primary</color>
+    <color name="icon_inactive">@color/ink_whisper</color>
+    <color name="icon_inactive_accent">@color/ink_whisper</color>
+    <color name="icon_primary">@color/palette_crimson</color>
+    <color name="icon_primary_action">@color/palette_crimson</color>
+    <color name="icon_utility">@color/ink_muted</color>
+    <color name="icon_utility_dark">@color/ink_primary</color>
+    <color name="icon_white">@color/ink_primary</color>
+    <color name="icon_like">@color/palette_crimson</color>
+    <color name="icon_like_active">@color/palette_crimson</color>
+    <color name="icon_love">@color/danger</color>
+    <color name="icon_comment">@color/palette_crimson</color>
+    <color name="icon_share">@color/ink_muted</color>
+    <color name="icon_success">@color/accept</color>
+    <color name="icon_primary_brand">@color/palette_crimson</color>
+    <color name="icon_secondary_accent">@color/ink_muted</color>
+    <color name="icon_tertiary_accent">@color/ink_whisper</color>
+    <color name="icon_background_reference">@color/neu_surface_sunken</color>
+    <color name="icon_search">@color/ink_muted</color>
+    <color name="icon_settings">@color/ink_muted</color>
+    <color name="icon_close">@color/ink_muted</color>
+    <color name="icon_more">@color/ink_muted</color>
+    <color name="icon_photo">@color/palette_crimson</color>
+    <color name="icon_video">@color/palette_crimson</color>
+    <color name="icon_location">@color/ink_muted</color>
+    <color name="icon_tag">@color/palette_crimson</color>
+    <color name="icon_live">@color/danger</color>
+
+    <color name="schemes_surface_container_lowest">@color/neu_surface_sunken</color>
+    <color name="schemes_on_surface">@color/ink_primary</color>
+    <color name="grey_f6f6f6">@color/neu_highlight</color>
+
+    <color name="green">@color/accept</color>
+    <color name="red">@color/danger</color>
+    <color name="light_gray">@color/ink_muted</color>
+    <color name="gray">@color/ink_muted</color>
+    <color name="blue">@color/palette_crimson</color>
+
+    <!-- Neumorphic Copper (canonical tokens — Home reference) -->
+    <!-- Image canvas tint over void; void base is canvas_void / palette_charcoal -->
+    <color name="neu_copper_canvas">#1E2124</color>
+    <color name="neu_copper_surface">#262A2E</color>
+    <color name="neu_copper_sunken">#181B1E</color>
+    <color name="neu_copper_highlight">#33FFFFFF</color>
+    <color name="neu_copper_shadow">#66000000</color>
+    <color name="neu_copper_accent">#C8875A</color>
+    <color name="neu_copper_accent_dark">#A66D45</color>
+    <color name="neu_copper_accent_light">#E0A67E</color>
+    <color name="neu_copper_ink">#FFFFFF</color>
+    <color name="neu_copper_ink_muted">#A8B0BA</color>
+    <color name="neu_copper_divider">#2A2E33</color>
+    <!-- Legacy aliases -->
+    <color name="neu_red_canvas">@color/neu_copper_canvas</color>
+    <color name="neu_red_surface">@color/neu_copper_surface</color>
+    <color name="neu_red_sunken">@color/neu_copper_sunken</color>
+    <color name="neu_red_highlight">@color/neu_copper_highlight</color>
+    <color name="neu_red_shadow">@color/neu_copper_shadow</color>
+    <color name="neu_red_accent">@color/neu_copper_accent</color>
+    <color name="neu_red_accent_dark">@color/neu_copper_accent_dark</color>
+    <color name="neu_red_accent_light">@color/neu_copper_accent_light</color>
+    <color name="neu_red_ink">@color/neu_copper_ink</color>
+    <color name="neu_red_ink_muted">@color/neu_copper_ink_muted</color>
+    <color name="neu_red_divider">@color/neu_copper_divider</color>
+
+    <!-- Neumorphic emboss (shadow top / highlight bottom / face gradient) -->
+    <color name="neu_emboss_shadow">#111722</color>
+    <color name="neu_emboss_highlight">#394252</color>
+    <color name="neu_emboss_face_start">#2F3745</color>
+    <color name="neu_emboss_face_end">#1E2530</color>
+    <color name="neu_emboss_sunken_start">#1A2028</color>
+    <color name="neu_emboss_sunken_end">#12161C</color>
+
+    <!-- Sent bubble ink (WCAG AA on copper gradient face) -->
+    <color name="bubble_sent_ink">@color/palette_charcoal</color>
+    <color name="bubble_sent_ink_muted">#4A3828</color>
+    <color name="canvas_void">@color/palette_charcoal</color>
+
+</resources>

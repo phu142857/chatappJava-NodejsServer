@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- outer shadow -->
+    <item android:top="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_pill" />
+            <solid android:color="@color/neu_emboss_shadow" />
+        </shape>
+    </item>
+
+    <!-- top highlight -->
+    <item android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_pill" />
+            <solid android:color="@color/neu_emboss_highlight" />
+        </shape>
+    </item>
+
+    <!-- raised face -->
+    <item
+        android:bottom="1dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_pill" />
+            <gradient
+                android:angle="90"
+                android:endColor="@color/neu_emboss_face_end"
+                android:startColor="@color/neu_emboss_face_start"
+                android:type="linear" />
+        </shape>
+    </item>
+
+</layer-list>

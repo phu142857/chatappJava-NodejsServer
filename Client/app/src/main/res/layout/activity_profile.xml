@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_chat_screen_dark">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.12"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/header_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <include
+                android:id="@+id/profile_toolbar"
+                layout="@layout/component_neu_toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/tv_save"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/touch_target_min"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="@dimen/margin_mobile"
+                android:minWidth="76dp"
+                android:contentDescription="@string/profile_save_cd"
+                android:gravity="center"
+                android:text="@string/save"
+                android:textSize="@dimen/text_body_medium"
+                android:textStyle="bold"
+                android:textColor="@color/neu_copper_ink"
+                android:background="@drawable/bg_neu_copper_fab"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Profile Content -->
+    <LinearLayout
+        android:id="@+id/profile_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="@dimen/spacing_md"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:clipToPadding="false"
+            android:overScrollMode="never">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_soft_inset"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingTop="@dimen/spacing_lg"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:paddingBottom="@dimen/spacing_lg">
+
+                <!-- Avatar Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginBottom="@dimen/screen_edge_inset">
+
+                    <de.hdodenhof.circleimageview.CircleImageView
+                        android:id="@+id/civ_avatar"
+                        android:layout_width="106dp"
+                        android:layout_height="106dp"
+                        android:src="@drawable/ic_profile_placeholder"
+                        app:civ_border_width="2dp"
+                        app:civ_border_color="@color/md3_border_glow" />
+
+                    <TextView
+                        android:id="@+id/tv_change_avatar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center"
+                        android:text="@string/change_avatar"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_white"
+                        android:background="@drawable/bg_icon_circle_transparent"
+                        android:paddingStart="@dimen/dialog_padding_h"
+                        android:paddingEnd="@dimen/dialog_padding_h"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                </LinearLayout>
+
+                <!-- Username Field -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/username"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/input_field_height"
+                    android:layout_marginBottom="@dimen/spacing_md"
+                    android:inputType="text"
+                    android:background="@drawable/bg_soft_inset"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textColorHint="@color/neu_copper_ink_muted"
+                    android:textCursorDrawable="@null"
+                    android:textSize="15sp" />
+
+                <!-- First Name Field -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/first_name"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_first_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/input_field_height"
+                    android:layout_marginBottom="@dimen/spacing_md"
+                    android:inputType="textPersonName"
+                    android:background="@drawable/bg_soft_inset"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textColorHint="@color/neu_copper_ink_muted"
+                    android:textCursorDrawable="@null"
+                    android:textSize="15sp" />
+
+                <!-- Last Name Field -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/last_name"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_last_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/input_field_height"
+                    android:layout_marginBottom="@dimen/spacing_md"
+                    android:inputType="textPersonName"
+                    android:background="@drawable/bg_soft_inset"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textColorHint="@color/neu_copper_ink_muted"
+                    android:textCursorDrawable="@null"
+                    android:textSize="15sp" />
+
+                <!-- Phone Number Field -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/phone_number"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_phone_number"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/input_field_height"
+                    android:layout_marginBottom="@dimen/spacing_md"
+                    android:inputType="phone"
+                    android:background="@drawable/bg_soft_inset"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textColorHint="@color/neu_copper_ink_muted"
+                    android:textCursorDrawable="@null"
+                    android:textSize="15sp" />
+
+                <!-- Bio Field -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/bio"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/et_bio"
+                    android:layout_width="match_parent"
+                    android:layout_height="96dp"
+                    android:layout_marginBottom="@dimen/screen_edge_inset"
+                    android:inputType="textMultiLine"
+                    android:gravity="top|start"
+                    android:background="@drawable/bg_soft_inset"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingStart="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="14dp"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textColorHint="@color/neu_copper_ink_muted"
+                    android:textCursorDrawable="@null"
+                    android:textSize="15sp" />
+
+                <!-- Friends Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_friends_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_friends"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink"
+                        android:layout_marginBottom="8dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_friends"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:clipToPadding="false"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:scrollbars="none" />
+
+                    <TextView
+                        android:id="@+id/tv_no_friends"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/empty_friends_title"
+                        android:textSize="14sp"
+                        android:textColor="@color/neu_copper_ink_muted"
+                        android:visibility="gone"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+
+                <!-- Posts Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_posts_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_posts"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink"
+                        android:layout_marginBottom="8dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_posts"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:clipToPadding="false"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:scrollbars="none" />
+
+                    <TextView
+                        android:id="@+id/tv_no_posts"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/empty_posts_title"
+                        android:textSize="14sp"
+                        android:textColor="@color/neu_copper_ink_muted"
+                        android:visibility="gone"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </ScrollView>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/spacing_xs"
+    android:layout_marginBottom="@dimen/spacing_xs"
+    android:background="@drawable/bg_soft_inset"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:padding="@dimen/bubble_padding_h">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="@dimen/chat_messages_margin_top">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_embedded_avatar"
+            android:layout_width="@dimen/avatar_sm"
+            android:layout_height="@dimen/avatar_sm"
+            android:contentDescription="@string/home_create_post_avatar_cd"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/md3_border_subtle"
+            app:civ_border_width="@dimen/avatar_border_width_sm" />
+
+        <TextView
+            android:id="@+id/tv_embedded_username"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/md3_on_surface"
+            android:textSize="@dimen/text_body_medium"
+            android:textStyle="bold"
+            tools:text="Original author" />
+
+        <ImageView
+            android:id="@+id/iv_embedded_arrow"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:clickable="true"
+            android:contentDescription="@string/post_view_original_cd"
+            android:focusable="true"
+            android:padding="@dimen/spacing_xs"
+            android:src="@drawable/ic_arrow_right"
+            app:tint="@color/md3_primary" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_embedded_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:lineSpacingExtra="@dimen/post_content_line_spacing"
+        android:paddingBottom="@dimen/chat_messages_margin_top"
+        android:text=""
+        android:textColor="@color/md3_on_surface"
+        android:textSize="@dimen/text_body_medium"
+        tools:text="Original post content" />
+
+    <FrameLayout
+        android:id="@+id/fl_embedded_media"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/video_stage"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:minHeight="@dimen/post_media_min_height"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/iv_embedded_image"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:minHeight="@dimen/post_media_min_height"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/fl_embedded_video"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/video_stage"
+            android:minHeight="@dimen/post_video_min_height"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/iv_embedded_video_thumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:minHeight="@dimen/post_video_min_height"
+                android:scaleType="centerCrop" />
+
+            <ImageButton
+                android:id="@+id/iv_embedded_video_play"
+                android:layout_width="@dimen/post_play_button_size"
+                android:layout_height="@dimen/post_play_button_size"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_send_circle_modern"
+                android:contentDescription="@string/post_play_video_cd"
+                android:padding="@dimen/post_play_button_padding"
+                android:src="@drawable/ic_play"
+                app:tint="@color/md3_on_surface" />
+
+        </FrameLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

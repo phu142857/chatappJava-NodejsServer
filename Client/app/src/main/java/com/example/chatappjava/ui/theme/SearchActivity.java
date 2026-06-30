@@ -1,0 +1,1704 @@
+package com.example.chatappjava.ui.theme;
+
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.example.chatappjava.R;
+import com.example.chatappjava.adapters.UserSearchAdapter;
+import com.example.chatappjava.adapters.GroupSearchAdapter;
+import com.example.chatappjava.models.Chat;
+import com.example.chatappjava.models.User;
+import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.utils.DatabaseManager;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+
+public class SearchActivity extends AppCompatActivity implements UserSearchAdapter.OnUserClickListener, GroupSearchAdapter.OnGroupClickListener {
+    
+    private EditText etSearch;
+    private ImageView ivBack, ivClear;
+    private RecyclerView rvSearchResults;
+    private View listSkeleton;
+    private LinearLayout tvNoResults, tvSearchHint;
+    private TextView tvNoResultsTitle;
+    private TextView tabUsers, tabGroups, tabDiscover, tabPosts;
+    private HorizontalScrollView filtersContainer;
+    private TextView filterFriends, filterMedia, filterHashtag, filterDate;
+    
+    private ApiClient apiClient;
+    private DatabaseManager sharedPrefsManager;
+    private UserSearchAdapter userAdapter;
+    private GroupSearchAdapter groupAdapter;
+    private com.example.chatappjava.adapters.PostSearchAdapter postSearchAdapter;
+    private List<User> searchResults;
+    private List<Chat> groupResults;
+    private List<com.example.chatappjava.models.Post> postResults;
+    
+    private String mode; // "add_members", "forward" or null for normal search
+    private String forwardContent; // for forward mode (text fallback)
+    private String forwardMessageRaw; // JSON: type/content/attachments
+    private Chat currentChat; // For add_members mode
+    private List<String> currentGroupMemberIds; // Track current group members
+    private boolean isSearchingGroups = false; // Track current search mode
+    private boolean isDiscoverGroups = false; // Discover public groups user not in
+    private boolean isSearchingPosts = false; // Track if searching posts
+    
+    // Search filters
+    private boolean filterOnlyFriends = false;
+    private boolean filterMediaOnly = false;
+    private boolean filterHashtagOnly = false;
+    private String filterDateFrom = null;
+    private String filterDateTo = null;
+    
+    // Recent search history
+    private static final String PREF_RECENT_SEARCHES = "recent_searches";
+    private static final int MAX_RECENT_SEARCHES = 10;
+    private List<String> recentSearches = new ArrayList<>();
+    private List<String> trendingKeywords = new ArrayList<>();
+    
+    private static final int SEARCH_DELAY_MS = 300; // Debounce delay for posts search
+    private Runnable searchRunnable;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_search);
+        
+        initializeViews();
+        initializeServices();
+        setupSearchFunctionality();
+        setupRecyclerView();
+        setupClickListeners();
+        setupFilters();
+        loadRecentSearches();
+        loadTrendingKeywords();
+        
+        // Set default tab to users
+        switchToUserSearch();
+    }
+    
+    private void initializeViews() {
+        etSearch = findViewById(R.id.et_search);
+        ivBack = findViewById(R.id.iv_toolbar_back);
+        ivClear = findViewById(R.id.iv_clear);
+        rvSearchResults = findViewById(R.id.rv_search_results);
+        listSkeleton = findViewById(R.id.list_skeleton);
+        tvNoResults = findViewById(R.id.tv_no_results);
+        tvSearchHint = findViewById(R.id.tv_search_hint);
+        tvNoResultsTitle = findViewById(R.id.tv_no_results_title);
+        tabUsers = findViewById(R.id.tab_users);
+        tabGroups = findViewById(R.id.tab_groups);
+        tabDiscover = findViewById(R.id.tab_discover);
+        tabPosts = findViewById(R.id.tab_posts);
+        
+        // Filter views
+        filtersContainer = findViewById(R.id.filters_container);
+        filterFriends = findViewById(R.id.filter_friends);
+        filterMedia = findViewById(R.id.filter_media);
+        filterHashtag = findViewById(R.id.filter_hashtag);
+        filterDate = findViewById(R.id.filter_date);
+    }
+    
+    private void initializeServices() {
+        apiClient = new ApiClient();
+        sharedPrefsManager = new DatabaseManager(this);
+        searchResults = new ArrayList<>();
+        groupResults = new ArrayList<>();
+        postResults = new ArrayList<>();
+        currentGroupMemberIds = new ArrayList<>();
+        
+        // Initialize post search adapter
+        postSearchAdapter = new com.example.chatappjava.adapters.PostSearchAdapter(
+            this, 
+            postResults, 
+            new com.example.chatappjava.adapters.PostSearchAdapter.OnPostSearchClickListener() {
+                @Override
+                public void onPostClick(com.example.chatappjava.models.Post post) {
+                    // Open post detail
+                    Intent intent = new Intent(SearchActivity.this, PostDetailActivity.class);
+                    try {
+                        intent.putExtra("post", post.toJson().toString());
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_open_post), Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onAuthorClick(String authorId, String authorName) {
+                    // Open author profile
+                    Intent intent = new Intent(SearchActivity.this, ProfileViewActivity.class);
+                    intent.putExtra("user", authorId);
+                    startActivity(intent);
+                }
+            }
+        );
+        
+        // Get mode and chat data from intent
+        Intent intent = getIntent();
+        mode = intent.getStringExtra("mode");
+        if ("forward".equals(mode)) {
+            forwardContent = intent.getStringExtra("forward_content");
+            forwardMessageRaw = intent.getStringExtra("forward_message");
+        }
+        if ("add_members".equals(mode) && intent.hasExtra("chat")) {
+            try {
+                LinearLayout searchTabs = findViewById(R.id.search_tabs);
+                String chatJson = intent.getStringExtra("chat");
+                JSONObject chatJsonObj = new JSONObject(chatJson);
+                currentChat = Chat.fromJson(chatJsonObj);
+                searchTabs.setVisibility(View.GONE);
+                // Load current group members to avoid showing add button for existing members
+                loadCurrentGroupMembers();
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Toast.makeText(this, getString(R.string.error_load_chat), Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+    }
+
+    private void loadCurrentGroupMembers() {
+        if (currentChat == null) return;
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) return;
+
+        // Debug logging
+        android.util.Log.d("SearchActivity", "Loading current group members for chat: " + currentChat.getName());
+        android.util.Log.d("SearchActivity", "Current chat participantIds: " + currentChat.getParticipantIds());
+        android.util.Log.d("SearchActivity", "Current chat participant count: " + currentChat.getParticipantCount());
+
+        // Use same logic as GroupMembersActivity - fetch members from server
+        apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @SuppressLint("NotifyDataSetChanged")
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("SearchActivity", "Failed to load members: " + e.getMessage());
+                    // Fallback to currentChat participantIds if available
+                    if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                        currentGroupMemberIds.clear();
+                        currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                        android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                        refreshUserListDisplay();
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleLoadMembersResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    @SuppressLint("NotifyDataSetChanged")
+    private void handleLoadMembersResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray membersArray = data.getJSONArray("members");
+                    
+                    java.util.List<String> ids = new java.util.ArrayList<>();
+                    for (int i = 0; i < membersArray.length(); i++) {
+                        JSONObject memberJson = membersArray.getJSONObject(i);
+                        android.util.Log.d("SearchActivity", "Parsing member " + i + ": " + memberJson.toString());
+                        
+                        // Extract user ID from member object (same as GroupMembersActivity)
+                        String userId = null;
+                        if (memberJson.has("user") && memberJson.get("user") instanceof JSONObject) {
+                            User user = User.fromJsonStatic(memberJson.getJSONObject("user"));
+                            userId = user.getId();
+                        } else if (memberJson.has("_id")) {
+                            userId = memberJson.optString("_id", "");
+                        } else if (memberJson.has("id")) {
+                            userId = memberJson.optString("id", "");
+                        }
+                        
+                        if (userId != null && !userId.isEmpty()) {
+                            ids.add(userId);
+                            android.util.Log.d("SearchActivity", "Added member ID: " + userId);
+                        }
+                    }
+                    
+                    android.util.Log.d("SearchActivity", "Parsed " + ids.size() + " member IDs from server");
+                    
+                    currentGroupMemberIds.clear();
+                    currentGroupMemberIds.addAll(ids);
+                    android.util.Log.d("SearchActivity", "Final currentGroupMemberIds: " + currentGroupMemberIds);
+                    
+                    refreshUserListDisplay();
+                    
+                } else {
+                    String message = jsonResponse.optString("message", "Failed to load members");
+                    android.util.Log.e("SearchActivity", message);
+                    // Fallback to currentChat participantIds
+                    if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                        currentGroupMemberIds.clear();
+                        currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                        android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                        refreshUserListDisplay();
+                    }
+                }
+            } else {
+                android.util.Log.e("SearchActivity", "Failed to load members: " + statusCode);
+                // Fallback to currentChat participantIds
+                if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                    currentGroupMemberIds.clear();
+                    currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                    android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                    refreshUserListDisplay();
+                }
+            }
+        } catch (JSONException e) {
+            android.util.Log.e("SearchActivity", "Error parsing members data: " + e.getMessage());
+            // Fallback to currentChat participantIds
+            if (currentChat.getParticipantIds() != null && !currentChat.getParticipantIds().isEmpty()) {
+                currentGroupMemberIds.clear();
+                currentGroupMemberIds.addAll(currentChat.getParticipantIds());
+                android.util.Log.d("SearchActivity", "Using fallback participantIds: " + currentGroupMemberIds);
+                refreshUserListDisplay();
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh members list when returning to screen to avoid stale "Already a Member" status
+        if ("add_members".equals(mode)) {
+            loadCurrentGroupMembers();
+
+        }
+    }
+    
+    private void setupSearchFunctionality() {
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Cancel previous search
+                if (searchRunnable != null) {
+                    etSearch.removeCallbacks(searchRunnable);
+                }
+                
+                // Update clear button visibility
+                ivClear.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+                
+                // For group tabs: show immediately (no min length on client; server requires >=2)
+                if (isSearchingGroups) {
+                    searchRunnable = () -> performSearch(s.toString().trim());
+                    etSearch.postDelayed(searchRunnable, SEARCH_DELAY_MS);
+                    return;
+                }
+                
+                // For posts: debounce with shorter delay
+                if (isSearchingPosts) {
+                    if (searchRunnable != null) {
+                        etSearch.removeCallbacks(searchRunnable);
+                    }
+                    searchRunnable = () -> performSearch(s.toString().trim());
+                    etSearch.postDelayed(searchRunnable, SEARCH_DELAY_MS);
+                    return;
+                }
+                
+                if (s.length() == 0) {
+                    clearSearchResults();
+                    return;
+                }
+                
+                // Users: require minimal length
+                searchRunnable = () -> performSearch(s.toString().trim());
+                etSearch.postDelayed(searchRunnable, SEARCH_DELAY_MS);
+            }
+            
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+    }
+    
+    private void setupRecyclerView() {
+        userAdapter = new UserSearchAdapter(this, searchResults, this, mode, currentGroupMemberIds);
+        groupAdapter = new GroupSearchAdapter(this, groupResults);
+        groupAdapter.setOnGroupClickListener(this);
+        
+        rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
+        rvSearchResults.setAdapter(userAdapter); // Start with user adapter
+        // Forward mode: ensure groups tab shows Forward button
+        groupAdapter.setForwardMode("forward".equals(mode));
+    }
+
+    private void refreshUserListDisplay() {
+        if (userAdapter == null) {
+            return;
+        }
+        int count = userAdapter.getItemCount();
+        if (count > 0) {
+            userAdapter.notifyItemRangeChanged(0, count);
+        }
+    }
+
+    private void refreshGroupListDisplay() {
+        if (groupAdapter == null) {
+            return;
+        }
+        int count = groupAdapter.getItemCount();
+        if (count > 0) {
+            groupAdapter.notifyItemRangeChanged(0, count);
+        }
+    }
+
+    private void setupClickListeners() {
+        ivBack.setOnClickListener(v -> finish());
+        
+        ivClear.setOnClickListener(v -> {
+            etSearch.setText("");
+            etSearch.requestFocus();
+            if (isSearchingGroups) {
+                // Reset list to all groups when clearing query
+                groupAdapter.updateGroups(groupResults);
+                updateResultsVisibility();
+            }
+        });
+        
+        // Tab click listeners
+        tabUsers.setOnClickListener(v -> switchToUserSearch());
+        
+        tabGroups.setOnClickListener(v -> switchToGroupSearch());
+        
+        if (tabDiscover != null) {
+            tabDiscover.setOnClickListener(v -> switchToDiscoverGroups());
+        }
+        
+        if (tabPosts != null) {
+            tabPosts.setOnClickListener(v -> switchToPostSearch());
+        }
+        
+        // Filter click listeners
+        if (filterFriends != null) {
+            filterFriends.setOnClickListener(v -> toggleFilterFriends());
+        }
+        if (filterMedia != null) {
+            filterMedia.setOnClickListener(v -> toggleFilterMedia());
+        }
+        if (filterHashtag != null) {
+            filterHashtag.setOnClickListener(v -> toggleFilterHashtag());
+        }
+        if (filterDate != null) {
+            filterDate.setOnClickListener(v -> showDateRangePicker());
+        }
+        
+        // Focus on search field when activity starts
+        etSearch.requestFocus();
+    }
+    
+    private void setupFilters() {
+        // Filters are only visible for Posts tab
+        updateFiltersVisibility();
+    }
+    
+    private void updateFiltersVisibility() {
+        if (filtersContainer != null) {
+            filtersContainer.setVisibility(isSearchingPosts ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    private void toggleFilterFriends() {
+        if (!isSearchingPosts) return;
+        filterOnlyFriends = !filterOnlyFriends;
+        if (filterFriends != null) {
+            filterFriends.setSelected(filterOnlyFriends);
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void toggleFilterMedia() {
+        if (!isSearchingPosts) return;
+        filterMediaOnly = !filterMediaOnly;
+        if (filterMedia != null) {
+            filterMedia.setSelected(filterMediaOnly);
+        }
+        // If media is selected, hashtag should be deselected
+        if (filterMediaOnly && filterHashtagOnly) {
+            filterHashtagOnly = false;
+            if (filterHashtag != null) {
+                filterHashtag.setSelected(false);
+            }
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void toggleFilterHashtag() {
+        if (!isSearchingPosts) return;
+        filterHashtagOnly = !filterHashtagOnly;
+        if (filterHashtag != null) {
+            filterHashtag.setSelected(filterHashtagOnly);
+        }
+        // If hashtag is selected, media should be deselected
+        if (filterHashtagOnly && filterMediaOnly) {
+            filterMediaOnly = false;
+            if (filterMedia != null) {
+                filterMedia.setSelected(false);
+            }
+        }
+        performSearchWithCurrentQuery();
+    }
+    
+    private void showDateRangePicker() {
+        if (!isSearchingPosts) return;
+        // Show date range picker dialog
+        android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(
+            this,
+            (view, year, month, dayOfMonth) -> {
+                java.util.Calendar calendar = java.util.Calendar.getInstance();
+                calendar.set(year, month, dayOfMonth);
+                filterDateFrom = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(calendar.getTime());
+                
+                // Show second date picker for end date
+                new android.app.DatePickerDialog(
+                    this,
+                    (view2, year2, month2, dayOfMonth2) -> {
+                        java.util.Calendar calendar2 = java.util.Calendar.getInstance();
+                        calendar2.set(year2, month2, dayOfMonth2);
+                        filterDateTo = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(calendar2.getTime());
+                        
+                        if (filterDate != null) {
+                            filterDate.setSelected(true);
+                            filterDate.setText(getString(R.string.search_filter_date_range, filterDateFrom, filterDateTo));
+                        }
+                        performSearchWithCurrentQuery();
+                    },
+                    year, month, dayOfMonth
+                ).show();
+            },
+            java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
+            java.util.Calendar.getInstance().get(java.util.Calendar.MONTH),
+            java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
+    }
+    
+    private void performSearchWithCurrentQuery() {
+        String query = etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+        if (!query.isEmpty()) {
+            performSearch(query);
+        }
+    }
+    
+    private void switchToUserSearch() {
+        isSearchingGroups = false;
+        isDiscoverGroups = false;
+        isSearchingPosts = false;
+        tabUsers.setSelected(true);
+        tabGroups.setSelected(false);
+        if (tabDiscover != null) tabDiscover.setSelected(false);
+        if (tabPosts != null) tabPosts.setSelected(false);
+        rvSearchResults.setAdapter(userAdapter);
+        clearSearchResults();
+        etSearch.setHint("Search users...");
+        updateFiltersVisibility();
+        resetFilters();
+    }
+    
+    private void switchToGroupSearch() {
+        isSearchingGroups = true;
+        isDiscoverGroups = false;
+        tabUsers.setSelected(false);
+        tabGroups.setSelected(true);
+        if (tabDiscover != null) tabDiscover.setSelected(false);
+        rvSearchResults.setAdapter(groupAdapter);
+        groupAdapter.setDiscoverMode(false);
+        groupAdapter.setForwardMode("forward".equals(mode));
+        // Do not clear results after load finishes; show loading then populate
+        etSearch.setHint("Search groups...");
+        loadUserGroups(); // Load user's groups when switching to group search
+    }
+
+    private void switchToDiscoverGroups() {
+        isSearchingGroups = true;
+        isDiscoverGroups = true;
+        isSearchingPosts = false;
+        tabUsers.setSelected(false);
+        tabGroups.setSelected(false);
+        if (tabDiscover != null) tabDiscover.setSelected(true);
+        if (tabPosts != null) tabPosts.setSelected(false);
+        rvSearchResults.setAdapter(groupAdapter);
+        groupAdapter.setDiscoverMode(true);
+        groupAdapter.setForwardMode(false);
+        etSearch.setHint("Discover public groups...");
+        // Do not load or show groups until user types a search
+        groupResults.clear();
+        groupAdapter.updateGroups(groupResults);
+        updateResultsVisibility();
+    }
+    
+    private void switchToPostSearch() {
+        isSearchingGroups = false;
+        isDiscoverGroups = false;
+        isSearchingPosts = true;
+        tabUsers.setSelected(false);
+        tabGroups.setSelected(false);
+        if (tabDiscover != null) tabDiscover.setSelected(false);
+        if (tabPosts != null) tabPosts.setSelected(true);
+        rvSearchResults.setAdapter(postSearchAdapter);
+        clearSearchResults();
+        etSearch.setHint("Search posts, captions, hashtags...");
+        updateFiltersVisibility();
+        showRecentSearchesOrTrending();
+    }
+    
+    private void resetFilters() {
+        filterOnlyFriends = false;
+        filterMediaOnly = false;
+        filterHashtagOnly = false;
+        filterDateFrom = null;
+        filterDateTo = null;
+        
+        if (filterFriends != null) filterFriends.setSelected(false);
+        if (filterMedia != null) filterMedia.setSelected(false);
+        if (filterHashtag != null) filterHashtag.setSelected(false);
+        if (filterDate != null) {
+            filterDate.setSelected(false);
+            filterDate.setText(getString(R.string.search_filter_date));
+        }
+    }
+    
+    private void showRecentSearchesOrTrending() {
+        // Show recent searches or trending keywords when search field is empty
+        String query = etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+        if (query.isEmpty()) {
+            // Display recent searches or trending keywords
+            // This can be implemented as a RecyclerView with suggestions
+        }
+    }
+    
+    private void loadRecentSearches() {
+        android.content.SharedPreferences prefs = getSharedPreferences("SearchPrefs", MODE_PRIVATE);
+        String recentSearchesJson = prefs.getString(PREF_RECENT_SEARCHES, "[]");
+        try {
+            JSONArray array = new JSONArray(recentSearchesJson);
+            recentSearches.clear();
+            for (int i = 0; i < array.length(); i++) {
+                recentSearches.add(array.getString(i));
+            }
+        } catch (JSONException e) {
+            recentSearches.clear();
+        }
+    }
+    
+    private void saveRecentSearch(String query) {
+        if (query == null || query.trim().isEmpty() || !isSearchingPosts) {
+            return;
+        }
+        
+        String trimmedQuery = query.trim();
+        
+        // Remove if already exists
+        recentSearches.remove(trimmedQuery);
+        
+        // Add to front
+        recentSearches.add(0, trimmedQuery);
+        
+        // Keep only last MAX_RECENT_SEARCHES
+        if (recentSearches.size() > MAX_RECENT_SEARCHES) {
+            recentSearches = new ArrayList<>(recentSearches.subList(0, MAX_RECENT_SEARCHES));
+        }
+        
+        // Save to SharedPreferences
+        try {
+            JSONArray array = new JSONArray();
+            for (String search : recentSearches) {
+                array.put(search);
+            }
+            android.content.SharedPreferences prefs = getSharedPreferences("SearchPrefs", MODE_PRIVATE);
+            prefs.edit()
+                .putString(PREF_RECENT_SEARCHES, array.toString())
+                .apply();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void loadTrendingKeywords() {
+        // For now, use some default trending keywords
+        // In production, this could be fetched from server
+        trendingKeywords.clear();
+        trendingKeywords.add("coffee");
+        trendingKeywords.add("travel");
+        trendingKeywords.add("food");
+        trendingKeywords.add("music");
+        trendingKeywords.add("sports");
+        trendingKeywords.add("technology");
+        trendingKeywords.add("art");
+        trendingKeywords.add("nature");
+    }
+
+    private String getCurrentQuery() {
+        return etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+    }
+
+    private void applyGroupFilterWithCurrentQuery() {
+        String q = getCurrentQuery();
+        if (q.isEmpty()) {
+            groupAdapter.updateGroups(groupResults);
+        } else {
+            List<Chat> filtered = new ArrayList<>();
+            for (Chat g : groupResults) {
+                if (g != null && g.getName() != null && g.getName().toLowerCase().contains(q.toLowerCase())) {
+                    filtered.add(g);
+                }
+            }
+            groupAdapter.updateGroups(filtered);
+        }
+        updateResultsVisibility();
+    }
+    
+    private void performSearch(String query) {
+        // Users tab: enforce min length; Groups tab: allow empty (show all) and avoid server calls for <2 chars
+        if (!isSearchingGroups && query.length() < 2) {
+            clearSearchResults();
+            return;
+        }
+        
+        if (isSearchingGroups) {
+            // My Groups: always filter locally on loaded list
+            if (!isDiscoverGroups) {
+                applyGroupFilterWithCurrentQuery();
+                return;
+            }
+
+            // Discover: require minimum query length before showing anything
+            if (query.length() < 2) {
+                // Hide list and show hint until user types enough
+                groupAdapter.updateGroups(new ArrayList<>());
+                updateResultsVisibility();
+                return;
+            }
+
+            // If not yet loaded public groups, load then filter by current query
+            if (groupResults == null || groupResults.isEmpty()) {
+                loadDiscoverGroups();
+            } else {
+                applyGroupFilterWithCurrentQuery();
+            }
+            return;
+        }
+        
+        if (isSearchingPosts) {
+            // Search posts
+            if (query.length() < 2) {
+                clearSearchResults();
+                return;
+            }
+            showLoading(true);
+            String token = sharedPrefsManager.getToken();
+            if (token == null) {
+                Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+            searchPosts(token, query);
+            return;
+        }
+        
+        showLoading(true);
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        // Search users
+        searchUsers(token, query);
+    }
+    
+    private void searchUsers(String token, String query) {
+        // Create search URL with query parameter
+        String searchUrl = "/api/users/search?q=" + query;
+        
+        apiClient.authenticatedGet(searchUrl, token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showLoading(false);
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_search_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showLoading(false);
+                        handleSearchResponse(response.code(), responseBody);
+                    }
+                });
+            }
+        });
+    }
+
+    // Search groups on server (both public and non-public), then filter by membership
+    private void searchGroupsServer(String token, String query) {
+        showLoading(true);
+        String endpoint = "/api/groups/search?q=" + query;
+        apiClient.authenticatedGet(endpoint, token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, getString(R.string.error_group_search_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> handleGroupSearchResponse(response.code(), responseBody));
+            }
+        });
+    }
+
+    private void handleGroupSearchResponse(int statusCode, String responseBody) {
+        showLoading(false);
+        try {
+            if (statusCode == 200) {
+                JSONObject json = new JSONObject(responseBody);
+                if (json.optBoolean("success", false)) {
+                    // Response might be {data: {groups: [...]}} or {data: {chats: [...]}}
+                    JSONObject data = json.getJSONObject("data");
+                    JSONArray arr = null;
+                    if (data.has("groups")) arr = data.getJSONArray("groups");
+                    if (arr == null && data.has("chats")) arr = data.getJSONArray("chats");
+                    List<Chat> results = new ArrayList<>();
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject g = arr.getJSONObject(i);
+                            Chat chat = Chat.fromJson(g);
+                            if (!chat.isGroupChat()) continue;
+                            String myId = sharedPrefsManager.getUserId();
+                            boolean isMember = chat.getParticipantIds().contains(myId);
+                            if (isDiscoverGroups) {
+                                if (!isMember) results.add(chat);
+                            } else {
+                                if (isMember) results.add(chat);
+                            }
+                        }
+                    }
+                    groupResults.clear();
+                    groupResults.addAll(results);
+                    applyGroupFilterWithCurrentQuery();
+                } else {
+                    Toast.makeText(this, getString(R.string.error_group_search), Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                finish();
+            } else {
+                Toast.makeText(this, getString(R.string.error_group_search), Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_parse_search_results), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private void handleSearchResponse(int statusCode, String responseBody) {
+        try {
+            // Log response for debugging
+            System.out.println("Search Response Code: " + statusCode);
+            System.out.println("Search Response Body: " + responseBody);
+            
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            
+            if (statusCode == 200) {
+                // Server returns: { "success": true, "data": { "users": [...] } }
+                JSONObject data = jsonResponse.getJSONObject("data");
+                JSONArray usersArray = data.getJSONArray("users");
+                java.util.ArrayList<User> users = new java.util.ArrayList<>();
+                for (int i = 0; i < usersArray.length(); i++) {
+                    JSONObject userJson = usersArray.getJSONObject(i);
+                    User user = User.fromJsonStatic(userJson);
+                    if (!user.getId().equals(sharedPrefsManager.getUserId())) {
+                        users.add(user);
+                    }
+                }
+                replaceUserSearchResults(users);
+                updateResultsVisibility();
+                
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                // Redirect to login
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+                
+            } else {
+                String message = jsonResponse.optString("message", "Search failed");
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_process_search), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void createChatWithUser(User user) {
+        showLoading(true);
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        try {
+            JSONObject chatData = new JSONObject();
+            chatData.put("participantId", user.getId());
+            chatData.put("type", "private"); // private chat
+            
+            apiClient.createChat(token, chatData, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showLoading(false);
+                            Toast.makeText(SearchActivity.this, getString(R.string.error_create_chat, e.getMessage()), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body().string();
+                    
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showLoading(false);
+                            handleCreateChatResponse(response.code(), responseBody, user);
+                        }
+                    });
+                }
+            });
+            
+        } catch (JSONException e) {
+            showLoading(false);
+            Toast.makeText(this, getString(R.string.error_create_chat_request), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void handleCreateChatResponse(int statusCode, String responseBody, User user) {
+        try {
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            
+            if (statusCode == 200 || statusCode == 201) {
+                Toast.makeText(this, getString(R.string.chat_created_with, user.getDisplayName()), Toast.LENGTH_SHORT).show();
+                
+                // Open private chat activity
+                Intent intent = new Intent(this, PrivateChatActivity.class);
+                intent.putExtra("user", user.toJson().toString());
+                
+                // Add chat data if available
+                JSONObject data = jsonResponse.getJSONObject("data");
+                if (data.has("chat")) {
+                    intent.putExtra("chat", data.getJSONObject("chat").toString());
+                }
+                
+                startActivity(intent);
+                finish();
+                
+            } else {
+                String message = jsonResponse.optString("message", "Failed to create chat");
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (JSONException e) {
+            Toast.makeText(this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showUserProfile(User user) {
+        // TODO: Implement user profile view
+        Toast.makeText(this, getString(R.string.info_profile_detail, user.getDisplayName(), user.getEmail()), Toast.LENGTH_LONG).show();
+    }
+    
+    
+    private void showLoading(boolean show) {
+        com.example.chatappjava.utils.SkeletonHelper.setListLoading(listSkeleton, show);
+        if (show) {
+            tvNoResults.setVisibility(View.GONE);
+            tvSearchHint.setVisibility(View.GONE);
+        } else {
+            updateResultsVisibility();
+        }
+    }
+    
+    @SuppressLint("SetTextI18n")
+    private void updateResultsVisibility() {
+        int itemCount = 0;
+        RecyclerView.Adapter<?> adapter = rvSearchResults.getAdapter();
+        if (adapter != null) {
+            itemCount = adapter.getItemCount();
+        }
+        boolean hasResults = itemCount > 0;
+        
+        if (!hasResults) {
+            String searchQuery = etSearch.getText().toString().trim();
+            if (searchQuery.isEmpty()) {
+                tvSearchHint.setVisibility(View.VISIBLE);
+                tvNoResults.setVisibility(View.GONE);
+            } else {
+                tvSearchHint.setVisibility(View.GONE);
+                tvNoResults.setVisibility(View.VISIBLE);
+                String searchType;
+                if (isSearchingPosts) {
+                    searchType = getString(R.string.search_type_posts);
+                } else if (isSearchingGroups) {
+                    searchType = isDiscoverGroups
+                            ? getString(R.string.search_type_public_groups)
+                            : getString(R.string.search_type_your_groups);
+                } else {
+                    searchType = getString(R.string.search_type_users);
+                }
+                tvNoResultsTitle.setText(getString(R.string.search_no_results_for, searchType, searchQuery));
+            }
+            rvSearchResults.setVisibility(View.GONE);
+        } else {
+            tvSearchHint.setVisibility(View.GONE);
+            tvNoResults.setVisibility(View.GONE);
+            rvSearchResults.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    private void clearSearchResults() {
+        if (isSearchingPosts) {
+            int oldSize = postResults.size();
+            postResults.clear();
+            if (postSearchAdapter != null && oldSize > 0) {
+                postSearchAdapter.notifyItemRangeRemoved(0, oldSize);
+            }
+        } else if (isSearchingGroups) {
+            int oldSize = groupResults.size();
+            groupResults.clear();
+            if (groupAdapter != null && oldSize > 0) {
+                groupAdapter.notifyItemRangeRemoved(0, oldSize);
+            }
+        } else {
+            int oldSize = searchResults.size();
+            searchResults.clear();
+            if (userAdapter != null && oldSize > 0) {
+                userAdapter.notifyItemRangeRemoved(0, oldSize);
+            }
+        }
+        updateResultsVisibility();
+    }
+
+    private void replaceUserSearchResults(java.util.List<User> users) {
+        int oldSize = searchResults.size();
+        searchResults.clear();
+        searchResults.addAll(users);
+        if (userAdapter == null) {
+            return;
+        }
+        int newSize = searchResults.size();
+        if (oldSize > newSize) {
+            userAdapter.notifyItemRangeRemoved(newSize, oldSize - newSize);
+        }
+        if (newSize > oldSize) {
+            userAdapter.notifyItemRangeInserted(oldSize, newSize - oldSize);
+        }
+        int overlap = Math.min(oldSize, newSize);
+        if (overlap > 0) {
+            userAdapter.notifyItemRangeChanged(0, overlap);
+        }
+    }
+
+    // UserSearchAdapter.OnUserClickListener implementations
+    @Override
+    public void onUserClick(User user) {
+        if ("add_members".equals(mode)) {
+            addMemberToGroup(user);
+        } else if ("forward".equals(mode)) {
+            // Create/open chat like normal, but pass forward_content so BaseChatActivity can send it
+            createChatWithUserForward(user);
+        } else {
+            createChatWithUser(user);
+        }
+    }
+
+    private void createChatWithUserForward(User user) {
+        showLoading(true);
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        try {
+            JSONObject chatData = new JSONObject();
+            chatData.put("participantId", user.getId());
+            chatData.put("type", "private");
+
+            apiClient.createChat(token, chatData, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_create_chat, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        handleCreateChatResponseForward(response.code(), responseBody, user);
+                    });
+                }
+            });
+
+        } catch (JSONException e) {
+            showLoading(false);
+            Toast.makeText(this, getString(R.string.error_create_chat_request), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private void handleCreateChatResponseForward(int statusCode, String responseBody, User user) {
+        try {
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            if (statusCode == 200 || statusCode == 201) {
+                Intent intent = new Intent(this, PrivateChatActivity.class);
+                intent.putExtra("user", user.toJson().toString());
+                JSONObject data = jsonResponse.getJSONObject("data");
+                if (data.has("chat")) {
+                    intent.putExtra("chat", data.getJSONObject("chat").toString());
+                }
+                if (forwardMessageRaw != null) intent.putExtra("forward_message", forwardMessageRaw);
+                else if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
+                startActivity(intent);
+                finish();
+            } else {
+                String message = jsonResponse.optString("message", "Failed to create chat");
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            Toast.makeText(this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onUserLongClick(User user) {
+        showUserProfile(user);
+    }
+
+    @Override
+    public void onAddFriendClick(User user) {
+        sendFriendRequest(user);
+    }
+
+    @Override
+    public void onStartChatClick(User user) {
+        createChatWithUser(user);
+    }
+
+    @Override
+    public void onRespondFriendRequest(User user, boolean accept) {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // We need friendRequestId, included from search response
+        String requestId = user.getFriendRequestId();
+        if (requestId == null || requestId.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_no_friend_request), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            JSONObject body = new JSONObject();
+            body.put("action", accept ? "accept" : "reject");
+            apiClient.respondToFriendRequest(token, requestId, accept ? "accept" : "reject", new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(() -> Toast.makeText(SearchActivity.this, getString(R.string.error_respond_request), Toast.LENGTH_SHORT).show());
+                }
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) {
+                    runOnUiThread(() -> {
+                        if (response.code() == 200) {
+                            Toast.makeText(SearchActivity.this,
+                                    accept ? getString(R.string.success_friend_request_accepted)
+                                            : getString(R.string.success_friend_request_rejected),
+                                    Toast.LENGTH_SHORT).show();
+                            // Refresh current results to reflect state
+                            String q = etSearch.getText().toString().trim();
+                            if (q.length() >= 2) performSearch(q);
+                        } else {
+                            Toast.makeText(SearchActivity.this, getString(R.string.error_action_failed), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    private void sendFriendRequest(User user) {
+        try {
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            JSONObject requestData = new JSONObject();
+            requestData.put("receiverId", user.getId());
+
+            apiClient.sendFriendRequest(token, requestData, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_friend_request, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        handleFriendRequestResponse(response.code(), responseBody, user);
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_create_friend_request), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void handleFriendRequestResponse(int statusCode, String responseBody, User user) {
+        try {
+            // Log response for debugging
+            System.out.println("Send Friend Request Response Code: " + statusCode);
+            System.out.println("Send Friend Request Response Body: " + responseBody);
+            
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            
+            if (statusCode == 200 || statusCode == 201) {
+                Toast.makeText(this, getString(R.string.friend_request_sent_to, user.getDisplayName()), Toast.LENGTH_SHORT).show();
+            } else {
+                String message = jsonResponse.optString("message", "Failed to send friend request");
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void addMemberToGroup(User user) {
+        if (currentChat == null) {
+            Toast.makeText(this, getString(R.string.error_no_group_selected), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Toast.makeText(this, getString(R.string.adding_member, user.getDisplayName()), Toast.LENGTH_SHORT).show();
+        
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        try {
+            JSONObject memberData = new JSONObject();
+            JSONArray userIds = new JSONArray();
+            userIds.put(user.getId());
+            memberData.put("userIds", userIds);
+            
+            apiClient.addMembers(token, currentChat.getId(), memberData, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_add_member, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        handleAddMemberResponse(response.code(), responseBody, user);
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_prepare_member), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private void handleAddMemberResponse(int statusCode, String responseBody, User user) {
+        try {
+            if (statusCode == 200 || statusCode == 201) {
+                Toast.makeText(this, user.getDisplayName() + " added to group successfully", Toast.LENGTH_SHORT).show();
+                // Remove user from current results to avoid duplicate
+                if (searchResults != null) {
+                    searchResults.remove(user);
+                    refreshUserListDisplay();
+                }
+                updateResultsVisibility();
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                finish();
+            } else {
+                // Try to parse server message
+                String message = "Failed to add member to group";
+                try {
+                    JSONObject json = new JSONObject(responseBody);
+                    message = json.optString("message", message);
+                } catch (Exception ignored) {}
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, getString(R.string.error_add_member_response), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void loadUserGroups() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        showLoading(true);
+        
+        // Get user's groups from chats API
+        apiClient.getChats(token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, getString(R.string.error_load_groups_detail, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> handleGroupsResponse(response.code(), responseBody));
+            }
+        });
+    }
+    
+    private void handleGroupsResponse(int statusCode, String responseBody) {
+        showLoading(false);
+        
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray chatsArray = data.getJSONArray("chats");
+                    
+                    groupResults.clear();
+                    for (int i = 0; i < chatsArray.length(); i++) {
+                        JSONObject chatJson = chatsArray.getJSONObject(i);
+                        Chat chat = Chat.fromJson(chatJson);
+                        
+                        // Only add group chats
+                        if (chat.isGroupChat()) {
+                            groupResults.add(chat);
+                        }
+                    }
+                    
+                    // Apply current query filter after data loaded
+                    applyGroupFilterWithCurrentQuery();
+                } else {
+                    String message = jsonResponse.optString("message", "Failed to load groups");
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                finish();
+            } else {
+                Toast.makeText(this, getString(R.string.error_load_groups), Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_parse_groups), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void loadDiscoverGroups() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        showLoading(true);
+        apiClient.authenticatedGet("/api/groups/public", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, getString(R.string.error_load_discover_groups, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> handleDiscoverGroupsResponse(response.code(), responseBody));
+            }
+        });
+    }
+
+    private void handleDiscoverGroupsResponse(int statusCode, String responseBody) {
+        showLoading(false);
+        try {
+            if (statusCode == 200) {
+                JSONObject json = new JSONObject(responseBody);
+                if (json.optBoolean("success", false)) {
+                    JSONArray arr = json.getJSONObject("data").optJSONArray("groups");
+                    List<Chat> discover = new ArrayList<>();
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject g = arr.getJSONObject(i);
+                            // Exclude if server says user is already member
+                            boolean isMemberServer = g.optBoolean("isMember", false);
+                            if (isMemberServer) continue;
+
+                            Chat chat = Chat.fromJson(g);
+                            // Carry over joinRequestStatus if provided
+                            String jrs = g.optString("joinRequestStatus", "");
+                            android.util.Log.d("SearchActivity", "Group " + i + " joinRequestStatus from server: " + jrs);
+                            if (!jrs.isEmpty()) {
+                                chat.setJoinRequestStatus(jrs);
+                                android.util.Log.d("SearchActivity", "Set joinRequestStatus to: " + jrs);
+                            } else {
+                                chat.setJoinRequestStatus(null);
+                                android.util.Log.d("SearchActivity", "Set joinRequestStatus to null (no status)");
+                            }
+                            discover.add(chat);
+                        }
+                    }
+                    groupResults.clear();
+                    groupResults.addAll(discover);
+                    // Apply current query filter after data loaded
+                    applyGroupFilterWithCurrentQuery();
+                } else {
+                    Toast.makeText(this, getString(R.string.error_load_groups), Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                finish();
+            } else {
+                Toast.makeText(this, getString(R.string.error_load_groups), Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_parse_groups), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onGroupClick(Chat group) {
+        if (isDiscoverGroups) {
+            String token = sharedPrefsManager.getToken();
+            if (token == null || token.isEmpty()) {
+                Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Check if this is a cancel request action
+            String joinStatus = group.getJoinRequestStatus();
+            if (joinStatus != null && joinStatus.equals("pending")) {
+                cancelJoinRequest(group, token);
+                return;
+            }
+            
+            if (group.isPublicGroup()) {
+                // Join directly
+                apiClient.joinGroup(token, group.getId(), new okhttp3.Callback() {
+                    @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> Toast.makeText(SearchActivity.this, getString(R.string.join_group_failed), Toast.LENGTH_SHORT).show());
+                    }
+                    @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        String body = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                if (response.code() == 200 && json.optBoolean("success", false)) {
+                                    Toast.makeText(SearchActivity.this, getString(R.string.join_group_success), Toast.LENGTH_SHORT).show();
+                                    // Move group from discover to hidden (no longer eligible)
+                                    groupResults.remove(group);
+                                    groupAdapter.updateGroups(groupResults);
+                                    updateResultsVisibility();
+                                } else {
+                                    Toast.makeText(SearchActivity.this,
+                                            json.optString("message", getString(R.string.join_group_failed)),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                Toast.makeText(SearchActivity.this, getString(R.string.join_group_failed), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
+            } else {
+                // Request to join
+                apiClient.requestJoinGroup(token, group.getId(), new okhttp3.Callback() {
+                    @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> Toast.makeText(SearchActivity.this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show());
+                    }
+                    @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        String body = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject json = new org.json.JSONObject(body);
+                                if ((response.code() == 200 || response.code() == 201) && json.optBoolean("success", false)) {
+                                    Toast.makeText(SearchActivity.this, getString(R.string.join_request_sent), Toast.LENGTH_SHORT).show();
+                                    // Update the object's joinRequestStatus so adapter shows "Cancel Request"
+                                    group.setJoinRequestStatus("pending");
+                                    applyGroupFilterWithCurrentQuery();
+                                } else {
+                                    Toast.makeText(SearchActivity.this,
+                                            json.optString("message", getString(R.string.error_request_failed)),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                Toast.makeText(SearchActivity.this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
+            }
+            return;
+        }
+        // Open group chat (support forward mode)
+        Intent intent = new Intent(this, GroupChatActivity.class);
+        try {
+            intent.putExtra("chat", group.toJson().toString());
+            if ("forward".equals(mode)) {
+                if (forwardMessageRaw != null) intent.putExtra("forward_message", forwardMessageRaw);
+                else if (forwardContent != null) intent.putExtra("forward_content", forwardContent);
+                finish();
+            }
+            startActivity(intent);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_open_group_chat), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void searchPosts(String token, String query) {
+        // Save to recent searches
+        saveRecentSearch(query);
+        
+        // Call API with filters
+        apiClient.searchPosts(token, query, 1, 20, 
+            filterOnlyFriends, filterMediaOnly, filterHashtagOnly,
+            filterDateFrom, filterDateTo, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SearchActivity.this, getString(R.string.error_search_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    handlePostSearchResponse(response.code(), responseBody, query);
+                });
+            }
+        });
+    }
+    
+    @SuppressLint("NotifyDataSetChanged")
+    private void handlePostSearchResponse(int statusCode, String responseBody, String query) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray postsArray = data.getJSONArray("posts");
+                    
+                    postResults.clear();
+                    
+                    for (int i = 0; i < postsArray.length(); i++) {
+                        try {
+                            JSONObject postJson = postsArray.getJSONObject(i);
+                            
+                            // Map search response fields to Post format
+                            JSONObject mappedJson = new JSONObject();
+                            mappedJson.put("_id", postJson.optString("_id", ""));
+                            mappedJson.put("content", postJson.optString("post_text", postJson.optString("post_text_highlighted", "")));
+                            mappedJson.put("createdAt", postJson.optString("created_at", ""));
+                            
+                            // Map author info
+                            JSONObject userIdObj = new JSONObject();
+                            userIdObj.put("_id", postJson.optString("author_id", ""));
+                            userIdObj.put("username", postJson.optString("author_name", ""));
+                            userIdObj.put("avatar", postJson.optString("avatar_url", ""));
+                            mappedJson.put("userId", userIdObj);
+                            
+                            // Map images
+                            JSONArray imagesArray = new JSONArray();
+                            if (postJson.has("image_or_video_url") && !postJson.isNull("image_or_video_url")) {
+                                imagesArray.put(postJson.optString("image_or_video_url"));
+                            } else if (postJson.has("images")) {
+                                imagesArray = postJson.optJSONArray("images");
+                            }
+                            mappedJson.put("images", imagesArray);
+                            
+                            // Map engagement counts
+                            mappedJson.put("likesCount", postJson.optInt("like_count", 0));
+                            mappedJson.put("commentsCount", postJson.optInt("comment_count", 0));
+                            mappedJson.put("sharesCount", postJson.optInt("shares_count", 0));
+                            mappedJson.put("isLiked", postJson.optBoolean("is_liked", false));
+                            
+                            com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(mappedJson);
+                            postResults.add(post);
+                        } catch (JSONException e) {
+                            android.util.Log.e("SearchActivity", "Error parsing post: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    postSearchAdapter.setSearchQuery(query);
+                    postSearchAdapter.setPosts(postResults);
+                    updateResultsVisibility();
+                } else {
+                    String message = jsonResponse.optString("message", "Search failed");
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                }
+            } else if (statusCode == 401) {
+                Toast.makeText(this, getString(R.string.error_session_expired), Toast.LENGTH_SHORT).show();
+                sharedPrefsManager.clearLoginInfo();
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            } else {
+                String message = "Search failed";
+                try {
+                    JSONObject jsonResponse = new JSONObject(responseBody);
+                    message = jsonResponse.optString("message", message);
+                } catch (JSONException e) {
+                    // Ignore
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_process_search), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void cancelJoinRequest(Chat group, String token) {
+        Toast.makeText(this, getString(R.string.join_request_cancelling), Toast.LENGTH_SHORT).show();
+        
+        // Call API to cancel join request
+        apiClient.cancelJoinRequest(token, group.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("SearchActivity", "Cancel request failed: " + e.getMessage());
+                    Toast.makeText(SearchActivity.this, getString(R.string.error_cancel_request_detail, e.getMessage()), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body().string();
+                android.util.Log.d("SearchActivity", "Cancel request response: " + response.code() + " - " + body);
+                
+                runOnUiThread(() -> {
+                    try {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        if (response.code() == 200 && json.optBoolean("success", false)) {
+                            Toast.makeText(SearchActivity.this, getString(R.string.join_request_cancelled), Toast.LENGTH_SHORT).show();
+                            group.setJoinRequestStatus(null);
+                            if (groupAdapter != null) {
+                                groupAdapter.notifyGroupItemChanged(group);
+                            }
+                            updateResultsVisibility();
+                        } else if (response.code() == 404 || response.code() == 405) {
+                            // Server doesn't support DELETE for join requests, try alternative approach
+                            android.util.Log.d("SearchActivity", "Server doesn't support DELETE, trying alternative");
+                            Toast.makeText(SearchActivity.this, getString(R.string.error_cancel_not_supported), Toast.LENGTH_SHORT).show();
+                            // For now, just update UI locally
+                            group.setJoinRequestStatus(null);
+                            refreshGroupListDisplay();
+                            updateResultsVisibility();
+                        } else {
+                            String message = json.optString("message", "Failed to cancel request");
+                            android.util.Log.e("SearchActivity", "Cancel request failed: " + message);
+                            Toast.makeText(SearchActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (org.json.JSONException e) {
+                        android.util.Log.e("SearchActivity", "Error parsing cancel response: " + e.getMessage());
+                        Toast.makeText(SearchActivity.this, getString(R.string.error_cancel_join_request), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+}

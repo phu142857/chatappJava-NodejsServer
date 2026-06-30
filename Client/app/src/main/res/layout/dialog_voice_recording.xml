@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:minWidth="150dp"
+    android:minHeight="160dp"
+    android:paddingStart="22dp"
+    android:paddingEnd="22dp"
+    android:paddingTop="22dp"
+    android:paddingBottom="20dp"
+    android:background="@drawable/bg_neu_emboss_raised_md"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <!-- Recording Indicator with Pulse Animation -->
+    <RelativeLayout
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <!-- Pulsing ring 2 -->
+        <View
+            android:id="@+id/v_pulse_ring_2"
+            android:layout_width="82dp"
+            android:layout_height="82dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/recording_indicator"
+            android:alpha="0.18" />
+
+        <!-- Pulsing ring 1 -->
+        <View
+            android:id="@+id/v_pulse_ring_1"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/recording_indicator"
+            android:alpha="0.32" />
+
+        <!-- Center dark circle -->
+        <View
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/bg_icon_circle_dark" />
+
+        <!-- Recording dot -->
+        <ImageView
+            android:id="@+id/iv_recording_indicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_centerInParent="true"
+            android:src="@drawable/recording_indicator"
+            android:contentDescription="@string/recording_cd" />
+
+    </RelativeLayout>
+
+    <!-- Status Text -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/recording_label"
+        style="@style/AppLabelSmall"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Timer Display -->
+    <TextView
+        android:id="@+id/tv_recording_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:minWidth="88dp"
+        android:gravity="center"
+        android:text="@string/call_timer_placeholder"
+        style="@style/AppHeadlineSmall"
+        android:background="@drawable/bg_soft_inset"
+        android:paddingStart="@dimen/dialog_padding_h"
+        android:paddingEnd="@dimen/dialog_padding_h" />
+
+</LinearLayout>

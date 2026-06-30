@@ -1,0 +1,917 @@
+package com.example.chatappjava.ui.call;
+
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.chatappjava.R;
+import com.example.chatappjava.models.Chat;
+import com.example.chatappjava.models.User;
+import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.utils.DatabaseManager;
+import com.squareup.picasso.Picasso;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+
+import de.hdodenhof.circleimageview.CircleImageView;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+
+public class RingingActivity extends AppCompatActivity {
+    
+    private static final String TAG = "RingingActivity";
+
+    private TextView tvCallerStatus;
+    private TextView tvRingingStatus;
+    private CircleImageView ivCallerAvatar;
+    private FrameLayout swipeThumb;
+    private View acceptZone;
+    private View declineZone;
+    private FrameLayout swipeTrack;
+    private LinearLayout swipeActionCard;
+    private LinearLayout outgoingCallInfo;
+    private View ripple1;
+    private View ripple2;
+    private View ripple3;
+    
+    // Call data
+    private Chat currentChat;
+    private User caller;
+    private String callId;
+    private String callType;
+    private boolean isIncomingCall;
+    private boolean isCallActive = false;
+    
+    // Synchronization state management
+    private boolean isAcceptingCall = false;
+    private boolean isDecliningCall = false;
+    private final Object callActionLock = new Object();
+    
+    // Animation
+    private AnimatorSet rippleAnimatorSet;
+    private Animation avatarPulseAnimation;
+
+    // Swipe gesture
+    private float initialX;
+    private float initialThumbX;
+    private boolean isDragging = false;
+    private int trackWidth;
+    private int thumbWidth;
+    
+    // Audio
+    private MediaPlayer ringtonePlayer;
+    private AudioManager audioManager;
+    
+    // Managers
+    private DatabaseManager sharedPrefsManager;
+    private ApiClient apiClient;
+    
+    // CRITICAL: Handler for auto-decline timer - must be stored to cancel it
+    private Handler autoDeclineHandler;
+    private Runnable autoDeclineRunnable;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Keep screen on during ringing
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        
+        setContentView(R.layout.activity_ringing);
+        
+        // Initialize managers
+        sharedPrefsManager = new DatabaseManager(this);
+        apiClient = new ApiClient();
+        
+        // Initialize audio manager
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        
+        // Get call data from intent
+        getCallDataFromIntent();
+        
+        // If this is an incoming call opened from notification, verify call is still active
+        if (isIncomingCall && callId != null) {
+            verifyCallStatus();
+        } else {
+            // For outgoing calls or if no callId, proceed normally
+            initializeActivity();
+        }
+    }
+    
+    private void verifyCallStatus() {
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Log.e(TAG, "No token available, cannot verify call status");
+            navigateToHome();
+            return;
+        }
+        
+        Log.d(TAG, "Verifying call status for callId: " + callId);
+        
+        // Check call status on server
+        apiClient.getCallDetails(token, callId, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "Failed to verify call status", e);
+                runOnUiThread(() -> {
+                    // If we can't verify, assume call is still active and proceed
+                    // This handles network errors gracefully
+                    initializeActivity();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                response.close();
+                
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        boolean success = jsonResponse.optBoolean("success", false);
+                        
+                        if (success) {
+                            JSONObject data = jsonResponse.optJSONObject("data");
+                            if (data != null) {
+                                String status = data.optString("status", "");
+                                Log.d(TAG, "Call status: " + status);
+                                
+                                // Check if call is still active
+                                if ("initiated".equals(status) || "ringing".equals(status) || "active".equals(status)) {
+                                    // Call is still active, proceed with setup
+                                    Log.d(TAG, "Call is still active, proceeding with incoming call setup");
+                                    
+                                    // Clear any old activeCallId that might block this call
+                                    com.example.chatappjava.network.SocketManager sm = 
+                                        com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                    if (sm != null) {
+                                        String currentActiveCallId = sm.getActiveCallId();
+                                        if (currentActiveCallId != null && !currentActiveCallId.equals(callId)) {
+                                            Log.d(TAG, "Clearing old activeCallId: " + currentActiveCallId);
+                                            sm.clearActiveCallId(currentActiveCallId);
+                                        }
+                                    }
+                                    
+                                    initializeActivity();
+                                } else {
+                                    // Call has ended or been declined
+                                    Log.d(TAG, "Call is no longer active (status: " + status + "), closing activity");
+                                    Toast.makeText(RingingActivity.this, getString(R.string.msg_call_has_ended), Toast.LENGTH_SHORT).show();
+                                    
+                                    // Clear activeCallId
+                                    com.example.chatappjava.network.SocketManager sm = 
+                                        com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                    if (sm != null) {
+                                        sm.clearActiveCallId(callId);
+                                    }
+                                    
+                                    navigateToHome();
+                                }
+                            } else {
+                                // No data, call might not exist
+                                Log.w(TAG, "Call not found or no data returned");
+                                Toast.makeText(RingingActivity.this, getString(R.string.error_call_not_found), Toast.LENGTH_SHORT).show();
+                                
+                                // Clear activeCallId
+                                com.example.chatappjava.network.SocketManager sm = 
+                                    com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                                if (sm != null) {
+                                    sm.clearActiveCallId(callId);
+                                }
+                                
+                                navigateToHome();
+                            }
+                        } else {
+                            // API returned error
+                            Log.w(TAG, "Failed to get call details: " + jsonResponse.optString("message", "Unknown error"));
+                            // Assume call is still active and proceed (graceful degradation)
+                            initializeActivity();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing call status response", e);
+                        // Assume call is still active and proceed (graceful degradation)
+                        initializeActivity();
+                    }
+                });
+            }
+        });
+    }
+    
+    private void initializeActivity() {
+        // Initialize UI
+        initializeViews();
+        setupSwipeGesture();
+
+        // Setup call based on type
+        if (isIncomingCall) {
+            setupIncomingCall();
+        } else {
+            setupOutgoingCall();
+        }
+        
+        // Setup socket listener for call events
+        setupSocketListener();
+    }
+    
+    private void getCallDataFromIntent() {
+        try {
+            String chatJson = getIntent().getStringExtra("chat");
+            if (chatJson != null) {
+                currentChat = Chat.fromJson(new JSONObject(chatJson));
+            }
+            
+            String callerJson = getIntent().getStringExtra("caller");
+            if (callerJson != null) {
+                caller = User.fromJsonStatic(new JSONObject(callerJson));
+            }
+            
+            callId = getIntent().getStringExtra("callId");
+            callType = getIntent().getStringExtra("callType");
+            isIncomingCall = getIntent().getBooleanExtra("isIncomingCall", false);
+            
+        } catch (JSONException e) {
+            Log.e(TAG, "Error parsing call data", e);
+            navigateToHome();
+        }
+    }
+    
+    @SuppressLint("SetTextI18n")
+    private void initializeViews() {
+        // UI Components
+        TextView tvCallType = findViewById(R.id.tv_call_type);
+        TextView tvCallerName = findViewById(R.id.tv_caller_name);
+        tvCallerStatus = findViewById(R.id.tv_caller_status);
+        tvRingingStatus = findViewById(R.id.tv_ringing_status);
+        ivCallerAvatar = findViewById(R.id.iv_caller_avatar);
+        swipeThumb = findViewById(R.id.swipe_thumb);
+        acceptZone = findViewById(R.id.accept_zone);
+        declineZone = findViewById(R.id.decline_zone);
+        swipeTrack = findViewById(R.id.swipe_track);
+        swipeActionCard = findViewById(R.id.swipe_action_card);
+        outgoingCallInfo = findViewById(R.id.outgoing_call_info);
+        ripple1 = findViewById(R.id.ripple_1);
+        ripple2 = findViewById(R.id.ripple_2);
+        ripple3 = findViewById(R.id.ripple_3);
+        
+        // Set caller information
+        if (caller != null) {
+            tvCallerName.setText(caller.getUsername());
+            
+            // Load avatar
+            String avatarUrl = caller.getFullAvatarUrl();
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                Picasso.get()
+                    .load(avatarUrl)
+                    .placeholder(R.drawable.ic_profile_placeholder)
+                    .error(R.drawable.ic_profile_placeholder)
+                    .into(ivCallerAvatar);
+            }
+        }
+        
+        // Set call type
+        if ("audio".equals(callType)) {
+            tvCallType.setText(getString(R.string.call_incoming_audio));
+        } else {
+            tvCallType.setText(getString(R.string.call_incoming_video));
+        }
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupSwipeGesture() {
+        if (swipeThumb == null || swipeTrack == null) {
+            return;
+        }
+
+        swipeTrack.post(() -> {
+            trackWidth = swipeTrack.getWidth();
+            thumbWidth = swipeThumb.getWidth();
+        });
+
+        swipeThumb.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    initialX = event.getRawX();
+                    initialThumbX = swipeThumb.getX();
+                    isDragging = true;
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    if (isDragging) {
+                        float deltaX = event.getRawX() - initialX;
+                        float newX = initialThumbX + deltaX;
+                        float minX = 0;
+                        float maxX = trackWidth - thumbWidth;
+                        newX = Math.max(minX, Math.min(maxX, newX));
+                        swipeThumb.setX(newX);
+                        updateZoneVisibility(newX);
+                    }
+                    return true;
+
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (isDragging) {
+                        handleSwipeRelease();
+                        isDragging = false;
+                    }
+                    return true;
+
+                default:
+                    return false;
+            }
+        });
+    }
+
+    private void updateZoneVisibility(float thumbX) {
+        if (acceptZone == null || declineZone == null || trackWidth == 0) {
+            return;
+        }
+        float centerX = trackWidth / 2f;
+        float thumbCenterX = thumbX + thumbWidth / 2f;
+        if (thumbCenterX < centerX) {
+            declineZone.setAlpha(0.6f);
+            acceptZone.setAlpha(0.1f);
+        } else {
+            acceptZone.setAlpha(0.6f);
+            declineZone.setAlpha(0.1f);
+        }
+    }
+
+    private void handleSwipeRelease() {
+        if (trackWidth == 0 || thumbWidth == 0) {
+            return;
+        }
+        float thumbCenterX = swipeThumb.getX() + thumbWidth / 2f;
+        float centerX = trackWidth / 2f;
+        if (thumbCenterX < centerX) {
+            declineCall();
+        } else {
+            acceptCall();
+        }
+        resetThumbPosition();
+    }
+
+    private void resetThumbPosition() {
+        if (swipeThumb == null || trackWidth == 0 || thumbWidth == 0) {
+            return;
+        }
+        swipeThumb.animate()
+                .x(trackWidth / 2f - thumbWidth / 2f)
+                .setDuration(200)
+                .start();
+        if (acceptZone != null) {
+            acceptZone.setAlpha(0.25f);
+        }
+        if (declineZone != null) {
+            declineZone.setAlpha(0.25f);
+        }
+    }
+    
+    @SuppressLint("SetTextI18n")
+    private void setupIncomingCall() {
+        tvCallerStatus.setText(getString(R.string.call_is_calling_you));
+        outgoingCallInfo.setVisibility(View.GONE);
+        if (swipeActionCard != null) {
+            swipeActionCard.setVisibility(View.VISIBLE);
+        }
+        
+        // Mark active call to avoid duplicate handling in other screens
+        com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (sm != null) {
+            sm.setActiveCallId(callId);
+        }
+
+        // Start ringing animations
+        startRingingAnimations();
+        
+        // Start ringtone
+        startRingtone();
+        
+        // CRITICAL: Store handler and runnable to cancel it when call is accepted/declined
+        autoDeclineHandler = new Handler(Looper.getMainLooper());
+        autoDeclineRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isCallActive && !isFinishing()) {
+                    Log.d(TAG, "Auto-declining call after 30 seconds");
+                    declineCall();
+                }
+            }
+        };
+        autoDeclineHandler.postDelayed(autoDeclineRunnable, 30000);
+    }
+    
+    @SuppressLint("SetTextI18n")
+    private void setupOutgoingCall() {
+        tvCallerStatus.setText(getString(R.string.call_status_calling));
+        outgoingCallInfo.setVisibility(View.VISIBLE);
+        tvRingingStatus.setText(getString(R.string.call_status_ringing));
+        if (swipeActionCard != null) {
+            swipeActionCard.setVisibility(View.GONE);
+        }
+        
+        // Mark active call to avoid duplicate handling across screens
+        com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (sm != null) {
+            sm.setActiveCallId(callId);
+        }
+
+        // Start ringing animations
+        startRingingAnimations();
+        
+        // Simulate call ringing
+        simulateCallRinging();
+    }
+    
+    private void setupSocketListener() {
+        // Get SocketManager instance
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        
+        if (socketManager != null) {
+            // Set up call status listener
+            socketManager.setCallStatusListener(new com.example.chatappjava.network.SocketManager.CallStatusListener() {
+                @Override
+                public void onCallAccepted(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call accepted");
+                            navigateToHome();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCallDeclined(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call declined by other party");
+                            Toast.makeText(RingingActivity.this, getString(R.string.msg_call_declined), Toast.LENGTH_SHORT).show();
+                            
+                            // Clear activeCallId
+                            com.example.chatappjava.network.SocketManager sm = 
+                                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) {
+                                sm.clearActiveCallId(callId);
+                            }
+                            
+                            // Navigate to home
+                            navigateToHome();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onCallEnded(String callId) {
+                    runOnUiThread(() -> {
+                        if (RingingActivity.this.callId != null && RingingActivity.this.callId.equals(callId)) {
+                            Log.d(TAG, "Call ended by other party");
+                            Toast.makeText(RingingActivity.this, getString(R.string.msg_call_ended), Toast.LENGTH_SHORT).show();
+                            
+                            // Clear activeCallId
+                            com.example.chatappjava.network.SocketManager sm = 
+                                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) {
+                                sm.clearActiveCallId(callId);
+                            }
+                            
+                            // Set result to indicate call was ended
+                            Intent resultIntent = new Intent();
+                            resultIntent.putExtra("callEnded", true);
+                            resultIntent.putExtra("callId", callId);
+                            setResult(RESULT_OK, resultIntent);
+                            
+                            navigateToHome();
+                        }
+                    });
+                }
+            });
+        }
+    }
+    
+    private void startRingingAnimations() {
+        if (com.example.chatappjava.utils.MotionUtils.isMotionReduced(this)) {
+            return;
+        }
+        com.example.chatappjava.utils.MotionUtils.playAnimation(this, ivCallerAvatar, R.anim.avatar_pulse);
+        
+        // Ripple animations
+        startRippleAnimations();
+    }
+    
+    private void startRippleAnimations() {
+        rippleAnimatorSet = com.example.chatappjava.utils.MotionUtils.startIncomingCallRipples(
+                this, ripple1, ripple2, ripple3, () -> isCallActive);
+    }
+    
+    @SuppressLint("SetTextI18n")
+    private void simulateCallRinging() {
+        // Simulate call ringing for outgoing calls
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (!isCallActive) {
+                // Simulate call answered
+                tvRingingStatus.setText(getString(R.string.call_connected));
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (!isCallActive) {
+                        acceptCall();
+                    }
+                }, 1000);
+            }
+        }, 3000);
+    }
+    
+    private void acceptCall() {
+        synchronized (callActionLock) {
+            if (isAcceptingCall || isDecliningCall) {
+                Log.d(TAG, "Call action already in progress, ignoring");
+                return;
+            }
+            
+            if (isCallActive) {
+                Log.d(TAG, "Call already active, ignoring");
+                return;
+            }
+            
+            isAcceptingCall = true;
+        }
+        
+        Log.d(TAG, "Accepting call: " + callId);
+        isCallActive = true;
+        
+        // CRITICAL: Cancel auto-decline timer when accepting call
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer");
+        }
+        
+        stopRingingAnimations();
+        stopRingtone();
+        
+        // Call API to accept call
+        String token = sharedPrefsManager.getToken();
+        apiClient.joinCall(token, callId, new Callback() {
+            @Override
+            public void onFailure(Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to accept call", e);
+                    synchronized (callActionLock) {
+                        isAcceptingCall = false;
+                    }
+                    navigateToHome();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) {
+                // CRITICAL FIX: Read response body in background thread to avoid NetworkOnMainThreadException
+                new Thread(() -> {
+                    try {
+                        String responseBody = null;
+                        if (response.body() != null) {
+                            responseBody = response.body().string();
+                        }
+                        
+                        final String finalResponseBody = responseBody;
+                        final boolean isSuccessful = response.isSuccessful();
+                        
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isAcceptingCall = false;
+                            }
+                            
+                            if (isSuccessful) {
+                                Log.d(TAG, "Call accepted successfully");
+                                
+                                try {
+                                    // Parse response to get call info
+                                    if (finalResponseBody != null) {
+                                        JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                        JSONObject data = jsonResponse.optJSONObject("data");
+                                        
+                                        if (data != null) {
+                                            // Get caller info from current chat or caller object
+                                            String remoteUserId = null;
+                                            String remoteUserName = null;
+                                            String remoteUserAvatar = null;
+                                            
+                                            if (caller != null) {
+                                                remoteUserId = caller.getId();
+                                                remoteUserName = caller.getDisplayName();
+                                                remoteUserAvatar = caller.getAvatar();
+                                            } else if (currentChat != null && currentChat.getOtherParticipant() != null) {
+                                                remoteUserId = currentChat.getOtherParticipant().getId();
+                                                remoteUserName = currentChat.getOtherParticipant().getDisplayName();
+                                                remoteUserAvatar = currentChat.getOtherParticipant().getAvatar();
+                                            }
+                                            
+                                            // Launch PrivateVideoCallActivity
+                                            Intent intent = new Intent(RingingActivity.this, com.example.chatappjava.ui.call.PrivateVideoCallActivity.class);
+                                            intent.putExtra("callId", callId);
+                                            intent.putExtra("chatId", currentChat != null ? currentChat.getId() : "");
+                                            intent.putExtra("remoteUserId", remoteUserId);
+                                            intent.putExtra("remoteUserName", remoteUserName != null ? remoteUserName : "Unknown");
+                                            intent.putExtra("remoteUserAvatar", remoteUserAvatar);
+                                            intent.putExtra("isCaller", false);
+                                            startActivity(intent);
+                                            finish();
+                                            return;
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error parsing call response", e);
+                                }
+                                
+                                // Fallback: navigate to home
+                                navigateToHome();
+                            } else {
+                                Log.e(TAG, "Failed to accept call: " + response.code());
+                                navigateToHome();
+                            }
+                        });
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error reading response body", e);
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isAcceptingCall = false;
+                            }
+                            navigateToHome();
+                        });
+                    }
+                }).start();
+            }
+        });
+    }
+    
+    private void declineCall() {
+        synchronized (callActionLock) {
+            if (isAcceptingCall || isDecliningCall) {
+                Log.d(TAG, "Call action already in progress, ignoring");
+                return;
+            }
+            
+            if (isCallActive) {
+                Log.d(TAG, "Call already active, ignoring");
+                return;
+            }
+            
+            isDecliningCall = true;
+        }
+        
+        Log.d(TAG, "Declining call: " + callId);
+        
+        if (callId == null || callId.isEmpty()) {
+            Log.e(TAG, "Cannot decline call: callId is null or empty");
+            synchronized (callActionLock) {
+                isDecliningCall = false;
+            }
+            navigateToHome();
+            return;
+        }
+        
+        // CRITICAL: Cancel auto-decline timer when declining call
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer");
+        }
+        
+        stopRingingAnimations();
+        stopRingtone();
+        
+        // Call API to decline call
+        String token = sharedPrefsManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Log.e(TAG, "Cannot decline call: token is null or empty");
+            synchronized (callActionLock) {
+                isDecliningCall = false;
+            }
+            navigateToHome();
+            return;
+        }
+        
+        apiClient.declineCall(token, callId, new Callback() {
+            @Override
+            public void onFailure(Call call, java.io.IOException e) {
+                Log.e(TAG, "Failed to decline call", e);
+                runOnUiThread(() -> {
+                    // Reset active call on failure as well to avoid stuck state
+                    com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                    if (sm != null) sm.resetActiveCall();
+                    synchronized (callActionLock) {
+                        isDecliningCall = false;
+                    }
+                    navigateToHome();
+                });
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) {
+                // CRITICAL FIX: Read response body in background thread to avoid NetworkOnMainThreadException
+                new Thread(() -> {
+                    try {
+                        String responseBody = null;
+                        if (response.body() != null) {
+                            responseBody = response.body().string();
+                        }
+                        
+                        final String finalResponseBody = responseBody;
+                        final boolean isSuccessful = response.isSuccessful();
+                        
+                        runOnUiThread(() -> {
+                            if (isSuccessful) {
+                                Log.d(TAG, "Call declined successfully");
+                                try {
+                                    if (finalResponseBody != null) {
+                                        JSONObject jsonResponse = new JSONObject(finalResponseBody);
+                                        boolean success = jsonResponse.optBoolean("success", false);
+                                        String message = jsonResponse.optString("message", "");
+                                        Log.d(TAG, "Decline call response: success=" + success + ", message=" + message);
+                                    }
+                                } catch (JSONException e) {
+                                    Log.e(TAG, "Error parsing decline call response", e);
+                                }
+                            } else {
+                                Log.e(TAG, "Failed to decline call: " + response.code());
+                            }
+                            
+                            // Reset active call state
+                            com.example.chatappjava.network.SocketManager sm = com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+                            if (sm != null) sm.resetActiveCall();
+                            
+                            synchronized (callActionLock) {
+                                isDecliningCall = false;
+                            }
+                            
+                            navigateToHome();
+                        });
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error reading decline call response body", e);
+                        runOnUiThread(() -> {
+                            synchronized (callActionLock) {
+                                isDecliningCall = false;
+                            }
+                            navigateToHome();
+                        });
+                    }
+                }).start();
+            }
+        });
+    }
+    
+    
+    private void stopRingingAnimations() {
+        if (avatarPulseAnimation != null) {
+            ivCallerAvatar.clearAnimation();
+        }
+        
+        if (rippleAnimatorSet != null) {
+            rippleAnimatorSet.cancel();
+        }
+    }
+    
+    private void startRingtone() {
+        try {
+            // Stop any existing ringtone
+            stopRingtone();
+            
+            // Create MediaPlayer for ringtone
+            ringtonePlayer = new MediaPlayer();
+            
+            // Set audio attributes for ringtone
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+            
+            ringtonePlayer.setAudioAttributes(audioAttributes);
+            
+            // Set volume to maximum for ringtone
+            int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING);
+            audioManager.setStreamVolume(AudioManager.STREAM_RING, maxVolume, 0);
+            
+            // Use default ringtone URI
+            android.net.Uri ringtoneUri = android.provider.Settings.System.DEFAULT_RINGTONE_URI;
+            ringtonePlayer.setDataSource(this, ringtoneUri);
+            
+            // Set looping
+            ringtonePlayer.setLooping(true);
+            
+            // Prepare and start
+            ringtonePlayer.prepare();
+            ringtonePlayer.start();
+            
+            Log.d(TAG, "Ringtone started");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start ringtone", e);
+            // Fallback: try to use system ringtone
+            try {
+                android.media.Ringtone ringtone = android.media.RingtoneManager.getRingtone(this, android.provider.Settings.System.DEFAULT_RINGTONE_URI);
+                if (ringtone != null) {
+                    ringtone.play();
+                }
+            } catch (Exception ex) {
+                Log.e(TAG, "Failed to play system ringtone", ex);
+            }
+        }
+    }
+    
+    private void stopRingtone() {
+        try {
+            if (ringtonePlayer != null) {
+                if (ringtonePlayer.isPlaying()) {
+                    ringtonePlayer.stop();
+                }
+                ringtonePlayer.release();
+                ringtonePlayer = null;
+            }
+            Log.d(TAG, "Ringtone stopped");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to stop ringtone", e);
+        }
+    }
+    
+    private void resetCallActionState() {
+        synchronized (callActionLock) {
+            isAcceptingCall = false;
+            isDecliningCall = false;
+            isCallActive = false;
+        }
+        Log.d(TAG, "Call action state reset");
+    }
+    
+    private void navigateToHome() {
+        Log.d(TAG, "Navigating back to HomeActivity");
+        
+        // Clear activeCallId when leaving RingingActivity
+        if (callId != null) {
+            com.example.chatappjava.network.SocketManager sm = 
+                com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+            if (sm != null) {
+                sm.clearActiveCallId(callId);
+                Log.d(TAG, "Cleared activeCallId: " + callId);
+            }
+        }
+        
+        // Create intent to go back to HomeActivity
+        Intent intent = new Intent(this, com.example.chatappjava.ui.theme.HomeActivity.class);
+        
+        // Clear the activity stack and start fresh from HomeActivity
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        
+        startActivity(intent);
+        finish();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        
+        // CRITICAL: Cancel auto-decline timer when activity is destroyed
+        if (autoDeclineHandler != null && autoDeclineRunnable != null) {
+            autoDeclineHandler.removeCallbacks(autoDeclineRunnable);
+            autoDeclineHandler = null;
+            autoDeclineRunnable = null;
+            Log.d(TAG, "Cancelled auto-decline timer in onDestroy");
+        }
+        
+        stopRingingAnimations();
+        stopRingtone();
+
+        // Reset call action state
+        resetCallActionState();
+        
+        // Clear socket listener to prevent memory leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null) {
+            socketManager.setCallStatusListener(null);
+        }
+    }
+}

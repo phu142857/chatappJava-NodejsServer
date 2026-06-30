@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/dialog_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/video_stage"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- ViewPager2 for swiping between images -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewpager_images"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Close button floating -->
+    <ImageView
+        android:id="@+id/iv_close"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="@dimen/screen_edge_inset"
+        android:layout_marginEnd="@dimen/screen_edge_inset"
+        android:background="@drawable/bg_icon_circle_dark"
+        android:padding="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:src="@drawable/ic_close"
+        android:contentDescription="@string/close_cd"
+        app:tint="@color/md3_primary" />
+
+    <!-- Image counter -->
+    <TextView
+        android:id="@+id/tv_image_counter"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:minWidth="74dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:background="@drawable/bg_soft_inset"
+        android:paddingStart="@dimen/dialog_padding_h"
+        android:paddingEnd="@dimen/dialog_padding_h"
+        android:text="@string/preview_gallery_counter"
+        style="@style/AppBodyMedium"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+</RelativeLayout>

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="0dp"
+    android:soundEffectsEnabled="true"
+    android:background="@android:color/transparent"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/dialog_padding_h"
+        android:paddingEnd="@dimen/dialog_padding_h"
+        android:paddingTop="@dimen/dialog_padding_v"
+        android:paddingBottom="@dimen/dialog_padding_h"
+        android:background="@drawable/bg_neu_emboss_raised_md">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dialog_group_options_title"
+            android:textAppearance="@style/AppHeadlineSmall"
+            android:textColor="@color/md3_on_surface"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="@dimen/dialog_padding_h" />
+
+        <!-- View Group Info Option -->
+        <LinearLayout
+            android:id="@+id/option_view_group_info"
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="10dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_info"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/AppBodyLarge"
+                android:text="@string/dialog_option_view_info"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Add Members Option -->
+        <LinearLayout
+            android:id="@+id/option_add_members"
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="10dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_add"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/neu_copper_accent" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/AppBodyLarge"
+                android:text="@string/dialog_option_add_members"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Remove Members Option -->
+        <LinearLayout
+            android:id="@+id/option_remove_members"
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="10dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_group"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/AppBodyLarge"
+                android:text="@string/dialog_option_remove_members"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Join Requests Option -->
+        <LinearLayout
+            android:id="@+id/option_join_requests"
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="10dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_group"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/AppBodyLarge"
+                android:text="@string/dialog_option_join_requests"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_request_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="24dp"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:background="@drawable/bg_badge_red_modern"
+                android:text="@string/badge_count_placeholder"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/md3_on_primary"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Leave Group Option -->
+        <LinearLayout
+            android:id="@+id/option_leave_group"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/option_row_height"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@drawable/bg_danger_option_row"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_close"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_error" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dialog_option_leave_group"
+                android:textSize="@dimen/text_body_large"
+                android:textColor="@color/dialog_button_secondary_text"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Delete Chat Option -->
+        <LinearLayout
+            android:id="@+id/option_delete_chat"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/option_row_height"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@drawable/bg_danger_option_row"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_delete"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_error" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dialog_option_delete_chat"
+                android:textSize="@dimen/text_body_large"
+                android:textColor="@color/dialog_button_destructive_text"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Delete Group Option -->
+        <LinearLayout
+            android:id="@+id/option_delete_group"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/option_row_height"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@drawable/bg_danger_option_row"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/icon_md"
+                android:layout_height="@dimen/icon_md"
+                android:src="@drawable/ic_delete"
+                android:layout_marginEnd="12dp"
+                app:tint="@color/md3_error" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dialog_option_delete_group"
+                android:textSize="@dimen/text_body_large"
+                android:textColor="@color/dialog_button_destructive_text"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

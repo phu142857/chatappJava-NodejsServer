@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="spacing_xs">8dp</dimen>
+    <dimen name="spacing_sm">12dp</dimen>
+    <dimen name="spacing_md">16dp</dimen>
+    <dimen name="spacing_lg">24dp</dimen>
+    <dimen name="spacing_xl">32dp</dimen>
+    <dimen name="margin_mobile">20dp</dimen>
+    <dimen name="gutter">16dp</dimen>
+
+    <dimen name="radius_sm">6dp</dimen>
+    <dimen name="radius_md">12dp</dimen>
+    <dimen name="radius_lg">20dp</dimen>
+    <dimen name="radius_xl">28dp</dimen>
+    <dimen name="radius_pill">999dp</dimen>
+
+    <dimen name="text_headline_large">28sp</dimen>
+    <dimen name="text_headline_medium">22sp</dimen>
+    <dimen name="text_headline_small">20sp</dimen>
+    <dimen name="text_body_large">16sp</dimen>
+    <dimen name="text_body_medium">14sp</dimen>
+    <dimen name="text_body_small">12sp</dimen>
+    <dimen name="text_label_small">12sp</dimen>
+
+    <dimen name="avatar_sm">40dp</dimen>
+    <dimen name="avatar_md">56dp</dimen>
+    <dimen name="avatar_lg">72dp</dimen>
+    <dimen name="nav_bar_height">56dp</dimen>
+    <dimen name="call_controls_dock_height">96dp</dimen>
+    <dimen name="call_control_button_size">52dp</dimen>
+    <dimen name="call_end_button_size">56dp</dimen>
+    <dimen name="search_bar_height">48dp</dimen>
+    <dimen name="header_height">56dp</dimen>
+    <dimen name="touch_target_min">48dp</dimen>
+    <dimen name="chat_screen_margin">@dimen/margin_mobile</dimen>
+    <dimen name="text_timestamp">12sp</dimen>
+    <dimen name="chat_messages_margin_top">8dp</dimen>
+    <dimen name="chat_input_margin_bottom">12dp</dimen>
+    <dimen name="chat_scroll_chip_margin">12dp</dimen>
+    <dimen name="send_button_size">48dp</dimen>
+
+    <dimen name="icon_xs">18dp</dimen>
+    <dimen name="icon_sm">20dp</dimen>
+    <dimen name="icon_md">24dp</dimen>
+    <dimen name="icon_search">22dp</dimen>
+    <dimen name="icon_tab">24dp</dimen>
+
+    <dimen name="text_banner">13sp</dimen>
+    <dimen name="text_tab_label">12sp</dimen>
+    <dimen name="text_auth_display">28sp</dimen>
+    <dimen name="text_auth_subtitle">15sp</dimen>
+
+    <dimen name="list_item_margin">0dp</dimen>
+    <dimen name="list_row_min_height">72dp</dimen>
+    <dimen name="online_dot_size">10dp</dimen>
+    <dimen name="active_indicator_width">3dp</dimen>
+    <dimen name="message_avatar_sm">28dp</dimen>
+    <dimen name="message_bubble_max_width">280dp</dimen>
+    <dimen name="message_reply_max_width">260dp</dimen>
+    <dimen name="bubble_padding_h">14dp</dimen>
+    <dimen name="bubble_padding_v">10dp</dimen>
+    <dimen name="bubble_timestamp_padding_bottom">20dp</dimen>
+    <dimen name="bubble_tail_radius">6dp</dimen>
+    <dimen name="reaction_badge_size">24dp</dimen>
+    <dimen name="reply_thumb_width">80dp</dimen>
+    <dimen name="reply_thumb_height">52dp</dimen>
+
+    <dimen name="dialog_padding_h">20dp</dimen>
+    <dimen name="dialog_padding_v">20dp</dimen>
+    <dimen name="option_row_height">52dp</dimen>
+    <dimen name="input_field_height">52dp</dimen>
+    <dimen name="auth_switch_height">52dp</dimen>
+    <dimen name="composer_inset_height">48dp</dimen>
+
+    <dimen name="nav_margin_h">0dp</dimen>
+    <dimen name="nav_padding_bottom">0dp</dimen>
+    <dimen name="screen_edge_inset">20dp</dimen>
+
+    <dimen name="auth_logo_size">88dp</dimen>
+    <dimen name="auth_logo_padding">14dp</dimen>
+    <dimen name="auth_title_margin_top">20dp</dimen>
+    <dimen name="auth_subtitle_margin_top">8dp</dimen>
+    <dimen name="auth_switch_margin_top">28dp</dimen>
+    <dimen name="auth_switch_inner_padding">4dp</dimen>
+    <dimen name="auth_tab_height">44dp</dimen>
+    <dimen name="auth_tab_indicator_border_width">4dp</dimen>
+    <dimen name="auth_form_margin_top">20dp</dimen>
+    <dimen name="auth_form_min_height">480dp</dimen>
+    <dimen name="auth_card_padding_h">20dp</dimen>
+    <dimen name="auth_card_padding_v">24dp</dimen>
+    <dimen name="bezel_shell_padding">6dp</dimen>
+    <dimen name="auth_eyebrow_padding_h">12dp</dimen>
+    <dimen name="auth_eyebrow_padding_v">5dp</dimen>
+
+    <dimen name="badge_min_width">22dp</dimen>
+    <dimen name="badge_padding_h">7dp</dimen>
+    <dimen name="badge_padding_v">3dp</dimen>
+    <dimen name="divider_height">1dp</dimen>
+    <dimen name="avatar_border_width">2dp</dimen>
+    <dimen name="avatar_border_width_sm">1dp</dimen>
+
+    <dimen name="post_username_max_width">160dp</dimen>
+    <dimen name="post_menu_button_size">48dp</dimen>
+    <dimen name="post_menu_button_padding">12dp</dimen>
+    <dimen name="reaction_picker_cell">48dp</dimen>
+    <dimen name="voice_play_button_size">48dp</dimen>
+    <dimen name="media_remove_button_size">48dp</dimen>
+    <dimen name="post_media_min_height">200dp</dimen>
+    <dimen name="post_video_min_height">280dp</dimen>
+    <dimen name="post_play_button_size">56dp</dimen>
+    <dimen name="post_play_button_padding">16dp</dimen>
+    <dimen name="post_interaction_row_height">36dp</dimen>
+    <dimen name="post_action_row_height">48dp</dimen>
+    <dimen name="post_content_line_spacing">4dp</dimen>
+    <dimen name="post_tagged_margin_start">4dp</dimen>
+    <dimen name="post_action_icon_margin">6dp</dimen>
+    <dimen name="nav_tab_height">48dp</dimen>
+    <dimen name="nav_tab_padding">10dp</dimen>
+    <dimen name="nav_pill_padding">0dp</dimen>
+    <dimen name="icon_button_inset">10dp</dimen>
+    <dimen name="home_content_max_width">0dp</dimen>
+    <dimen name="list_content_padding_bottom">16dp</dimen>
+
+    <!-- Neumorphic Copper -->
+    <dimen name="neu_copper_nav_dock_height">72dp</dimen>
+    <dimen name="neu_copper_nav_dock_margin">16dp</dimen>
+    <dimen name="neu_copper_nav_tab_size">48dp</dimen>
+    <dimen name="neu_copper_avatar_well">52dp</dimen>
+    <dimen name="neu_copper_avatar_inner">44dp</dimen>
+    <dimen name="neu_copper_search_height">52dp</dimen>
+    <dimen name="neu_red_nav_dock_height">@dimen/neu_copper_nav_dock_height</dimen>
+    <dimen name="neu_red_nav_dock_margin">@dimen/neu_copper_nav_dock_margin</dimen>
+    <dimen name="neu_red_nav_tab_size">@dimen/neu_copper_nav_tab_size</dimen>
+    <dimen name="neu_red_avatar_well">@dimen/neu_copper_avatar_well</dimen>
+    <dimen name="neu_red_avatar_inner">@dimen/neu_copper_avatar_inner</dimen>
+    <dimen name="neu_red_search_height">@dimen/neu_copper_search_height</dimen>
+</resources>

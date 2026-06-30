@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical">
+
+    <TextView
+        style="@style/AppSettingsSectionTitle"
+        android:text="@string/settings_account_section" />
+
+    <LinearLayout
+        android:id="@+id/option_profile"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_tag"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_profile" />
+
+        <ImageView style="@style/AppListDividerRowChevron" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/option_change_password"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_setting"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_change_password" />
+
+        <ImageView style="@style/AppListDividerRowChevron" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/option_logout"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_close"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabelDanger"
+            android:text="@string/settings_logout" />
+
+        <ImageView style="@style/AppListDividerRowChevronDanger" />
+
+    </LinearLayout>
+
+    <TextView
+        style="@style/AppSettingsSectionTitleSpaced"
+        android:text="@string/settings_privacy_section" />
+
+    <LinearLayout
+        android:id="@+id/option_blocked_users"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_close"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_blocked_users" />
+
+        <ImageView style="@style/AppListDividerRowChevron" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/option_delete_account"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_delete"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabelDanger"
+            android:text="@string/settings_delete_account" />
+
+        <ImageView style="@style/AppListDividerRowChevronDanger" />
+
+    </LinearLayout>
+
+    <TextView
+        style="@style/AppSettingsSectionTitleSpaced"
+        android:text="@string/settings_notifications_section" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_list_row_divider"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/option_row_height"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:paddingBottom="@dimen/spacing_sm">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_push_notifications"
+                android:textColor="@color/neu_copper_ink"
+                android:textSize="@dimen/text_auth_subtitle"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_push_notifications_desc"
+                android:textColor="@color/neu_copper_ink_muted"
+                android:textSize="@dimen/text_body_small" />
+
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/switch_push_notifications"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:checked="true"
+            android:thumbTint="@color/neu_copper_accent"
+            android:trackTint="@color/switch_track_selector" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_list_row_divider"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/option_row_height"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:paddingBottom="@dimen/spacing_sm">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_sound"
+                android:textColor="@color/neu_copper_ink"
+                android:textSize="@dimen/text_auth_subtitle"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_sound_desc"
+                android:textColor="@color/neu_copper_ink_muted"
+                android:textSize="@dimen/text_body_small" />
+
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/switch_sound"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:checked="true"
+            android:thumbTint="@color/neu_copper_accent"
+            android:trackTint="@color/switch_track_selector" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_list_row_divider"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/option_row_height"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:paddingBottom="@dimen/spacing_sm">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_vibrate"
+                android:textColor="@color/neu_copper_ink"
+                android:textSize="@dimen/text_auth_subtitle"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="@string/settings_vibrate_desc"
+                android:textColor="@color/neu_copper_ink_muted"
+                android:textSize="@dimen/text_body_small" />
+
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/switch_vibrate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:checked="true"
+            android:thumbTint="@color/neu_copper_accent"
+            android:trackTint="@color/switch_track_selector" />
+
+    </LinearLayout>
+
+    <TextView
+        style="@style/AppSettingsSectionTitleSpaced"
+        android:text="@string/settings_server_section" />
+
+    <LinearLayout
+        android:id="@+id/option_server_config"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_preferences"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_server_config" />
+
+        <ImageView style="@style/AppListDividerRowChevron" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/option_reset_settings"
+        style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_restore"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabelDanger"
+            android:text="@string/settings_reset" />
+
+        <ImageView style="@style/AppListDividerRowChevronDanger" />
+
+    </LinearLayout>
+
+    <TextView
+        style="@style/AppSettingsSectionTitleSpaced"
+        android:text="@string/settings_about_section" />
+
+    <LinearLayout style="@style/AppListDividerRow">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_info"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_app_version" />
+
+        <TextView
+            android:id="@+id/tv_app_version"
+            style="@style/AppBodyMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_app_version_value"
+            android:textColor="@color/neu_copper_ink_muted"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/option_help_support"
+        style="@style/AppListDividerRow"
+        android:layout_marginBottom="@dimen/spacing_md">
+
+        <ImageView
+            style="@style/AppListDividerRowIcon"
+            android:src="@drawable/ic_help"
+            app:tint="@color/neu_copper_accent" />
+
+        <TextView
+            style="@style/AppListDividerRowLabel"
+            android:text="@string/settings_help_support" />
+
+        <ImageView style="@style/AppListDividerRowChevron" />
+
+    </LinearLayout>
+
+</LinearLayout>

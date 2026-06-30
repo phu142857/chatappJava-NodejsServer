@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_chat_screen_dark">
+
+    <!-- Background Image -->
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.12"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Neu toolbar: title + actions (Feed) -->
+    <LinearLayout
+        android:id="@+id/top_nav_bar"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/header_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingEnd="@dimen/margin_mobile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <TextView
+            android:id="@+id/tv_app_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:maxLines="1"
+            android:text="@string/feed_title"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="@dimen/text_headline_medium"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/iv_search"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:background="@drawable/bg_neu_copper_fab"
+            android:contentDescription="@string/feed_search_cd"
+            android:padding="@dimen/nav_tab_padding"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_search"
+            app:tint="@color/neu_copper_ink" />
+
+        <ImageButton
+            android:id="@+id/iv_notifications"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:background="@drawable/bg_neu_copper_sunken_circle"
+            android:contentDescription="@string/feed_notifications_cd"
+            android:padding="@dimen/nav_tab_padding"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_notification"
+            app:tint="@color/neu_copper_ink_muted" />
+
+    </LinearLayout>
+
+    <include
+        android:id="@+id/action_bar"
+        layout="@layout/component_create_post_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_sm"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_nav_bar"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+    <!-- Posts RecyclerView -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/spacing_xs"
+        app:layout_constraintTop_toBottomOf="@id/action_bar"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_posts"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingStart="@dimen/spacing_sm"
+                android:paddingEnd="@dimen/spacing_sm"
+                android:paddingTop="@dimen/spacing_xs"
+                android:paddingBottom="@dimen/spacing_xs"
+                android:scrollbars="none"
+                android:background="@android:color/transparent" />
+
+            <include
+                android:id="@+id/list_skeleton"
+                layout="@layout/component_list_skeleton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/feed_empty_state"
+                layout="@layout/component_empty_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- Flat bottom dock -->
+    <LinearLayout
+        android:id="@+id/bottom_nav_bar"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/nav_bar_height"
+        android:background="@drawable/bg_neu_copper_nav_dock"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/spacing_xs"
+        android:paddingEnd="@dimen/spacing_xs"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Feed/Home Tab -->
+        <LinearLayout
+            android:id="@+id/ll_tab_feed"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector"
+            android:clickable="true"
+            android:contentDescription="@string/feed_tab_feed_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="@dimen/icon_tab"
+                android:layout_height="@dimen/icon_tab"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_post"
+                app:tint="@color/tab_icon_selector" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:text="@string/feed_tab_feed"
+                android:textColor="@color/tab_text_selector"
+                android:textSize="@dimen/text_tab_label"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Groups Tab -->
+        <LinearLayout
+            android:id="@+id/ll_tab_groups"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector"
+            android:clickable="true"
+            android:contentDescription="@string/feed_tab_groups_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="@dimen/icon_tab"
+                android:layout_height="@dimen/icon_tab"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_group"
+                app:tint="@color/tab_icon_selector" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:text="@string/home_title_groups"
+                android:textColor="@color/tab_text_selector"
+                android:textSize="@dimen/text_tab_label"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Watch Tab -->
+        <LinearLayout
+            android:id="@+id/ll_tab_watch"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector"
+            android:clickable="true"
+            android:contentDescription="@string/feed_tab_watch_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="@dimen/icon_tab"
+                android:layout_height="@dimen/icon_tab"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_video_call"
+                app:tint="@color/tab_icon_selector" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:text="@string/feed_tab_watch"
+                android:textColor="@color/tab_text_selector"
+                android:textSize="@dimen/text_tab_label"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Profile Tab -->
+        <LinearLayout
+            android:id="@+id/ll_tab_profile"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector"
+            android:clickable="true"
+            android:contentDescription="@string/feed_tab_profile_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="@dimen/icon_tab"
+                android:layout_height="@dimen/icon_tab"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_profile_placeholder"
+                app:tint="@color/tab_icon_selector" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:text="@string/profile"
+                android:textColor="@color/tab_text_selector"
+                android:textSize="@dimen/text_tab_label"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

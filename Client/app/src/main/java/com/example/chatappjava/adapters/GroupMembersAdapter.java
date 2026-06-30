@@ -1,0 +1,117 @@
+package com.example.chatappjava.adapters;
+
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.chatappjava.R;
+import com.example.chatappjava.models.User;
+import com.example.chatappjava.utils.AvatarManager;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import de.hdodenhof.circleimageview.CircleImageView;
+
+public class GroupMembersAdapter extends RecyclerView.Adapter<GroupMembersAdapter.MemberViewHolder> {
+    
+    public interface OnMemberClickListener {
+        void onMemberClick(User member);
+    }
+    
+    private final List<User> members;
+    private final OnMemberClickListener listener;
+    private final Map<String, String> memberRoles; // userId -> role display text
+    
+    public GroupMembersAdapter(List<User> members, OnMemberClickListener listener) {
+        this.members = members;
+        this.listener = listener;
+        this.memberRoles = new HashMap<>();
+    }
+    
+    public void setMemberRoles(Map<String, String> roles) {
+        this.memberRoles.clear();
+        if (roles != null) {
+            this.memberRoles.putAll(roles);
+        }
+        int count = getItemCount();
+        if (count > 0) {
+            notifyItemRangeChanged(0, count);
+        }
+    }
+    
+    @NonNull
+    @Override
+    public MemberViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_group_member, parent, false);
+        return new MemberViewHolder(view);
+    }
+    
+    @Override
+    public void onBindViewHolder(@NonNull MemberViewHolder holder, int position) {
+        User member = members.get(position);
+        holder.bind(member);
+    }
+    
+    @Override
+    public int getItemCount() {
+        return members.size();
+    }
+    
+    class MemberViewHolder extends RecyclerView.ViewHolder {
+        private final CircleImageView ivAvatar;
+        private final TextView tvName;
+        private final TextView tvRole;
+        
+        public MemberViewHolder(@NonNull View itemView) {
+            super(itemView);
+            ivAvatar = itemView.findViewById(R.id.iv_member_avatar);
+            tvName = itemView.findViewById(R.id.tv_member_name);
+            tvRole = itemView.findViewById(R.id.tv_member_role);
+            
+            itemView.setOnClickListener(v -> {
+                int position = getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION && listener != null) {
+                    listener.onMemberClick(members.get(position));
+                }
+            });
+        }
+        
+        public void bind(User member) {
+            tvName.setText(member.getDisplayName());
+            
+            // Display role
+            String roleText = memberRoles.get(member.getId());
+            if (roleText != null && !roleText.isEmpty()) {
+                tvRole.setText(roleText);
+                tvRole.setVisibility(View.VISIBLE);
+            } else {
+                tvRole.setVisibility(View.GONE);
+            }
+            
+            // Load avatar with full URL construction
+            if (member.getAvatar() != null && !member.getAvatar().isEmpty()) {
+                String avatarUrl = member.getAvatar();
+                android.util.Log.d("GroupMembersAdapter", "Loading member avatar: " + avatarUrl);
+                
+                // Construct full URL if needed
+                if (!avatarUrl.startsWith("http")) {
+                    avatarUrl = "http://" + com.example.chatappjava.config.ServerConfig.getServerIp() + 
+                               ":" + com.example.chatappjava.config.ServerConfig.getServerPort() + avatarUrl;
+                    android.util.Log.d("GroupMembersAdapter", "Constructed full URL: " + avatarUrl);
+                }
+                
+                AvatarManager.getInstance(itemView.getContext())
+                        .loadAvatar(avatarUrl, ivAvatar, R.drawable.ic_profile_placeholder);
+            } else {
+                android.util.Log.d("GroupMembersAdapter", "No avatar URL, using placeholder");
+                ivAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        }
+    }
+}

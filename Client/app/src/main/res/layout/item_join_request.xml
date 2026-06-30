@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_list_row_divider"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/list_row_min_height"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/margin_mobile"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingEnd="@dimen/margin_mobile"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/iv_avatar"
+        android:layout_width="@dimen/avatar_sm"
+        android:layout_height="@dimen/avatar_sm"
+        android:src="@drawable/ic_profile_placeholder"
+        app:civ_border_color="@color/md3_border_subtle"
+        app:civ_border_width="@dimen/avatar_border_width_sm" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:singleLine="true"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="@dimen/text_body_large"
+            android:textStyle="bold"
+            tools:text="Username with a reasonably long name" />
+
+        <TextView
+            android:id="@+id/tv_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/list_item_margin"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:singleLine="true"
+            android:textColor="@color/md3_on_surface_secondary"
+            android:textSize="@dimen/text_banner"
+            tools:text="Join request for 'Awesome Group'" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_reject"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="88dp"
+            android:minHeight="@dimen/touch_target_min"
+            android:background="@drawable/bg_reject_button_modern"
+            android:backgroundTint="@null"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:insetBottom="0dp"
+            android:insetTop="0dp"
+            android:paddingStart="@dimen/spacing_md"
+            android:paddingEnd="@dimen/spacing_md"
+            android:text="@string/action_reject"
+            android:textAllCaps="false"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="@dimen/text_body_small"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btn_approve"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_xs"
+            android:minWidth="88dp"
+            android:minHeight="@dimen/touch_target_min"
+            android:background="@drawable/bg_primary_pill"
+            android:backgroundTint="@null"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:insetBottom="0dp"
+            android:insetTop="0dp"
+            android:paddingStart="@dimen/spacing_md"
+            android:paddingEnd="@dimen/spacing_md"
+            android:text="@string/action_approve"
+            android:textAllCaps="false"
+            android:textColor="@color/md3_on_primary"
+            android:textSize="@dimen/text_body_small"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</LinearLayout>

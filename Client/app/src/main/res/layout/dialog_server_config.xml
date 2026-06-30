@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="0dp"
+    android:soundEffectsEnabled="true"
+    android:background="@android:color/transparent"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="22dp"
+        android:paddingBottom="20dp"
+        android:background="@drawable/bg_neu_emboss_raised_md">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dialog_server_config_title"
+            android:textAppearance="@style/AppHeadlineSmall"
+            android:textColor="@color/text_primary"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="20dp" />
+
+        <!-- Server IP -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialog_server_ip"
+            style="@style/AppLabelSmall"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_server_ip"
+            style="@style/AppInputField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:hint="@string/hint_server_ip"
+            android:textColorHint="@color/md3_on_surface_secondary"
+            android:textCursorDrawable="@null"
+            android:layout_marginBottom="@dimen/spacing_md" />
+
+        <!-- Server Port -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialog_server_port"
+            style="@style/AppLabelSmall"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_server_port"
+            style="@style/AppInputField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:hint="@string/hint_server_port"
+            android:textColorHint="@color/md3_on_surface_secondary"
+            android:textCursorDrawable="@null"
+            android:layout_marginBottom="@dimen/spacing_md" />
+
+        <Button
+            android:id="@+id/btn_test_server_connection"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_marginBottom="@dimen/spacing_md"
+            android:text="@string/action_test_connection"
+            android:textAllCaps="false"
+            style="@style/DialogButton.Secondary" />
+
+        <!-- Use HTTPS -->
+        <LinearLayout
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dialog_use_https"
+                style="@style/AppBodyLarge"
+                android:textStyle="bold" />
+
+            <CheckBox
+                android:id="@+id/cb_use_https"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/md3_primary" />
+
+        </LinearLayout>
+
+        <!-- Use WSS -->
+        <LinearLayout
+            style="@style/AppOptionRow"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="@dimen/screen_edge_inset">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dialog_use_wss"
+                style="@style/AppBodyLarge"
+                android:textStyle="bold" />
+
+            <CheckBox
+                android:id="@+id/cb_use_wss"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/md3_primary" />
+
+        </LinearLayout>
+
+        <!-- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical">
+
+            <Button
+                android:id="@+id/btn_cancel_server_config"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/touch_target_min"
+                android:minWidth="92dp"
+                android:text="@string/action_cancel"
+                android:textAllCaps="false"
+                android:textColor="@color/dialog_button_secondary_text"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                style="@style/DialogButton.Secondary"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:layout_marginEnd="10dp" />
+
+            <Button
+                android:id="@+id/btn_save_server_config"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/touch_target_min"
+                android:minWidth="92dp"
+                android:text="@string/action_save"
+                android:textAllCaps="false"
+                android:textColor="@color/dialog_button_filled_text"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                style="@style/DialogButton.Filled"
+                android:paddingStart="22dp"
+                android:paddingEnd="22dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

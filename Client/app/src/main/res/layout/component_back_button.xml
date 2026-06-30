@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ImageView
+        android:id="@+id/iv_back"
+        style="@style/AppBackButton"
+        android:contentDescription="@string/back_button_description"
+        app:tint="@color/neu_copper_ink" />
+
+</merge>

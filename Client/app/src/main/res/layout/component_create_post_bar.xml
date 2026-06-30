@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_neu_emboss_raised_md"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:padding="@dimen/spacing_md">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="@dimen/chat_messages_margin_top">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_post_profile_thumbnail"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:contentDescription="@string/home_create_post_avatar_cd"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/md3_border_glow"
+            app:civ_border_width="@dimen/avatar_border_width" />
+
+        <LinearLayout
+            android:id="@+id/ll_create_post_input"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/composer_inset_height"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_soft_inset"
+            android:clickable="true"
+            android:contentDescription="@string/home_create_post_hint"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/spacing_md"
+            android:paddingEnd="@dimen/spacing_md">
+
+            <TextView
+                android:id="@+id/tv_create_post_hint"
+                style="@style/AppBodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/home_create_post_hint"
+                android:textColor="@color/neu_copper_ink_muted" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/divider_height"
+        android:layout_marginTop="@dimen/spacing_xs"
+        android:layout_marginBottom="@dimen/chat_messages_margin_top"
+        android:background="@color/md3_border_subtle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/ll_live_post"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:clickable="true"
+            android:contentDescription="@string/home_post_live_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="@dimen/icon_sm"
+                android:layout_height="@dimen/icon_sm"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_camera"
+                app:tint="@color/neu_copper_accent" />
+
+            <TextView
+                style="@style/AppBodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:text="@string/home_post_live"
+                android:textColor="@color/neu_copper_ink" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_photo_post"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:clickable="true"
+            android:contentDescription="@string/home_post_photo_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="@dimen/icon_sm"
+                android:layout_height="@dimen/icon_sm"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_image"
+                app:tint="@color/neu_copper_accent" />
+
+            <TextView
+                style="@style/AppBodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:text="@string/home_post_photo"
+                android:textColor="@color/neu_copper_ink" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_video_post"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_weight="1"
+            android:background="@drawable/bg_icon_circle_transparent"
+            android:clickable="true"
+            android:contentDescription="@string/home_post_video_cd"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="@dimen/icon_sm"
+                android:layout_height="@dimen/icon_sm"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_video_call"
+                app:tint="@color/neu_copper_accent" />
+
+            <TextView
+                style="@style/AppBodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:text="@string/home_post_video"
+                android:textColor="@color/neu_copper_ink" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_neu_copper_list_row"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/list_row_min_height"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingTop="@dimen/spacing_md"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:paddingBottom="@dimen/spacing_md">
+
+        <!-- Avatar recessed well -->
+        <FrameLayout
+            android:layout_width="@dimen/neu_copper_avatar_well"
+            android:layout_height="@dimen/neu_copper_avatar_well"
+            android:layout_marginEnd="@dimen/spacing_md"
+            android:background="@drawable/bg_neu_copper_sunken_circle"
+            android:clipChildren="false"
+            android:padding="4dp">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_chat_avatar"
+                android:layout_width="@dimen/neu_copper_avatar_inner"
+                android:layout_height="@dimen/neu_copper_avatar_inner"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_width="0dp" />
+
+            <View
+                android:id="@+id/view_online_dot"
+                android:layout_width="@dimen/online_dot_size"
+                android:layout_height="@dimen/online_dot_size"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/bg_online_dot"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tv_chat_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginEnd="@dimen/spacing_xs"
+                    android:layout_toStartOf="@+id/tv_last_message_time"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:singleLine="true"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="@dimen/text_body_large"
+                    android:textStyle="bold"
+                    tools:text="Sara Sanders" />
+
+                <TextView
+                    android:id="@+id/tv_last_message_time"
+                    style="@style/AppCaptionTabular"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:textColor="@color/neu_copper_accent"
+                    android:textSize="@dimen/text_timestamp"
+                    tools:text="12:35" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp">
+
+                <TextView
+                    android:id="@+id/tv_last_message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginEnd="@dimen/spacing_xs"
+                    android:layout_toStartOf="@+id/tv_unread_count"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:singleLine="true"
+                    android:textColor="@color/neu_copper_ink_muted"
+                    android:textSize="@dimen/text_body_medium"
+                    tools:text="Can you buy me dinner?" />
+
+                <TextView
+                    android:id="@+id/tv_unread_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/badge_min_width"
+                    android:layout_alignParentEnd="true"
+                    android:background="@drawable/bg_neu_copper_badge"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:gravity="center"
+                    android:importantForAccessibility="no"
+                    android:minWidth="@dimen/badge_min_width"
+                    android:paddingStart="@dimen/badge_padding_h"
+                    android:paddingEnd="@dimen/badge_padding_h"
+                    android:textColor="@color/neu_copper_ink"
+                    android:textSize="@dimen/text_label_small"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="3"
+                    tools:visibility="visible" />
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Kept for adapter compat; hidden in neumorphic theme -->
+    <View
+        android:id="@+id/view_active_indicator"
+        android:layout_width="@dimen/active_indicator_width"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_vertical|start"
+        android:background="@drawable/bg_active_chat_indicator"
+        android:visibility="gone" />
+
+</FrameLayout>

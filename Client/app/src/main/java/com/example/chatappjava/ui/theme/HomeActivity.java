@@ -1,0 +1,3708 @@
+package com.example.chatappjava.ui.theme;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewParent;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.os.Handler;
+import android.os.Looper;
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import android.app.Dialog;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import com.example.chatappjava.R;
+import com.example.chatappjava.adapters.ChatListAdapter;
+import com.example.chatappjava.models.Chat;
+import com.example.chatappjava.models.Message;
+import com.example.chatappjava.models.User;
+import com.example.chatappjava.network.ApiClient;
+import com.example.chatappjava.utils.AvatarManager;
+import com.example.chatappjava.utils.AvatarSyncCoordinator;
+import com.example.chatappjava.utils.DatabaseManager;
+import com.example.chatappjava.utils.ConversationPreviewHelper;
+import com.example.chatappjava.utils.ConversationRepository;
+import com.example.chatappjava.utils.MessageRepository;
+import com.example.chatappjava.utils.EmptyStateHelper;
+import com.example.chatappjava.utils.MotionUtils;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import com.example.chatappjava.config.ServerConfig;
+import com.squareup.picasso.Picasso;
+import com.example.chatappjava.adapters.CallListAdapter;
+import com.example.chatappjava.models.Call;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class HomeActivity extends AppCompatActivity implements ChatListAdapter.OnChatClickListener, CallListAdapter.OnCallClickListener {
+    
+    private static final String TAG = "HomeActivity";
+    
+    // UI Components
+    // tvMessagesTitle removed - no longer needed
+    private ImageView ivSearch;
+    private View btnNewGroupAction;
+    private View efabNewGroup;
+    private ImageView ivChats, ivGroups, ivCalls, ivPosts, ivNotifications, ivSettings;
+    private RecyclerView rvChatList;
+    private SwipeRefreshLayout swipeRefreshLayout;
+    private LinearLayout llFriendRequests;
+    private TextView tvFriendRequestCount;
+    private TextView tvFriendRequestsTitle;
+    private View userProfileSection;
+    private LinearLayout searchBarHome; // Search bar replacing top bar
+    
+    // Posts Tab - Create Post Bar
+    private LinearLayout llCreatePostBar;
+    private LinearLayout llCreatePostInput;
+    private TextView tvCreatePostHint;
+    private de.hdodenhof.circleimageview.CircleImageView ivPostProfileThumbnail;
+    private LinearLayout llLivePost;
+    private LinearLayout llPhotoPost;
+    private LinearLayout llVideoPost;
+    
+    // User Profile Components
+    private de.hdodenhof.circleimageview.CircleImageView ivUserAvatar;
+    private TextView tvUserName;
+    
+    // Data and Services
+    private DatabaseManager databaseManager;
+    private ConversationRepository conversationRepository;
+    private MessageRepository messageRepository;
+    private com.example.chatappjava.utils.CallRepository callRepository;
+    private com.example.chatappjava.utils.PostRepository postRepository;
+    private com.example.chatappjava.utils.SyncManager syncManager;
+    private ApiClient apiClient;
+    private ChatListAdapter chatAdapter;
+    private CallListAdapter callAdapter;
+    private com.example.chatappjava.adapters.PostAdapter postAdapter;
+    private com.example.chatappjava.adapters.NotificationAdapter notificationAdapter;
+    private com.example.chatappjava.adapters.SettingsAdapter settingsAdapter;
+    private List<Chat> chatList;
+    private List<Call> callList;
+    private List<com.example.chatappjava.models.Post> postList;
+    private List<com.example.chatappjava.models.Notification> notificationList;
+    private AvatarManager avatarManager;
+    private boolean isLoadingChats = false;
+    private boolean isLoadingCalls = false;
+    private boolean isLoadingPosts = false;
+    private boolean isPolling = false;
+    private AlertDialog currentDialog;
+    private final java.util.Set<String> blockedUserIds = new java.util.HashSet<>();
+    private static final long HOME_POLL_INTERVAL_MS = 300000L;
+    private final Handler homePollHandler = new Handler(Looper.getMainLooper());
+    private final Runnable homePollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isFinishing()) {
+                if (!isLoadingChats) {
+                    loadChats();
+                    loadFriendRequestCount();
+                }
+                homePollHandler.postDelayed(this, HOME_POLL_INTERVAL_MS);
+            }
+        }
+    };
+    
+    // Current tab tracking
+    private int currentTab = 0; // 0: Chats, 1: Groups, 2: Calls, 3: Posts
+    private boolean postsLoadedFromServer = false; // Track if posts have been loaded from server
+    // Hold reference to message listener for add/remove
+    private com.example.chatappjava.network.SocketManager.MessageListener homeMessageListener;
+    private com.example.chatappjava.network.SocketManager.RealtimeSyncListener homeRealtimeSyncListener;
+    private AvatarSyncCoordinator.Listener homeAvatarSyncListener;
+    private android.content.BroadcastReceiver blockedChangedReceiver;
+    private android.content.BroadcastReceiver authErrorReceiver;
+    private View homeEmptyState;
+    private View listSkeleton;
+    private TextView homeEmptyTitle;
+    private TextView homeEmptySubtitle;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_home);
+        
+        initializeViews();
+        initializeServices();
+        setupClickListeners();
+        setupRecyclerView();
+        loadUserData();
+        loadUserProfile();
+        loadFriendRequestCount();
+        // Preload blocked users to filter chat list
+        loadBlockedUsers();
+        // Load chats initially so private chats are visible on Home
+        loadChats();
+        
+        // Initialize default tab selection
+        switchTab(0);
+
+        // Handle system back using OnBackPressedDispatcher
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showExitConfirm();
+            }
+        });
+
+        // Listen for blocked list changes (unblock triggers refresh)
+        blockedChangedReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                if ("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED".equals(intent.getAction())) {
+                    loadBlockedUsers();
+                    loadChats();
+                }
+            }
+        };
+        registerReceiver(blockedChangedReceiver,
+                new android.content.IntentFilter("com.example.chatappjava.ACTION_BLOCKED_USERS_CHANGED"),
+                android.content.Context.RECEIVER_NOT_EXPORTED);
+        
+        // Listen for authentication errors from socket
+        authErrorReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                if ("com.example.chatappjava.AUTH_ERROR".equals(intent.getAction())) {
+                    Log.w(TAG, "Received AUTH_ERROR broadcast, redirecting to login");
+                    runOnUiThread(() -> {
+                        databaseManager.clearLoginInfo();
+                        redirectToLogin();
+                    });
+                }
+            }
+        };
+        registerReceiver(authErrorReceiver,
+                new android.content.IntentFilter("com.example.chatappjava.AUTH_ERROR"),
+                android.content.Context.RECEIVER_NOT_EXPORTED);
+    }
+
+    // removed duplicate onResume (blocked users refresh handled in main onResume below)
+    
+    private void initializeViews() {
+        // messages_title removed from layout
+        ivSearch = findViewById(R.id.iv_search);
+        userProfileSection = findViewById(R.id.user_profile_section);
+        searchBarHome = findViewById(R.id.search_bar_home);
+        ivChats = findViewById(R.id.iv_chats);
+        ivGroups = findViewById(R.id.iv_groups);
+        ivCalls = findViewById(R.id.iv_calls);
+        ivPosts = findViewById(R.id.iv_posts);
+        ivNotifications = findViewById(R.id.iv_notifications);
+        ivSettings = findViewById(R.id.iv_settings);
+        
+        rvChatList = findViewById(R.id.rv_chat_list);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
+        llFriendRequests = findViewById(R.id.ll_friend_requests);
+        tvFriendRequestCount = findViewById(R.id.tv_friend_request_count);
+        // Initialize friend requests title (different layout ids possible)
+        tvFriendRequestsTitle = findViewById(R.id.tv_requests_title);
+        // New Group Extended FAB
+        efabNewGroup = findViewById(R.id.efab_new_group);
+        
+        // Posts Tab - Create Post Bar
+        llCreatePostBar = findViewById(R.id.ll_create_post_bar);
+        llCreatePostInput = findViewById(R.id.ll_create_post_input);
+        tvCreatePostHint = findViewById(R.id.tv_create_post_hint);
+        ivPostProfileThumbnail = findViewById(R.id.iv_post_profile_thumbnail);
+        llLivePost = findViewById(R.id.ll_live_post);
+        llPhotoPost = findViewById(R.id.ll_photo_post);
+        llVideoPost = findViewById(R.id.ll_video_post);
+        
+        // User Profile Components
+        ivUserAvatar = findViewById(R.id.iv_user_avatar);
+        tvUserName = findViewById(R.id.tv_user_name);
+        homeEmptyState = findViewById(R.id.home_empty_state);
+        listSkeleton = findViewById(R.id.list_skeleton);
+        if (homeEmptyState != null) {
+            homeEmptyTitle = homeEmptyState.findViewById(R.id.tv_empty_title);
+            homeEmptySubtitle = homeEmptyState.findViewById(R.id.tv_empty_subtitle);
+        }
+    }
+
+    private void setChatListLoading(boolean loading) {
+        if (listSkeleton == null) {
+            return;
+        }
+        if (currentTab != 0 && currentTab != 1) {
+            loading = false;
+        }
+        com.example.chatappjava.utils.SkeletonHelper.setListLoading(listSkeleton, loading);
+        if (rvChatList != null) {
+            rvChatList.setVisibility(loading ? View.GONE : View.VISIBLE);
+        }
+        if (loading && homeEmptyState != null) {
+            homeEmptyState.setVisibility(View.GONE);
+        }
+    }
+
+    private void updateHomeEmptyState() {
+        if (homeEmptyState == null || rvChatList == null) {
+            return;
+        }
+        RecyclerView.Adapter<?> adapter = rvChatList.getAdapter();
+        int count = adapter != null ? adapter.getItemCount() : 0;
+        boolean show = count == 0 && currentTab != 4 && currentTab != 5;
+        if (!show) {
+            homeEmptyState.setVisibility(View.GONE);
+            return;
+        }
+        boolean wasVisible = homeEmptyState.getVisibility() == View.VISIBLE;
+        int titleRes;
+        int subtitleRes;
+        int iconRes;
+        switch (currentTab) {
+            case 1:
+                titleRes = R.string.home_groups_empty_title;
+                subtitleRes = R.string.home_groups_empty_subtitle;
+                iconRes = R.drawable.ic_group;
+                break;
+            case 2:
+                titleRes = R.string.home_calls_empty_title;
+                subtitleRes = R.string.home_calls_empty_subtitle;
+                iconRes = R.drawable.ic_call;
+                break;
+            case 3:
+                titleRes = R.string.feed_empty_title;
+                subtitleRes = R.string.feed_empty_subtitle;
+                iconRes = R.drawable.ic_post;
+                break;
+            default:
+                titleRes = R.string.home_chats_empty_title;
+                subtitleRes = R.string.home_chats_empty_subtitle;
+                iconRes = R.drawable.ic_chat;
+                break;
+        }
+        if (!wasVisible) {
+            EmptyStateHelper.bindAndReveal(this, homeEmptyState, titleRes, subtitleRes, iconRes);
+        } else {
+            EmptyStateHelper.bind(homeEmptyState, titleRes, subtitleRes, iconRes);
+            homeEmptyState.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    private void initializeServices() {
+        databaseManager = new DatabaseManager(this);
+        conversationRepository = new ConversationRepository(this);
+        messageRepository = new MessageRepository(this);
+        callRepository = new com.example.chatappjava.utils.CallRepository(this);
+        postRepository = new com.example.chatappjava.utils.PostRepository(this);
+        syncManager = com.example.chatappjava.utils.SyncManager.getInstance(this);
+        apiClient = new ApiClient();
+        chatList = new ArrayList<>();
+        callList = new ArrayList<>();
+        postList = new ArrayList<>();
+        notificationList = new ArrayList<>();
+        avatarManager = AvatarManager.getInstance(this);
+        avatarManager.initialize(); // Initialize avatar manager with scheduled refresh
+
+        // Check if user is logged in
+        if (!databaseManager.isLoggedIn()) {
+            redirectToLogin();
+            return;
+        }
+        
+        // Setup sync listener to update UI when sync completes
+        syncManager.addSyncListener(new com.example.chatappjava.utils.SyncManager.SyncListener() {
+            @Override
+            public void onSyncComplete(String resourceType, boolean success, int itemsUpdated) {
+                if (success && itemsUpdated > 0) {
+                    runOnUiThread(() -> {
+                        switch (resourceType) {
+                            case "posts":
+                                // Reload posts from cache after sync
+                                loadPostsFromCache();
+                                break;
+                            case "conversations":
+                                // Reload chats from cache after sync
+                                loadChatsFromDatabase();
+                                break;
+                            case "messages":
+                                // Messages are handled by chat activities
+                                break;
+                        }
+                    });
+                }
+            }
+            
+            @Override
+            public void onSyncError(String resourceType, String error) {
+                Log.e(TAG, "Sync error for " + resourceType + ": " + error);
+            }
+        });
+    }
+    
+    private void setupClickListeners() {
+        // Hide old top bar elements
+        if (ivSearch != null) {
+            ivSearch.setVisibility(View.GONE);
+        }
+
+        // Search bar click - open SearchActivity
+        if (searchBarHome != null) {
+            searchBarHome.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, SearchActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
+
+        // Friend requests
+        llFriendRequests.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(HomeActivity.this, FriendRequestActivity.class);
+                startActivityForResult(intent, 1001);
+            }
+        });
+        
+        // Tab navigation
+        ivChats.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(0);
+                // Refresh chats when switching back to Chats tab
+                loadChats();
+            }
+        });
+        
+        ivGroups.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(1);
+            }
+        });
+        
+        ivCalls.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(2);
+            }
+        });
+        
+        ivPosts.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(3);
+            }
+        });
+        
+        ivNotifications.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(4);
+            }
+        });
+        
+        ivSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchTab(5);
+            }
+        });
+
+        MotionUtils.attachPressFeedback(this,
+                ivChats, ivGroups, ivCalls, ivPosts, ivNotifications, ivSettings,
+                searchBarHome, llFriendRequests, efabNewGroup);
+        
+        // Create Post Bar Click Listeners
+        if (llCreatePostInput != null) {
+            llCreatePostInput.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llPhotoPost != null) {
+            llPhotoPost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llVideoPost != null) {
+            llVideoPost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                    startActivityForResult(intent, 1002);
+                }
+            });
+        }
+        
+        if (llLivePost != null) {
+            llLivePost.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Toast.makeText(HomeActivity.this, getString(R.string.feature_live_soon), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        if (efabNewGroup != null) {
+            efabNewGroup.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent createGroupIntent = new Intent(HomeActivity.this, CreateGroupActivity.class);
+                    startActivity(createGroupIntent);
+                }
+            });
+        }
+        
+    }
+    
+    private void setupRecyclerView() {
+        chatAdapter = new ChatListAdapter(this, chatList, this);
+        
+        // Setup call adapter
+        callAdapter = new CallListAdapter(this);
+        callAdapter.setOnCallClickListener(this);
+        callAdapter.setCurrentUserId(databaseManager.getUserId());
+        
+        // Setup post adapter
+        postAdapter = new com.example.chatappjava.adapters.PostAdapter(this, postList, new com.example.chatappjava.adapters.PostAdapter.OnPostClickListener() {
+            @Override
+            public void onPostClick(com.example.chatappjava.models.Post post) {
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.PostDetailActivity.class);
+                try {
+                    intent.putExtra("post", post.toJson().toString());
+                    startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    android.util.Log.e(TAG, "Error passing post data: " + e.getMessage());
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_open_post), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onLikeClick(com.example.chatappjava.models.Post post, int position) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    Toast.makeText(HomeActivity.this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Optimistically update UI
+                boolean newLikedState = !post.isLiked();
+                post.setLiked(newLikedState);
+                if (newLikedState) {
+                    post.setLikesCount(post.getLikesCount() + 1);
+                } else {
+                    post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                }
+                // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
+                
+                // Make API call to like/unlike post
+                apiClient.toggleLikePost(token, post.getId(), new okhttp3.Callback() {
+                    @Override
+                    public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> {
+                            // Revert optimistic update on failure
+                            post.setLiked(!newLikedState);
+                            if (newLikedState) {
+                                post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                            } else {
+                                post.setLikesCount(post.getLikesCount() + 1);
+                            }
+                            // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
+                        });
+                    }
+                    
+                    @Override
+                    public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        if (response.isSuccessful()) {
+                            try {
+                                String responseBody = response.body().string();
+                                JSONObject jsonResponse = new JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    JSONObject data = jsonResponse.optJSONObject("data");
+                                    if (data != null) {
+                                        boolean liked = data.optBoolean("liked", newLikedState);
+                                        int likesCount = data.optInt("likesCount", post.getLikesCount());
+                                        
+                                        runOnUiThread(() -> {
+                                            post.setLiked(liked);
+                                            post.setLikesCount(likesCount);
+                                            // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
+                                        });
+                                    }
+                                }
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Error parsing like response: " + e.getMessage());
+                            }
+                        } else {
+                            runOnUiThread(() -> {
+                                // Revert optimistic update on failure
+                                post.setLiked(!newLikedState);
+                                if (newLikedState) {
+                                    post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+                                } else {
+                                    post.setLikesCount(post.getLikesCount() + 1);
+                                }
+                                // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
+                                
+                                if (response.code() == 401) {
+                                    databaseManager.clearLoginInfo();
+                                    redirectToLogin();
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            
+            @Override
+            public void onCommentClick(com.example.chatappjava.models.Post post) {
+                Intent intent = new Intent(HomeActivity.this, PostDetailActivity.class);
+                try {
+                    intent.putExtra("post", post.toJson().toString());
+                    startActivity(intent);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error passing post data: " + e.getMessage());
+                    Toast.makeText(HomeActivity.this, getString(R.string.error_open_comments), Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onShareClick(com.example.chatappjava.models.Post post) {
+                android.util.Log.d(TAG, "HomeActivity.onShareClick called for post: " + (post != null ? post.getId() : "null"));
+                showShareDialog(post);
+            }
+            
+            private void showShareDialog(com.example.chatappjava.models.Post post) {
+                try {
+                    android.util.Log.d(TAG, "HomeActivity.showShareDialog called");
+                    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                    android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_share_post, null);
+                    builder.setView(dialogView);
+                    
+                    android.app.AlertDialog dialog = builder.create();
+                    
+                    // Set dialog window properties
+                    android.view.Window window = dialog.getWindow();
+                    if (window != null) {
+                        window.setBackgroundDrawableResource(android.R.color.transparent);
+                    }
+                    
+                    // Initialize views
+                    android.widget.LinearLayout optionShareToFeed = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_feed);
+                    android.widget.LinearLayout optionSendAsMessage = dialogView.findViewById(com.example.chatappjava.R.id.option_send_as_message);
+                    android.widget.LinearLayout optionShareToStory = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_story);
+                    android.widget.LinearLayout optionShareToGroup = dialogView.findViewById(com.example.chatappjava.R.id.option_share_to_group);
+                    android.widget.LinearLayout optionCopyLink = dialogView.findViewById(com.example.chatappjava.R.id.option_copy_link);
+                    android.widget.LinearLayout optionShareExternal = dialogView.findViewById(com.example.chatappjava.R.id.option_share_external);
+                    
+                    if (optionShareToFeed == null) {
+                        android.util.Log.e(TAG, "option_share_to_feed view not found!");
+                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_load_share_dialog), android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    // Share to Feed
+                    optionShareToFeed.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Share to Feed clicked");
+                        dialog.dismiss();
+                        shareToFeed(post);
+                    });
+                    
+                    // Send as Message
+                    optionSendAsMessage.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Send as Message clicked");
+                        dialog.dismiss();
+                        sendAsMessage(post);
+                    });
+                    
+                    // Share to Story (hidden for now)
+                    optionShareToStory.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.feature_share_story_soon), android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Share to Group (hidden for now)
+                    optionShareToGroup.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.feature_share_group_soon), android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                    
+                    // Copy Link
+                    optionCopyLink.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Copy Link clicked");
+                        dialog.dismiss();
+                        copyPostLink(post);
+                    });
+                    
+                    // Share to External Apps
+                    optionShareExternal.setOnClickListener(v -> {
+                        android.util.Log.d(TAG, "Share to External Apps clicked");
+                        dialog.dismiss();
+                        shareToExternalApps(post);
+                    });
+                    
+                    dialog.show();
+                    android.util.Log.d(TAG, "Share dialog shown");
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "Error showing share dialog: " + e.getMessage(), e);
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_share_options, e.getMessage()), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            private void shareToFeed(com.example.chatappjava.models.Post post) {
+                android.util.Log.d(TAG, "shareToFeed called for post: " + post.getId());
+                if (post == null || post.getId() == null) {
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_cannot_share_post_data_is_invalid), android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Open CreatePostActivity with shared post data
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.CreatePostActivity.class);
+                intent.putExtra("shared_post_id", post.getId());
+                intent.putExtra("shared_post_content", post.getContent());
+                intent.putExtra("shared_post_author", post.getAuthorUsername());
+                intent.putExtra("shared_post_author_id", post.getAuthorId());
+                intent.putExtra("shared_post_author_avatar", post.getAuthorAvatar()); // Add avatar
+                if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
+                    intent.putExtra("shared_post_media", post.getMediaUrls().get(0));
+                }
+                android.util.Log.d(TAG, "Starting CreatePostActivity with shared_post_id: " + post.getId() + ", author: " + post.getAuthorUsername() + ", avatar: " + post.getAuthorAvatar());
+                startActivityForResult(intent, 1002);
+            }
+            
+            private void sendAsMessage(com.example.chatappjava.models.Post post) {
+                // Open chat selection to send post as message
+                android.content.Intent intent = new android.content.Intent(HomeActivity.this, HomeActivity.class);
+                intent.putExtra("action", "share_post");
+                intent.putExtra("post_id", post.getId());
+                startActivity(intent);
+            }
+            
+            private void copyPostLink(com.example.chatappjava.models.Post post) {
+                // Generate deep link URL (custom scheme for local app)
+                // This will open the app directly when clicked, similar to clicking on a tagged user
+                String deepLinkUrl = "chatapp://post/" + post.getId();
+                
+                // Copy the deep link as plain text (most apps recognize custom schemes in plain text)
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Post Link", deepLinkUrl);
+                clipboard.setPrimaryClip(clip);
+                
+                android.widget.Toast.makeText(HomeActivity.this, getString(R.string.success_post_link_copied), android.widget.Toast.LENGTH_SHORT).show();
+            }
+            
+            private void shareToExternalApps(com.example.chatappjava.models.Post post) {
+                // Use Android Share Sheet
+                String postUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/posts/" + post.getId();
+                String shareText = post.getContent() != null && !post.getContent().isEmpty() 
+                    ? post.getContent() + "\n\n" + postUrl 
+                    : postUrl;
+                
+                android.content.Intent shareIntent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareText);
+                shareIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Check out this post");
+                
+                startActivity(android.content.Intent.createChooser(shareIntent, "Share post via"));
+                
+                // Update share count (optimistic update)
+                post.setSharesCount(post.getSharesCount() + 1);
+                int position = postList.indexOf(post);
+                if (position >= 0) {
+                    // updatePost automatically adjusts position for create post bar
+                postAdapter.updatePost(position, post);
+                }
+            }
+            
+            @Override
+            public void onPostMenuClick(com.example.chatappjava.models.Post post) {
+                showPostOptionsMenu(post);
+            }
+            
+            private void showPostOptionsMenu(com.example.chatappjava.models.Post post) {
+                if (post == null) return;
+                
+                String currentUserId = databaseManager.getUserId();
+                boolean isOwnPost = post.getAuthorId() != null && post.getAuthorId().equals(currentUserId);
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_post_options, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                
+                // Set dialog window properties
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                // Initialize views
+                android.widget.LinearLayout optionEditPost = dialogView.findViewById(com.example.chatappjava.R.id.option_edit_post);
+                android.widget.LinearLayout optionDeletePost = dialogView.findViewById(com.example.chatappjava.R.id.option_delete_post);
+                android.widget.LinearLayout optionHidePost = dialogView.findViewById(com.example.chatappjava.R.id.option_hide_post);
+                android.widget.LinearLayout optionCancel = dialogView.findViewById(com.example.chatappjava.R.id.option_cancel);
+                
+                // Show appropriate options based on ownership
+                if (isOwnPost) {
+                    optionEditPost.setVisibility(android.view.View.VISIBLE);
+                    optionDeletePost.setVisibility(android.view.View.VISIBLE);
+                    optionHidePost.setVisibility(android.view.View.GONE);
+                } else {
+                    optionEditPost.setVisibility(android.view.View.GONE);
+                    optionDeletePost.setVisibility(android.view.View.GONE);
+                    optionHidePost.setVisibility(android.view.View.VISIBLE);
+                }
+                
+                // Edit Post
+                optionEditPost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showEditPostDialog(post);
+                });
+                
+                // Delete Post
+                optionDeletePost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    deletePost(post);
+                });
+                
+                // Hide Post
+                optionHidePost.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    hidePost(post);
+                });
+                
+                // Cancel
+                optionCancel.setOnClickListener(v -> dialog.dismiss());
+                
+                dialog.show();
+            }
+            
+            private void deletePost(com.example.chatappjava.models.Post post) {
+                android.app.AlertDialog.Builder confirmBuilder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                confirmBuilder.setTitle("Delete Post");
+                confirmBuilder.setMessage("Are you sure you want to delete this post? This action cannot be undone.");
+                confirmBuilder.setPositiveButton("Delete", (dialog, which) -> {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_please_login_again), android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    apiClient.deletePost(token, post.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> {
+                                android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_delete_post, e.getMessage()), android.widget.Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            final String responseBody = response.body().string();
+                            runOnUiThread(() -> {
+                                try {
+                                    org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                    if (jsonResponse.getBoolean("success")) {
+                                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.post_deleted_success), android.widget.Toast.LENGTH_SHORT).show();
+                                        // Reload posts
+                                        if (currentTab == 3) {
+                                            loadPosts(true);
+                                        }
+                                    } else {
+                                        String message = jsonResponse.optString("message", "Failed to delete post");
+                                        android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (org.json.JSONException e) {
+                                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_request_failed), android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                });
+                confirmBuilder.setNegativeButton("Cancel", null);
+                confirmBuilder.show();
+            }
+            
+            private void hidePost(com.example.chatappjava.models.Post post) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_please_login_again), android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                apiClient.hidePost(token, post.getId(), new okhttp3.Callback() {
+                    @Override
+                    public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                        runOnUiThread(() -> {
+                            android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_hide_post, e.getMessage()), android.widget.Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                    
+                    @Override
+                    public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                        final String responseBody = response.body().string();
+                        runOnUiThread(() -> {
+                            try {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.getBoolean("success")) {
+                                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.post_hidden_success), android.widget.Toast.LENGTH_SHORT).show();
+                                    // Remove post from cache
+                                    if (postRepository != null) {
+                                        postRepository.deletePostById(post.getId());
+                                    }
+                                    // Remove post from list
+                                    int position = postList.indexOf(post);
+                                    if (position >= 0) {
+                                        postList.remove(position);
+                                        postAdapter.notifyItemRemoved(position);
+                                    }
+                                } else {
+                                    String message = jsonResponse.optString("message", "Failed to hide post");
+                                    android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (org.json.JSONException e) {
+                                android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_request_failed), android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
+            }
+            
+            private void showEditPostDialog(com.example.chatappjava.models.Post post) {
+                if (post == null) return;
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_edit_post, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                
+                // Set dialog window properties
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                // Initialize views
+                android.widget.EditText etEditContent = dialogView.findViewById(com.example.chatappjava.R.id.et_edit_content);
+                android.widget.TextView tvEditPrivacy = dialogView.findViewById(com.example.chatappjava.R.id.tv_edit_privacy);
+                android.widget.LinearLayout llEditPrivacySettings = dialogView.findViewById(com.example.chatappjava.R.id.ll_edit_privacy_settings);
+                android.widget.LinearLayout btnSave = dialogView.findViewById(com.example.chatappjava.R.id.btn_save);
+                android.widget.LinearLayout btnCancel = dialogView.findViewById(com.example.chatappjava.R.id.btn_cancel);
+                
+                // Set current content
+                if (etEditContent != null && post.getContent() != null) {
+                    etEditContent.setText(post.getContent());
+                }
+                
+                // Get current privacy setting (default to Public)
+                final String[] currentPrivacy = {"Public"};
+                if (tvEditPrivacy != null) {
+                    tvEditPrivacy.setText(currentPrivacy[0]);
+                }
+                
+                // Privacy settings click
+                if (llEditPrivacySettings != null) {
+                    llEditPrivacySettings.setOnClickListener(v -> {
+                        String[] privacyOptions = {"Public", "Friends", "Only Me"};
+                        int currentSelection = 0;
+                        for (int i = 0; i < privacyOptions.length; i++) {
+                            if (privacyOptions[i].equals(currentPrivacy[0])) {
+                                currentSelection = i;
+                                break;
+                            }
+                        }
+                        
+                        new android.app.AlertDialog.Builder(HomeActivity.this)
+                            .setTitle("Privacy")
+                            .setSingleChoiceItems(privacyOptions, currentSelection, (d, which) -> {
+                                currentPrivacy[0] = privacyOptions[which];
+                                if (tvEditPrivacy != null) {
+                                    tvEditPrivacy.setText(currentPrivacy[0]);
+                                }
+                                d.dismiss();
+                            })
+                            .show();
+                    });
+                }
+                
+                // Save button
+                if (btnSave != null) {
+                    btnSave.setOnClickListener(v -> {
+                        String newContent = etEditContent != null ? etEditContent.getText().toString().trim() : "";
+                        if (newContent.isEmpty()) {
+                            android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_content_empty), android.widget.Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        
+                        dialog.dismiss();
+                        updatePost(post, newContent, currentPrivacy[0]);
+                    });
+                }
+                
+                // Cancel button
+                if (btnCancel != null) {
+                    btnCancel.setOnClickListener(v -> dialog.dismiss());
+                }
+                
+                dialog.show();
+            }
+            
+            private void updatePost(com.example.chatappjava.models.Post post, String newContent, String privacySetting) {
+                String token = databaseManager.getToken();
+                if (token == null || token.isEmpty()) {
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_please_login_again), android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                try {
+                    org.json.JSONObject postData = new org.json.JSONObject();
+                    postData.put("content", newContent);
+                    
+                    // Convert privacy setting to backend format
+                    String backendPrivacy = "public";
+                    if ("Friends".equals(privacySetting)) {
+                        backendPrivacy = "friends";
+                    } else if ("Only Me".equals(privacySetting)) {
+                        backendPrivacy = "only_me";
+                    }
+                    postData.put("privacySetting", backendPrivacy);
+                    
+                    apiClient.updatePost(token, post.getId(), postData, new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> {
+                                android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_update_post, e.getMessage()), android.widget.Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                        
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            final String responseBody = response.body().string();
+                            runOnUiThread(() -> {
+                                try {
+                                    org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                    if (jsonResponse.getBoolean("success")) {
+                                        // Update local post object
+                                        post.setContent(newContent);
+                                        
+                                        // Reload posts to refresh UI
+                                        if (currentTab == 3) {
+                                            loadPosts(true);
+                                        }
+                                        
+                                        android.widget.Toast.makeText(HomeActivity.this, getString(R.string.success_post_updated), android.widget.Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        String message = jsonResponse.optString("message", "Failed to update post");
+                                        android.widget.Toast.makeText(HomeActivity.this, message, android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (org.json.JSONException e) {
+                                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_request_failed), android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                } catch (org.json.JSONException e) {
+                    android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_prepare_update), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onAuthorClick(com.example.chatappjava.models.Post post) {
+                // TODO: Open author profile
+            }
+            
+            @Override
+            public void onMediaClick(com.example.chatappjava.models.Post post, int mediaIndex) {
+                // Show image viewer for images
+                if (post.getMediaUrls() != null && mediaIndex < post.getMediaUrls().size()) {
+                    String mediaType = post.getMediaType();
+                    if ("image".equals(mediaType) || "gallery".equals(mediaType)) {
+                        List<String> imageUrls = post.getMediaUrls();
+                        String imageUrl = imageUrls.get(mediaIndex);
+                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                            // Construct full URLs for all images
+                            List<String> fullImageUrls = new ArrayList<>();
+                            for (String url : imageUrls) {
+                                if (url != null && !url.isEmpty()) {
+                                    if (!url.startsWith("http")) {
+                                        url = ServerConfig.getBaseUrl() + (url.startsWith("/") ? url : "/" + url);
+                                    }
+                                    fullImageUrls.add(url);
+                                }
+                            }
+                            
+                            // Show gallery dialog with all images
+                            showImageZoomDialog(imageUrl, null, fullImageUrls, mediaIndex);
+                        }
+                    }
+                }
+            }
+            
+            @Override
+            public void onTaggedUsersClick(com.example.chatappjava.models.Post post) {
+                showTaggedUsersDialog(post);
+            }
+            
+            private void showTaggedUsersDialog(com.example.chatappjava.models.Post post) {
+                java.util.List<com.example.chatappjava.models.User> taggedUsers = post.getTaggedUsers();
+                if (taggedUsers == null || taggedUsers.isEmpty()) {
+                    return;
+                }
+                
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(HomeActivity.this);
+                android.view.View dialogView = getLayoutInflater().inflate(com.example.chatappjava.R.layout.dialog_tagged_users, null);
+                builder.setView(dialogView);
+                
+                android.app.AlertDialog dialog = builder.create();
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawableResource(android.R.color.transparent);
+                }
+                
+                android.widget.TextView tvTitle = dialogView.findViewById(com.example.chatappjava.R.id.tv_dialog_title);
+                androidx.recyclerview.widget.RecyclerView rvTaggedUsers = dialogView.findViewById(com.example.chatappjava.R.id.rv_tagged_users);
+                android.widget.Button btnClose = dialogView.findViewById(com.example.chatappjava.R.id.btn_close);
+                
+                if (tvTitle != null) {
+                    tvTitle.setText(getString(R.string.dialog_tagged_users_title));
+                }
+                
+                androidx.recyclerview.widget.LinearLayoutManager layoutManager = new androidx.recyclerview.widget.LinearLayoutManager(HomeActivity.this);
+                rvTaggedUsers.setLayoutManager(layoutManager);
+                
+                com.example.chatappjava.adapters.TagUserAdapter adapter = new com.example.chatappjava.adapters.TagUserAdapter(
+                    HomeActivity.this,
+                    taggedUsers,
+                    new java.util.HashSet<>(),
+                    new com.example.chatappjava.adapters.TagUserAdapter.OnTagUserClickListener() {
+                        @Override
+                        public void onUserClick(com.example.chatappjava.models.User user, boolean isSelected) {
+                            // Open user profile when clicked
+                            android.content.Intent intent = new android.content.Intent(HomeActivity.this, com.example.chatappjava.ui.theme.ProfileViewActivity.class);
+                            try {
+                                intent.putExtra("user", user.toJson().toString());
+                                startActivity(intent);
+                                dialog.dismiss();
+                            } catch (org.json.JSONException e) {
+                                android.widget.Toast.makeText(HomeActivity.this, getString(R.string.error_error_opening_profile), android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                );
+                rvTaggedUsers.setAdapter(adapter);
+                
+                btnClose.setOnClickListener(v -> dialog.dismiss());
+                
+                dialog.show();
+            }
+        }, new com.example.chatappjava.adapters.PostAdapter.OnCreatePostBarClickListener() {
+            @Override
+            public void onCreatePostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
+            }
+            
+            @Override
+            public void onLivePostClick() {
+                Toast.makeText(HomeActivity.this, getString(R.string.feature_live_soon), Toast.LENGTH_SHORT).show();
+            }
+            
+            @Override
+            public void onPhotoPostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
+            }
+            
+            @Override
+            public void onVideoPostClick() {
+                Intent intent = new Intent(HomeActivity.this, CreatePostActivity.class);
+                startActivityForResult(intent, 1002);
+            }
+        });
+        
+        rvChatList.setLayoutManager(new LinearLayoutManager(this));
+        rvChatList.setAdapter(chatAdapter);
+        
+        // Setup SwipeRefreshLayout
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setEnabled(true); // Enable for all tabs
+            swipeRefreshLayout.setColorSchemeColors(
+                    getColor(R.color.neu_copper_accent),
+                    getColor(R.color.neu_copper_accent_light));
+            swipeRefreshLayout.setProgressBackgroundColorSchemeColor(getColor(R.color.neu_copper_surface));
+            swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+                @Override
+                public void onRefresh() {
+                    refreshCurrentTab();
+                }
+            });
+        }
+    }
+    
+    private void loadUserData() {
+        // No title needed - user profile is displayed separately
+    }
+    
+    private void loadUserProfile() {
+        // Check if views are initialized
+        if (ivUserAvatar == null || tvUserName == null) {
+                Log.e(TAG, "User profile views not initialized!");
+            return;
+        }
+        
+        // Load user profile information
+        String username = databaseManager.getUserName();
+        String avatarUrl = databaseManager.getUserAvatar();
+        
+        Log.d(TAG, "Loading user profile - Username: " + username + ", Avatar URL: " + avatarUrl);
+        
+        // Load avatar - handle URL like ProfileActivity
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            Log.d(TAG, "Loading avatar from URL: " + avatarUrl);
+            
+            // If it's a relative URL, prepend the server base URL (like ProfileActivity)
+            String fullAvatarUrl = avatarUrl;
+            if (!avatarUrl.startsWith("http")) {
+                fullAvatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + avatarUrl;
+                Log.d(TAG, "Constructed full URL: " + fullAvatarUrl);
+            }
+            
+            try {
+                // Try AvatarManager first
+                avatarManager.loadAvatar(fullAvatarUrl, ivUserAvatar, R.drawable.ic_profile_placeholder);
+                
+                // Backup: Also try Picasso directly (like ProfileActivity)
+                Picasso.get()
+                        .load(fullAvatarUrl)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
+                        .into(ivUserAvatar);
+                        
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading avatar: " + e.getMessage());
+                // Fallback to direct Picasso load
+                try {
+                    Picasso.get()
+                            .load(fullAvatarUrl)
+                            .placeholder(R.drawable.ic_profile_placeholder)
+                            .error(R.drawable.ic_profile_placeholder)
+                            .into(ivUserAvatar);
+                } catch (Exception e2) {
+                    Log.e(TAG, "Picasso also failed: " + e2.getMessage());
+                    ivUserAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
+        } else {
+            Log.d(TAG, "No avatar URL, using placeholder");
+            ivUserAvatar.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        
+        // Force visibility
+        ivUserAvatar.setVisibility(View.VISIBLE);
+        
+        // Make user profile clickable to go to profile
+        View.OnClickListener profileClickListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(HomeActivity.this, ProfileActivity.class);
+                startActivity(intent);
+            }
+        };
+        
+        // Both avatar and profile section are clickable
+        ivUserAvatar.setOnClickListener(profileClickListener);
+        findViewById(R.id.user_profile_section).setOnClickListener(profileClickListener);
+        
+        // Load avatar for post profile thumbnail
+        if (ivPostProfileThumbnail != null && avatarManager != null) {
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                String fullAvatarUrl = avatarUrl;
+                if (!avatarUrl.startsWith("http")) {
+                    fullAvatarUrl = "http://" + ServerConfig.getServerIp() + ":" + ServerConfig.getServerPort() + avatarUrl;
+                }
+                avatarManager.loadAvatar(fullAvatarUrl, ivPostProfileThumbnail, R.drawable.ic_profile_placeholder);
+            } else {
+                ivPostProfileThumbnail.setImageResource(R.drawable.ic_profile_placeholder);
+            }
+        }
+    }
+    
+    private void switchTab(int tabIndex) {
+        currentTab = tabIndex;
+        
+        // Reset all tab states
+        ivChats.setSelected(false);
+        ivGroups.setSelected(false);
+        ivCalls.setSelected(false);
+        ivPosts.setSelected(false);
+        ivNotifications.setSelected(false);
+        ivSettings.setSelected(false);
+
+        // Show title only on Chats tab
+        if (tvFriendRequestsTitle != null) {
+            tvFriendRequestsTitle.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
+        }
+        // Show entire Friend Requests layout only on Chats tab
+        if (llFriendRequests != null) {
+            llFriendRequests.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
+        }
+        // Hide Create Post Bar (now in RecyclerView)
+        if (llCreatePostBar != null) {
+            llCreatePostBar.setVisibility(View.GONE);
+        }
+        
+        // Header action: new chat / new group
+        if (efabNewGroup != null) {
+            efabNewGroup.setVisibility(tabIndex == 0 || tabIndex == 1 ? View.VISIBLE : View.GONE);
+        }
+        if (tvUserName != null) {
+            int titleRes;
+            switch (tabIndex) {
+                case 1: titleRes = R.string.home_title_groups; break;
+                case 2: titleRes = R.string.home_title_calls; break;
+                case 3: titleRes = R.string.home_title_posts; break;
+                case 4: titleRes = R.string.home_title_notifications; break;
+                case 5: titleRes = R.string.home_title_settings; break;
+                default: titleRes = R.string.home_title_chats; break;
+            }
+            final int resolvedTitleRes = titleRes;
+            MotionUtils.crossfadeText(this, tvUserName, () -> tvUserName.setText(resolvedTitleRes));
+        }
+        
+        // Update RecyclerView constraints and padding for different tabs using ConstraintSet
+        View chatListCard = findViewById(R.id.chat_list_card);
+        RecyclerView recyclerView = findViewById(R.id.rv_chat_list);
+        
+        // Ensure RecyclerView is visible
+        if (recyclerView != null) {
+            recyclerView.setVisibility(View.VISIBLE);
+        }
+        if (chatListCard != null) {
+            chatListCard.setVisibility(View.VISIBLE);
+            
+            ViewParent parent = chatListCard.getParent();
+            if (parent instanceof ConstraintLayout) {
+                ConstraintLayout rootLayout = (ConstraintLayout) parent;
+                ConstraintSet constraintSet = new ConstraintSet();
+                constraintSet.clone(rootLayout);
+                
+                // Connect RecyclerView to friend requests (or search bar if friend requests hidden)
+                constraintSet.clear(R.id.chat_list_card, ConstraintSet.TOP);
+                if (llFriendRequests != null && llFriendRequests.getVisibility() == View.VISIBLE) {
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.ll_friend_requests, ConstraintSet.BOTTOM, 16);
+                } else {
+                    // If friend requests hidden, connect to search bar
+                    constraintSet.connect(R.id.chat_list_card, ConstraintSet.TOP, R.id.search_bar_home, ConstraintSet.BOTTOM, 8);
+                }
+                constraintSet.clear(R.id.chat_list_card, ConstraintSet.BOTTOM);
+                constraintSet.connect(R.id.chat_list_card, ConstraintSet.BOTTOM, R.id.tab_container, ConstraintSet.TOP, 8);
+                // Set margins for tabs
+                if (chatListCard != null) {
+                    android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) chatListCard.getLayoutParams();
+                    if (params != null) {
+                        params.leftMargin = 0;
+                        params.rightMargin = 0;
+                        params.topMargin = 0;
+                        params.bottomMargin = 0;
+                        chatListCard.setLayoutParams(params);
+                    }
+                }
+                if (recyclerView != null) {
+                    float density = getResources().getDisplayMetrics().density;
+                    int bottomPad = (int) (getResources().getDimension(R.dimen.neu_copper_nav_dock_height)
+                            + getResources().getDimension(R.dimen.neu_copper_nav_dock_margin)
+                            + 8 * density);
+                    recyclerView.setPadding(
+                            (int) (8 * density),
+                            (int) (8 * density),
+                            (int) (8 * density),
+                            bottomPad);
+                }
+                constraintSet.applyTo(rootLayout);
+            }
+        }
+        
+        // Enable/Disable SwipeRefreshLayout based on tab
+        if (swipeRefreshLayout != null) {
+            // Disable pull to reload for Settings tab (index 5)
+            swipeRefreshLayout.setEnabled(tabIndex != 5);
+        }
+        
+        // Highlight selected tab (color will be handled by tab_icon_selector)
+        // Reset all tabs first
+        ivChats.setSelected(false);
+        ivGroups.setSelected(false);
+        ivCalls.setSelected(false);
+        ivPosts.setSelected(false);
+        ivNotifications.setSelected(false);
+        ivSettings.setSelected(false);
+        
+        switch (tabIndex) {
+            case 0:
+                ivChats.setSelected(true);
+                // Switch to chat adapter and show only private chats
+                rvChatList.setAdapter(chatAdapter);
+                applyChatsFilter();
+                break;
+            case 1:
+                ivGroups.setSelected(true);
+                // Switch to chat adapter and filter to show only group chats
+                rvChatList.setAdapter(chatAdapter);
+                applyGroupsFilter();
+                break;
+            case 2:
+                ivCalls.setSelected(true);
+                // Switch to call adapter and load call history
+                rvChatList.setAdapter(callAdapter);
+                loadCallHistory();
+                break;
+            case 3:
+                ivPosts.setSelected(true);
+                // Switch to post adapter and load posts
+                rvChatList.setAdapter(postAdapter);
+                // Force reload from server on first load to ensure author info is loaded
+                if (!postsLoadedFromServer) {
+                    loadPosts(true); // Force reload from server
+                } else {
+                    loadPosts(); // Normal load (may use cache)
+                }
+                break;
+            case 4:
+                ivNotifications.setSelected(true);
+                // Switch to notification adapter and load notifications
+                if (notificationAdapter == null) {
+                    notificationAdapter = new com.example.chatappjava.adapters.NotificationAdapter(this);
+                    notificationAdapter.setOnNotificationClickListener(new com.example.chatappjava.adapters.NotificationAdapter.OnNotificationClickListener() {
+                        @Override
+                        public void onNotificationClick(com.example.chatappjava.models.Notification notification) {
+                            // Navigate to post detail when notification is clicked
+                            if (notification.getPostId() != null && !notification.getPostId().isEmpty()) {
+                                Intent intent = new Intent(HomeActivity.this, PostDetailActivity.class);
+                                intent.putExtra("postId", notification.getPostId());
+                                startActivity(intent);
+                            }
+                        }
+                    });
+                }
+                rvChatList.setAdapter(notificationAdapter);
+                loadNotifications();
+                break;
+            case 5:
+                ivSettings.setSelected(true);
+                // Switch to settings adapter
+                if (settingsAdapter == null) {
+                    settingsAdapter = new com.example.chatappjava.adapters.SettingsAdapter(this);
+                }
+                rvChatList.setAdapter(settingsAdapter);
+                break;
+        }
+        MotionUtils.pulseTabIcon(this, getTabIconView(tabIndex));
+        MotionUtils.crossfadePanel(this, chatListCard);
+        updateHomeEmptyState();
+    }
+
+    private ImageView getTabIconView(int tabIndex) {
+        switch (tabIndex) {
+            case 1: return ivGroups;
+            case 2: return ivCalls;
+            case 3: return ivPosts;
+            case 4: return ivNotifications;
+            case 5: return ivSettings;
+            default: return ivChats;
+        }
+    }
+
+    private void applyChatsFilter() {
+        if (chatAdapter == null) return;
+        List<Chat> privates = new ArrayList<>();
+        for (Chat c : chatList) {
+            if (c != null && !c.isGroupChat()) {
+                if (!isChatWithBlockedUser(c)) {
+                    privates.add(c);
+                }
+            }
+        }
+        chatAdapter.updateChats(privates);
+        setChatListLoading(false);
+        updateHomeEmptyState();
+    }
+    
+    private void applyGroupsFilter() {
+        if (chatAdapter == null) return;
+        List<Chat> groups = new ArrayList<>();
+        System.out.println("HomeActivity: Applying groups filter to " + chatList.size() + " chats");
+        for (Chat c : chatList) {
+            if (c != null && c.isGroupChat()) {
+                System.out.println("HomeActivity: Adding group to filter: " + c.getName() + " (ID: " + c.getId() + ")");
+                groups.add(c);
+            }
+        }
+        System.out.println("HomeActivity: Groups filter result: " + groups.size() + " groups");
+        chatAdapter.updateChats(groups);
+        setChatListLoading(false);
+        updateHomeEmptyState();
+    }
+    
+    private void loadCallHistory() {
+        if (isLoadingCalls) {
+            return;
+        }
+        isLoadingCalls = true;
+        
+        // First, try to load from local database
+        List<Call> cachedCalls = callRepository.getAllCalls(0); // 0 = no limit
+        if (!cachedCalls.isEmpty()) {
+            this.callList = cachedCalls;
+            if (callAdapter != null) {
+                callAdapter.updateCalls(cachedCalls);
+                updateHomeEmptyState();
+                System.out.println("HomeActivity: Loaded " + cachedCalls.size() + " calls from database");
+            }
+            // Stop refresh spinner if we have cached data
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            isLoadingCalls = false;
+            // Stop refresh spinner if no token
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        System.out.println("HomeActivity: Starting to load call history with token: " + token.substring(0, 10) + "...");
+        
+        apiClient.getCallHistory(token, 50, 1, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    System.out.println("HomeActivity: Failed to load call history: " + e.getMessage());
+                    // If we have cached calls, keep showing them
+                    if (callList.isEmpty()) {
+                        // Try to load from database again if we don't have any calls
+                        List<Call> cachedCalls = callRepository.getAllCalls(0);
+                        if (!cachedCalls.isEmpty()) {
+                            callList = cachedCalls;
+                            if (callAdapter != null) {
+                                callAdapter.updateCalls(cachedCalls);
+                updateHomeEmptyState();
+                            }
+                        }
+                    }
+                    isLoadingCalls = false;
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleCallHistoryResponse(response.code(), responseBody);
+                    isLoadingCalls = false;
+                });
+            }
+        });
+    }
+    
+    private void handleCallHistoryResponse(int statusCode, String responseBody) {
+        try {
+            System.out.println("HomeActivity: Call History Response Code: " + statusCode);
+            System.out.println("HomeActivity: Call History Response Body: " + responseBody);
+            
+            if (statusCode == 200) {
+                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    org.json.JSONObject data = jsonResponse.getJSONObject("data");
+                    org.json.JSONArray callsArray = data.getJSONArray("calls");
+                    
+                    System.out.println("HomeActivity: Found " + callsArray.length() + " calls");
+                    
+                    // Parse calls and update adapter
+                    List<Call> calls = new ArrayList<>();
+                    for (int i = 0; i < callsArray.length(); i++) {
+                        org.json.JSONObject callJson = callsArray.getJSONObject(i);
+                        System.out.println("HomeActivity: Call " + i + ": " + callJson.toString());
+                        
+                        try {
+                            Call call = Call.fromJson(callJson);
+                            calls.add(call);
+                            System.out.println("HomeActivity: Successfully parsed call: " + call.getCallId() + " - " + call.getDisplayName());
+                        } catch (Exception e) {
+                            System.out.println("HomeActivity: Error parsing call " + i + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    // Save calls to database
+                    if (!calls.isEmpty()) {
+                        callRepository.saveCalls(calls);
+                        System.out.println("HomeActivity: Saved " + calls.size() + " calls to database");
+                    }
+                    
+                    // Update call list and adapter
+                    this.callList = calls;
+                    if (callAdapter != null) {
+                        callAdapter.updateCalls(calls);
+                        updateHomeEmptyState();
+                        System.out.println("HomeActivity: Updated call adapter with " + calls.size() + " calls");
+                    } else {
+                        System.out.println("HomeActivity: Call adapter is null, cannot update calls");
+                    }
+                    
+                    // Stop refresh spinner
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                } else {
+                    System.out.println("HomeActivity: Failed to load call history: " + jsonResponse.optString("message", "Unknown error"));
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                }
+            } else if (statusCode == 401) {
+                System.out.println("HomeActivity: Session expired while loading call history");
+                databaseManager.clearLoginInfo();
+                // Stop refresh spinner
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+                redirectToLogin();
+            } else {
+                System.out.println("HomeActivity: Failed to load call history with status: " + statusCode);
+                // Stop refresh spinner on error
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+            }
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            System.out.println("HomeActivity: Error parsing call history response: " + e.getMessage());
+            // Stop refresh spinner on error
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+    }
+
+    private void loadPosts() {
+        loadPosts(false);
+    }
+    
+    private void loadNotifications() {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        apiClient.getNotifications(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e(TAG, "Failed to load notifications: " + e.getMessage());
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleNotificationsResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleNotificationsResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    org.json.JSONArray notificationsArray = jsonResponse.optJSONArray("data");
+                    if (notificationsArray == null) {
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data != null) {
+                            notificationsArray = data.optJSONArray("notifications");
+                        }
+                    }
+                    
+                    if (notificationsArray != null) {
+                        List<com.example.chatappjava.models.Notification> notifications = new ArrayList<>();
+                        for (int i = 0; i < notificationsArray.length(); i++) {
+                            try {
+                                org.json.JSONObject notificationJson = notificationsArray.getJSONObject(i);
+                                com.example.chatappjava.models.Notification notification = 
+                                    com.example.chatappjava.models.Notification.fromJson(notificationJson);
+                                notifications.add(notification);
+                            } catch (Exception e) {
+                                android.util.Log.e(TAG, "Error parsing notification " + i + ": " + e.getMessage());
+                            }
+                        }
+                        
+                        notificationList = notifications;
+                        if (notificationAdapter != null) {
+                            notificationAdapter.updateNotifications(notifications);
+                        }
+                    }
+                }
+            } else if (statusCode == 401) {
+                databaseManager.clearLoginInfo();
+                redirectToLogin();
+            }
+            
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        } catch (org.json.JSONException e) {
+            android.util.Log.e(TAG, "Error parsing notifications response: " + e.getMessage());
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+    }
+    
+    /**
+     * Refresh current tab based on which tab is active
+     */
+    private void refreshCurrentTab() {
+        switch (currentTab) {
+            case 0: // Chats tab
+                refreshChats();
+                break;
+            case 1: // Groups tab
+                refreshGroups();
+                break;
+            case 2: // Calls tab
+                refreshCalls();
+                break;
+            case 3: // Posts tab
+                refreshPosts();
+                break;
+            case 4: // Notifications tab
+                loadNotifications();
+                break;
+            default:
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Refresh chats list
+     */
+    private void refreshChats() {
+        if (isLoadingChats) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload chats from server with force refresh avatars (manual refresh)
+        loadChats(true);
+        
+        // Note: loadChats() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh groups list
+     */
+    private void refreshGroups() {
+        if (isLoadingChats) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload chats (which includes groups) from server with force refresh avatars (manual refresh)
+        loadChats(true);
+        
+        // Note: loadChats() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh calls list
+     */
+    private void refreshCalls() {
+        if (isLoadingCalls) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Reload call history
+        loadCallHistory();
+        
+        // Note: loadCallHistory() will handle stopping the refresh when done
+    }
+    
+    /**
+     * Refresh posts by loading new posts and inserting them at the top
+     */
+    private void refreshPosts() {
+        if (isLoadingPosts || postAdapter == null) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // If postList is empty, use full reload instead of refresh
+        if (postList.isEmpty()) {
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            loadPosts(true); // Force reload from server
+            return;
+        }
+        
+        isLoadingPosts = true;
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            isLoadingPosts = false;
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        String currentUserId = databaseManager.getUserId();
+        
+        // Get the ID of the first (newest) post to find posts newer than it
+        String newestPostId = postList.get(0).getId();
+        
+        // Call API to get feed posts (page 1 should have newest posts)
+        apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to refresh posts: " + e.getMessage());
+                    isLoadingPosts = false;
+                    if (swipeRefreshLayout != null) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                JSONArray postsArray = data.getJSONArray("posts");
+                                
+                                List<com.example.chatappjava.models.Post> newPosts = new ArrayList<>();
+                                for (int i = 0; i < postsArray.length(); i++) {
+                                    try {
+                                        JSONObject postJson = postsArray.getJSONObject(i);
+                                        String postId = postJson.optString("_id", "");
+                                        
+                                        // Stop if we reach a post that's already in our list
+                                        if (postId.equals(newestPostId)) {
+                                            break;
+                                        }
+                                        
+                                        // Check if current user liked this post
+                                        JSONArray likesArray = postJson.optJSONArray("likes");
+                                        if (likesArray != null && currentUserId != null) {
+                                            boolean isLiked = false;
+                                            for (int j = 0; j < likesArray.length(); j++) {
+                                                JSONObject likeObj = likesArray.optJSONObject(j);
+                                                if (likeObj != null) {
+                                                    JSONObject userObj = likeObj.optJSONObject("user");
+                                                    if (userObj != null) {
+                                                        String likeUserId = userObj.optString("_id", "");
+                                                        if (currentUserId.equals(likeUserId)) {
+                                                            isLiked = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            postJson.put("isLiked", isLiked);
+                                        }
+                                        
+                                        com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                        newPosts.add(post);
+                                    } catch (JSONException e) {
+                                        Log.e(TAG, "Error parsing post: " + e.getMessage());
+                                    }
+                                }
+                                
+                                // Insert new posts at the top
+                                if (!newPosts.isEmpty()) {
+                                    postList.addAll(0, newPosts);
+                                    
+                                    // Save new posts to database
+                                    postRepository.savePosts(newPosts);
+                                    System.out.println("HomeActivity: Saved " + newPosts.size() + " new posts to database");
+                                    
+                                    postAdapter.setPosts(postList);
+                updateHomeEmptyState();
+
+                                    // Show notification
+                                    String message = newPosts.size() == 1
+                                            ? "1 new post"
+                                            : newPosts.size() + " new posts";
+                                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                                    
+                                    // Smooth scroll to show new content
+                                    if (rvChatList.getLayoutManager() != null) {
+                                        rvChatList.smoothScrollToPosition(0);
+                                    }
+                                }
+                            }
+                        } else if (response.code() == 401) {
+                            databaseManager.clearLoginInfo();
+                            redirectToLogin();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing posts response: " + e.getMessage());
+                    } finally {
+                        isLoadingPosts = false;
+                        if (swipeRefreshLayout != null) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    private void loadPosts(boolean forceReload) {
+        if (isLoadingPosts || postAdapter == null) {
+            return;
+        }
+        
+        // If posts are already loaded and not forcing reload, don't reload
+        if (!forceReload && !postList.isEmpty()) {
+            return;
+        }
+        
+        isLoadingPosts = true;
+        
+        if (forceReload) {
+            postList.clear();
+        }
+        
+        // First, load from cache for instant UI
+        loadPostsFromCache();
+        
+        // Then sync deltas from server (if not forcing reload, use sync; otherwise full reload)
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            isLoadingPosts = false;
+            return;
+        }
+        
+        if (forceReload) {
+            // Force reload: use full API call
+            String currentUserId = databaseManager.getUserId();
+            apiClient.getFeedPosts(token, 1, 20, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to load posts: " + e.getMessage());
+                    // If we have cached posts, keep showing them
+                    if (postList.isEmpty()) {
+                        // Try to load from database again if we don't have any posts
+                        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
+                        if (!cachedPosts.isEmpty()) {
+                            postList = cachedPosts;
+                            if (postAdapter != null) {
+                                postAdapter.setPosts(postList);
+                updateHomeEmptyState();
+                            }
+                        }
+                    }
+                    isLoadingPosts = false;
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                JSONArray postsArray = data.getJSONArray("posts");
+                                
+                                List<com.example.chatappjava.models.Post> newPosts = new ArrayList<>();
+                                for (int i = 0; i < postsArray.length(); i++) {
+                                    try {
+                                        JSONObject postJson = postsArray.getJSONObject(i);
+                                        
+                                        // Check if current user liked this post
+                                        JSONArray likesArray = postJson.optJSONArray("likes");
+                                        if (likesArray != null && currentUserId != null) {
+                                            boolean isLiked = false;
+                                            for (int j = 0; j < likesArray.length(); j++) {
+                                                JSONObject likeObj = likesArray.optJSONObject(j);
+                                                if (likeObj != null) {
+                                                    JSONObject userObj = likeObj.optJSONObject("user");
+                                                    if (userObj != null) {
+                                                        String likeUserId = userObj.optString("_id", "");
+                                                        if (currentUserId.equals(likeUserId)) {
+                                                            isLiked = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            postJson.put("isLiked", isLiked);
+                                        }
+                                        
+                                        com.example.chatappjava.models.Post post = com.example.chatappjava.models.Post.fromJson(postJson);
+                                        newPosts.add(post);
+                                    } catch (JSONException e) {
+                                        Log.e(TAG, "Error parsing post: " + e.getMessage());
+                                    }
+                                }
+                                
+                                // Preserve existing author info and shared post for posts that already exist
+                                // Only preserve if server returned empty values AND existing post has valid values
+                                // This prevents preserving null/empty values from cache when server has valid data
+                                if (!forceReload && !postList.isEmpty()) {
+                                    for (com.example.chatappjava.models.Post newPost : newPosts) {
+                                        // Find existing post with same ID
+                                        for (com.example.chatappjava.models.Post existingPost : postList) {
+                                            if (existingPost.getId().equals(newPost.getId())) {
+                                                // Only preserve if new post from server has empty values
+                                                // AND existing post has valid non-empty values
+                                                // This ensures we don't overwrite valid server data with empty cache data
+                                                boolean newPostHasEmptyUsername = (newPost.getAuthorUsername() == null || newPost.getAuthorUsername().isEmpty());
+                                                boolean existingPostHasValidUsername = (existingPost.getAuthorUsername() != null && !existingPost.getAuthorUsername().isEmpty());
+                                                
+                                                if (newPostHasEmptyUsername && existingPostHasValidUsername) {
+                                                    newPost.setAuthorUsername(existingPost.getAuthorUsername());
+                                                }
+                                                
+                                                boolean newPostHasEmptyAvatar = (newPost.getAuthorAvatar() == null || newPost.getAuthorAvatar().isEmpty());
+                                                boolean existingPostHasValidAvatar = (existingPost.getAuthorAvatar() != null && !existingPost.getAuthorAvatar().isEmpty());
+                                                
+                                                if (newPostHasEmptyAvatar && existingPostHasValidAvatar) {
+                                                    newPost.setAuthorAvatar(existingPost.getAuthorAvatar());
+                                                }
+                                                
+                                                // Preserve shared post if new post doesn't have it
+                                                if (newPost.getSharedPost() == null && existingPost.getSharedPost() != null) {
+                                                    newPost.setSharedPost(existingPost.getSharedPost());
+                                                    // Also preserve sharedPostId if it's missing
+                                                    if ((newPost.getSharedPostId() == null || newPost.getSharedPostId().isEmpty()) &&
+                                                        (existingPost.getSharedPostId() != null && !existingPost.getSharedPostId().isEmpty())) {
+                                                        newPost.setSharedPostId(existingPost.getSharedPostId());
+                                                    }
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if (forceReload) {
+                                    postList.clear();
+                                }
+                                postList.addAll(newPosts);
+                                
+                                // Save posts to database (limit to 50 most recent)
+                                if (!newPosts.isEmpty()) {
+                                    postRepository.savePosts(newPosts);
+                                    System.out.println("HomeActivity: Saved " + newPosts.size() + " posts to database");
+                                }
+                                
+                                postAdapter.setPosts(postList);
+                updateHomeEmptyState();
+                                
+                                // Mark that posts have been loaded from server
+                                postsLoadedFromServer = true;
+                            }
+                        } else if (response.code() == 401) {
+                            databaseManager.clearLoginInfo();
+                            redirectToLogin();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing posts response: " + e.getMessage());
+                    } finally {
+                        isLoadingPosts = false;
+                        // Stop swipe refresh if it's active
+                        if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
+                    }
+                });
+            }
+        });
+        } else {
+            // Normal load: use sync deltas
+            if (syncManager != null && syncManager.shouldSyncForeground()) {
+                syncManager.syncPosts(token, false);
+            }
+            isLoadingPosts = false;
+        }
+    }
+
+    /**
+     * Load posts from cache for instant UI display
+     */
+    private void loadPostsFromCache() {
+        List<com.example.chatappjava.models.Post> cachedPosts = postRepository.getAllPosts();
+        if (!cachedPosts.isEmpty()) {
+            postList.clear();
+            postList.addAll(cachedPosts);
+            if (postAdapter != null) {
+                postAdapter.setPosts(postList);
+                updateHomeEmptyState();
+            }
+            System.out.println("HomeActivity: Loaded " + cachedPosts.size() + " posts from cache");
+        }
+    }
+    
+    private void reloadHome() {
+        // Refresh both chats and friend requests
+        loadFriendRequestCount();
+        loadChats();
+        
+        // Force refresh avatars on manual reload
+        avatarManager.forceRefreshAvatars();
+        
+        Toast.makeText(this, getString(R.string.status_reloading), Toast.LENGTH_SHORT).show();
+    }
+
+    private void redirectToLogin() {
+        // Reset flag when redirecting to login
+        postsLoadedFromServer = false;
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void confirmDeleteChat(Chat chat) {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Chat",
+                "Are you sure you want to delete this chat?",
+                "Delete",
+                "Cancel",
+                () -> {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    new ApiClient().deleteChat(token, chat.getId(), new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(HomeActivity.this, getString(R.string.error_failed_to_delete_chat), Toast.LENGTH_SHORT).show());
+                        }
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            runOnUiThread(() -> {
+                                if (response.code() == 200) {
+                                    com.example.chatappjava.utils.ChatLocalStore.clearChatLocally(
+                                            HomeActivity.this, chat.getId());
+                                    Toast.makeText(HomeActivity.this, getString(R.string.msg_chat_deleted), Toast.LENGTH_SHORT).show();
+                                    reloadHome();
+                                } else {
+                                    Toast.makeText(HomeActivity.this, getString(R.string.error_delete_chat_failed), Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                },
+                null,
+                false
+        );
+    }
+
+    private void confirmUnfriend(Chat chat) {
+        if (!chat.isPrivateChat()) {
+            Toast.makeText(this, getString(R.string.msg_unfriend_applies_to_private_chats), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Unfriend",
+                "Are you sure you want to unfriend this user?",
+                "Unfriend",
+                "Cancel",
+                () -> {
+                    String token = databaseManager.getToken();
+                    if (token == null || token.isEmpty()) {
+                        Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    String otherUserId = null;
+                    if (chat.getOtherParticipant() != null) {
+                        otherUserId = chat.getOtherParticipant().getId();
+                    } else if (!chat.getParticipantIds().isEmpty()) {
+                        // Fallback: pick a participant that's not current user
+                        for (String pid : chat.getParticipantIds()) {
+                            if (!pid.equals(databaseManager.getUserId())) {
+                                otherUserId = pid;
+                                break;
+                            }
+                        }
+                    }
+                    if (otherUserId == null || otherUserId.isEmpty()) {
+                        Toast.makeText(this, getString(R.string.error_cannot_determine_user_to_unfriend), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    new ApiClient().unfriendUser(token, otherUserId, new okhttp3.Callback() {
+                        @Override
+                        public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                            runOnUiThread(() -> Toast.makeText(HomeActivity.this, getString(R.string.error_unfriend), Toast.LENGTH_SHORT).show());
+                        }
+                        @Override
+                        public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                            runOnUiThread(() -> {
+                                if (response.code() == 200) {
+                                    Toast.makeText(HomeActivity.this, getString(R.string.success_unfriended), Toast.LENGTH_SHORT).show();
+                                    // Do not remove chat; just reload to reflect state
+                                    reloadHome();
+                                } else {
+                                    Toast.makeText(HomeActivity.this, getString(R.string.error_unfriend_failed), Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                },
+                null,
+                false
+        );
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        if (!databaseManager.isLoggedIn()) {
+            redirectToLogin();
+        } else {
+            // Reload user profile data when returning to activity
+            loadUserProfile();
+            // Refresh friend request count when returning to activity
+            loadFriendRequestCount();
+            
+            // Sync foreground when app becomes active
+            String token = databaseManager.getToken();
+            if (token != null && !token.isEmpty() && syncManager != null) {
+                syncManager.syncForeground(token);
+            }
+            
+            // Refresh blocked users and then chats
+            loadBlockedUsers();
+            // Instant preview from local DB, then server catch-up if needed
+            refreshChatListFromDatabase();
+            com.example.chatappjava.network.SocketManager socketManager =
+                    com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+            if (socketManager == null || !socketManager.isConnected()) {
+                loadChats();
+            }
+            startHomePolling();
+            // Setup socket listener for member removal
+            setupSocketManager();
+            registerHomeAvatarSyncListener();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopHomePolling();
+        // Remove message listener to avoid leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null && homeMessageListener != null) {
+            socketManager.removeMessageListener(homeMessageListener);
+        }
+        if (socketManager != null) {
+            socketManager.removeRealtimeSyncListener();
+        }
+        unregisterHomeAvatarSyncListener();
+    }
+
+    private void registerHomeAvatarSyncListener() {
+        if (homeAvatarSyncListener == null) {
+            homeAvatarSyncListener = new AvatarSyncCoordinator.Listener() {
+                @Override
+                public void onUserAvatarChanged(String userId, String avatarPath) {
+                    refreshHomeForUserAvatar(userId, avatarPath);
+                }
+
+                @Override
+                public void onGroupAvatarChanged(String chatId, String avatarPath) {
+                    refreshHomeForGroupAvatar(chatId, avatarPath);
+                }
+            };
+        }
+        AvatarSyncCoordinator.getInstance(HomeActivity.this).addListener(homeAvatarSyncListener);
+    }
+
+    private void unregisterHomeAvatarSyncListener() {
+        if (homeAvatarSyncListener != null) {
+            AvatarSyncCoordinator.getInstance(this).removeListener(homeAvatarSyncListener);
+        }
+    }
+
+    private void refreshHomeForUserAvatar(String userId, String avatarPath) {
+        if (userId == null || userId.isEmpty()) {
+            return;
+        }
+
+        for (Chat chat : chatList) {
+            AvatarSyncCoordinator.applyUserAvatarToChat(chat, userId, avatarPath);
+        }
+
+        if (callList != null && callAdapter != null) {
+            for (Call call : callList) {
+                if (call != null) {
+                    call.applyUserAvatarChange(userId, avatarPath);
+                }
+            }
+            callAdapter.applyUserAvatarChange(userId, avatarPath);
+        }
+
+        if (postAdapter != null) {
+            postAdapter.applyUserAvatarChange(userId, avatarPath);
+        }
+
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
+        if (currentUserId != null && currentUserId.equals(userId)) {
+            loadUserProfile();
+        }
+
+        if (currentTab == 0) {
+            applyChatsFilter();
+        } else if (currentTab == 1) {
+            applyGroupsFilter();
+        } else if (chatAdapter != null) {
+            chatAdapter.updateChats(new ArrayList<>(chatList));
+        }
+    }
+
+    private void refreshHomeForGroupAvatar(String chatId, String avatarPath) {
+        if (chatId == null || chatId.isEmpty()) {
+            return;
+        }
+        for (Chat chat : chatList) {
+            if (chat != null && chatId.equals(chat.getId())) {
+                chat.setAvatar(avatarPath != null ? avatarPath : "");
+            }
+        }
+        if (currentTab == 0) {
+            applyChatsFilter();
+        } else if (currentTab == 1) {
+            applyGroupsFilter();
+        } else if (chatAdapter != null) {
+            chatAdapter.updateChats(new ArrayList<>(chatList));
+        }
+    }
+    
+    private void setupSocketManager() {
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        
+        if (socketManager != null) {
+            // Clear any existing listeners to prevent conflicts
+            socketManager.removeMemberRemovedListener();
+            
+            // Add member removal listener
+            socketManager.setMemberRemovedListener(new com.example.chatappjava.network.SocketManager.MemberRemovedListener() {
+                @Override
+                public void onMemberRemoved(String chatId, String chatName) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Member removed from group: " + chatName + " (chatId: " + chatId + ")");
+                        
+                        // CRITICAL FIX: Delete from local database immediately
+                        if (conversationRepository != null && chatId != null) {
+                            conversationRepository.deleteConversation(chatId);
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(chatId);
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                            }
+                        }
+                        
+                        // Remove from current list and refresh UI
+                        chatList.removeIf(c -> c.getId().equals(chatId));
+                        if (chatAdapter != null) {
+                            if (currentTab == 1) {
+                                applyGroupsFilter();
+                            } else {
+                                applyChatsFilter();
+                            }
+                        }
+                        
+                        Toast.makeText(HomeActivity.this, getString(R.string.msg_removed_from_group, chatName), Toast.LENGTH_LONG).show();
+                        // Refresh chat list from server
+                        loadChats();
+                    });
+                }
+
+                @Override
+                public void onMemberRemovedFromGroup(String chatId, String removedUserId, int totalMembers) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Member removed from group: " + removedUserId + ", total members: " + totalMembers);
+                        // Refresh chat list to update member count
+                        loadChats();
+                    });
+                }
+            });
+
+            // Add message multi-listener to refresh list on new messages
+            if (homeMessageListener == null) {
+                homeMessageListener = new com.example.chatappjava.network.SocketManager.MessageListener() {
+                    @Override
+                    public void onPrivateMessage(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> applyRealtimeMessagePreview(messageJson, true));
+                    }
+                    @Override
+                    public void onGroupMessage(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> applyRealtimeMessagePreview(messageJson, true));
+                    }
+                    @Override
+                    public void onMessageEdited(org.json.JSONObject messageJson) {
+                        runOnUiThread(() -> applyRealtimeMessagePreview(messageJson, false));
+                    }
+                    @Override
+                    public void onMessageDeleted(org.json.JSONObject messageMetaJson) {
+                        runOnUiThread(() -> refreshChatListFromDatabase());
+                    }
+                    @Override
+                    public void onReactionUpdated(org.json.JSONObject reactionJson) {
+                        if (reactionJson == null || messageRepository == null) {
+                            return;
+                        }
+                        new Thread(() -> {
+                            try {
+                                String messageId = reactionJson.optString("messageId", "");
+                                org.json.JSONArray reactions = reactionJson.optJSONArray("reactions");
+                                if (!messageId.isEmpty()) {
+                                    messageRepository.updateMessageReactions(
+                                            messageId,
+                                            reactions != null ? reactions.toString() : "[]");
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "onReactionUpdated cache failed", e);
+                            }
+                        }).start();
+                    }
+                };
+            }
+            socketManager.addMessageListener(homeMessageListener);
+
+            if (homeRealtimeSyncListener == null) {
+                homeRealtimeSyncListener = new com.example.chatappjava.network.SocketManager.RealtimeSyncListener() {
+                    @Override
+                    public void onNewPost(org.json.JSONObject postJson) {
+                        if (currentTab == 3) {
+                            runOnUiThread(() -> loadPosts(true));
+                        }
+                    }
+
+                    @Override
+                    public void onAvatarChanged(String userId, String newAvatarUrl) {
+                        // Handled centrally by AvatarSyncCoordinator.
+                    }
+                };
+            }
+            socketManager.setRealtimeSyncListener(homeRealtimeSyncListener);
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        if (settingsAdapter != null) {
+            settingsAdapter.onDestroy();
+        }
+        super.onDestroy();
+        // Clean up socket listeners to prevent memory leaks
+        com.example.chatappjava.network.SocketManager socketManager = 
+            com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+        if (socketManager != null) {
+            socketManager.removeMemberRemovedListener();
+            socketManager.removeRealtimeSyncListener();
+        }
+        unregisterHomeAvatarSyncListener();
+        if (blockedChangedReceiver != null) {
+            try { unregisterReceiver(blockedChangedReceiver); } catch (Exception ignored) {}
+        }
+        if (authErrorReceiver != null) {
+            try { unregisterReceiver(authErrorReceiver); } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == 1002 && resultCode == RESULT_OK) {
+            // Post was created successfully, refresh posts if on Posts tab
+            if (currentTab == 3) {
+                loadPosts(true); // Force reload
+            }
+        }
+        
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
+            // Friend request was accepted/rejected, refresh count and chat list
+            loadFriendRequestCount();
+            loadChats(); // Refresh chat list to show new chat if friend was accepted
+        }
+    }
+    
+    private void showExitConfirm() {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Exit App",
+                "Are you sure you want to exit?",
+                "Yes",
+                "No",
+                () -> { stopHomePolling(); finish(); },
+                null,
+                false
+        );
+    }
+
+    private void loadFriendRequestCount() {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            updateFriendRequestBadge(0, 0);
+            return;
+        }
+
+        apiClient.getFriendRequests(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> updateFriendRequestBadge(0, 0));
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        if (response.code() == 200) {
+                            org.json.JSONObject data = jsonResponse.getJSONObject("data");
+                            org.json.JSONArray requestsArray = data.getJSONArray("requests");
+
+                            int totalCount = requestsArray.length();
+                            int pendingReceivedCount = 0;
+                            for (int i = 0; i < requestsArray.length(); i++) {
+                                org.json.JSONObject requestJson = requestsArray.getJSONObject(i);
+                                String status = requestJson.optString("status", "");
+                                String receiverId = requestJson.optString("receiverId", "");
+                                if ("pending".equals(status) && receiverId.equals(databaseManager.getUserId())) {
+                                    pendingReceivedCount++;
+                                }
+                            }
+
+                            updateFriendRequestBadge(totalCount, pendingReceivedCount);
+                        } else {
+                            updateFriendRequestBadge(0, 0);
+                        }
+                    } catch (org.json.JSONException e) {
+                        e.printStackTrace();
+                        updateFriendRequestBadge(0, 0);
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateFriendRequestBadge(int totalCount, int pendingReceivedCount) {
+        if (tvFriendRequestsTitle != null) {
+            String baseTitle = "Friends";
+            tvFriendRequestsTitle.setText(baseTitle + " (" + totalCount + ")");
+        }
+        if (llFriendRequests != null) {
+            if (pendingReceivedCount > 0) {
+                llFriendRequests.setContentDescription(
+                        getString(R.string.home_friend_requests_count_cd, pendingReceivedCount));
+            } else {
+                llFriendRequests.setContentDescription(getString(R.string.home_friend_requests_cd));
+            }
+        }
+        if (pendingReceivedCount > 0) {
+            tvFriendRequestCount.setText(String.valueOf(pendingReceivedCount));
+            tvFriendRequestCount.setVisibility(View.VISIBLE);
+        } else {
+            tvFriendRequestCount.setVisibility(View.GONE);
+        }
+    }
+
+    private void startHomePolling() {
+        if (isPolling) return;
+        isPolling = true;
+        homePollHandler.postDelayed(homePollRunnable, HOME_POLL_INTERVAL_MS);
+    }
+
+    private void stopHomePolling() {
+        if (!isPolling) return;
+        isPolling = false;
+        homePollHandler.removeCallbacks(homePollRunnable);
+    }
+    
+    private void loadChats() {
+        loadChats(false);
+    }
+    
+    private void loadChats(boolean forceRefreshAvatars) {
+        if (isLoadingChats) {
+            return;
+        }
+        isLoadingChats = true;
+        System.out.println("HomeActivity: Loading chats...");
+        if ((currentTab == 0 || currentTab == 1)
+                && (chatAdapter == null || chatAdapter.getItemCount() == 0)) {
+            setChatListLoading(true);
+        }
+
+        // First, try to load from local database (works offline)
+        loadChatsFromDatabase();
+        
+        // Only force refresh avatars on manual refresh, not on polling
+        if (forceRefreshAvatars) {
+            avatarManager.forceRefreshAvatars();
+        }
+        
+        // Then try to load from server if network is available
+        if (!isNetworkAvailable()) {
+            System.out.println("HomeActivity: No network, showing chats from database");
+            isLoadingChats = false;
+            setChatListLoading(false);
+            // Stop refresh spinner if no network
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            System.out.println("HomeActivity: No token available for loading chats");
+            isLoadingChats = false;
+            setChatListLoading(false);
+            // Stop refresh spinner if no token
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+
+        // Realtime previews are pushed via socket; avoid slow full fetch while connected
+        if (!forceRefreshAvatars) {
+            com.example.chatappjava.network.SocketManager socketManager =
+                    com.example.chatappjava.ChatApplication.getInstance().getSocketManager();
+            if (socketManager != null && socketManager.isConnected()) {
+                refreshChatListFromDatabase();
+                isLoadingChats = false;
+                setChatListLoading(false);
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+                return;
+            }
+        }
+        
+        // Use sync deltas instead of full API call
+        if (syncManager != null && syncManager.shouldSyncForeground()) {
+            syncManager.syncConversations(token, false);
+            isLoadingChats = false;
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+            return;
+        }
+        
+        // Fallback to full API call if sync is not needed yet
+        apiClient.getChats(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    System.out.println("HomeActivity: Failed to load chats: " + e.getMessage());
+                    // If we failed to load from server, show chats from database
+                    if (chatList.isEmpty()) {
+                        loadChatsFromDatabase();
+                    }
+                    isLoadingChats = false;
+                    setChatListLoading(false);
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                });
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleChatsResponse(response.code(), responseBody);
+                    isLoadingChats = false;
+                    setChatListLoading(false);
+                });
+            }
+        });
+    }
+    
+    /**
+     * Load chats from local database
+     * Only updates adapter if chatList is empty (to show data immediately while loading from server)
+     */
+    private void loadChatsFromDatabase() {
+        if (conversationRepository == null) return;
+
+        List<Chat> dbChats = conversationRepository.getAllConversations();
+        if (!dbChats.isEmpty()) {
+            this.chatList = dbChats;
+            if (chatAdapter != null && (chatList.isEmpty() || chatAdapter.getItemCount() == 0)) {
+                refreshChatListFromDatabase();
+            }
+        }
+    }
+
+    /** Merge conversation cache into the visible list (no network). */
+    private void refreshChatListFromDatabase() {
+        if (conversationRepository == null) {
+            return;
+        }
+        List<Chat> dbChats = conversationRepository.getAllConversations();
+        if (dbChats.isEmpty()) {
+            return;
+        }
+        this.chatList = dbChats;
+        if (currentTab == 1) {
+            applyGroupsFilter();
+        } else if (currentTab == 0) {
+            applyChatsFilter();
+        }
+    }
+
+    /**
+     * Socket → update SQLite preview + bump row on Home immediately (no full GET /api/chats).
+     */
+    private void applyRealtimeMessagePreview(org.json.JSONObject messageJson, boolean incrementUnread) {
+        if (messageJson == null || conversationRepository == null) {
+            return;
+        }
+        try {
+            Message message = Message.fromJson(messageJson);
+            String chatId = message.getChatId();
+            if (chatId == null || chatId.isEmpty()) {
+                chatId = messageJson.optString("chatId", messageJson.optString("chat", "")).trim();
+                message.setChatId(chatId);
+            }
+            if (chatId.isEmpty()) {
+                return;
+            }
+
+            String userId = databaseManager != null ? databaseManager.getUserId() : null;
+            ConversationPreviewHelper.applyMessagePreview(
+                    this, conversationRepository, message, userId, incrementUnread);
+
+            final Message toCache = message;
+            new Thread(() -> {
+                if (messageRepository != null) {
+                    messageRepository.saveMessage(toCache);
+                }
+            }).start();
+
+            // Reload fresh Chat instances from DB so DiffUtil detects preview changes
+            // (in-place mutation shares refs with the adapter and skips UI updates).
+            refreshChatListFromDatabase();
+        } catch (JSONException e) {
+            Log.e(TAG, "applyRealtimeMessagePreview failed", e);
+            refreshChatListFromDatabase();
+        }
+    }
+    
+    /**
+     * Check if network is available
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = 
+            (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+            return activeNetwork != null && activeNetwork.isConnected();
+        }
+        return false;
+    }
+
+    private boolean isChatWithBlockedUser(Chat chat) {
+        try {
+            if (chat == null || chat.isGroupChat()) return false;
+            // Prefer otherParticipant when available
+            String otherId = null;
+            if (chat.getParticipantIds() != null) {
+                for (String pid : chat.getParticipantIds()) {
+                    if (pid != null && !pid.equals(databaseManager.getUserId())) { otherId = pid; break; }
+                }
+            }
+            // Fallback to potential field on otherParticipant if provided
+            if (otherId == null && chat.toJson().has("otherParticipant")) {
+                // no-op: participantIds already covers this normally
+            }
+            return otherId != null && blockedUserIds.contains(otherId);
+        } catch (Exception ignored) { return false; }
+    }
+
+    private void loadBlockedUsers() {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        apiClient.getBlockedUsers(token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) { /* ignore */ }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                if (!response.isSuccessful()) return;
+                String body = response.body().string();
+                try {
+                    org.json.JSONObject json = new org.json.JSONObject(body);
+                    org.json.JSONArray arr = json.getJSONObject("data").getJSONArray("users");
+                    java.util.Set<String> ids = new java.util.HashSet<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        org.json.JSONObject u = arr.getJSONObject(i);
+                        String id = u.optString("_id", u.optString("id", ""));
+                        if (!id.isEmpty()) ids.add(id);
+                    }
+                    runOnUiThread(() -> {
+                        blockedUserIds.clear();
+                        blockedUserIds.addAll(ids);
+                        // Refresh current list view if on Chats tab
+                        if (currentTab == 0) applyChatsFilter();
+                    });
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+    
+    private void handleChatsResponse(int statusCode, String responseBody) {
+        try {
+            System.out.println("HomeActivity: Chats Response Code: " + statusCode);
+            System.out.println("HomeActivity: Chats Response Body: " + responseBody);
+            
+            if (statusCode == 200) {
+                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    org.json.JSONObject data = jsonResponse.getJSONObject("data");
+                    org.json.JSONArray chatsArray = data.getJSONArray("chats");
+                    
+                    System.out.println("HomeActivity: Found " + chatsArray.length() + " chats");
+                    
+                    // Parse chats and update adapter
+                    List<Chat> chats = new ArrayList<>();
+                    java.util.Set<String> serverChatIds = new java.util.HashSet<>();
+                    
+                    for (int i = 0; i < chatsArray.length(); i++) {
+                        org.json.JSONObject chatJson = chatsArray.getJSONObject(i);
+                        System.out.println("HomeActivity: Chat " + i + ": " + chatJson.toString());
+                        
+                        try {
+                            Chat chat = Chat.fromJson(chatJson, databaseManager.getUserId());
+                            chats.add(chat);
+                            serverChatIds.add(chat.getId());
+                            
+                            // Save to database for offline access
+                            if (conversationRepository != null) {
+                                conversationRepository.saveConversation(chat);
+                            }
+                        } catch (Exception e) {
+                            System.out.println("HomeActivity: Error parsing chat " + i + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    // CRITICAL FIX: Delete chats from local database that are no longer on server
+                    // This handles cases where chats/groups were deleted but still exist in local SQLite
+                    if (conversationRepository != null) {
+                        List<Chat> localChats = conversationRepository.getAllConversations();
+                        for (Chat localChat : localChats) {
+                            if (!serverChatIds.contains(localChat.getId())) {
+                                System.out.println("HomeActivity: Deleting chat from local database: " + localChat.getId() + " (" + localChat.getName() + ")");
+                            // Delete conversation from local database
+                            conversationRepository.deleteConversation(localChat.getId());
+                            
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(localChat.getId());
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages for chat " + localChat.getId() + ": " + e.getMessage());
+                            }
+                            }
+                        }
+                    }
+                    
+                    // Store full list, then update adapter based on current tab
+                    this.chatList = chats;
+                    if (chatAdapter != null) {
+                        if (currentTab == 1) {
+                            applyGroupsFilter();
+                        } else {
+                            applyChatsFilter();
+                        }
+                        System.out.println("HomeActivity: Updated adapter with " + (currentTab == 1 ? "groups filter" : "all chats") );
+                    } else {
+                        System.out.println("HomeActivity: Adapter is null, cannot update chats");
+                    }
+                    
+                    // Stop refresh spinner
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                } else {
+                    System.out.println("HomeActivity: Failed to load chats: " + jsonResponse.optString("message", "Unknown error"));
+                    // Stop refresh spinner on error
+                    if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                }
+            } else if (statusCode == 401) {
+                System.out.println("HomeActivity: Session expired while loading chats");
+                databaseManager.clearLoginInfo();
+                // Stop refresh spinner
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+                // Redirect to login
+                Intent intent = new Intent(HomeActivity.this, com.example.chatappjava.ui.theme.LoginActivity.class);
+                startActivity(intent);
+                finish();
+            } else {
+                System.out.println("HomeActivity: Failed to load chats with status: " + statusCode);
+                // Stop refresh spinner on error
+                if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+            }
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            System.out.println("HomeActivity: Error parsing chats response: " + e.getMessage());
+            // Stop refresh spinner on error
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
+        }
+    }
+    
+    private void showGroupInfo(Chat chat) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Group Information")
+                .setMessage("Group Name: " + chat.getName() + "\n" +
+                           "Members: " + chat.getParticipantCount() + "\n" +
+                           "Created: " + (chat.getCreatedAt() != 0 ? new java.util.Date(chat.getCreatedAt()).toString() : "Unknown"))
+                .setPositiveButton("OK", null)
+                .setNeutralButton("View Members", (dialog, which) -> removeMembers(chat))
+                .show();
+    }
+    
+    private void addMembers(Chat chat) {
+        Intent intent = new Intent(this, SearchActivity.class);
+        intent.putExtra("mode", "add_members");
+        try {
+            intent.putExtra("chat", chat.toJson().toString());
+            startActivity(intent);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_opening_contact_selection), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void removeMembers(Chat chat) {
+        Intent intent = new Intent(this, GroupMembersActivity.class);
+        intent.putExtra("mode", "remove_members");
+        try {
+            intent.putExtra("chat", chat.toJson().toString());
+            startActivity(intent);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_opening_members_list), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean hasGroupManagementPermissions(Chat chat) {
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
+        if (currentUserId == null || chat == null) {
+            return false;
+        }
+        String creatorId = chat.getCreatorId();
+        boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId.equals(creatorId);
+        return isOwner || chat.hasManagementPermissions(currentUserId);
+    }
+    
+    private void confirmLeaveGroup(Chat chat) {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Leave Group",
+                "Are you sure you want to leave this group? You will no longer receive messages from this group.",
+                "Leave",
+                "Cancel",
+                () -> leaveGroup(chat),
+                null,
+                false
+        );
+    }
+    
+    private void leaveGroup(Chat chat) {
+        Toast.makeText(this, getString(R.string.status_leaving_group), Toast.LENGTH_SHORT).show();
+        
+        String token = databaseManager.getToken();
+        apiClient.leaveGroup(token, chat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        try {
+                            String responseBody = response.body().string();
+                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("deleted", false)) {
+                                // Group was deleted - remove from local database immediately
+                                if (conversationRepository != null) {
+                                    conversationRepository.deleteConversation(chat.getId());
+                                    // Also delete all messages for this chat
+                                    try {
+                                        com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                            new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                        messageRepo.deleteAllMessagesForChat(chat.getId());
+                                    } catch (Exception e) {
+                                        System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                                    }
+                                }
+                                String message = jsonResponse.optString("message", "Group deleted successfully");
+                                Toast.makeText(HomeActivity.this, message, Toast.LENGTH_LONG).show();
+                            } else {
+                                // Normal leave - remove from local database
+                                if (conversationRepository != null) {
+                                    conversationRepository.deleteConversation(chat.getId());
+                                }
+                                Toast.makeText(HomeActivity.this, getString(R.string.success_left_group_successfully), Toast.LENGTH_SHORT).show();
+                            }
+                            
+                            // Remove from current list and refresh UI
+                            chatList.removeIf(c -> c.getId().equals(chat.getId()));
+                            if (chatAdapter != null) {
+                                if (currentTab == 1) {
+                                    applyGroupsFilter();
+                                } else {
+                                    applyChatsFilter();
+                                }
+                            }
+                            
+                            // Add small delay to ensure server processing is complete, then reload
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                loadChats(); // Refresh chat list from server
+                            }, 500);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Toast.makeText(HomeActivity.this, getString(R.string.success_left_group_successfully), Toast.LENGTH_SHORT).show();
+                            loadChats();
+                        }
+                    } else {
+                        Toast.makeText(HomeActivity.this, getString(R.string.error_failed_to_leave_group), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(HomeActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    private void confirmDeleteGroup(Chat chat) {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+                this,
+                "Delete Group",
+                "Are you sure you want to delete this group? This action cannot be undone and all messages will be lost.",
+                "Delete",
+                "Cancel",
+                () -> deleteGroup(chat),
+                null,
+                false
+        );
+    }
+    
+    private void deleteGroup(Chat chat) {
+        Toast.makeText(this, getString(R.string.status_deleting_group), Toast.LENGTH_SHORT).show();
+        
+        String token = databaseManager.getToken();
+        String groupId = chat.getGroupId();
+        
+        // Use deleteGroup API if groupId is available, otherwise fallback to deleteChat
+        okhttp3.Callback callback = new okhttp3.Callback() {
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        // Remove from local database immediately
+                        if (conversationRepository != null) {
+                            conversationRepository.deleteConversation(chat.getId());
+                            // Also delete all messages for this chat
+                            try {
+                                com.example.chatappjava.utils.MessageRepository messageRepo = 
+                                    new com.example.chatappjava.utils.MessageRepository(HomeActivity.this);
+                                messageRepo.deleteAllMessagesForChat(chat.getId());
+                            } catch (Exception e) {
+                                System.out.println("HomeActivity: Error deleting messages: " + e.getMessage());
+                            }
+                        }
+                        
+                        // Remove from current list and refresh UI
+                        chatList.removeIf(c -> c.getId().equals(chat.getId()));
+                        if (chatAdapter != null) {
+                            if (currentTab == 1) {
+                                applyGroupsFilter();
+                            } else {
+                                applyChatsFilter();
+                            }
+                        }
+                        
+                        Toast.makeText(HomeActivity.this, getString(R.string.success_group_deleted_successfully), Toast.LENGTH_SHORT).show();
+                        loadChats(); // Refresh chat list from server
+                    } else {
+                        Toast.makeText(HomeActivity.this, getString(R.string.error_failed_to_delete_group), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(HomeActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                });
+            }
+        };
+        
+        // Use deleteGroup API if groupId is available, otherwise fallback to deleteChat
+        if (groupId != null && !groupId.isEmpty()) {
+            apiClient.deleteGroup(token, groupId, callback);
+        } else {
+            apiClient.deleteChat(token, chat.getId(), callback);
+        }
+    }
+    
+    // ChatListAdapter.OnChatClickListener implementation
+    @Override
+    public void onChatClick(Chat chat) {
+        if (chat != null && conversationRepository != null) {
+            chat.setUnreadCount(0);
+            ConversationPreviewHelper.clearUnread(conversationRepository, chat.getId());
+        }
+
+        Intent intent;
+        
+        // Choose appropriate activity based on chat type
+        if (chat.isGroupChat()) {
+            intent = new Intent(this, GroupChatActivity.class);
+        } else {
+            intent = new Intent(this, PrivateChatActivity.class);
+        }
+        
+        // Pass chat data
+        try {
+            intent.putExtra("chat", chat.toJson().toString());
+            
+            // For private chats, pass the other participant's info
+            if (chat.isPrivateChat() && chat.getOtherParticipant() != null) {
+                intent.putExtra("user", chat.getOtherParticipant().toJson().toString());
+            }
+            
+            startActivity(intent);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_opening_chat), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showChatInfo(Chat chat) {
+        if (chat.isPrivateChat() && chat.getOtherParticipant() != null) {
+            // For private chat, show other user's profile
+            Intent intent = new Intent(this, ProfileViewActivity.class);
+            try {
+                intent.putExtra("user", chat.getOtherParticipant().toJson().toString());
+                startActivity(intent);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Toast.makeText(this, getString(R.string.error_error_opening_profile), Toast.LENGTH_SHORT).show();
+            }
+        } else if (chat.isGroupChat()) {
+            Intent intent = new Intent(this, GroupSettingsActivity.class);
+            try {
+                intent.putExtra("chat", chat.toJson().toString());
+                startActivity(intent);
+            } catch (org.json.JSONException e) {
+                e.printStackTrace();
+                Toast.makeText(this, getString(R.string.error_error_opening_group_settings), Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, getString(R.string.msg_no_chat_information_available), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onChatLongClick(Chat chat) {
+        if (chat.isGroupChat()) {
+            // Show group-specific options
+            showGroupChatOptions(chat);
+        } else {
+            // Show private chat options
+            showPrivateChatOptions(chat);
+        }
+    }
+    
+    private void showGroupChatOptions(Chat chat) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
+        
+        // Check if current user is the group owner
+        String currentUserId = databaseManager != null ? databaseManager.getUserId() : null;
+        String creatorId = chat.getCreatorId();
+        boolean isOwner = creatorId != null && !creatorId.isEmpty() && currentUserId != null && currentUserId.equals(creatorId);
+        boolean canManageGroup = hasGroupManagementPermissions(chat);
+
+        // Get option views
+        LinearLayout optionViewInfo = dialogView.findViewById(R.id.option_view_group_info);
+        LinearLayout optionAddMembers = dialogView.findViewById(R.id.option_add_members);
+        LinearLayout optionRemoveMembers = dialogView.findViewById(R.id.option_remove_members);
+        LinearLayout optionDeleteChat = dialogView.findViewById(R.id.option_delete_chat);
+        LinearLayout optionDeleteGroup = dialogView.findViewById(R.id.option_delete_group);
+        LinearLayout optionLeaveGroup = dialogView.findViewById(R.id.option_leave_group);
+        LinearLayout optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
+
+        if (optionAddMembers != null) {
+            optionAddMembers.setVisibility(canManageGroup ? View.VISIBLE : View.GONE);
+        }
+
+        // Show/hide options based on user role
+        // Owner: show delete options, hide leave group, show join requests
+        // Moderator/Member: show leave group, hide delete options, hide join requests
+        if (optionDeleteChat != null) {
+            optionDeleteChat.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+        }
+        
+        if (optionDeleteGroup != null) {
+            optionDeleteGroup.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+        }
+        
+        if (optionLeaveGroup != null) {
+            optionLeaveGroup.setVisibility(isOwner ? View.GONE : View.VISIBLE);
+        }
+        
+        if (optionJoinRequests != null) {
+            optionJoinRequests.setVisibility(canManageGroup ? View.VISIBLE : View.GONE);
+        }
+
+        AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        // Set click listeners with null checks
+        if (optionViewInfo != null) {
+            optionViewInfo.setOnClickListener(v -> {
+                showChatInfo(chat);
+                dialog.dismiss();
+            });
+        }
+
+        if (optionAddMembers != null && canManageGroup) {
+            optionAddMembers.setOnClickListener(v -> {
+                dialog.dismiss();
+                addMembers(chat);
+            });
+        }
+
+        if (optionRemoveMembers != null) {
+            optionRemoveMembers.setOnClickListener(v -> {
+                dialog.dismiss();
+                removeMembers(chat);
+            });
+        }
+
+        if (optionDeleteChat != null && isOwner) {
+            optionDeleteChat.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmDeleteChat(chat);
+            });
+        }
+        
+        if (optionDeleteGroup != null && isOwner) {
+            optionDeleteGroup.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmDeleteGroup(chat);
+            });
+        }
+        
+        if (optionLeaveGroup != null && !isOwner) {
+            optionLeaveGroup.setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmLeaveGroup(chat);
+            });
+        }
+        
+        if (optionJoinRequests != null && canManageGroup) {
+            optionJoinRequests.setOnClickListener(v -> {
+                dialog.dismiss();
+                Intent intent = new Intent(this, GroupJoinRequestsActivity.class);
+                try {
+                    intent.putExtra("chat", chat.toJson().toString());
+                    startActivity(intent);
+                } catch (org.json.JSONException e) {
+                    e.printStackTrace();
+                    Toast.makeText(this, getString(R.string.error_error_opening_join_requests), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        dialog.show();
+    }
+    
+    private void showPrivateChatOptions(Chat chat) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_chat_options, null);
+
+        // Hide group-specific options for private chat
+        dialogView.findViewById(R.id.card_add_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_remove_members).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_leave_group).setVisibility(View.GONE);
+        dialogView.findViewById(R.id.card_delete_group).setVisibility(View.GONE);
+
+        AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        // Set click listeners
+        dialogView.findViewById(R.id.option_view_info).setOnClickListener(v -> {
+            showChatInfo(chat);
+            dialog.dismiss();
+        });
+
+        dialogView.findViewById(R.id.option_delete_chat).setOnClickListener(v -> {
+            dialog.dismiss();
+            confirmDeleteChat(chat);
+        });
+
+        // Check friendship status and show appropriate options
+        resolveFriendshipAndToggleOptions(chat, dialogView, dialog);
+
+        dialog.show();
+    }
+    
+    private void resolveFriendshipAndToggleOptions(Chat chat, View dialogView, AlertDialog dialog) {
+        User otherUser = chat.getOtherParticipant();
+        if (otherUser == null) {
+            // Default to block option if no other participant
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_block_user).setVisibility(View.VISIBLE);
+            
+            // Set block click listener
+            dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmBlockUser(chat);
+            });
+            return;
+        }
+
+        // Check local isFriend first
+        boolean localIsFriend = otherUser.isFriend();
+        if (localIsFriend) {
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
+            dialogView.findViewById(R.id.card_block_user).setVisibility(View.GONE);
+            
+            // Set unfriend click listener
+            dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmUnfriend(chat);
+            });
+            return;
+        }
+
+        // If not locally marked as friend, check with server
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.card_block_user).setVisibility(View.VISIBLE);
+            
+            // Set block click listener
+            dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+                dialog.dismiss();
+                confirmBlockUser(chat);
+            });
+            return;
+        }
+
+        apiClient.authenticatedGet("/api/users/friends", token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> {
+                    dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
+                    dialogView.findViewById(R.id.card_block_user).setVisibility(View.VISIBLE);
+                    
+                    // Set block click listener
+                    dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+                        dialog.dismiss();
+                        confirmBlockUser(chat);
+                    });
+                });
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                boolean found = false;
+                try {
+                    if (response.isSuccessful()) {
+                        org.json.JSONObject json = new org.json.JSONObject(body);
+                        org.json.JSONObject data = json.has("data") ? json.getJSONObject("data") : json;
+                        org.json.JSONArray arr = data.has("friends") ? data.getJSONArray("friends") : new org.json.JSONArray();
+                        for (int i = 0; i < arr.length(); i++) {
+                            org.json.JSONObject u = arr.getJSONObject(i);
+                            String fid = u.optString("id", u.optString("_id", ""));
+                            if (otherUser.getId().equals(fid)) { 
+                                found = true; 
+                                break; 
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                final boolean isFriendNow = found;
+                runOnUiThread(() -> {
+                    if (isFriendNow) {
+                        dialogView.findViewById(R.id.card_unfriend).setVisibility(View.VISIBLE);
+                        dialogView.findViewById(R.id.card_block_user).setVisibility(View.GONE);
+                        
+                        // Set unfriend click listener
+                        dialogView.findViewById(R.id.option_unfriend).setOnClickListener(v -> {
+                            dialog.dismiss();
+                            confirmUnfriend(chat);
+                        });
+                    } else {
+                        dialogView.findViewById(R.id.card_unfriend).setVisibility(View.GONE);
+                        dialogView.findViewById(R.id.card_block_user).setVisibility(View.VISIBLE);
+                        
+                        // Set block click listener
+                        dialogView.findViewById(R.id.option_block_user).setOnClickListener(v -> {
+                            dialog.dismiss();
+                            confirmBlockUser(chat);
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    private void confirmBlockUser(Chat chat) {
+        if (chat.getOtherParticipant() == null) {
+            Toast.makeText(this, getString(R.string.error_user_not_found), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String otherUserId = chat.getOtherParticipant().getId();
+        String otherUserName = chat.getOtherParticipant().getDisplayName();
+        
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+            this,
+            "Block User",
+            "Are you sure you want to block " + otherUserName + "? You won't be able to send or receive messages from them.",
+            "Block",
+            "Cancel",
+            () -> blockUser(otherUserId),
+            null,
+            false
+        );
+    }
+    
+    private void blockUser(String userId) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        apiClient.blockUser(token, userId, "block", new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                runOnUiThread(() -> Toast.makeText(HomeActivity.this, getString(R.string.error_failed_to_block_user), Toast.LENGTH_SHORT).show());
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(HomeActivity.this, getString(R.string.success_user_blocked_successfully), Toast.LENGTH_SHORT).show();
+                        // Reload chats to reflect the change
+                        loadChats();
+                    } else {
+                        Toast.makeText(HomeActivity.this, getString(R.string.error_block_user_code, response.code()), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+ 
+    // CallListAdapter.OnCallClickListener implementation
+    @Override
+    public void onCallItemClick(Call call) {
+        // Show call details dialog
+        showCallDetails(call);
+    }
+    
+    @Override
+    public void onCallActionClick(Call call) {
+        // Initiate a new call to the same chat
+        initiateNewCall(call);
+    }
+    
+    private void showCallDetails(Call call) {
+        String callType = call.isVideoCall() ? "Video Call" : "Audio Call";
+        String duration = call.getDuration() > 0 ? call.getFormattedDuration() : "No duration";
+        String status = call.getStatusText();
+        String time = call.getFormattedTime() + " - " + call.getFormattedDate();
+        
+        String message = "Call Type: " + callType + "\n" +
+                        "Duration: " + duration + "\n" +
+                        "Status: " + status + "\n" +
+                        "Time: " + time;
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Call Details")
+                .setMessage(message)
+                .setPositiveButton("OK", null)
+                .setNeutralButton("Call Again", (dialog, which) -> {
+                    initiateNewCall(call);
+                })
+                .show();
+    }
+    
+    private void initiateNewCall(Call call) {
+        // Find the chat for this call
+        Chat targetChat = null;
+        for (Chat chat : chatList) {
+            if (chat.getId().equals(call.getChatId())) {
+                targetChat = chat;
+                break;
+            }
+        }
+        
+        if (targetChat == null) {
+            Toast.makeText(this, getString(R.string.error_chat_not_found), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Start ringing activity for outgoing call
+        Intent intent = new Intent(this, com.example.chatappjava.ui.call.RingingActivity.class);
+        intent.putExtra("isIncomingCall", false);
+        intent.putExtra("callType", call.getType());
+        intent.putExtra("chatId", call.getChatId());
+        intent.putExtra("chatName", call.getDisplayName());
+        
+        try {
+            intent.putExtra("chat", targetChat.toJson().toString());
+            if (targetChat.isPrivateChat() && targetChat.getOtherParticipant() != null) {
+                intent.putExtra("user", targetChat.getOtherParticipant().toJson().toString());
+            }
+            startActivity(intent);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_initiating_call), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showImageZoomDialog(String imageUrl, String localImageUri) {
+        showImageZoomDialog(imageUrl, localImageUri, null, 0);
+    }
+    
+    private void showImageZoomDialog(String imageUrl, String localImageUri, List<String> imageUrls, int currentIndex) {
+        // If multiple images, use gallery dialog
+        if (imageUrls != null && imageUrls.size() > 1) {
+            showImageGalleryDialog(imageUrls, currentIndex);
+            return;
+        }
+        
+        // Single image - use original dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_image_zoom);
+        
+        // Make dialog full screen
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
+        
+        // Get views
+        com.github.chrisbanes.photoview.PhotoView ivZoomImage = dialog.findViewById(R.id.iv_zoom_image);
+        ImageView ivClose = dialog.findViewById(R.id.iv_close);
+        
+        if (ivZoomImage != null) {
+            // Load image with Picasso - prefer local URI if available
+            String imageToLoad = (localImageUri != null && !localImageUri.isEmpty()) ? localImageUri : imageUrl;
+            
+            Picasso.get()
+                .load(imageToLoad)
+                .placeholder(R.drawable.ic_profile_placeholder)
+                .error(R.drawable.ic_profile_placeholder)
+                .into(ivZoomImage);
+        }
+        
+        // Close button click
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // Click outside to close
+        dialog.findViewById(R.id.dialog_container).setOnClickListener(v -> dialog.dismiss());
+        
+        dialog.show();
+    }
+    
+    private void showImageGalleryDialog(List<String> imageUrls, int currentIndex) {
+        // Create custom dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_image_gallery);
+        
+        // Make dialog full screen
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
+        
+        // Get views
+        androidx.viewpager2.widget.ViewPager2 viewPager = dialog.findViewById(R.id.viewpager_images);
+        ImageView ivClose = dialog.findViewById(R.id.iv_close);
+        TextView tvImageCounter = dialog.findViewById(R.id.tv_image_counter);
+        
+        // Setup ViewPager2
+        if (viewPager != null && imageUrls != null && !imageUrls.isEmpty()) {
+            com.example.chatappjava.adapters.ImagePagerAdapter adapter = 
+                new com.example.chatappjava.adapters.ImagePagerAdapter(imageUrls);
+            viewPager.setAdapter(adapter);
+            
+            // Set initial position
+            if (currentIndex >= 0 && currentIndex < imageUrls.size()) {
+                viewPager.setCurrentItem(currentIndex, false);
+            }
+            
+            // Show counter if more than 1 image
+            if (imageUrls.size() > 1 && tvImageCounter != null) {
+                tvImageCounter.setVisibility(View.VISIBLE);
+                updateImageCounter(tvImageCounter, currentIndex + 1, imageUrls.size());
+                
+                // Update counter when page changes
+                viewPager.registerOnPageChangeCallback(new androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                    @Override
+                    public void onPageSelected(int position) {
+                        super.onPageSelected(position);
+                        updateImageCounter(tvImageCounter, position + 1, imageUrls.size());
+                    }
+                });
+            } else if (tvImageCounter != null) {
+                tvImageCounter.setVisibility(View.GONE);
+            }
+        }
+        
+        // Close button click
+        if (ivClose != null) {
+            ivClose.setOnClickListener(v -> dialog.dismiss());
+        }
+        
+        // Click outside to close (but not on ViewPager)
+        View container = dialog.findViewById(R.id.dialog_container);
+        if (container != null) {
+            container.setOnClickListener(v -> {
+                // Only dismiss if click is not on ViewPager
+                if (viewPager != null && viewPager.getParent() != v) {
+                    dialog.dismiss();
+                }
+            });
+        }
+        
+        dialog.show();
+    }
+    
+    private void updateImageCounter(TextView tvCounter, int current, int total) {
+        if (tvCounter != null) {
+            tvCounter.setText(current + " / " + total);
+        }
+    }
+
+}

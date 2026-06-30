@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="200dp"
+    android:layout_margin="3dp"
+    android:background="@drawable/bg_soft_inset"
+    android:clickable="true"
+    android:clipChildren="true"
+    android:clipToPadding="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <ImageView
+        android:id="@+id/iv_gallery_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/gallery_image_cd"
+        android:scaleType="centerCrop" />
+
+    <FrameLayout
+        android:id="@+id/view_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/surface_overlay"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_more_count"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_send_circle_modern"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center"
+            android:text="@string/preview_gallery_more"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+    </FrameLayout>
+
+</FrameLayout>

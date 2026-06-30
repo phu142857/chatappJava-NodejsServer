@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_neu_copper_list_row"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/margin_mobile"
+    android:paddingTop="@dimen/spacing_md"
+    android:paddingEnd="@dimen/margin_mobile"
+    android:paddingBottom="@dimen/spacing_md">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/list_row_min_height"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="@dimen/neu_copper_avatar_well"
+            android:layout_height="@dimen/neu_copper_avatar_well"
+            android:layout_marginEnd="@dimen/spacing_md"
+            android:background="@drawable/bg_neu_copper_sunken_circle"
+            android:padding="4dp">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_profile_picture"
+                android:layout_width="@dimen/neu_copper_avatar_inner"
+                android:layout_height="@dimen/neu_copper_avatar_inner"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_width="0dp" />
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_display_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:singleLine="true"
+                android:textColor="@color/neu_copper_ink"
+                android:textSize="@dimen/text_body_large"
+                android:textStyle="bold"
+                tools:text="Henry, Arthur" />
+
+            <TextView
+                android:id="@+id/tv_username"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:ellipsize="end"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:singleLine="true"
+                android:textColor="@color/neu_copper_ink_muted"
+                android:textSize="@dimen/text_banner"
+                android:visibility="gone"
+                tools:text="@henryarthur"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/tv_email"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/list_item_margin"
+                android:ellipsize="end"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:singleLine="true"
+                android:textColor="@color/neu_copper_ink_muted"
+                android:textSize="@dimen/text_banner"
+                android:visibility="gone"
+                tools:text="john.doe@example.com"
+                tools:visibility="visible" />
+
+            <LinearLayout
+                android:id="@+id/action_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:gravity="start"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_add_friend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:background="@drawable/bg_primary_pill"
+                    android:backgroundTint="@null"
+                    android:insetBottom="0dp"
+                    android:insetTop="0dp"
+                    android:minWidth="104dp"
+                    android:paddingStart="@dimen/spacing_md"
+                    android:paddingEnd="@dimen/spacing_md"
+                    android:text="@string/user_search_add_friend"
+                    android:textAllCaps="false"
+                    android:textColor="@color/md3_on_primary"
+                    android:textSize="@dimen/text_body_small"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btn_secondary_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:background="@drawable/bg_reject_button_modern"
+                    android:backgroundTint="@null"
+                    android:insetBottom="0dp"
+                    android:insetTop="0dp"
+                    android:minWidth="88dp"
+                    android:paddingStart="@dimen/spacing_md"
+                    android:paddingEnd="@dimen/spacing_md"
+                    android:text="@string/user_search_chat"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_white"
+                    android:textSize="@dimen/text_body_small"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

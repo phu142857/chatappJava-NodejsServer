@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <!-- Request to ignore battery optimization for push notifications -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <application
+        android:name=".ChatApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="TP CHAT"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ChatAppJava"
+        android:usesCleartextTraffic="true">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <activity
+            android:name=".ui.theme.LoginActivity"
+            android:exported="true"
+            android:label="@string/title_activity_login"
+            android:theme="@style/Theme.ChatAppJava">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+        <activity
+            android:name=".ui.theme.RegisterActivity"
+            android:exported="false"
+            android:label="@string/title_activity_register"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.HomeActivity"
+            android:exported="false"
+            android:label="@string/title_activity_home"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.SearchActivity"
+            android:exported="false"
+            android:label="@string/title_activity_search"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.FriendRequestActivity"
+            android:exported="false"
+            android:label="@string/title_activity_friend_requests"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.PrivateChatActivity"
+            android:exported="false"
+            android:label="@string/title_activity_private_chat"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.CreateGroupActivity"
+            android:exported="false"
+            android:label="@string/title_activity_create_group"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.ProfileActivity"
+            android:exported="false"
+            android:label="@string/title_activity_profile"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.ProfileViewActivity"
+            android:exported="false"
+            android:label="@string/title_activity_profile_view"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.BaseChatActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.GroupChatActivity"
+            android:exported="false"
+            android:label="@string/title_activity_group_chat"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.GroupMembersActivity"
+            android:exported="false"
+            android:label="@string/title_activity_group_members"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.GroupJoinRequestsActivity"
+            android:exported="false"
+            android:label="Join Requests"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.GroupSettingsActivity"
+            android:exported="false"
+            android:label="Group Settings"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.call.RingingActivity"
+            android:exported="false"
+            android:label="Incoming Call"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.call.GroupVideoCallActivity"
+            android:exported="false"
+            android:label="Group Video Call"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.ChatAppJava"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity
+            android:name=".ui.call.PrivateVideoCallActivity"
+            android:exported="false"
+            android:label="Video Call"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.ChatAppJava"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity
+            android:name=".ui.theme.SettingsActivity"
+            android:exported="false"
+            android:label="Settings"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.BlockedUsersActivity"
+            android:exported="false"
+            android:label="Blocked Users"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.CreatePostActivity"
+            android:exported="false"
+            android:label="Create Post"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.CommentThreadActivity"
+            android:exported="false"
+            android:label="Comments"
+            android:theme="@style/Theme.ChatAppJava" />
+        <activity
+            android:name=".ui.theme.PostDetailActivity"
+            android:exported="true"
+            android:label="Post"
+            android:theme="@style/Theme.ChatAppJava"
+            android:launchMode="singleTop">
+            <!-- Deep Link Intent Filter - Custom Scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="chatapp"
+                    android:host="post" />
+            </intent-filter>
+            <!-- Deep Link Intent Filter - HTTP/HTTPS -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="http"
+                    android:host="192.168.2.36"
+                    android:port="49664"
+                    android:pathPrefix="/post" />
+                <data
+                    android:scheme="https"
+                    android:host="192.168.2.36"
+                    android:port="49664"
+                    android:pathPrefix="/post" />
+            </intent-filter>
+        </activity>
+
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".services.ChatFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Default notification channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default" />
+        
+    </application>
+
+</manifest>

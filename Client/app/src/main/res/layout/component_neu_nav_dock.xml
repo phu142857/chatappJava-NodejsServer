@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neumorphic Copper bottom nav: floating embossed dock, copper icon when selected -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/tab_container"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/neu_copper_nav_dock_height"
+    android:background="@drawable/bg_neu_copper_nav_dock"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/spacing_sm"
+    android:paddingEnd="@dimen/spacing_sm">
+
+    <ImageView
+        android:id="@+id/iv_chats"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_chats_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_chat"
+        app:tint="@color/tab_icon_selector" />
+
+    <ImageView
+        android:id="@+id/iv_groups"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_groups_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_group"
+        app:tint="@color/tab_icon_selector" />
+
+    <ImageView
+        android:id="@+id/iv_calls"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_calls_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_call"
+        app:tint="@color/tab_icon_selector" />
+
+    <ImageView
+        android:id="@+id/iv_posts"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_posts_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_post"
+        app:tint="@color/tab_icon_selector" />
+
+    <ImageView
+        android:id="@+id/iv_notifications"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_notifications_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_notification"
+        app:tint="@color/tab_icon_selector" />
+
+    <ImageView
+        android:id="@+id/iv_settings"
+        android:layout_width="@dimen/neu_copper_nav_tab_size"
+        android:layout_height="@dimen/neu_copper_nav_tab_size"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="@drawable/bg_neu_copper_nav_tab_inactive"
+        android:clickable="true"
+        android:contentDescription="@string/tab_settings_cd"
+        android:focusable="true"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_setting"
+        app:tint="@color/tab_icon_selector" />
+
+</LinearLayout>

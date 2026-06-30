@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="anim_duration_press">120</integer>
+    <integer name="anim_duration_fast">150</integer>
+    <integer name="anim_duration_normal">220</integer>
+    <integer name="anim_duration_modal">280</integer>
+    <integer name="anim_duration_highlight">320</integer>
+    <integer name="anim_duration_stagger_step">90</integer>
+    <integer name="anim_duration_entry">300</integer>
+</resources>

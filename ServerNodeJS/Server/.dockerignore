@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log*
+.env
+.git
+.gitignore
+.idea
+.vscode
+uploads
+temp
+coverage
+README.md
+.nvmrc
+requirements.txt
+.env.example
+serviceAccountKey.json
+serviceAccountKey-*.json

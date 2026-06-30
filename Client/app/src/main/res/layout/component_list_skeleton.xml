@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/list_skeleton_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/spacing_xs">
+
+    <include layout="@layout/item_skeleton_list_row" />
+    <include layout="@layout/item_skeleton_list_row" />
+    <include layout="@layout/item_skeleton_list_row" />
+    <include layout="@layout/item_skeleton_list_row" />
+    <include layout="@layout/item_skeleton_list_row" />
+
+</LinearLayout>

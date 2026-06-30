@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_chat_screen_dark">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.08"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Ringing ripple background -->
+    <FrameLayout
+        android:id="@+id/ringing_animation_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@android:color/transparent"
+        android:clickable="false"
+        android:focusable="false"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <View
+            android:id="@+id/ripple_1"
+            android:layout_width="210dp"
+            android:layout_height="210dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.28" />
+
+        <View
+            android:id="@+id/ripple_2"
+            android:layout_width="270dp"
+            android:layout_height="270dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.18" />
+
+        <View
+            android:id="@+id/ripple_3"
+            android:layout_width="330dp"
+            android:layout_height="330dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_ripple_ring"
+            android:alpha="0.10" />
+
+    </FrameLayout>
+
+    <!-- Call type indicator -->
+    <TextView
+        android:id="@+id/tv_call_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:text="@string/call_incoming_video"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/neu_copper_ink_muted"
+        android:letterSpacing="0.08"
+        android:layout_marginTop="@dimen/spacing_xl"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Caller info -->
+    <LinearLayout
+        android:id="@+id/caller_info_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        android:background="@drawable/bg_soft_inset"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingTop="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingBottom="@dimen/spacing_lg"
+        app:layout_constraintTop_toBottomOf="@id/tv_call_type"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_caller_avatar"
+            android:layout_width="@dimen/avatar_lg"
+            android:layout_height="@dimen/avatar_lg"
+            android:contentDescription="@string/call_caller_avatar_cd"
+            android:layout_marginBottom="@dimen/screen_edge_inset"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_color="@color/md3_border_glow"
+            app:civ_border_width="3dp" />
+
+        <TextView
+            android:id="@+id/tv_caller_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/preview_caller_name"
+            android:textAppearance="@style/AppHeadlineLarge"
+            android:textColor="@color/neu_copper_ink"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
+            android:id="@+id/tv_caller_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/call_is_calling_you"
+            android:textColor="@color/neu_copper_ink_muted"
+            android:textSize="17sp"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/tv_call_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="78dp"
+            android:gravity="center"
+            android:text="@string/call_timer_placeholder"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_icon_circle_dark"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Outgoing call info -->
+    <LinearLayout
+        android:id="@+id/outgoing_call_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_soft_inset"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="22dp"
+        android:paddingEnd="22dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/caller_info_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/call_status_calling"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_ringing_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/call_status_ringing"
+            android:textColor="@color/neu_copper_ink_muted"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- Incoming call: swipe to accept / decline -->
+    <LinearLayout
+        android:id="@+id/swipe_action_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        android:layout_marginBottom="@dimen/spacing_xl"
+        android:orientation="vertical"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_md"
+            android:gravity="center"
+            android:text="@string/call_swipe_hint"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="15sp" />
+
+        <FrameLayout
+            android:id="@+id/swipe_track"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:background="@drawable/bg_soft_inset">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/decline_zone"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:alpha="0.25"
+                    android:background="@drawable/swipe_decline_zone"
+                    android:importantForAccessibility="no" />
+
+                <View
+                    android:id="@+id/accept_zone"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:alpha="0.25"
+                    android:background="@drawable/swipe_accept_zone"
+                    android:importantForAccessibility="no" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|start"
+                android:layout_marginStart="22dp"
+                android:text="@string/call_decline_label"
+                android:textColor="@color/text_white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|end"
+                android:layout_marginEnd="24dp"
+                android:text="@string/call_accept_label"
+                android:textColor="@color/text_white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <FrameLayout
+                android:id="@+id/swipe_thumb"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_call_accept_circle"
+                android:contentDescription="@string/call_swipe_thumb_cd">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_call"
+                    app:tint="@color/text_white" />
+
+            </FrameLayout>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neumorphic Copper screen header: recessed avatar well + title + raised FAB -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/user_profile_section"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/header_height"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <FrameLayout
+        android:layout_width="@dimen/neu_copper_avatar_well"
+        android:layout_height="@dimen/neu_copper_avatar_well"
+        android:background="@drawable/bg_neu_copper_sunken_circle"
+        android:padding="4dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_user_avatar"
+            android:layout_width="@dimen/neu_copper_avatar_inner"
+            android:layout_height="@dimen/neu_copper_avatar_inner"
+            android:layout_gravity="center"
+            android:contentDescription="@string/home_user_avatar_cd"
+            android:src="@drawable/ic_profile_placeholder"
+            app:civ_border_width="0dp" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tv_user_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:maxLines="1"
+        android:text="@string/home_title_chats"
+        android:textColor="@color/neu_copper_ink"
+        android:textSize="@dimen/text_headline_medium"
+        android:textStyle="bold"
+        tools:text="Chats" />
+
+    <ImageButton
+        android:id="@+id/efab_new_group"
+        android:layout_width="@dimen/touch_target_min"
+        android:layout_height="@dimen/touch_target_min"
+        android:background="@drawable/bg_neu_copper_fab"
+        android:contentDescription="@string/create_group_description"
+        android:padding="@dimen/nav_tab_padding"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_add"
+        app:tint="@color/neu_copper_ink" />
+
+</LinearLayout>

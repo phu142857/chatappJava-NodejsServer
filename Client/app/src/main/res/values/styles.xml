@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Void Copper typography & components -->
+
+    <style name="AppHeadlineLarge" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_headline_large</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="AppHeadlineMedium" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_headline_medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="AppHeadlineSmall" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_headline_small</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="AppTitle" parent="AppHeadlineSmall">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppBodyLarge" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_body_large</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="AppBodyMedium" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_body_medium</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="AppBodySmall" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_body_small</item>
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+
+    <style name="AppLabelSmall" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_label_small</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_muted</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="AppCaptionMuted" parent="AppBodySmall">
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+
+    <style name="AppBodyMediumEmphasis" parent="AppBodyMedium">
+        <item name="android:textFontWeight" tools:targetApi="p">500</item>
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+
+    <style name="AppBodySemibold" parent="AppBodyLarge">
+        <item name="android:textFontWeight" tools:targetApi="p">600</item>
+    </style>
+
+    <style name="AppCaptionTabular" parent="AppBodySmall">
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <style name="AppEyebrowTag" parent="AppLabelSmall">
+        <item name="android:background">@drawable/bg_eyebrow_pill</item>
+        <item name="android:paddingStart">@dimen/auth_eyebrow_padding_h</item>
+        <item name="android:paddingEnd">@dimen/auth_eyebrow_padding_h</item>
+        <item name="android:paddingTop">@dimen/auth_eyebrow_padding_v</item>
+        <item name="android:paddingBottom">@dimen/auth_eyebrow_padding_v</item>
+        <item name="android:textColor">@color/brand_red_light</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <style name="AppScreenTitle" parent="AppHeadlineMedium" />
+
+    <style name="AppBannerText" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textSize">@dimen/text_banner</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="AppOptionRow">
+        <item name="android:layout_height">@dimen/option_row_height</item>
+        <item name="android:minHeight">@dimen/touch_target_min</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">@dimen/spacing_md</item>
+        <item name="android:paddingEnd">@dimen/spacing_md</item>
+        <item name="android:background">@drawable/bg_option_row_dark</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="AppInputField">
+        <item name="android:minHeight">@dimen/input_field_height</item>
+        <item name="android:background">@drawable/bg_soft_inset</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/neu_copper_ink_muted</item>
+        <item name="android:textSize">@dimen/text_body_large</item>
+        <item name="android:paddingStart">@dimen/dialog_padding_h</item>
+        <item name="android:paddingEnd">@dimen/dialog_padding_h</item>
+    </style>
+
+    <style name="AppPrimaryButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:background">@drawable/bg_button_normal_ripple</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+    </style>
+
+    <style name="AppSearchBar">
+        <item name="android:background">@drawable/bg_neu_copper_sunken_pill</item>
+        <item name="android:minHeight">@dimen/search_bar_height</item>
+    </style>
+
+    <!-- Neumorphic Copper tab/chip — FG-only selection (Home reference) -->
+    <style name="AppNeuTabBar">
+        <item name="android:background">@drawable/bg_neu_copper_sunken_pill</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:padding">@dimen/auth_switch_inner_padding</item>
+    </style>
+
+    <style name="AppNeuTabItem">
+        <item name="android:layout_height">@dimen/touch_target_min</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/tab_selector</item>
+        <item name="android:textColor">@color/tab_text_selector</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="AppNeuChip">
+        <item name="android:minHeight">@dimen/touch_target_min</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/bg_neu_chip</item>
+        <item name="android:textColor">@color/chip_text_selector</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="AppFlatHeader">
+        <item name="android:background">@drawable/bg_flat_header</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">@dimen/header_height</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">@dimen/margin_mobile</item>
+        <item name="android:paddingTop">@dimen/spacing_sm</item>
+        <item name="android:paddingEnd">@dimen/margin_mobile</item>
+        <item name="android:paddingBottom">@dimen/spacing_sm</item>
+    </style>
+
+    <style name="AppBackButton">
+        <item name="android:layout_width">@dimen/touch_target_min</item>
+        <item name="android:layout_height">@dimen/touch_target_min</item>
+        <item name="android:background">@drawable/bg_icon_circle_dark</item>
+        <item name="android:padding">@dimen/spacing_sm</item>
+        <item name="android:src">@drawable/ic_back</item>
+    </style>
+
+    <style name="AppToolbarTitle" parent="MidnightScreenTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">@dimen/spacing_md</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/md3_on_surface</item>
+    </style>
+
+    <style name="AppSettingsSectionTitle" parent="AppHeadlineSmall">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">@dimen/margin_mobile</item>
+        <item name="android:layout_marginTop">@dimen/spacing_md</item>
+        <item name="android:layout_marginEnd">@dimen/margin_mobile</item>
+        <item name="android:layout_marginBottom">@dimen/spacing_sm</item>
+        <item name="android:textColor">@color/neu_copper_ink</item>
+    </style>
+
+    <style name="AppSettingsSectionTitleSpaced" parent="AppSettingsSectionTitle">
+        <item name="android:layout_marginTop">@dimen/spacing_lg</item>
+    </style>
+
+    <style name="AppListDividerRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/option_row_height</item>
+        <item name="android:background">@drawable/bg_list_row_divider</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">@dimen/margin_mobile</item>
+        <item name="android:paddingEnd">@dimen/margin_mobile</item>
+    </style>
+
+    <style name="AppListDividerRowIcon">
+        <item name="android:layout_width">@dimen/icon_search</item>
+        <item name="android:layout_height">@dimen/icon_search</item>
+        <item name="android:layout_marginEnd">@dimen/spacing_md</item>
+    </style>
+
+    <style name="AppListDividerRowLabel" parent="AppBodyLarge">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/neu_copper_ink</item>
+    </style>
+
+    <style name="AppListDividerRowLabelDanger" parent="AppListDividerRowLabel">
+        <item name="android:textColor">@color/text_white</item>
+    </style>
+
+    <style name="AppListDividerRowChevron">
+        <item name="android:layout_width">@dimen/icon_search</item>
+        <item name="android:layout_height">@dimen/icon_search</item>
+        <item name="android:src">@drawable/ic_more</item>
+        <item name="tint">@color/neu_copper_ink_muted</item>
+    </style>
+
+    <style name="AppListDividerRowChevronDanger">
+        <item name="android:layout_width">@dimen/icon_sm</item>
+        <item name="android:layout_height">@dimen/icon_sm</item>
+        <item name="android:src">@drawable/ic_more</item>
+        <item name="tint">@color/neu_copper_accent</item>
+    </style>
+
+    <!-- Legacy aliases (Midnight Slate locked) -->
+    <style name="MidnightHeadlineLarge" parent="AppHeadlineLarge" />
+    <style name="MidnightHeadlineMedium" parent="AppHeadlineMedium" />
+    <style name="MidnightHeadlineSmall" parent="AppHeadlineSmall" />
+    <style name="MidnightTitle" parent="AppTitle" />
+    <style name="MidnightBodyLarge" parent="AppBodyLarge" />
+    <style name="MidnightBodyMedium" parent="AppBodyMedium" />
+    <style name="MidnightBodySmall" parent="AppBodySmall" />
+    <style name="MidnightLabelSmall" parent="AppLabelSmall" />
+    <style name="MidnightCaptionMuted" parent="AppCaptionMuted" />
+    <style name="MidnightScreenTitle" parent="AppScreenTitle" />
+    <style name="MidnightBannerText" parent="AppBannerText" />
+    <style name="MidnightOptionRow" parent="AppOptionRow" />
+    <style name="MidnightInputField" parent="AppInputField" />
+    <style name="MidnightPrimaryButton" parent="AppPrimaryButton" />
+    <style name="MidnightSearchBar" parent="AppSearchBar" />
+
+    <style name="DialogButton.Filled" parent="Widget.MaterialComponents.Button">
+        <item name="android:background">@drawable/bg_button_normal_ripple</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="DialogButton.Secondary" parent="Widget.MaterialComponents.Button">
+        <item name="android:background">@drawable/bg_filter_pill_inactive</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="DialogButton.Danger" parent="Widget.MaterialComponents.Button">
+        <item name="android:background">@drawable/bg_button_danger_selected_ripple</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="ThemeOverlay.ChatApp.AlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="colorPrimary">@color/md3_primary</item>
+        <item name="colorAccent">@color/md3_primary</item>
+        <item name="android:background">@color/dialog_bg</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="buttonBarPositiveButtonStyle">@style/DialogButton.Filled</item>
+        <item name="buttonBarNegativeButtonStyle">@style/DialogButton.Secondary</item>
+        <item name="buttonBarNeutralButtonStyle">@style/DialogButton.Secondary</item>
+    </style>
+</resources>

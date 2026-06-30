@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:left="0dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="0dp">
+        <shape>
+            <solid android:color="@color/danger_ripple" />
+            <corners android:radius="@dimen/radius_pill" />
+        </shape>
+    </item>
+    <item
+        android:left="0dp"
+        android:top="0dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape>
+            <gradient
+                android:angle="135"
+                android:endColor="@color/danger_gradient_end"
+                android:startColor="@color/danger_gradient_start" />
+            <corners android:radius="@dimen/radius_pill" />
+        </shape>
+    </item>
+</layer-list>

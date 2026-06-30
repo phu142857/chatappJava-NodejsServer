@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_chat_screen_dark">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.12"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/header_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <include
+            android:id="@+id/group_settings_toolbar"
+            layout="@layout/component_neu_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/tv_group_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/margin_mobile"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textColor="@color/neu_copper_ink_muted"
+            android:textSize="@dimen/text_body_small"
+            tools:text="My Awesome Group" />
+
+    </LinearLayout>
+
+    <!-- Scrollable Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="@dimen/spacing_md"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingEnd="@dimen/margin_mobile"
+        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="8dp">
+
+            <!-- Group Information Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical"
+                android:background="@drawable/bg_soft_inset"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:paddingTop="@dimen/dialog_padding_v"
+                android:paddingBottom="@dimen/dialog_padding_h">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/group_info_section"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/neu_copper_ink"
+                    android:layout_marginBottom="@dimen/spacing_md" />
+
+                <LinearLayout
+                    android:id="@+id/option_view_group_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_info"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/neu_copper_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/group_view_info"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/neu_copper_ink_muted" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/option_change_avatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_camera"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/neu_copper_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/group_change_avatar"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/neu_copper_ink_muted" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Privacy Settings Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical"
+                android:background="@drawable/bg_soft_inset"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:paddingTop="@dimen/dialog_padding_v"
+                android:paddingBottom="@dimen/dialog_padding_h">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/group_privacy_section"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/neu_copper_ink"
+                    android:layout_marginBottom="@dimen/spacing_md" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/group_public_label"
+                            android:textSize="16sp"
+                            android:textColor="@color/neu_copper_ink"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/group_public_desc"
+                            android:textSize="12sp"
+                            android:textColor="@color/neu_copper_ink_muted"
+                            android:layout_marginTop="5dp" />
+
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/switch_public"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        android:thumbTint="@color/neu_copper_accent"
+                        android:trackTint="@color/switch_track_selector" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_privacy_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/group_public_help"
+                    android:textSize="12sp"
+                    android:textColor="@color/neu_copper_ink_muted"
+                    android:lineSpacingExtra="2dp" />
+
+            </LinearLayout>
+
+            <!-- Member Management Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical"
+                android:background="@drawable/bg_soft_inset"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:paddingTop="@dimen/dialog_padding_v"
+                android:paddingBottom="@dimen/dialog_padding_h">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/group_member_management"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/neu_copper_ink"
+                    android:layout_marginBottom="@dimen/spacing_md" />
+
+                <LinearLayout
+                    android:id="@+id/option_add_members"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_add"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/neu_copper_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/dialog_option_add_members"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/neu_copper_ink_muted" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/option_remove_members"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_eye"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/neu_copper_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/group_members_label"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/neu_copper_ink_muted" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/option_join_requests"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_option_row_dark"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_group"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/neu_copper_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/dialog_option_join_requests"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/neu_copper_ink" />
+
+                    <TextView
+                        android:id="@+id/tv_request_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="28dp"
+                        android:gravity="center"
+                        android:paddingStart="9dp"
+                        android:paddingEnd="9dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:background="@drawable/bg_badge_red_modern"
+                        android:textColor="@color/neu_copper_ink"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:text="@string/badge_count_placeholder"
+                        android:visibility="gone"
+                        android:layout_marginEnd="8dp" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/neu_copper_ink_muted" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Danger Zone Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:orientation="vertical"
+                android:background="@drawable/bg_soft_inset"
+                android:paddingStart="@dimen/dialog_padding_h"
+                android:paddingEnd="@dimen/dialog_padding_h"
+                android:paddingTop="@dimen/dialog_padding_v"
+                android:paddingBottom="@dimen/dialog_padding_h">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/group_danger_zone"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_white"
+                    android:layout_marginBottom="@dimen/spacing_md" />
+
+                <LinearLayout
+                    android:id="@+id/option_leave_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_danger_option_row"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_close"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/danger" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/dialog_option_leave_group"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_white" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/danger" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/option_delete_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_danger_option_row"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_delete"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/danger" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/dialog_option_delete_group"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_white" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_more"
+                        app:tint="@color/danger" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

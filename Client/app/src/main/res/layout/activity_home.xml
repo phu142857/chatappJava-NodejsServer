@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_neu_copper_canvas"
+    android:fitsSystemWindows="true">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.08"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Header: recessed avatar + title + raised copper FAB -->
+    <include
+        android:id="@+id/user_profile_section"
+        layout="@layout/component_neu_header"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/header_height"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+    <!-- Recessed search trench -->
+    <include
+        android:id="@+id/search_bar_home"
+        layout="@layout/component_neu_search"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/neu_copper_search_height"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/user_profile_section"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+    <include
+        android:id="@+id/ll_create_post_bar"
+        layout="@layout/component_create_post_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_bar_home" />
+
+    <!-- Friend requests — recessed row -->
+    <LinearLayout
+        android:id="@+id/ll_friend_requests"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/touch_target_min"
+        android:layout_marginStart="@dimen/margin_mobile"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        android:background="@drawable/bg_neu_copper_sunken_pill"
+        android:clickable="true"
+        android:contentDescription="@string/home_friend_requests_cd"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/spacing_md"
+        android:paddingEnd="@dimen/spacing_md"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_bar_home"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <TextView
+            android:id="@+id/tv_requests_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:importantForAccessibility="no"
+            android:text="@string/home_friends_title"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="@dimen/text_body_large"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_friend_request_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_neu_copper_badge"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center"
+            android:importantForAccessibility="no"
+            android:minWidth="@dimen/badge_min_width"
+            android:paddingStart="@dimen/badge_padding_h"
+            android:paddingTop="@dimen/badge_padding_v"
+            android:paddingEnd="@dimen/badge_padding_h"
+            android:paddingBottom="@dimen/badge_padding_v"
+            android:text="@string/badge_count_placeholder"
+            android:textColor="@color/neu_copper_ink"
+            android:textSize="@dimen/text_label_small"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <ImageView
+            android:layout_width="@dimen/icon_md"
+            android:layout_height="@dimen/icon_md"
+            android:layout_marginStart="@dimen/spacing_xs"
+            android:contentDescription="@string/home_more_options_cd"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_more"
+            app:tint="@color/neu_copper_ink_muted" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/chat_list_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/spacing_xs"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@id/tab_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/ll_friend_requests"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width">
+
+        <LinearLayout
+            android:id="@+id/ll_posts_action_bar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipe_refresh_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <include
+                    android:id="@+id/list_skeleton"
+                    layout="@layout/component_list_skeleton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:visibility="gone" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_chat_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@android:color/transparent"
+                    android:clipToPadding="false"
+                    android:paddingTop="@dimen/spacing_xs"
+                    android:paddingBottom="@dimen/list_content_padding_bottom"
+                    android:scrollbars="none" />
+
+                <include
+                    android:id="@+id/home_empty_state"
+                    layout="@layout/component_empty_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    </LinearLayout>
+
+    <!-- Floating neumorphic dock -->
+    <include
+        android:id="@+id/tab_container"
+        layout="@layout/component_neu_nav_dock"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/neu_copper_nav_dock_height"
+        android:layout_marginStart="@dimen/neu_copper_nav_dock_margin"
+        android:layout_marginEnd="@dimen/neu_copper_nav_dock_margin"
+        android:layout_marginBottom="@dimen/neu_copper_nav_dock_margin"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintWidth_max="@dimen/home_content_max_width" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

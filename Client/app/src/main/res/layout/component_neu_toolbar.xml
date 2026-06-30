@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neumorphic Copper toolbar: optional back well + title + trailing action slot -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/neu_toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/header_height"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/margin_mobile"
+    android:paddingEnd="@dimen/margin_mobile">
+
+    <FrameLayout
+        android:id="@+id/toolbar_back_well"
+        android:layout_width="@dimen/neu_copper_avatar_well"
+        android:layout_height="@dimen/neu_copper_avatar_well"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:background="@drawable/bg_neu_copper_sunken_circle"
+        android:padding="4dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/iv_toolbar_back"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:layout_gravity="center"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/back_button_description"
+            android:padding="@dimen/spacing_sm"
+            android:src="@drawable/ic_back"
+            app:tint="@color/neu_copper_ink" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tv_toolbar_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:maxLines="1"
+        android:textColor="@color/neu_copper_ink"
+        android:textSize="@dimen/text_headline_medium"
+        android:textStyle="bold"
+        tools:text="Screen title" />
+
+    <LinearLayout
+        android:id="@+id/toolbar_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+
+</LinearLayout>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chat_messages_skeleton_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/spacing_xs"
+    android:paddingEnd="@dimen/spacing_xs"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:contentDescription="@string/chat_messages_loading_cd">
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:importantForAccessibility="no" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/list_item_margin"
+        android:paddingBottom="@dimen/list_item_margin">
+
+        <View
+            android:layout_width="152dp"
+            android:layout_height="40dp"
+            android:layout_gravity="start"
+            android:background="@drawable/bg_skeleton_message_bubble" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/list_item_margin"
+        android:paddingBottom="@dimen/list_item_margin">
+
+        <View
+            android:layout_width="196dp"
+            android:layout_height="44dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="@dimen/list_item_margin"
+            android:background="@drawable/bg_skeleton_message_bubble" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/list_item_margin"
+        android:paddingBottom="@dimen/list_item_margin">
+
+        <View
+            android:layout_width="128dp"
+            android:layout_height="36dp"
+            android:layout_gravity="start"
+            android:background="@drawable/bg_skeleton_message_bubble" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/list_item_margin"
+        android:paddingBottom="@dimen/list_item_margin">
+
+        <View
+            android:layout_width="176dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="@dimen/list_item_margin"
+            android:background="@drawable/bg_skeleton_message_bubble" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/list_item_margin"
+        android:paddingBottom="@dimen/list_item_margin">
+
+        <View
+            android:layout_width="104dp"
+            android:layout_height="36dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="@dimen/list_item_margin"
+            android:background="@drawable/bg_skeleton_message_bubble" />
+    </FrameLayout>
+
+</LinearLayout>

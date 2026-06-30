@@ -1,0 +1,1551 @@
+package com.example.chatappjava.ui.theme;
+
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.LinearLayout;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+
+import com.example.chatappjava.network.ApiClient;
+import com.github.dhaval2404.imagepicker.ImagePicker;
+
+import com.example.chatappjava.R;
+import com.example.chatappjava.models.Chat;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.Date;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+
+public class GroupChatActivity extends BaseChatActivity {
+
+    private ActivityResultLauncher<Intent> imagePickerLauncher;
+    private Uri selectedImageUri;
+    private boolean isChangingAvatar = false;
+    private AlertDialog imageSelectDialog;
+    private LinearLayout groupCallNotification;
+    private TextView tvGroupCallNotificationText;
+    private String activeCallId = null;
+    
+    @Override
+    protected int getLayoutResource() {
+        return R.layout.activity_private_chat; // Reuse the same layout for now
+    }
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setupImagePicker();
+        
+        // Initialize notification view after layout is set
+        // Use post to ensure layout is fully inflated
+        findViewById(android.R.id.content).post(() -> {
+            setupGroupCallNotification();
+            checkForActiveGroupCall();
+        });
+    }
+    
+    @Override
+    protected void handleVideoCall() {
+        checkForActiveCallBeforeStarting(0); // Start with retry count 0
+    }
+    
+    /**
+     * Check for active call before starting, with retry mechanism to handle race conditions
+     * @param retryCount Current retry attempt (max 2 retries)
+     */
+    private void checkForActiveCallBeforeStarting(int retryCount) {
+        if (currentChat == null) {
+            android.util.Log.e("GroupChatActivity", "Cannot check for active call: currentChat is null");
+            startNewGroupCall();
+            return;
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            android.util.Log.e("GroupChatActivity", "Cannot check for active call: no token");
+            Toast.makeText(this, getString(R.string.error_authentication_required), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Checking for active call in chat: " + currentChat.getId() + " (retry: " + retryCount + ")");
+        
+        apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to check for active call", e);
+                runOnUiThread(() -> {
+                    // If check fails and we haven't retried, wait a bit and retry
+                    // This handles race conditions where call is being created
+                    if (retryCount < 2) {
+                        android.util.Log.d("GroupChatActivity", "Check failed, retrying in 500ms (retry " + (retryCount + 1) + ")");
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            checkForActiveCallBeforeStarting(retryCount + 1);
+                        }, 500);
+                    } else {
+                        // After retries, start new call
+                        android.util.Log.d("GroupChatActivity", "Check failed after retries, starting new call");
+                        startNewGroupCall();
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String responseBody = response.body().string();
+                android.util.Log.d("GroupChatActivity", "Active call check response: " + response.code());
+                android.util.Log.d("GroupChatActivity", "Response body: " + responseBody);
+                
+                runOnUiThread(() -> {
+                    
+                    if (response.isSuccessful()) {
+                        try {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                // CRITICAL FIX: Use optJSONObject to safely handle null data
+                                JSONObject data = jsonResponse.optJSONObject("data");
+                                if (data != null && data.has("callId") && !data.isNull("callId")) {
+                                    String existingCallId = data.getString("callId");
+                                    String status = data.optString("status", "");
+                                    
+                                    // CRITICAL: Always join if call exists and is in any active state
+                                    // Don't check status too strictly - if call exists, join it
+                                    if ("active".equals(status) || "notified".equals(status) || "ringing".equals(status) || "initiated".equals(status)) {
+                                        android.util.Log.d("GroupChatActivity", "Found active call: " + existingCallId + " (status: " + status + "), joining");
+                                        activeCallId = existingCallId; // Update local state
+                                        joinActiveGroupCall();
+                                        return;
+                                    } else {
+                                        android.util.Log.w("GroupChatActivity", "Call exists but status is not active: " + status);
+                                    }
+                                } else {
+                                    android.util.Log.d("GroupChatActivity", "No active call found (data is null or missing callId)");
+                                }
+                            }
+                        } catch (JSONException e) {
+                            android.util.Log.e("GroupChatActivity", "Error parsing active call response", e);
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    // No active call found
+                    // If we haven't retried, wait a bit and retry to handle race conditions
+                    if (retryCount < 3) {
+                        // Increase delay with each retry: 300ms, 600ms, 900ms
+                        int delay = 300 * (retryCount + 1);
+                        android.util.Log.d("GroupChatActivity", "No active call found, retrying in " + delay + "ms (retry " + (retryCount + 1) + ")");
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            checkForActiveCallBeforeStarting(retryCount + 1);
+                        }, delay);
+                    } else {
+                        // After retries, initiate call
+                        android.util.Log.d("GroupChatActivity", "No active call found after retries, initiating new call");
+                        initiateCallAfterDelay();
+                    }
+                });
+            }
+        });
+    }
+    
+    private void startNewGroupCall() {
+        android.util.Log.d("GroupChatActivity", "Starting NEW group call");
+        
+        if (currentChat == null || currentChat.getId() == null) {
+            Toast.makeText(this, getString(R.string.msg_unable_to_start_call_chat_not_loaded), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_authentication_required), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // CRITICAL: Add small random delay before initiating call to reduce race conditions
+        // This helps when multiple users click video call button simultaneously
+        int randomDelay = (int)(Math.random() * 300); // 0-300ms random delay
+        android.util.Log.d("GroupChatActivity", "Adding random delay: " + randomDelay + "ms before initiating call");
+        
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // Double-check active call one more time before creating
+            checkForActiveCallBeforeStarting(0);
+        }, randomDelay);
+    }
+    
+    /**
+     * Actually initiate the call after delay and verification
+     */
+    private void initiateCallAfterDelay() {
+        if (currentChat == null || currentChat.getId() == null) {
+            return;
+        }
+
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+
+        // Initiate new group video call
+        apiClient.initiateCall(token, currentChat.getId(), "video", new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NonNull okhttp3.Call call, @NonNull java.io.IOException e) {
+                runOnUiThread(() -> {
+                    android.util.Log.e("GroupChatActivity", "Failed to initiate call", e);
+                    Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_start_call), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        JSONObject jsonResponse = new JSONObject(responseBody);
+                        if (jsonResponse.optBoolean("success", false)) {
+                            JSONObject data = jsonResponse.optJSONObject("data");
+                            if (data != null) {
+                                String callId = data.getString("callId");
+                                boolean isExisting = jsonResponse.optBoolean("isExisting", false);
+                                
+                                android.util.Log.d("GroupChatActivity", "Call initiated: callId=" + callId + ", isExisting=" + isExisting);
+                                
+                                // CRITICAL FIX: If this is an existing call (race condition), 
+                                // verify it's the same call by checking active call again
+                                if (isExisting) {
+                                    android.util.Log.d("GroupChatActivity", "Call already existed, verifying active call...");
+                                    // Double-check active call to ensure we join the correct one
+                                    verifyAndJoinCall(callId);
+                                } else {
+                                    activeCallId = callId;
+                                    
+                                    // Launch video call activity
+                                    Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                                    intent.putExtra("callId", callId);
+                                    intent.putExtra("chatId", currentChat.getId());
+                                    intent.putExtra("groupName", currentChat.getName());
+                                    intent.putExtra("isCaller", true);
+                                    startActivity(intent);
+                                }
+                            }
+                        } else {
+                            String message = jsonResponse.optString("message", "Failed to start call");
+                            // If call already exists, try to join it
+                            if (message.contains("already active") || message.contains("already exists")) {
+                                android.util.Log.d("GroupChatActivity", "Call already exists, checking active call...");
+                                checkForActiveCallBeforeStarting(0);
+                            } else {
+                                Toast.makeText(GroupChatActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    } catch (JSONException e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing call response", e);
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_error_starting_call), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * Verify and join call - double check active call to handle race conditions
+     */
+    private void verifyAndJoinCall(String expectedCallId) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            return;
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Verifying active call, expected callId: " + expectedCallId);
+        
+        apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NonNull okhttp3.Call call, @NonNull java.io.IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to verify active call", e);
+                runOnUiThread(() -> {
+                    // Fallback: use the callId we got from initiate
+                    activeCallId = expectedCallId;
+                    Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                    intent.putExtra("callId", expectedCallId);
+                    intent.putExtra("chatId", currentChat.getId());
+                    intent.putExtra("groupName", currentChat.getName());
+                    intent.putExtra("isCaller", false);
+                    startActivity(intent);
+                });
+            }
+
+            @Override
+            public void onResponse(@NonNull okhttp3.Call call, @NonNull okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                JSONObject data = jsonResponse.optJSONObject("data");
+                                if (data != null && data.has("callId")) {
+                                    String activeCallId = data.getString("callId");
+                                    android.util.Log.d("GroupChatActivity", "Active call verified: " + activeCallId);
+                                    
+                                    // Use the active call ID (might be different due to race condition)
+                                    GroupChatActivity.this.activeCallId = activeCallId;
+                                    joinActiveGroupCall();
+                                    return;
+                                }
+                            }
+                        }
+                        
+                        // If verification fails, use the expected callId
+                        android.util.Log.w("GroupChatActivity", "Verification failed, using expected callId: " + expectedCallId);
+                        activeCallId = expectedCallId;
+                        Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                        intent.putExtra("callId", expectedCallId);
+                        intent.putExtra("chatId", currentChat.getId());
+                        intent.putExtra("groupName", currentChat.getName());
+                        intent.putExtra("isCaller", false);
+                        startActivity(intent);
+                    } catch (JSONException e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing verify response", e);
+                        // Fallback: use expected callId
+                        activeCallId = expectedCallId;
+                        Intent intent = new Intent(GroupChatActivity.this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+                        intent.putExtra("callId", expectedCallId);
+                        intent.putExtra("chatId", currentChat.getId());
+                        intent.putExtra("groupName", currentChat.getName());
+                        intent.putExtra("isCaller", false);
+                        startActivity(intent);
+                    }
+                });
+            }
+        });
+    }
+    
+    
+    @Override
+    protected void showAttachmentOptions() {
+        // Use BaseChatActivity logic for chat images
+        isChangingAvatar = false;
+        super.showAttachmentOptions();
+    }
+    
+    private void setupImagePicker() {
+        imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    selectedImageUri = result.getData().getData();
+                    if (selectedImageUri != null) {
+                        if (isChangingAvatar) {
+                            uploadGroupAvatar();
+                        } else {
+                            // Handle chat image using BaseChatActivity logic
+                            handleSelectedImage(selectedImageUri);
+                        }
+                    }
+                } else if (result.getResultCode() == ImagePicker.RESULT_ERROR) {
+                    Toast.makeText(GroupChatActivity.this, ImagePicker.getError(result.getData()), Toast.LENGTH_SHORT).show();
+                }
+            }
+        );
+    }
+    
+    @Override
+    protected void loadChatData() {
+        android.util.Log.d("GroupChatActivity", "loadChatData called");
+        android.util.Log.d("GroupChatActivity", "currentChat: " + (currentChat != null ? currentChat.getName() : "null"));
+        android.util.Log.d("GroupChatActivity", "ivProfile: " + (ivProfile != null ? "not null" : "null"));
+        android.util.Log.d("GroupChatActivity", "avatarManager: " + (avatarManager != null ? "not null" : "null"));
+        
+        updateUI();
+        loadMessages();
+    }
+    
+    @Override
+    protected void updateUI() {
+        if (currentChat != null) {
+            tvChatName.setText(currentChat.getName());
+            updateChatHeaderAccessibility();
+            
+            // Show initial participant count from chat data
+            int participantCount = currentChat.getParticipantCount();
+            android.util.Log.d("GroupChatActivity", "Initial participant count: " + participantCount);
+            
+            // Fetch actual member count from server (like GroupMembersActivity does)
+            fetchActualMemberCount();
+            
+            // Load group avatar
+            if (ivProfile != null) {
+                com.squareup.picasso.Picasso.get().cancelRequest(ivProfile);
+                ivProfile.setTag(null);
+            }
+
+            String avatarUrl = currentChat.getListAvatarUrl();
+            if (avatarUrl != null && !avatarUrl.isEmpty() && avatarManager != null) {
+                avatarManager.loadAvatar(avatarUrl, ivProfile, R.drawable.ic_group_avatar);
+            } else if (ivProfile != null) {
+                ivProfile.setImageResource(R.drawable.ic_group_avatar);
+            }
+            
+            // Disable changing avatar from group chat avatar click
+            if (ivProfile != null) {
+                ivProfile.setOnClickListener(null);
+            }
+        } else {
+            android.util.Log.d("GroupAvatar", "Current chat is null");
+        }
+    }
+    
+    @Override
+    protected void showChatOptions() {
+        // Open Group Settings Activity instead of showing dialog
+        openGroupSettings();
+    }
+    
+    private void openGroupSettings() {
+        Intent intent = new Intent(this, GroupSettingsActivity.class);
+        try {
+            intent.putExtra("chat", currentChat.toJson().toString());
+            startActivity(intent);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_opening_group_settings), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showChatOptionsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_chat_options, null);
+
+        // Load and display join requests count if available
+        TextView tvRequestCount = dialogView.findViewById(R.id.tv_request_count);
+        View optionJoinRequests = dialogView.findViewById(R.id.option_join_requests);
+        if (optionJoinRequests != null) {
+            optionJoinRequests.setOnClickListener(v -> {
+                if (currentDialog != null) currentDialog.dismiss();
+                if (currentChat == null) return;
+                Intent intent = new Intent(this, GroupJoinRequestsActivity.class);
+                try {
+                    intent.putExtra("chat", currentChat.toJson().toString());
+                } catch (org.json.JSONException ignored) {}
+                startActivity(intent);
+            });
+            fetchJoinRequestCount(count -> {
+                if (count > 0) {
+                    tvRequestCount.setText(String.valueOf(count));
+                    tvRequestCount.setVisibility(View.VISIBLE);
+                } else {
+                    tvRequestCount.setVisibility(View.GONE);
+                }
+            });
+        }
+
+
+        // Set click listeners for each option
+        dialogView.findViewById(R.id.option_view_group_info).setOnClickListener(v -> {
+            showGroupInfo();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        dialogView.findViewById(R.id.option_delete_group).setOnClickListener(v -> {
+            confirmDeleteGroup();
+            if (currentDialog != null) currentDialog.dismiss();
+        });
+        
+        // Remove/disable call options for group chat if present in layout
+
+
+        builder.setView(dialogView);
+        currentDialog = builder.create();
+        if (currentDialog.getWindow() != null) {
+            android.view.Window w = currentDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        currentDialog.show();
+    }
+
+    private interface CountCallback { void onResult(int count); }
+
+    private void fetchJoinRequestCount(CountCallback cb) {
+        try {
+            if (currentChat == null) { cb.onResult(0); return; }
+            String token = databaseManager.getToken();
+            if (token == null || token.isEmpty()) { cb.onResult(0); return; }
+            // Placeholder endpoint; implement on server to return { success, data: { count } }
+            String chatId = currentChat.getId();
+            apiClient.authenticatedGet("/api/groups/" + chatId + "/join-requests/count", token, new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) { runOnUiThread(() -> cb.onResult(0)); }
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                    String body = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            org.json.JSONObject json = new org.json.JSONObject(body);
+                            if (response.code() == 200 && json.optBoolean("success", false)) {
+                                int count = json.getJSONObject("data").optInt("count", 0);
+                                cb.onResult(count);
+                            } else { cb.onResult(0); }
+                        } catch (org.json.JSONException e) { cb.onResult(0); }
+                    });
+                }
+            });
+        } catch (Exception e) { cb.onResult(0); }
+    }
+    
+    private void showGroupInfo() {
+        if (currentChat == null) return;
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Group Information")
+                .setMessage("Group Name: " + currentChat.getName() + "\n" +
+                           "Members: " + currentChat.getParticipantCount() + "\n" +
+                           "Created: " + (currentChat.getCreatedAt() != 0 ? new Date(currentChat.getCreatedAt()).toString() : "Unknown"))
+                .setPositiveButton("View Members", (dialog, which) -> {
+                    // Navigate to GroupMembersActivity
+                    Intent intent = new Intent(this, GroupMembersActivity.class);
+                    try {
+                        intent.putExtra("chat", currentChat.toJson().toString());
+                        startActivity(intent);
+                    } catch (org.json.JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(this, getString(R.string.error_error_opening_members_list), Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNeutralButton("Change Avatar", (dialog, which) -> {
+                    showAvatarOptions();
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+    
+    private void showAvatarOptions() {
+        // Inflate custom dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_attachment_select, null);
+        
+        // Get views
+        LinearLayout cameraOption = dialogView.findViewById(R.id.option_camera);
+        LinearLayout galleryOption = dialogView.findViewById(R.id.option_gallery);
+        LinearLayout cancelButton = dialogView.findViewById(R.id.btn_cancel);
+        LinearLayout removeAvatarCard = dialogView.findViewById(R.id.option_remove_avatar);
+        LinearLayout removeAvatarButton = dialogView.findViewById(R.id.btn_remove_avatar);
+        
+        // Show remove avatar option
+        if (removeAvatarCard != null) {
+            removeAvatarCard.setVisibility(View.VISIBLE);
+        }
+        
+        // Update title
+        TextView titleView = dialogView.findViewById(R.id.title);
+        if (titleView != null) {
+            titleView.setText(getString(R.string.dialog_group_avatar_all_members));
+        }
+        
+        // Set click listeners
+        cameraOption.setOnClickListener(v -> {
+            isChangingAvatar = true;
+            ImagePicker.with(this)
+                    .cameraOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(1080, 1080)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        galleryOption.setOnClickListener(v -> {
+            isChangingAvatar = true;
+            ImagePicker.with(this)
+                    .galleryOnly()
+                    .crop()
+                    .compress(1024)
+                    .maxResultSize(1080, 1080)
+                    .createIntent(intent -> {
+                        imagePickerLauncher.launch(intent);
+                        return null;
+                    });
+            if (imageSelectDialog != null) {
+                imageSelectDialog.dismiss();
+            }
+        });
+        
+        if (removeAvatarButton != null) {
+            removeAvatarButton.setOnClickListener(v -> {
+                confirmRemoveAvatar();
+                if (imageSelectDialog != null) {
+                    imageSelectDialog.dismiss();
+                }
+            });
+        }
+        
+        if (cancelButton != null) {
+            cancelButton.setOnClickListener(v -> {
+                if (imageSelectDialog != null) {
+                    imageSelectDialog.dismiss();
+                }
+            });
+        }
+        
+        // Create dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        imageSelectDialog = builder.create();
+        
+        // Set transparent background to avoid white area issues
+        if (imageSelectDialog.getWindow() != null) {
+            android.view.Window w = imageSelectDialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        imageSelectDialog.show();
+    }
+    
+    private void confirmRemoveAvatar() {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove Avatar")
+                .setMessage("Are you sure you want to remove the group avatar?")
+                .setPositiveButton("Remove", (dialog, which) -> removeAvatar())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+    
+    private void removeAvatar() {
+        Toast.makeText(this, getString(R.string.status_removing_avatar), Toast.LENGTH_SHORT).show();
+        
+        // For now, just show a message
+        // In a real implementation, you would call an API to remove the avatar
+        Toast.makeText(this, getString(R.string.feature_remove_avatar_feature_coming_soon), Toast.LENGTH_SHORT).show();
+    }
+    
+    private void uploadGroupAvatar() {
+        if (selectedImageUri == null || currentChat == null) {
+            Toast.makeText(this, getString(R.string.msg_no_image_selected), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Toast.makeText(this, getString(R.string.status_uploading_avatar), Toast.LENGTH_SHORT).show();
+        
+        try {
+            // Convert URI to File
+            java.io.File imageFile = new java.io.File(selectedImageUri.getPath());
+            
+            String token = databaseManager.getToken();
+            apiClient.uploadGroupAvatar(token, currentChat.getId(), imageFile, new Callback() {
+                @Override
+                public void onFailure(Call call, java.io.IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_upload_avatar_detail, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws java.io.IOException {
+                    String responseBody = response.body().string();
+                    runOnUiThread(() -> {
+                        if (response.code() == 200) {
+                            try {
+                                org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                                if (jsonResponse.optBoolean("success", false)) {
+                                    String avatarUrl = jsonResponse.getJSONObject("data").getString("avatarUrl");
+                                    
+                                    android.util.Log.d("GroupAvatar", "Avatar upload response: " + avatarUrl);
+                                    
+                                    // Update current chat with new avatar URL
+                                    currentChat.setAvatar(avatarUrl);
+                                    
+                                    android.util.Log.d("GroupAvatar", "Updated chat avatar: " + currentChat.getAvatar());
+                                    
+                                    // Refresh the UI with new avatar
+                                    updateUI();
+                                    
+                                    Toast.makeText(GroupChatActivity.this, getString(R.string.success_avatar_updated_successfully), Toast.LENGTH_SHORT).show();
+                                    isChangingAvatar = false;
+                                } else {
+                                    Toast.makeText(GroupChatActivity.this, getString(R.string.error_upload_avatar_detail, jsonResponse.optString("message")), Toast.LENGTH_LONG).show();
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                Toast.makeText(GroupChatActivity.this, getString(R.string.error_request_failed), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_code, response.code()), Toast.LENGTH_SHORT).show();
+                        }
+                        isChangingAvatar = false;
+                    });
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_preparing_image_for_upload), Toast.LENGTH_SHORT).show();
+            isChangingAvatar = false;
+        }
+    }
+    
+    private void testPublicImage() {
+        android.util.Log.d("GroupAvatar", "Testing with public image");
+        String publicImageUrl = "https://via.placeholder.com/150x150/0000FF/FFFFFF?text=TEST";
+        
+        com.squareup.picasso.Picasso.get()
+                .load(publicImageUrl)
+                .placeholder(R.drawable.ic_group_avatar)
+                .error(R.drawable.ic_group_avatar)
+                .into(ivProfile, new com.squareup.picasso.Callback() {
+                    @Override
+                    public void onSuccess() {
+                        android.util.Log.d("GroupAvatar", "Public image SUCCESS: " + publicImageUrl);
+                    }
+                    
+                    @Override
+                    public void onError(Exception e) {
+                        android.util.Log.e("GroupAvatar", "Public image FAILED: " + publicImageUrl, e);
+                    }
+                });
+    }
+
+    private void addMembers() {
+        // Navigate to contact selection for adding members
+        Intent intent = new Intent(this, SearchActivity.class);
+        intent.putExtra("mode", "add_members");
+
+        try {
+            intent.putExtra("chat", currentChat.toJson().toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_converting_chat_to_json), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        startActivity(intent);
+    }
+
+    
+    private void removeMembers() {
+        // Navigate to GroupMembersActivity for removing members
+        Intent intent = new Intent(this, GroupMembersActivity.class);
+        intent.putExtra("mode", "remove_members");
+        try {
+            intent.putExtra("chat", currentChat.toJson().toString());
+            startActivity(intent);
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_opening_members_list), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void confirmLeaveGroup() {
+        new AlertDialog.Builder(this)
+                .setTitle("Leave Group")
+                .setMessage("Are you sure you want to leave this group? You will no longer receive messages from this group.")
+                .setPositiveButton("Leave", (dialog, which) -> leaveGroup())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+    
+    private void leaveGroup() {
+        if (currentChat == null) return;
+        
+        Toast.makeText(this, getString(R.string.status_leaving_group), Toast.LENGTH_SHORT).show();
+        
+        String token = databaseManager.getToken();
+        apiClient.leaveGroup(token, currentChat.getId(), new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        try {
+                            String responseBody = response.body().string();
+                            org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                            
+                            if (jsonResponse.optBoolean("deleted", false)) {
+                                // Group was deleted
+                                String message = jsonResponse.optString("message", "Group deleted successfully");
+                                Toast.makeText(GroupChatActivity.this, message, Toast.LENGTH_LONG).show();
+                            } else {
+                                // Normal leave
+                                Toast.makeText(GroupChatActivity.this, getString(R.string.success_left_group_successfully), Toast.LENGTH_SHORT).show();
+                            }
+                            
+                            // Add small delay to ensure server processing is complete
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                finish(); // Close the chat activity
+                            }, 500);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.success_left_group_successfully), Toast.LENGTH_SHORT).show();
+                            finish();
+                        }
+                    } else {
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_leave_group), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(GroupChatActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    private void confirmDeleteGroup() {
+        com.example.chatappjava.utils.DialogUtils.showConfirm(
+            this,
+            "Delete Group",
+            "Are you sure you want to delete this group? This action cannot be undone and all messages will be lost.",
+            "Delete",
+            "Cancel",
+            this::deleteGroup,
+            null,
+            false
+        );
+    }
+    
+    private void deleteGroup() {
+        if (currentChat == null) return;
+        
+        Toast.makeText(this, getString(R.string.status_deleting_group), Toast.LENGTH_SHORT).show();
+        
+        String token = databaseManager.getToken();
+        String groupId = currentChat.getGroupId();
+        
+        // Use deleteGroup API if groupId is available
+        if (groupId != null && !groupId.isEmpty()) {
+            apiClient.deleteGroup(token, groupId, new Callback() {
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.success_group_deleted_successfully), Toast.LENGTH_SHORT).show();
+                            finish(); // Close the chat activity
+                        } else {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_delete_group), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } else {
+            // If groupId is not available, find group by name and then delete
+            // This matches the server logic in leaveChat: Group.findOne({ name: chat.name, isActive: true })
+            findGroupByNameAndDelete(token, currentChat.getName());
+        }
+    }
+    
+    private void findGroupByNameAndDelete(String token, String groupName) {
+        if (groupName == null || groupName.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_cannot_find_group), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Search groups by exact name
+        String encodedName = "";
+        try {
+            encodedName = URLEncoder.encode(groupName, "UTF-8");
+        } catch (Exception e) {
+            encodedName = groupName.replace(" ", "%20");
+        }
+        String searchUrl = com.example.chatappjava.config.ServerConfig.getBaseUrl() + "/api/groups?search=" + encodedName;
+        
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(searchUrl)
+                .get()
+                .addHeader("Authorization", "Bearer " + token)
+                .build();
+        
+        okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject data = jsonResponse.optJSONObject("data");
+                        if (data != null) {
+                            org.json.JSONArray groups = data.optJSONArray("groups");
+                            if (groups != null && groups.length() > 0) {
+                                // Find exact match by name
+                                for (int i = 0; i < groups.length(); i++) {
+                                    org.json.JSONObject group = groups.getJSONObject(i);
+                                    String name = group.optString("name", "");
+                                    if (name.equals(groupName)) {
+                                        String foundGroupId = group.optString("_id", "");
+                                        if (!foundGroupId.isEmpty()) {
+                                            // Delete the found group
+                                            runOnUiThread(() -> {
+                                                apiClient.deleteGroup(token, foundGroupId, new Callback() {
+                                                    @Override
+                                                    public void onResponse(Call call, Response response) throws IOException {
+                                                        runOnUiThread(() -> {
+                                                            if (response.isSuccessful()) {
+                                                                Toast.makeText(GroupChatActivity.this, getString(R.string.success_group_deleted_successfully), Toast.LENGTH_SHORT).show();
+                                                                finish();
+                                                            } else {
+                                                                Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_delete_group), Toast.LENGTH_SHORT).show();
+                                                            }
+                                                        });
+                                                    }
+                                                    
+                                                    @Override
+                                                    public void onFailure(Call call, IOException e) {
+                                                        runOnUiThread(() -> {
+                                                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                                                        });
+                                                    }
+                                                });
+                                            });
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // If no exact match found, show error
+                        runOnUiThread(() -> {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_group_not_found), Toast.LENGTH_SHORT).show();
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_error_finding_group), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_find_group), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+            
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(GroupChatActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Reload group data when returning to activity
+        // This ensures group changes are reflected immediately
+        if (currentChat != null) {
+            loadGroupData();
+            checkForActiveGroupCall();
+        }
+    }
+    
+    private void setupGroupCallNotification() {
+        groupCallNotification = findViewById(R.id.group_call_notification);
+        tvGroupCallNotificationText = findViewById(R.id.tv_group_call_notification_text);
+        
+        android.util.Log.d("GroupChatActivity", "setupGroupCallNotification:");
+        android.util.Log.d("GroupChatActivity", "  groupCallNotification: " + (groupCallNotification != null ? "found" : "NULL"));
+        android.util.Log.d("GroupChatActivity", "  tvGroupCallNotificationText: " + (tvGroupCallNotificationText != null ? "found" : "NULL"));
+        
+        if (groupCallNotification != null) {
+            groupCallNotification.setOnClickListener(v -> joinActiveGroupCall());
+            android.util.Log.d("GroupChatActivity", "Notification view initialized and click listener set");
+        } else {
+            android.util.Log.e("GroupChatActivity", "CRITICAL: group_call_notification view not found in layout!");
+        }
+        
+        // Listen for socket events about group calls
+        setupGroupCallSocketListeners();
+    }
+    
+    private void setupGroupCallSocketListeners() {
+        if (socketManager == null) {
+            android.util.Log.e("GroupChatActivity", "SocketManager is null, cannot setup listeners");
+            return;
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Setting up group call socket listeners");
+        android.util.Log.d("GroupChatActivity", "Current chat: " + (currentChat != null ? currentChat.getId() : "null"));
+        
+        // Remove existing listeners to avoid duplicates
+        socketManager.off("group_call_passive_alert");
+        socketManager.off("group_call_passive_alert_broadcast");
+        socketManager.off("group_call_started");
+        socketManager.off("call_ended");
+        socketManager.off("group_call_participant_joined");
+        socketManager.off("group_call_participant_left");
+        
+        // LISTENER 1: Primary event - direct to user room
+        socketManager.on("group_call_passive_alert", args -> {
+            android.util.Log.d("GroupChatActivity", "Received group_call_passive_alert");
+            handleGroupCallAlert(args);
+        });
+        
+        // LISTENER 2: Broadcast event - to all connected clients
+        socketManager.on("group_call_passive_alert_broadcast", args -> {
+            android.util.Log.d("GroupChatActivity", "Received group_call_passive_alert_broadcast");
+            if (args.length > 0 && args[0] instanceof JSONObject) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String targetChatId = data.optString("targetChatId", "");
+                    
+                    // Filter: only process if this is for our chat
+                    if (currentChat != null && currentChat.getId().equals(targetChatId)) {
+                        android.util.Log.d("GroupChatActivity", "Broadcast matches our chat, processing");
+                        handleGroupCallAlert(args);
+                    } else {
+                        android.util.Log.d("GroupChatActivity", "Broadcast for different chat, ignoring");
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("GroupChatActivity", "Error filtering broadcast", e);
+                }
+            }
+        });
+        
+        // LISTENER 3: Alternative event name (group_call_started)
+        socketManager.on("group_call_started", args -> {
+            android.util.Log.d("GroupChatActivity", "Received group_call_started");
+            handleGroupCallAlert(args);
+        });
+        
+        // Continue with other listeners
+        continueSetupGroupCallSocketListeners();
+        
+        android.util.Log.d("GroupChatActivity", "All group call socket listeners registered");
+    }
+    
+    private void handleGroupCallAlert(Object[] args) {
+        android.util.Log.d("GroupChatActivity", "handleGroupCallAlert called with " + args.length + " args");
+        
+        if (args.length > 0 && args[0] instanceof JSONObject) {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String eventChatId = data.optString("chatId", "");
+                String callId = data.optString("callId", "");
+                String callerName = data.optString("callerName", "Unknown");
+                JSONObject callerObj = data.optJSONObject("caller");
+                String callerId = callerObj != null ? callerObj.optString("id", "") : "";
+                
+                android.util.Log.d("GroupChatActivity", "Call alert details:");
+                android.util.Log.d("GroupChatActivity", "  eventChatId: " + eventChatId);
+                android.util.Log.d("GroupChatActivity", "  callId: " + callId);
+                android.util.Log.d("GroupChatActivity", "  callerName: " + callerName);
+                android.util.Log.d("GroupChatActivity", "  callerId: " + callerId);
+                android.util.Log.d("GroupChatActivity", "  currentChatId: " + (currentChat != null ? currentChat.getId() : "null"));
+                
+                // Validate we have required data
+                if (callId.isEmpty()) {
+                    android.util.Log.e("GroupChatActivity", "Call alert missing callId, ignoring");
+                    return;
+                }
+                
+                // Simplified: Show notification for all users (no caller check)
+                android.util.Log.d("GroupChatActivity", "✓ Will show notification for call");
+                
+                // CRITICAL FIX: Show notification ONLY if chat matches
+                // This ensures notification is only shown when user is viewing the relevant chat
+                boolean shouldShowNotification = false;
+                
+                if (currentChat != null && eventChatId != null && !eventChatId.isEmpty()) {
+                    // Normalize chat IDs for comparison
+                    String normalizedCurrentChatId = currentChat.getId().trim();
+                    String normalizedEventChatId = eventChatId.trim();
+                    
+                    if (normalizedCurrentChatId.equals(normalizedEventChatId)) {
+                        android.util.Log.d("GroupChatActivity", "✓ Chat matches! Showing notification");
+                        android.util.Log.d("GroupChatActivity", "  currentChatId: " + normalizedCurrentChatId);
+                        android.util.Log.d("GroupChatActivity", "  eventChatId: " + normalizedEventChatId);
+                        shouldShowNotification = true;
+                    } else {
+                        android.util.Log.d("GroupChatActivity", "✗ Chat doesn't match, ignoring");
+                        android.util.Log.d("GroupChatActivity", "  currentChatId: " + normalizedCurrentChatId);
+                        android.util.Log.d("GroupChatActivity", "  eventChatId: " + normalizedEventChatId);
+                    }
+                } else {
+                    android.util.Log.d("GroupChatActivity", "✗ Missing chat info, ignoring");
+                    android.util.Log.d("GroupChatActivity", "  currentChat: " + (currentChat != null ? "exists" : "null"));
+                    android.util.Log.d("GroupChatActivity", "  eventChatId: " + (eventChatId != null ? eventChatId : "null"));
+                }
+                
+                if (shouldShowNotification) {
+                    android.util.Log.d("GroupChatActivity", "  callId: " + callId);
+                    
+                    runOnUiThread(() -> {
+                        android.util.Log.d("GroupChatActivity", "On UI thread, calling showGroupCallNotification");
+                        // Simplified: Just show notification without caller name
+                        showGroupCallNotification(callId);
+                    });
+                }
+            } catch (Exception e) {
+                android.util.Log.e("GroupChatActivity", "Error parsing group call alert", e);
+                e.printStackTrace();
+            }
+        } else {
+            android.util.Log.e("GroupChatActivity", "Invalid args for group call alert");
+        }
+    }
+    
+    private void continueSetupGroupCallSocketListeners() {
+        // Listen for call ended
+        socketManager.on("call_ended", args -> {
+            android.util.Log.d("GroupChatActivity", "Received call_ended event");
+            if (args.length > 0 && args[0] instanceof JSONObject) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String endedCallId = data.optString("callId", "");
+                    
+                    android.util.Log.d("GroupChatActivity", "Call ended: " + endedCallId + ", active: " + activeCallId);
+                    
+                    // Hide notification if this is the active call OR if no specific callId matches (broadcast)
+                    if (endedCallId.isEmpty() || endedCallId.equals(activeCallId)) {
+                        android.util.Log.d("GroupChatActivity", "Hiding notification for ended call");
+                        runOnUiThread(this::hideGroupCallNotification);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("GroupChatActivity", "Error parsing call ended", e);
+                }
+            }
+        });
+        
+        // Listen for participants joining (to keep notification in sync)
+        socketManager.on("group_call_participant_joined", args -> {
+            if (args.length > 0 && args[0] instanceof JSONObject) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String callId = data.optString("callId", "");
+                    String userId = data.optString("userId", "");
+                    String username = data.optString("username", "Someone");
+                    
+                    // If this is for our active call and it's not us, keep showing notification
+                    if (callId.equals(activeCallId) && !userId.equals(databaseManager.getUserId())) {
+                        android.util.Log.d("GroupChatActivity", username + " joined the call");
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("GroupChatActivity", "Error parsing participant joined", e);
+                }
+            }
+        });
+        
+        // Listen for participants leaving
+        socketManager.on("group_call_participant_left", args -> {
+            if (args.length > 0 && args[0] instanceof JSONObject) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String callId = data.optString("callId", "");
+                    boolean allLeft = data.optBoolean("allLeft", false);
+                    
+                    // If all participants left, hide notification
+                    if (callId.equals(activeCallId) && allLeft) {
+                        android.util.Log.d("GroupChatActivity", "All participants left, hiding notification");
+                        runOnUiThread(this::hideGroupCallNotification);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("GroupChatActivity", "Error parsing participant left", e);
+                }
+            }
+        });
+        
+        android.util.Log.d("GroupChatActivity", "Group call socket listeners registered");
+    }
+    
+    // Throttle mechanism to avoid calling API too frequently
+    private long lastActiveCallCheckTime = 0;
+    private static final long ACTIVE_CALL_CHECK_INTERVAL_MS = 5000; // Only check every 5 seconds
+    private boolean isCheckingActiveCall = false;
+    
+    private void checkForActiveGroupCall() {
+        if (currentChat == null) return;
+        
+        // Throttle: Only check if 5 seconds have passed since last check
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastActiveCallCheckTime < ACTIVE_CALL_CHECK_INTERVAL_MS) {
+            android.util.Log.d("GroupChatActivity", "Skipping active call check - too soon (throttled)");
+            return;
+        }
+        
+        // Avoid concurrent requests
+        if (isCheckingActiveCall) {
+            android.util.Log.d("GroupChatActivity", "Active call check already in progress, skipping");
+            return;
+        }
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        String currentUserId = databaseManager.getUserId();
+        
+        isCheckingActiveCall = true;
+        lastActiveCallCheckTime = currentTime;
+        
+        // Check for active group call via API
+        apiClient.authenticatedGet("/api/group-calls/chat/" + currentChat.getId() + "/active", token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to check for active call", e);
+                isCheckingActiveCall = false;
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                isCheckingActiveCall = false;
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    try {
+                        if (response.code() == 200) {
+                            JSONObject jsonResponse = new JSONObject(responseBody);
+                            if (jsonResponse.optBoolean("success", false)) {
+                                // CRITICAL FIX: Check if data exists and is not null
+                                if (!jsonResponse.has("data") || jsonResponse.isNull("data")) {
+                                    android.util.Log.d("GroupChatActivity", "No call data in response (data is null or missing)");
+                                    hideGroupCallNotification();
+                                    return;
+                                }
+                                
+                                JSONObject data = jsonResponse.getJSONObject("data");
+                                if (data == null || data.isNull("callId")) {
+                                    android.util.Log.d("GroupChatActivity", "No call data in response");
+                                    hideGroupCallNotification();
+                                    return;
+                                }
+                                
+                                String callId = data.getString("callId");
+                                String status = data.optString("status", "");
+                                
+                                // CRITICAL FIX: Don't show notification for ended calls
+                                if ("ended".equals(status)) {
+                                    android.util.Log.d("GroupChatActivity", "Call is ended, hiding notification");
+                                    hideGroupCallNotification();
+                                    return;
+                                }
+                                
+                                // CRITICAL FIX: Don't show notification if current user is the caller
+                                JSONArray participants = data.optJSONArray("participants");
+                                if (participants != null && currentUserId != null && !currentUserId.isEmpty()) {
+                                    for (int i = 0; i < participants.length(); i++) {
+                                        JSONObject participant = participants.getJSONObject(i);
+                                        String participantUserId = participant.optString("userId", "");
+                                        boolean isCaller = participant.optBoolean("isCaller", false);
+                                        
+                                        if (currentUserId.equals(participantUserId) && isCaller) {
+                                            android.util.Log.d("GroupChatActivity", "Current user is the caller, not showing notification");
+                                            hideGroupCallNotification();
+                                            return;
+                                        }
+                                    }
+                                }
+                                
+                                // Show notification if call is active
+                                if ("active".equals(status) || "notified".equals(status)) {
+                                    showGroupCallNotification(callId);
+                                } else {
+                                    hideGroupCallNotification();
+                                }
+                            } else {
+                                // No active call found
+                                hideGroupCallNotification();
+                            }
+                        } else {
+                            // No active call (404 or other error)
+                            hideGroupCallNotification();
+                        }
+                    } catch (JSONException e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing active call response", e);
+                        hideGroupCallNotification();
+                    } finally {
+                        isCheckingActiveCall = false;
+                    }
+                });
+            }
+        });
+    }
+    
+    private void showGroupCallNotification(String callId) {
+        android.util.Log.d("GroupChatActivity", "showGroupCallNotification called with callId: " + callId);
+        android.util.Log.d("GroupChatActivity", "  groupCallNotification view: " + (groupCallNotification != null ? "exists" : "NULL"));
+        
+        if (callId == null || callId.isEmpty()) {
+            android.util.Log.e("GroupChatActivity", "Cannot show notification: callId is null or empty");
+            return;
+        }
+        
+        this.activeCallId = callId;
+        
+        if (groupCallNotification == null) {
+            android.util.Log.e("GroupChatActivity", "CRITICAL: groupCallNotification is null! Trying to reinitialize...");
+            // Try to reinitialize
+            groupCallNotification = findViewById(R.id.group_call_notification);
+            tvGroupCallNotificationText = findViewById(R.id.tv_group_call_notification_text);
+            if (groupCallNotification == null) {
+                android.util.Log.e("GroupChatActivity", "Still null after reinit! View might not be in layout.");
+                Toast.makeText(this, getString(R.string.error_notification_view_not_found), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            groupCallNotification.setOnClickListener(v -> joinActiveGroupCall());
+        }
+        
+        // Simplified: Always show "Call is started" without caller name
+        if (tvGroupCallNotificationText != null) {
+            String notificationText = "Call is started";
+            tvGroupCallNotificationText.setText(notificationText);
+            android.util.Log.d("GroupChatActivity", "Updated notification text: " + notificationText);
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Setting notification visible and animating");
+        runOnUiThread(() -> {
+            try {
+                groupCallNotification.setVisibility(View.VISIBLE);
+                groupCallNotification.bringToFront(); // Ensure it's on top
+                
+                com.example.chatappjava.utils.MotionUtils.revealView(
+                        GroupChatActivity.this,
+                        groupCallNotification);
+                
+                android.util.Log.d("GroupChatActivity", "Notification shown successfully for call: " + callId);
+            } catch (Exception e) {
+                android.util.Log.e("GroupChatActivity", "Error showing notification", e);
+                e.printStackTrace();
+            }
+        });
+    }
+    
+    private void hideGroupCallNotification() {
+        android.util.Log.d("GroupChatActivity", "hideGroupCallNotification called");
+        // Don't clear activeCallId here - it might still be active when user joins
+        // this.activeCallId = null;
+        if (groupCallNotification != null) {
+            runOnUiThread(() ->
+                    com.example.chatappjava.utils.MotionUtils.dismissView(
+                            GroupChatActivity.this,
+                            groupCallNotification,
+                            null));
+        }
+        android.util.Log.d("GroupChatActivity", "Hiding group call notification");
+    }
+    
+    private void joinActiveGroupCall() {
+        android.util.Log.d("GroupChatActivity", "joinActiveGroupCall called");
+        android.util.Log.d("GroupChatActivity", "currentChat: " + (currentChat != null ? currentChat.getId() : "null"));
+        android.util.Log.d("GroupChatActivity", "activeCallId: " + activeCallId);
+        
+        // CRITICAL: Hide notification when user joins call
+        hideGroupCallNotification();
+        
+        if (currentChat == null) {
+            android.util.Log.e("GroupChatActivity", "Cannot join: currentChat is null");
+            Toast.makeText(this, getString(R.string.msg_chat_not_loaded), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // CRITICAL FIX: If activeCallId is not set, check server first before giving up
+        if (activeCallId == null || activeCallId.isEmpty()) {
+            android.util.Log.w("GroupChatActivity", "activeCallId not set, checking server for active call...");
+            // Check server for active call and join it
+            checkForActiveCallBeforeStarting(0);
+            return;
+        }
+        
+        android.util.Log.d("GroupChatActivity", "Starting GroupVideoCallActivity with:");
+        android.util.Log.d("GroupChatActivity", "  chatId: " + currentChat.getId());
+        android.util.Log.d("GroupChatActivity", "  groupName: " + currentChat.getName());
+        android.util.Log.d("GroupChatActivity", "  callId: " + activeCallId);
+        android.util.Log.d("GroupChatActivity", "  isCaller: false");
+        
+        // Launch video call activity
+        Intent intent = new Intent(this, com.example.chatappjava.ui.call.GroupVideoCallActivity.class);
+        intent.putExtra("callId", activeCallId);
+        intent.putExtra("chatId", currentChat.getId());
+        intent.putExtra("groupName", currentChat.getName());
+        intent.putExtra("isCaller", false);
+        startActivity(intent);
+    }
+    
+    private void fetchActualMemberCount() {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty() || currentChat == null) return;
+        
+        // Use the same method as GroupMembersActivity to get actual member count
+        apiClient.getGroupMembers(token, currentChat.getId(), new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to fetch member count: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                String responseBody = response.body().string();
+                runOnUiThread(() -> {
+                    handleMemberCountResponse(response.code(), responseBody);
+                });
+            }
+        });
+    }
+    
+    private void handleMemberCountResponse(int statusCode, String responseBody) {
+        try {
+            if (statusCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                if (jsonResponse.optBoolean("success", false)) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    JSONArray membersArray = data.getJSONArray("members");
+                    
+                    int actualMemberCount = membersArray.length();
+                    android.util.Log.d("GroupChatActivity", "Actual member count from server: " + actualMemberCount);
+                    updateChatStatusSubtitle(getString(R.string.group_member_count, actualMemberCount));
+
+                } else {
+                    android.util.Log.e("GroupChatActivity", "Failed to get member count: " + jsonResponse.optString("message"));
+                }
+            } else {
+                android.util.Log.e("GroupChatActivity", "Failed to get member count: " + statusCode);
+            }
+        } catch (JSONException e) {
+            android.util.Log.e("GroupChatActivity", "Error parsing member count response: " + e.getMessage());
+        }
+    }
+    
+    private void loadGroupData() {
+        if (currentChat == null) return;
+        
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) return;
+        
+        // Use ApiClient to get updated group data
+        apiClient.authenticatedGet("/api/chats/" + currentChat.getId(), token, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                android.util.Log.e("GroupChatActivity", "Failed to reload group data: " + e.getMessage());
+            }
+            
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    try {
+                        String responseBody = response.body().string();
+                        org.json.JSONObject jsonResponse = new org.json.JSONObject(responseBody);
+                        org.json.JSONObject chatData = jsonResponse.getJSONObject("data").getJSONObject("chat");
+                        
+                        runOnUiThread(() -> {
+                            try {
+                                android.util.Log.d("GroupChatActivity", "Server response chatData: " + chatData.toString());
+                                String preservedType = currentChat.getType();
+                                Chat refreshed = Chat.fromJson(chatData);
+                                if ((refreshed.getType() == null || refreshed.getType().isEmpty())
+                                        && preservedType != null && !preservedType.isEmpty()) {
+                                    refreshed.setType(preservedType);
+                                }
+                                currentChat = refreshed;
+                                refreshMessageAdapterMode();
+                                android.util.Log.d("GroupChatActivity", "After parsing - Participant count: " + currentChat.getParticipantCount());
+                                android.util.Log.d("GroupChatActivity", "After parsing - Participant IDs: " + currentChat.getParticipantIds());
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                            updateUI();
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("GroupChatActivity", "Error parsing group data: " + e.getMessage());
+                    }
+                }
+            }
+        });
+    }
+    
+    private void showGroupSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_group_settings, null);
+        
+        // Set group name
+        TextView tvGroupName = dialogView.findViewById(R.id.tv_group_name);
+        tvGroupName.setText(currentChat.getName());
+        
+        // Set current privacy setting
+        android.widget.Switch switchPublic = dialogView.findViewById(R.id.switch_public);
+        switchPublic.setChecked(currentChat.isPublicGroup());
+        
+        // Set button listeners
+        android.widget.Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        android.widget.Button btnSave = dialogView.findViewById(R.id.btn_save);
+        
+        AlertDialog dialog = builder.setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            android.view.Window w = dialog.getWindow();
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSave.setOnClickListener(v -> {
+            boolean isPublic = switchPublic.isChecked();
+            updateGroupSettings(isPublic);
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+    
+    private void updateGroupSettings(boolean isPublic) {
+        String token = databaseManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Toast.makeText(this, getString(R.string.error_please_login_again), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        try {
+            JSONObject settingsData = new JSONObject();
+            JSONObject settings = new JSONObject();
+            settings.put("isPublic", isPublic);
+            settingsData.put("settings", settings);
+            
+            Toast.makeText(this, getString(R.string.status_updating_group_settings), Toast.LENGTH_SHORT).show();
+            
+            apiClient.updateGroupSettings(token, currentChat.getId(), settingsData, new okhttp3.Callback() {
+                @Override
+                public void onResponse(okhttp3.Call call, okhttp3.Response response) throws IOException {
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.success_group_settings_updated_successfully), Toast.LENGTH_SHORT).show();
+                            // Update local chat object
+                            currentChat.setIsPublic(isPublic);
+                        } else {
+                            Toast.makeText(GroupChatActivity.this, getString(R.string.error_failed_to_update_group_settings), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(okhttp3.Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(GroupChatActivity.this, getString(R.string.error_network_detail, e.getMessage()), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.error_error_preparing_request), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+}

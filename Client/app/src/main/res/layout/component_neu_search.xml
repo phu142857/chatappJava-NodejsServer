@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neumorphic Copper search trench: tappable hint row (opens SearchActivity) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/search_bar_home"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/neu_copper_search_height"
+    android:background="@drawable/bg_neu_copper_sunken_pill"
+    android:clickable="true"
+    android:contentDescription="@string/home_search_bar_cd"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg">
+
+    <ImageView
+        android:id="@+id/iv_search_icon"
+        android:layout_width="@dimen/icon_search"
+        android:layout_height="@dimen/icon_search"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:contentDescription="@string/search_icon_description"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_search"
+        app:tint="@color/neu_copper_ink_muted" />
+
+    <TextView
+        android:id="@+id/tv_search_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:gravity="center_vertical"
+        android:text="@string/search_hint"
+        android:textColor="@color/neu_copper_ink_muted"
+        android:textSize="@dimen/text_body_medium"
+        tools:text="Search" />
+
+</LinearLayout>

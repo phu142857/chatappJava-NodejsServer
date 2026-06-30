@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_chat_screen_dark">
+
+    <!-- Remote user video full screen -->
+    <FrameLayout
+        android:id="@+id/fl_remote_video"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/video_stage"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_remote_video_frame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <!-- Remote user placeholder -->
+        <LinearLayout
+            android:id="@+id/ll_remote_placeholder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:background="@drawable/bg_chat_screen_dark"
+            android:visibility="visible">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_remote_avatar"
+                android:layout_width="122dp"
+                android:layout_height="122dp"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_color="@color/md3_border_glow"
+                app:civ_border_width="2dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Local user video floating -->
+    <FrameLayout
+        android:id="@+id/fl_local_video"
+        android:layout_width="124dp"
+        android:layout_height="166dp"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/margin_mobile"
+        android:background="@drawable/bg_soft_inset"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_local_video_frame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <!-- Local user placeholder -->
+        <LinearLayout
+            android:id="@+id/ll_local_placeholder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:background="@color/video_stage_soft"
+            android:visibility="visible">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_local_avatar"
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:src="@drawable/ic_profile_placeholder"
+                app:civ_border_color="@color/md3_border_glow"
+                app:civ_border_width="1.5dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Flat call control dock -->
+    <LinearLayout
+        android:id="@+id/call_controls_container"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/call_controls_dock_height"
+        android:background="@drawable/bg_neu_composer_dock"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/margin_mobile"
+        android:paddingEnd="@dimen/margin_mobile"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingBottom="@dimen/spacing_sm"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Call duration -->
+        <TextView
+            android:id="@+id/tv_call_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:minWidth="72dp"
+            android:gravity="center"
+            android:text="@string/call_timer_placeholder"
+            android:textColor="@color/md3_on_surface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_icon_circle_dark" />
+
+        <!-- Mute button -->
+        <ImageButton
+            android:id="@+id/btn_mute"
+            android:layout_width="@dimen/call_control_button_size"
+            android:layout_height="@dimen/call_control_button_size"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_icon_circle_dark"
+            android:contentDescription="@string/call_mute_cd"
+            android:src="@drawable/ic_mic"
+            android:scaleType="centerInside"
+            android:padding="14dp"
+            app:tint="@color/neu_copper_accent" />
+
+        <!-- Camera toggle button -->
+        <ImageButton
+            android:id="@+id/btn_camera_toggle"
+            android:layout_width="@dimen/call_control_button_size"
+            android:layout_height="@dimen/call_control_button_size"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_icon_circle_dark"
+            android:contentDescription="@string/call_camera_off_cd"
+            android:src="@drawable/ic_video_call"
+            android:scaleType="centerInside"
+            android:padding="14dp"
+            app:tint="@color/neu_copper_accent" />
+
+        <!-- Switch camera button -->
+        <ImageButton
+            android:id="@+id/btn_switch_camera"
+            android:layout_width="@dimen/call_control_button_size"
+            android:layout_height="@dimen/call_control_button_size"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_icon_circle_dark"
+            android:contentDescription="@string/call_switch_camera_cd"
+            android:src="@drawable/ic_switch_camera"
+            android:scaleType="centerInside"
+            android:padding="14dp"
+            app:tint="@color/neu_copper_ink_muted" />
+
+        <!-- End call button -->
+        <ImageButton
+            android:id="@+id/btn_end_call"
+            android:layout_width="@dimen/call_end_button_size"
+            android:layout_height="@dimen/call_end_button_size"
+            android:background="@drawable/bg_call_decline_circle"
+            android:contentDescription="@string/call_end_cd"
+            android:src="@drawable/ic_end_call"
+            android:padding="16dp"
+            android:scaleType="centerInside"
+            app:tint="@color/text_white" />
+
+    </LinearLayout>
+
+    <!-- Loading overlay -->
+    <LinearLayout
+        android:id="@+id/loading_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/call_overlay_scrim"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ProgressBar
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:indeterminateTint="@color/md3_primary" />
+
+        <TextView
+            android:id="@+id/tv_loading_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/call_connecting"
+            android:textColor="@color/text_white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

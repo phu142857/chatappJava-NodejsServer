@@ -1,0 +1,421 @@
+import { useEffect, useState } from 'react';
+import { App as AntdApp, Avatar, Card, List, Typography, Tag, Space, Button, Modal, Input, Form, Mentions } from 'antd';
+import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
+import apiClient from '../api/client';
+import dayjs from 'dayjs';
+import { API_BASE_URL } from '../config';
+
+const { Title, Text } = Typography;
+
+interface Chat {
+  _id: string;
+  type: 'private' | 'group';
+  name?: string;
+  participants: Array<{
+    _id: string;
+    username: string;
+    avatar?: string;
+  }>;
+  otherParticipant?: {
+    id: string;
+    username: string;
+    email: string;
+    avatar?: string;
+    status: string;
+  };
+  lastMessage?: {
+    content: string;
+    sender: {
+      username: string;
+    };
+    timestamp: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Message {
+  _id: string;
+  content: string;
+  sender?: {
+    _id: string;
+    username: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  type?: 'text' | 'image' | 'file' | 'audio' | 'video' | 'system';
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    url: string;
+    thumbnail?: string;
+  }>;
+  isDeleted?: boolean;
+}
+
+export default function UserChats() {
+  const { message: messageApi } = AntdApp.useApp();
+  const [loading, setLoading] = useState(false);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState<string>('');
+  const [sending, setSending] = useState<boolean>(false);
+  const [polling, setPolling] = useState<boolean>(false);
+  const [pollIntervalMs] = useState<number>(3000);
+
+  useEffect(() => {
+    fetchChats();
+  }, []);
+
+  const fetchChats = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/chats');
+      console.log('Chats response:', response.data.data.chats);
+      setChats(response.data.data.chats || []);
+    } catch (error) {
+      console.error('Failed to fetch chats:', error);
+      messageApi.error('Failed to load chats');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMessages = async (chatId: string) => {
+    setMessagesLoading(true);
+    try {
+      const response = await apiClient.get(`/messages/${chatId}`);
+      setMessages(response.data.data.messages || []);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+      messageApi.error('Failed to load messages');
+      setMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return undefined;
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    // Avatar path from server is already in format /uploads/avatars/filename.jpg
+    return `${base}${avatar}`;
+  };
+
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = API_BASE_URL.replace(/\/$/, '');
+    return `${base}${url}`;
+  };
+
+  const replaceEmojiShortcodes = (text: string) => {
+    const map: Record<string, string> = {
+      smile: '😄',
+      grin: '😁',
+      joy: '😂',
+      wink: '😉',
+      blush: '😊',
+      heart: '❤️',
+      thumbs_up: '👍',
+      thumbsdown: '👎',
+      cry: '😢',
+      sob: '😭',
+      scream: '😱',
+      fire: '🔥',
+      star: '⭐',
+      check: '✅',
+      x: '❌',
+      tada: '🎉'
+    };
+    return text.replace(/:([a-z0-9_+\-]+):/gi, (_, key: string) => map[key.toLowerCase()] || `:${key}:`);
+  };
+
+  const handleViewMessages = (chat: Chat) => {
+    setSelectedChat(chat);
+    fetchMessages(chat._id);
+    setPolling(true);
+  };
+
+  const handleSendMessage = async () => {
+    const content = newMessage.trim();
+    if (!selectedChat) {
+      messageApi.error('No chat selected');
+      return;
+    }
+    if (!content) {
+      return;
+    }
+    try {
+      setSending(true);
+      await apiClient.post('/messages', {
+        chatId: selectedChat._id,
+        content,
+        type: 'text',
+      });
+      setNewMessage('');
+      // Immediately refresh after send
+      fetchMessages(selectedChat._id);
+      // Optionally refresh chat list to update last message preview
+      fetchChats();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      messageApi.error('Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Poll messages while modal is open
+  useEffect(() => {
+    if (!selectedChat || !polling) return;
+    const id = setInterval(() => {
+      fetchMessages(selectedChat._id);
+    }, pollIntervalMs);
+    return () => clearInterval(id);
+  }, [selectedChat, polling, pollIntervalMs]);
+
+  // Stop polling when modal closed
+  useEffect(() => {
+    if (!selectedChat) {
+      setPolling(false);
+    }
+  }, [selectedChat]);
+
+  const getChatDisplayName = (chat: Chat) => {
+    if (chat.type === 'group') {
+      return chat.name || 'Group Chat';
+    } else {
+      // For private chats, use the name set by server or otherParticipant info
+      if (chat.name) {
+        return chat.name;
+      }
+      if (chat.otherParticipant) {
+        return chat.otherParticipant.username;
+      }
+      // Fallback to finding in participants
+      const otherParticipant = chat.participants.find(p => p._id !== getCurrentUserId());
+      return otherParticipant?.username || 'Unknown User';
+    }
+  };
+
+  const getCurrentUserId = () => {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return null;
+    try {
+      const user = JSON.parse(userStr);
+      return user._id;
+    } catch {
+      return null;
+    }
+  };
+
+  const getChatIcon = (chat: Chat) => {
+    if (chat.type === 'group') {
+      return <TeamOutlined />;
+    } else {
+      // Use otherParticipant info if available
+      if (chat.otherParticipant?.avatar) {
+        return <Avatar size="small" src={resolveAvatarUrl(chat.otherParticipant.avatar)} />;
+      }
+      // Fallback to finding in participants
+      const otherParticipant = chat.participants.find(p => p._id !== getCurrentUserId());
+      return otherParticipant?.avatar ? 
+        <Avatar size="small" src={resolveAvatarUrl(otherParticipant.avatar)} /> : 
+        <UserOutlined />;
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px' }}>
+      <Title level={2}>My Chats</Title>
+      
+      <Card>
+        <List
+          loading={loading}
+          dataSource={chats}
+          renderItem={(chat) => (
+            <List.Item
+              key={chat._id}
+              actions={[
+                <Button 
+                  type="link" 
+                  size="small"
+                  onClick={() => handleViewMessages(chat)}
+                >
+                  View Messages
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={getChatIcon(chat)}
+                title={
+                  <Space>
+                    <Text strong>{getChatDisplayName(chat)}</Text>
+                    <Tag color={chat.type === 'group' ? 'blue' : 'green'}>
+                      {chat.type === 'group' ? 'Group' : 'Private'}
+                    </Tag>
+                  </Space>
+                }
+                description={
+                  <div>
+                    {chat.lastMessage ? (
+                      <div>
+                        <Text type="secondary">
+                          {chat.lastMessage.sender.username}: {chat.lastMessage.content}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {dayjs(chat.lastMessage.timestamp).format('MMM DD, YYYY HH:mm')}
+                        </Text>
+                      </div>
+                    ) : (
+                      <Text type="secondary">No messages yet</Text>
+                    )}
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Created: {dayjs(chat.createdAt).format('MMM DD, YYYY')}
+                      </Text>
+                    </div>
+                  </div>
+                }
+              />
+            </List.Item>
+          )}
+        />
+        
+        {chats.length === 0 && !loading && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <MessageOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary">No chats found</Text>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        title={`Messages - ${selectedChat?.type === 'private' ? 'Private Chat' : selectedChat?.name || 'Group'}`}
+        open={!!selectedChat}
+        onCancel={() => {
+          setSelectedChat(null);
+          setMessages([]);
+        }}
+        footer={null}
+        width={800}
+        style={{ top: 20 }}
+      >
+        <div style={{ height: 400, overflowY: 'auto', border: '1px solid #d9d9d9', padding: 16, marginBottom: 12 }}>
+          {messagesLoading ? (
+            <div style={{ textAlign: 'center', padding: 20 }}>Loading messages...</div>
+          ) : messages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>No messages yet</div>
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {messages.map((msg) => (
+                <div key={msg._id} style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  marginBottom: 12,
+                  padding: 8,
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: 8
+                }}>
+                  <Avatar size="small" src={resolveAvatarUrl(msg.sender?.avatar)} style={{ marginRight: 8 }}>
+                    {msg.sender?.username?.[0]?.toUpperCase()}
+                  </Avatar>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Typography.Text strong>{msg.sender?.username || 'Deleted User'}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {dayjs(msg.createdAt).format('MMM DD, YYYY HH:mm')}
+                      </Typography.Text>
+                    </div>
+                    {msg.type === 'image' ? (
+                      (() => {
+                        const src = resolveMediaUrl(msg.attachments && msg.attachments[0] && msg.attachments[0].url);
+                        return src ? (
+                          <img
+                            src={src}
+                            alt="image"
+                            style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 6, marginTop: 4 }}
+                          />
+                        ) : (
+                          <Typography.Text type="secondary">Image</Typography.Text>
+                        );
+                      })()
+                    ) : (
+                      <Typography.Text>{replaceEmojiShortcodes(msg.content)}</Typography.Text>
+                    )}
+                    {msg.type && msg.type !== 'text' && (
+                      <Tag style={{ marginLeft: 8, fontSize: 12 }}>{msg.type}</Tag>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </Space>
+          )}
+        </div>
+        <Form
+          onFinish={handleSendMessage}
+          style={{ display: 'flex', gap: 8 }}
+        >
+          <Form.Item style={{ flex: 1, marginBottom: 0 }}>
+            {selectedChat?.type === 'group' ? (
+              <Mentions
+                value={newMessage}
+                autoSize={{ minRows: 1, maxRows: 4 } as any}
+                placeholder="Type a message... Use @ to mention"
+                onChange={(val) => setNewMessage(val)}
+                onPressEnter={(e: any) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                filterOption={(input, option) => {
+                  const q = (input || '').toLowerCase();
+                  const val = option && typeof option.value !== 'undefined' ? String(option.value).toLowerCase() : '';
+                  return val.includes(q);
+                }}
+              >
+                {(selectedChat?.participants || []).map(p => {
+                  const uname = p?.username || '';
+                  const id = p?._id || uname || Math.random().toString(36).slice(2);
+                  return (
+                    <Mentions.Option key={id} value={uname}>
+                      {uname || 'Unknown'}
+                    </Mentions.Option>
+                  );
+                })}
+              </Mentions>
+            ) : (
+              <Input.TextArea
+                value={newMessage}
+                autoSize={{ minRows: 1, maxRows: 4 }}
+                placeholder="Type a message..."
+                onChange={(e) => setNewMessage(e.target.value)}
+                onPressEnter={(e) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+            )}
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" loading={sending} disabled={!newMessage.trim()}>
+              Send
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
