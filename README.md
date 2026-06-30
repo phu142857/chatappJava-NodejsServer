@@ -86,7 +86,7 @@ Update server IP in:
 
 ## Documentation
 
-* Server: https://github.com/phu142857/chatappJava-NodejsServer/tree/main/ServerNodeJS
+* Server: https://github.com/phu142857/chatappJava-NodejsServer/tree/main/ServerNodeJS/Server/README.md
 * WebAdmin: https://github.com/phu142857/chatappJava-NodejsServer/tree/main/WebAdmin/README.md
 * Client: https://github.com/phu142857/chatappJava-NodejsServer/tree/main/Client/README.md
 
